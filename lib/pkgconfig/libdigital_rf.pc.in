@@ -1,0 +1,12 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=@CMAKE_INSTALL_FULL_LIBDIR@
+includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@
+
+Name: @PROJECT_NAME@
+Description: Digital RF C Library
+Version: @libdigital_rf_VERSION@
+
+Requires: hdf5
+Cflags: -I${includedir}/digital_rf
+Libs: -L${libdir} -ldigital_rf

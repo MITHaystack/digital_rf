@@ -1,0 +1,32 @@
+Digital RF Hdf5 raw data
+
+This project provides C and python code to write and read data in the Digital RF HDF5 format.
+
+Written by Bill Rideout (brideout@haystack.mit.edu)
+
+$Id: RELEASES 5395 2010-11-30 16:59:35Z flind $
+
+	Release 2.0  - Dec 30, 2015
+
+Release 2.0 was a major update to Digital RF, in that file and subdirectory names were made predictable.
+To do this, each file and subdirectory now contains a set range of samples, and files and subdirectories
+will no longer have set number of samples when data is gappy.  This greatly simplified the read api, since
+globs were no longer needed to find the data files that need to be opened; instead all needed file names
+can be derived.
+
+	Release 1.1.1  - Aug 4, 2014
+
+Release 1.1.1 differs from Release 1.1 in that the python read methods were changed.  The method read_vector
+now returns all data in format numpy.complex8, no matter how the data was stored in the underlying Hdf5 file.
+A new method, read_vector_raw duplicates the old read_vector method, returning data in the format stored in
+the Hdf5 raw files.  The method read_vector_c81d that returns data as a single subchannel in numpy.complex8
+format still exists, but issues a UserWarning recommending use of the other methods.
+
+	Release 1.1 - July 7, 2014
+
+Release 1.1 differs from Release 1.0 in that the directory naming convention was changed from HH:MM:SS since certain
+file systems disallowed colons in directory names.  This affected both the read and write API's.
+
+	Release 1.0 - May 29, 2014
+
+Release 1.0 is the first major release of the C and Python API's supporting the Digital RF HDF5 raw data format.

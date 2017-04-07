@@ -1,0 +1,11 @@
+The gr_drf module is useful for interacting with HDF5 files in the
+Digital RF format. To use the gr_drf blocks, the Python namespace is
+in 'gr_drf', which is imported as:
+
+    import gr_drf
+
+See the Doxygen documentation for details about the blocks available
+in this package. A quick listing of the details can be found in Python
+after importing by using:
+
+    help(gr_drf)
