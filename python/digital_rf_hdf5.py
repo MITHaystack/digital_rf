@@ -147,10 +147,10 @@ def get_unix_time(
         Number of samples at given sample rate since UT midnight 1970-01-01
 
     sample_rate_numerator : long
-        Numerator of sample rate, in Hz.
+        Numerator of sample rate in Hz.
 
     sample_rate_denominator : long
-        Denominator of sample rate, in Hz.
+        Denominator of sample rate in Hz.
 
 
     Returns
@@ -158,7 +158,7 @@ def get_unix_time(
 
     dt : datetime.datetime
         Time corresponding to the sample, with microsecond precision. This will
-        give a Unix second of (unix_sample_index // sample_rate).
+        give a Unix second of ``(unix_sample_index // sample_rate)``.
 
     picosecond : long
         Number of picoseconds since the last second in the returned datetime
@@ -188,30 +188,39 @@ class DigitalRFWriter:
     ):
         """Initialize writer to channel directory with given parameters.
 
-        Inputs
-        ------
+        Parameters
+        ----------
 
         directory : string
-            The directory where this channel is to be written.  Must already
+            The directory where this channel is to be written. It must already
             exist and be writable.
 
         dtype_str : string
-            Format of numpy data in string format.  String is format as passed
-            into numpy.dtype() (e.g. numpy.dtype('>i4')). Accepts any legal
-            byte-order character (No character means native), and one of 'i1',
+            Format of numpy data in string format, to be passed into
+            ``numpy.dtype`` (e.g. ``numpy.dtype('>i4')``). Valid strings start
+            with any legal byte-order character (no character means native) and
+            are followed by a type and size identifier such as one of 'i1',
             'u1', 'i2', 'u2', 'i4', 'u4', 'i8', 'u8', 'f', or 'd'.
 
         subdir_cadence_secs : int
-            Number of seconds of data found in one subdir. For example, 3600
-            subdir_cadence_secs will be saved in each subdirectory.
+            The number of seconds of data to store in one subdirectory. The
+            timestamp of any subdirectory will be an integer multiple of this
+            value.
 
         file_cadence_millisecs : int
-            Number of milliseconds of data per file. Rule:
-            (subdir_cadence_secs*1000 % file_cadence_millisecs) must equal 0.
+            The number of milliseconds of data to store in each file. Note that
+            an integer number of files must exactly span a subdirectory,
+            implying::
+
+                (subdir_cadence_secs*1000 % file_cadence_millisecs) == 0
 
         start_global_index : long
-            The start time of the first sample in units of
-            (unix_timestamp * (sample_rate_numerator/sample_rate_denominator)).
+            The index of the first sample given in number of samples since the
+            epoch. For a given ``start_time`` in seconds since the epoch, this
+            can be calculated as::
+
+                floor(start_time * (numpy.longdouble(sample_rate_numerator) /
+                                    numpy.longdouble(sample_rate_denominator)))
 
         sample_rate_numerator : long | int
             Numerator of sample rate in Hz.
@@ -222,12 +231,6 @@ class DigitalRFWriter:
         uuid_str : string
             UUID string that will act as a unique identifier for the data and
             can be used to tie the data files to metadata.
-
-
-        Returns
-        -------
-
-        DigitalRFWriter object
 
 
         Other Parameters
@@ -314,7 +317,7 @@ class DigitalRFWriter:
             raise ValueError(errstr % str(sample_rate_denominator))
         self.sample_rate_denominator = long(sample_rate_denominator)
 
-        if not isinstance(uuid_str, types.StringType):
+        if not isinstance(uuid_str, types.StringTypes):
             errstr = 'uuid_str must be StringType, not %s'
             raise ValueError(errstr % str(type(uuid_str)))
         self.uuid = str(uuid_str)
@@ -400,18 +403,23 @@ class DigitalRFWriter:
         -----
 
         Here's an example of one way to create a structured numpy array with
-        complex data with dtype int16:
+        complex data with dtype int16::
 
-        arr_data = numpy.ones((num_rows, num_subchannels),
-                              dtype=[('r', numpy.int16), ('i', numpy.int16)])
-        for i in range(num_subchannels):
-            for j in range(num_rows):
-                arr_data[j,i]['r'] = 2
-                arr_data[j,i]['i'] = 3
+            arr_data = numpy.ones(
+                (num_rows, num_subchannels),
+                dtype=[('r', numpy.int16), ('i', numpy.int16)],
+            )
+            for i in range(num_subchannels):
+                for j in range(num_rows):
+                    arr_data[j,i]['r'] = 2
+                    arr_data[j,i]['i'] = 3
 
-        The same data could be passed in via the array created as:
+        The same data could be passed in via the array created as::
 
-        arr_data = numpy.ones((num_rows, num_subchannels*2), dtype=numpy.int16)
+            arr_data = numpy.ones(
+                (num_rows, num_subchannels*2),
+                dtype=numpy.int16,
+            )
 
         """
         arr = numpy.ascontiguousarray(arr)
@@ -462,7 +470,7 @@ class DigitalRFWriter:
             An array that gives the index into arr for the start of each
             continuous block. The first value must be zero, and all values
             must be < len(arr). Increments between values must be > 0 and less
-            than the corresponding increment in global_sample_arr
+            than the corresponding increment in `global_sample_arr`.
 
 
         Returns
@@ -771,7 +779,7 @@ class DigitalRFReader:
             samples since the epoch (time_since_epoch*sample_rate).
 
         channel_name : string
-            Name of channel to read from, one of `get_channels()`.
+            Name of channel to read from, one of ``get_channels()``.
 
         sub_channel : None | int, optional
             If None, the return array will be 2-d and contain all subchannels
@@ -842,7 +850,7 @@ class DigitalRFReader:
         ----------
 
         channel_name : string
-            Name of channel, one of `get_channels()`.
+            Name of channel, one of ``get_channels()``.
 
 
         Returns
@@ -878,7 +886,7 @@ class DigitalRFReader:
         ----------
 
         channel_name : string
-            Name of channel, one of `get_channels()`.
+            Name of channel, one of ``get_channels()``.
 
         sample : None | long
             If None, return the metadata attributes of the top-level
@@ -986,7 +994,7 @@ class DigitalRFReader:
         ----------
 
         channel_name : string
-            Name of channel, one of `get_channels()`.
+            Name of channel, one of ``get_channels()``.
 
         top_level_dir : None | string
             If None, use *first* metadata path starting from the top-level
@@ -1029,7 +1037,7 @@ class DigitalRFReader:
             samples since the epoch (time_since_epoch*sample_rate).
 
         channel_name : string
-            Name of channel to read from, one of `get_channels()`.
+            Name of channel to read from, one of ``get_channels()``.
 
 
         Returns
@@ -1078,7 +1086,7 @@ class DigitalRFReader:
         ----------
 
         channel_name : string
-            Name of channel, one of `get_channels()`.
+            Name of channel, one of ``get_channels()``.
 
 
         Returns
@@ -1136,7 +1144,7 @@ class DigitalRFReader:
             Number of samples to read per subchannel.
 
         channel_name : string
-            Name of channel to read from, one of `get_channels()`.
+            Name of channel to read from, one of ``get_channels()``.
 
         sub_channel : None | int, optional
             If None, the return array will be 2-d and contain all subchannels
@@ -1223,7 +1231,7 @@ class DigitalRFReader:
             Number of samples to read per subchannel.
 
         channel_name : string
-            Name of channel to read from, one of `get_channels()`.
+            Name of channel to read from, one of ``get_channels()``.
 
 
         Returns
@@ -1296,7 +1304,7 @@ class DigitalRFReader:
             Number of samples to read per subchannel.
 
         channel_name : string
-            Name of channel to read from, one of `get_channels()`.
+            Name of channel to read from, one of ``get_channels()``.
 
         sub_channel : None | int, optional
             If None, the return array will be 2-d and contain all subchannels
