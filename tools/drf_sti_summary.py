@@ -13,6 +13,7 @@ import traceback
 import sys
 import string
 import optparse
+import os
 
 import matplotlib.pyplot
 import matplotlib.mlab
@@ -29,7 +30,6 @@ import dateutil
 import pytz
 
 import digital_rf as drf
-
 matplotlib.rc('axes', hold=False)
 
 
@@ -40,7 +40,6 @@ class DataPlotter:
 
         """
         self.control = control
-
         ch = string.split(self.control.channel, ':')
         self.channel = ch[0]
         self.sub_channel = int(ch[1])
@@ -280,17 +279,28 @@ class DataPlotter:
         del tl
 
         self.gridspec.update()
-        print "show plot"
+
         self.f.tight_layout()
 
         self.f.subplots_adjust(top=0.95, right=0.88)
         cax = self.f.add_axes([0.9, 0.12, 0.02, 0.80])
         self.f.colorbar(im, cax=cax)
-        matplotlib.pyplot.show()
+        if self.control.outname:
+            fname, ext = os.path.splitext(self.control.outname)
+            if ext == '':
+                ext = '.png'
+            print "Save plot as {}".format(fname+ext)
+            matplotlib.pyplot.savefig(fname+ext)
+        else:
+            print "Show plot"
+            matplotlib.pyplot.show()
 
 
-def parse_command_line():
-    parser = optparse.OptionParser()
+def parse_command_line(str_input=None):
+    if str_input is None:
+        parser = optparse.OptionParser()
+    else:
+        parser = optparse.OptionParser(str_input)
 
     parser.add_option("-t", "--title", dest="title",
                       default='Digital RF Data', help="Use title provided for the data.")
@@ -321,30 +331,31 @@ def parse_command_line():
                       type="string", help="zaxis colorbar setting e.g. -50:50")
     parser.add_option("-v", "--verbose", action="store_true", dest="verbose",
                       default=False, help="Print status messages to stdout.")
+    parser.add_option("-o", "--outname", dest="outname", default=None,
+                      type=str, help="Name of file that figure will be saved under.")
 
     (options, args) = parser.parse_args()
 
     return (options, args)
-
 
 #
 # MAIN PROGRAM
 #
 
 # Setup Defaults
-"""
+if __name__ == "__main__":
+    """
+        Needed to add main function to use outside functions outside of module.
+    """
 
+    # Parse the Command Line for configuration
+    (options, args) = parse_command_line()
 
-"""
+    if options.path == None:
+        print "Please provide an input source with the -p option!"
+        sys.exit(1)
 
-# Parse the Command Line for configuration
-(options, args) = parse_command_line()
+    # Activate the DataPlotter
+    dpc = DataPlotter(options)
 
-if options.path == None:
-    print "Please provide an input source with the -p option!"
-    sys.exit(1)
-
-# Activate the DataPlotter
-dpc = DataPlotter(options)
-
-dpc.plot()
+    dpc.plot()

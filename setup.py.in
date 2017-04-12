@@ -97,6 +97,7 @@ setup(
         '${CMAKE_CURRENT_SOURCE_DIR}/tools/digital_rf_upconvert.py',
         '${CMAKE_CURRENT_SOURCE_DIR}/tools/drf_plot.py',
         '${CMAKE_CURRENT_SOURCE_DIR}/tools/drf_sti_summary.py',
+        '${CMAKE_CURRENT_SOURCE_DIR}/tools/drf_sound.py',
         '${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_digital_rf_upconvert.py',
     ],
     cmdclass={'build_py': build_py_with_version},
