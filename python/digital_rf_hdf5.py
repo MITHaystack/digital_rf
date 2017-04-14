@@ -856,8 +856,13 @@ class DigitalRFReader:
         Returns
         -------
 
-        tuple | None
-            (first_sample_index, last_sample_index) or None if no data.
+        first_sample_index : long | None
+            Index of the first sample, given in the number of samples since the
+            epoch (time_since_epoch*sample_rate).
+
+        last_sample_index : long | None
+            Index of the last sample, given in the number of samples since the
+            epoch (time_since_epoch*sample_rate).
 
         """
         first_unix_sample = None
@@ -1092,9 +1097,12 @@ class DigitalRFReader:
         Returns
         -------
 
-        tuple
-            (timestamp, path) of the last file written to the given channel.
-            Both will be None if there is no data.
+        timestamp : float | None
+            Modification time of the last file written. None if there is no
+            data.
+
+        path : string | None
+            Full path of the last file written. None if there is no data.
 
         """
         first_sample, last_sample = self.get_bounds(channel_name)
@@ -1331,11 +1339,12 @@ class DigitalRFReader:
             unix_sample, vector_length, channel_name, sub_channel,
         ))
 
+    @staticmethod
     def _get_file_list(
-        self, sample0, sample1, samples_per_second,
+        sample0, sample1, samples_per_second,
         subdir_cadence_seconds, file_cadence_millisecs,
     ):
-        """Get and ordered list of data file names that could contain data.
+        """Get an ordered list of data file names that could contain data.
 
         This takes a first and last sample and generates the possible filenames
         spanning that time according to the subdirectory and file cadences.
@@ -1784,8 +1793,13 @@ class _top_level_dir_metadata:
         Returns
         -------
 
-        tuple | None
-            (first_sample_index, last_sample_index) or None if no data.
+        first_sample_index : long | None
+            Index of the first sample, given in the number of samples since the
+            epoch (time_since_epoch*sample_rate).
+
+        last_sample_index : long | None
+            Index of the last sample, given in the number of samples since the
+            epoch (time_since_epoch*sample_rate).
 
         """
         first_unix_sample = None
