@@ -8,21 +8,19 @@ and DigitalRFWriter.
 
 """
 
-# standard python imports
+import collections
+import datetime
+import distutils.version
+import fractions
+import glob
 import os
 import os.path
 import sys
 import types
-import glob
-import datetime
-import collections
-import distutils.version
-import fractions
 import warnings
 
-# third party imports
-import numpy
 import h5py
+import numpy
 
 # local imports
 from . import _py_rf_write_hdf5  # c extension

@@ -3,10 +3,10 @@
 import os
 import re
 import time
+
+from watchdog.events import (FileCreatedEvent, FileDeletedEvent,
+                             RegexMatchingEventHandler)
 from watchdog.observers import Observer
-from watchdog.events import (
-    RegexMatchingEventHandler, FileDeletedEvent, FileCreatedEvent
-)
 from watchdog.utils import unicode_paths
 
 __all__ = (

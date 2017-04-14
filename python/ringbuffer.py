@@ -5,7 +5,8 @@ import re
 import sys
 import time
 import uuid
-from collections import deque, namedtuple, OrderedDict
+from collections import OrderedDict, deque, namedtuple
+
 from watchdog.observers import Observer
 
 from .watchdog_drf import DigitalRFEventHandler, lsdrf

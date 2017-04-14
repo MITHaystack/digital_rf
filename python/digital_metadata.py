@@ -7,17 +7,16 @@ DigitalMetadataReader and DigitalMetadataWriter.
 
 """
 
-# standard python imports
-import os
 import collections
-import datetime
-import time
-import types
-import glob
 import copy
-import traceback
-import urllib2
+import datetime
 import fractions
+import glob
+import os
+import time
+import traceback
+import types
+import urllib2
 from distutils.version import StrictVersion
 
 # third party imports
