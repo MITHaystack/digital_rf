@@ -52,7 +52,8 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
             m = r.match(path)
             try:
                 key = m.group('secs')
-            except:
+            except (AttributeError, IndexError):
+                # no match, or regex matched but there is no 'secs' in regex
                 continue
             else:
                 break

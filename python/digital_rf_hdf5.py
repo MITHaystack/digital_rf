@@ -1682,7 +1682,6 @@ class _top_level_dir_metadata:
     ):
         """Add continous data entries to `cont_data_dict`.
 
-
         Parameters
         ----------
 
@@ -1726,7 +1725,8 @@ class _top_level_dir_metadata:
                     if self._cachedFile is not None:
                         try:
                             self._cachedFile.close()
-                        except:
+                        except ValueError:
+                            # already closed
                             pass
                     self._cachedFile = h5py.File(fullfile, 'r')
                     self._cachedFilename = fullfile
@@ -1829,7 +1829,7 @@ class _top_level_dir_metadata:
                         try:
                             this_last_sample = self._get_last_sample(fullname)
                             break
-                        except:
+                        except Exception:
                             errstr = (
                                 'Warning corrupt h5 file %s found - ignored'
                                 ' - should be deleted'
@@ -1879,5 +1879,6 @@ class _top_level_dir_metadata:
         try:
             if self._cachedFile is not None:
                 self._cachedFile.close()
-        except:
+        except ValueError:
+            # already closed
             pass
