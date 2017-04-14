@@ -1078,7 +1078,7 @@ if __name__ == "__main__":
                     )
                 else:
                     metadata = md_dict[md_idx[md_loc]]
-                    cfreq = metadata['center_frequencies'][0, subchan]
+                    cfreq = metadata['center_frequencies'].ravel()[subchan]
 
             d = drf.read_vector(sstart, dlen, chans[chidx])
 

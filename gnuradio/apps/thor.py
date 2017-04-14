@@ -388,10 +388,10 @@ class Thor(object):
                 os.makedirs(mddir)
             mdo = drf.DigitalMetadataWriter(
                 metadata_dir=mddir,
-                subdirectory_cadence_seconds=op.subdir_cadence_s,
-                file_cadence_seconds=1,
-                samples_per_second_numerator=samplerate_num_out,
-                samples_per_second_denominator=samplerate_den_out,
+                subdir_cadence_secs=op.subdir_cadence_s,
+                file_cadence_secs=1,
+                sample_rate_numerator=samplerate_num_out,
+                sample_rate_denominator=samplerate_den_out,
                 file_name='metadata',
             )
             md = op.metadata.copy()
@@ -401,9 +401,9 @@ class Thor(object):
                 sample_period_ps=long(np.uint64(np.round(
                     1000000000000 / samplerate_out
                 ))),
-                center_frequencies=np.array(
-                    [op.centerfreqs[k]]
-                ).reshape((1, -1)),
+                # put in a list because we want the data to be a 1-D array
+                # and it would be a single value if we didn't
+                center_frequencies=[np.array([op.centerfreqs[k]])],
                 # output t0 as float until h5py>=2.7 gets widespread
                 t0=float(lt),
                 n_channels=1,
