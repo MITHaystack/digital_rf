@@ -5,32 +5,32 @@
 """Record data from synchronized USRPs in Digital RF format."""
 from __future__ import print_function
 
-import sys
-import os
-import math
-import re
-import time
 import datetime
-import dateutil.parser
-import pytz
+import math
+import os
+import re
+import sys
+import time
 import uuid
-import numpy as np
-from argparse import ArgumentParser, RawDescriptionHelpFormatter, Namespace
-from textwrap import fill, dedent, TextWrapper
-from itertools import chain, cycle, islice, repeat
+from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
 from ast import literal_eval
-from subprocess import call
 from fractions import Fraction
-from gnuradio import gr
-from gnuradio import uhd
-from gnuradio import filter
+from itertools import chain, cycle, islice, repeat
+from subprocess import call
+from textwrap import TextWrapper, dedent, fill
+
+import dateutil.parser
+import numpy as np
+import pytz
+from gnuradio import filter, gr, uhd
 from gnuradio.filter import firdes
 
-import gr_drf
 import digital_rf as drf
+import gr_drf
 
 
 class Thor(object):
+    """Record data from synchronized USRPs in DigitalRF format."""
 
     def __init__(
         self, datadir, mboards=[], subdevs=['A:A'],
@@ -151,8 +151,8 @@ class Thor(object):
             op.subdevs_bychan.extend(sds)
         if len(op.subdevs_bychan) != op.nchs:
             raise ValueError(
-                '''Number of device channels does not match the number of
-                   channel names provided'''
+                'Number of device channels does not match the number of '
+                'channel names provided.'
             )
 
         return op
@@ -488,9 +488,11 @@ if __name__ == '__main__':
 
     parser.add_argument(
         '--version', action='version',
-        version='''THOR version 3.0 (The Haystack Observatory Recorder)
-
-                   Copyright (c) 2017 Massachusetts Institute of Technology''',
+        version=(
+            'THOR version 3.0 (The Haystack Observatory Recorder)\n'
+            '\n'
+            'Copyright (c) 2017 Massachusetts Institute of Technology'
+        )
     )
     parser.add_argument(
         '-q', '--quiet', dest='verbose', action='store_false',
