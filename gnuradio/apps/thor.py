@@ -140,6 +140,17 @@ class Thor(object):
             ''').strip().format(**op.__dict__)
             print(opstr)
 
+        # check that subdevice specifications are unique per-mainboard
+        for sd in op.subdevs:
+            sds = sd.split()
+            if len(set(sds)) != len(sds):
+                errstr = (
+                    'Invalid subdevice specification: "{0}". '
+                    'Each subdevice specification for a given mainboard must '
+                    'be unique.'
+                )
+                raise ValueError(errstr.format(sd))
+
         # sanity check: # of total subdevs should be same as # of channels
         op.mboards_bychan = []
         op.subdevs_bychan = []
