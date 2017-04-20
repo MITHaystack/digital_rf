@@ -4,7 +4,7 @@ function(BuildExample example_name file)
     add_executable(${example_name} ${file})
     add_dependencies(examples ${example_name})
     set_target_properties(${example_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY .)
-    target_link_libraries(${example_name} digital_rf ${HDF5_LIBRARIES})
+    target_link_libraries(${example_name} digital_rf)
 endfunction()
 
 BuildExample(benchmark_rf_write_hdf5 src/benchmark_rf_write_hdf5.c)

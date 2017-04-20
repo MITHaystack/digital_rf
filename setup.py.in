@@ -73,15 +73,15 @@ setup(
         Extension(
             'digital_rf._py_rf_write_hdf5',
             ['${CMAKE_CURRENT_SOURCE_DIR}/lib/py_rf_write_hdf5.c'],
-            include_dirs=[
+            include_dirs=filter(None, [
                 '${CMAKE_CURRENT_BINARY_DIR}/include',
                 '${HDF5_INCLUDE_DIRS}',
                 numpy.get_include(),
-            ],
-            library_dirs=[
+            ]),
+            library_dirs=filter(None, [
                 '${CMAKE_CURRENT_BINARY_DIR}/lib',
-                '${HDF5_LIBRARY_DIRS}',
-            ],
+                '${HDF5_LIBRARY_DIR}',
+            ]),
             libraries=[
                 'digital_rf',
                 'hdf5',
