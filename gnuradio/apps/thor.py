@@ -618,7 +618,7 @@ if __name__ == '__main__':
     )
     timegroup.add_argument(
         '-l', '--duration', dest='duration',
-        default=None, type=int,
+        default=None,
         help='''Duration of experiment in seconds. When endtime is not given,
                 end this long after start time. (default: %(default)s)''',
     )
@@ -732,9 +732,9 @@ if __name__ == '__main__':
 
     # evaluate samplerate to float
     op.samplerate = float(eval(op.samplerate))
-    # evaluate duration to float
+    # evaluate duration to int
     if op.duration is not None:
-        op.duration = float(eval(op.duration))
+        op.duration = int(eval(op.duration))
 
     # convert metadata strings to a dictionary
     metadata_dict = {}
