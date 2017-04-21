@@ -124,13 +124,20 @@ add_subdirectory(tests)
 
 # gr_drf gnuradio module
 set(GR_REQUIRED_COMPONENTS RUNTIME)
-find_package(Gnuradio REQUIRED)
+find_package(Gnuradio)
 if(GNURADIO_RUNTIME_FOUND)
-    message("GNU Radio found, gr_drf module will be built.")
-    add_subdirectory(gnuradio)
+    option(ENABLE_GNURADIO "Build gr_drf GNU Radio module." ON)
+    # message("GNU Radio found, gr_drf module will be built.")
 else(GNURADIO_RUNTIME_FOUND)
-    message("GNU Radio not found, gr_drf module will be skipped.")
+    option(ENABLE_GNURADIO "Build gr_drf GNU Radio module." OFF)
+    # message("GNU Radio not found, gr_drf module will be skipped.")
 endif(GNURADIO_RUNTIME_FOUND)
+if(ENABLE_GNURADIO)
+    message("| GNU Radio module gr_drf ENABLED.")
+    add_subdirectory(gnuradio)
+else(ENABLE_GNURADIO)
+    message("| GNU Radio module gr_drf DISABLED.")
+endif(ENABLE_GNURADIO)
 
 # add uninstall target
 # uninstall target

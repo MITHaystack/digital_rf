@@ -66,6 +66,10 @@ You will probably then need to update the library cache so the newly-installed `
 
     sudo ldconfig
 
+The above commands will build the ``gr_drf`` module for GNU Radio if GNU Radio is found on the system. To enable or disable ``gr_drf`` manually, set the 'ENABLE_GNURADIO' option to 'ON' or 'OFF' when invoking cmake::
+
+    cmake .. -DENABLE_GNURADIO=OFF
+
 
 Example Usage
 =============
@@ -107,4 +111,3 @@ The python tests found in the tests directory in the source tree can be run dire
 Both the C and python tests create test files in '/tmp/hdf5*'. To cleanup afterward, run::
 
     rm -r /tmp/hdf5*
-
