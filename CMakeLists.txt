@@ -10,6 +10,9 @@ set(libdigital_rf_VERSION_MINOR 0)
 set(libdigital_rf_VERSION_PATCH 0)
 set(libdigital_rf_VERSION ${libdigital_rf_VERSION_MAJOR}.${libdigital_rf_VERSION_MINOR}.${libdigital_rf_VERSION_PATCH})
 
+# Set up options
+option(ENABLE_GNURADIO "ENABLE_GNURADIO" ON)
+
 include(GNUInstallDirs)
 
 find_package(HDF5 REQUIRED)
@@ -125,19 +128,13 @@ add_subdirectory(tests)
 # gr_drf gnuradio module
 set(GR_REQUIRED_COMPONENTS RUNTIME)
 find_package(Gnuradio)
-if(GNURADIO_RUNTIME_FOUND)
-    option(ENABLE_GNURADIO "Build gr_drf GNU Radio module." ON)
-    # message("GNU Radio found, gr_drf module will be built.")
-else(GNURADIO_RUNTIME_FOUND)
-    option(ENABLE_GNURADIO "Build gr_drf GNU Radio module." OFF)
-    # message("GNU Radio not found, gr_drf module will be skipped.")
-endif(GNURADIO_RUNTIME_FOUND)
-if(ENABLE_GNURADIO)
-    message("| GNU Radio module gr_drf ENABLED.")
-    add_subdirectory(gnuradio)
-else(ENABLE_GNURADIO)
-    message("| GNU Radio module gr_drf DISABLED.")
-endif(ENABLE_GNURADIO)
+if(GNURADIO_RUNTIME_FOUND AND ENABLE_GNURADIO)
+  message("| GNU Radio module gr_drf found and ENABLED.")
+  add_subdirectory(gnuradio)
+else(GNURADIO_RUNTIME_FOUND AND ENABLE_GNURADIO)
+  message("| GNU Radio not found or disabled, gr_drf module will be skipped.")
+endif(GNURADIO_RUNTIME_FOUND AND ENABLE_GNURADIO)
+
 
 # add uninstall target
 # uninstall target
