@@ -66,7 +66,7 @@ You will probably then need to update the library cache so the newly-installed `
 
     sudo ldconfig
 
-The above commands will build the ``gr_drf`` module for GNU Radio if GNU Radio is found on the system. To enable or disable ``gr_drf`` manually, set the 'ENABLE_GNURADIO' option to 'ON' or 'OFF' when invoking cmake::
+The above commands will build the ``gr_drf`` module for GNU Radio if GNU Radio is found on the system. To disable ``gr_drf`` manually, set the 'ENABLE_GNURADIO' option to 'OFF' when invoking cmake::
 
     cmake .. -DENABLE_GNURADIO=OFF
 
