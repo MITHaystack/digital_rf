@@ -68,7 +68,7 @@ You will probably then need to update the library cache so the newly-installed `
 
 The above commands will build the ``gr_drf`` module for GNU Radio if GNU Radio is found on the system. To disable ``gr_drf`` manually, set the 'ENABLE_GNURADIO' option to 'OFF' when invoking cmake::
 
-    cmake .. -DENABLE_GNURADIO=OFF
+    cmake -DENABLE_GNURADIO=OFF ..
 
 
 Example Usage

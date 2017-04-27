@@ -327,7 +327,7 @@ def plot_measurements(outdict,savename='measured.png'):
     fig1.savefig(savename)
     plt.close(fig1)
 
-def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.):
+def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[0,0],snrmin=0.):
     """
     Estimation of phase curve using coherent and incoherent integration.
 
@@ -357,6 +357,8 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.):
 
     chans = chandict.keys()
     sps = chandict[chans[0]]['sps']
+    start_indx = start_indx + timewin[0]*sps
+    end_index = end_index - timewin[1]*sps
     freq_ratio = chandict[chans[0]]['fo']/chandict[chans[1]]['fo']
     start_vec = sp.arange(start_indx, end_indx-Nr, Nr)
     tvec = start_vec/sps
@@ -431,6 +433,14 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.):
     phasecurve = float(incoh_int)*sp.cumsum(sp.angle(phase1)*freq_ratio-sp.angle(phase0))
     stdcurve = sp.sqrt(sp.cumsum(float(sfactor)*incoh_int*(std0**2.0 + std1**2.0)))
 
+    # SNR windowing, picking values with minimum snr
+    snrwin = sp.logical_and(snr0 > snrmin, snr1 > snrmin)
+    phasecurve = phasecurve[snrwin]
+    stdcurve = stdcurve[snrwin]
+    snr0 = snr0[snrwin]
+    snr1 = snr1[snrwin]
+    tvec = tvec[snrwin]
+
     dt=sp.diff(tvec).mean()
     Nside = int(1./dt/2.)
     lvec = sp.arange(-Nside,Nside)
@@ -446,6 +456,7 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.):
     rTEC = cTEC*(phasecurve-phasecurve.max())*1e-16
     rTEC_sig = cTEC*stdcurve*1e-16
     S4 = sp.std(snr0[Sampclip], axis=-1)/sp.median(snr0, axis=-1)
+
     outdict = {'rTEC':rTEC, 'rTEC_sig':rTEC_sig, 'S4':S4, 'snr0':snr0,
                'snr1':snr1, 'time':tvec}
     return outdict
@@ -492,7 +503,15 @@ def analyzebeacons(input_args):
 
     outdict = calc_TEC(input_args.path, window=input_args.window,
                        incoh_int=input_args.incoh, sfactor=input_args.overlap,
-                       offset=input_args.tleoffset)
+                       offset=input_args.tleoffset, timewin=[input_args.begoff,input_args.endoff],
+                       snrmin=input_args.snrmin)
+    outdict['window'] = input_args.window
+    outdict['incoherent_integrations'] = input_args.incoh_int
+    outdict['Overlap'] = input_args.overlap
+    outdict['Time_Offset'] = input_args.tleoffset
+    outdict['Beginning_Offset'] = input_args.begoff
+    outdict['Ending_Offset'] = input_args.endoff
+    outdict['Min_SNR'] = input.minsnr
     save_output(input_args.path, outdict)
 
     if input_args.drawplots:
@@ -526,6 +545,12 @@ def parse_command_line(str_input=None):
                         help='Overlap for each of the FFTs.')
     parser.add_argument('-t', "--tleoffset", dest='tleoffset', default=0.,
                         help="Offset of the TLE time from the actual pass.")
+    parser.add_argument('-b', "--begoff", dest='begoff', default=0.,
+                        help="Number of seconds to jump ahead before measuring.")
+    parser.add_argument('-e', "--endoff", dest='endoff', default=0.,
+                        help="Number of seconds to jump ahead before measuring.")
+    parser.add_argument('-m', "--minsnr", dest='minsnr', default=0.,
+                        help="Minimum SNR for for phase curve measurement")
 
     return parser.parse_args()
 
