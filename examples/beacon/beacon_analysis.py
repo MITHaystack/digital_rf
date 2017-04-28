@@ -11,9 +11,10 @@ jitter code from Juha Vierinen.
 
 import os
 import sys
+import time
 import datetime as dt
 import argparse
-
+import pdb
 import scipy as sp
 import scipy.fftpack as scfft
 import scipy.signal as sig
@@ -28,6 +29,28 @@ TLE_def = ('CASSIOPE','1 39265U 13055A   17015.93102647 +.00001768 +00000-0 +521
                           '2 39265 080.9701 172.4450 0693099 333.2926 023.4045 14.21489964169876')
 debug_plot = False
 
+# update_progress() : Displays or updates a console progress bar
+## Accepts a float between 0 and 1. Any int will be converted to a float.
+## A value under 0 represents a 'halt'.
+## A value at 1 or bigger represents 100%
+def update_progress(progress):
+    barLength = 100 # Modify this to change the length of the progress bar
+    status = ""
+    if isinstance(progress, int):
+        progress = float(progress)
+    if not isinstance(progress, float):
+        progress = 0
+        status = "error: progress var must be float\r\n"
+    if progress < 0:
+        progress = 0
+        status = "Halt...\r\n"
+    if progress >= 1:
+        progress = 1
+        status = "Done...\r\n"
+    block = int(round(barLength*progress))
+    text = "\rPercent: [{0}] {1}% {2}".format( "#"*block + "-"*(barLength-block), progress*100, status)
+    sys.stdout.write(text)
+    sys.stdout.flush()
 
 def ephem_doponly(maindir,tleoff=10.):
     """
@@ -358,9 +381,9 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
     chans = chandict.keys()
     sps = chandict[chans[0]]['sps']
     start_indx = start_indx + timewin[0]*sps
-    end_index = end_index - timewin[1]*sps
+    end_indx = end_indx - timewin[1]*sps
     freq_ratio = chandict[chans[0]]['fo']/chandict[chans[1]]['fo']
-    start_vec = sp.arange(start_indx, end_indx-Nr, Nr)
+    start_vec = sp.arange(start_indx, end_indx-Nr, Nr, dtype=sp.float64)
     tvec = start_vec/sps
 
     soff = window/sfactor
@@ -386,9 +409,10 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
     std1 = sp.zeros(len(start_vec))
     fi = window/2
     subchan = 0
+    print("Start Beacon Processing")
     for i_t, c_st in enumerate(start_vec):
-        sys.stdout.write(".")
-        sys.stdout.flush()
+
+        update_progress(float(i_t)/float(len(start_vec)))
         t_cur = tvec[i_t]
 
         z00 = drfObj.read_vector(c_st, Nr, chans[0])[Msamp, subchan]
@@ -423,8 +447,8 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
 
         std0[i_t] = sp.std(sp.angle(F0_cor))
         std1[i_t] = sp.std(sp.angle(F1_cor))
-        snr0[i_t] = F0spec[fi]/sp.median(F0spec)
-        snr1[i_t] = F1spec[fi]/sp.median(F1spec)
+        snr0[i_t] = F0spec.real[fi]/sp.median(F0spec.real)
+        snr1[i_t] = F1spec.real[fi]/sp.median(F1spec.real)
 
         phase_00 = phase_00*sp.exp(1.0j*2.0*sp.pi*doppler0*(IDX.flatten()[-1]/sps))
 
@@ -500,21 +524,22 @@ def analyzebeacons(input_args):
     mainpath = os.path.expanduser(os.path.dirname(input_args.path))
     if input_args.savename is None:
         savename = os.path.join(mainpath, 'BeaconPlots.png')
-
     outdict = calc_TEC(input_args.path, window=input_args.window,
                        incoh_int=input_args.incoh, sfactor=input_args.overlap,
                        offset=input_args.tleoffset, timewin=[input_args.begoff,input_args.endoff],
-                       snrmin=input_args.snrmin)
+                       snrmin=input_args.minsnr)
+    print("Saving everything to digital metadata.")
     outdict['window'] = input_args.window
-    outdict['incoherent_integrations'] = input_args.incoh_int
+    outdict['incoherent_integrations'] = input_args.incoh
     outdict['Overlap'] = input_args.overlap
     outdict['Time_Offset'] = input_args.tleoffset
     outdict['Beginning_Offset'] = input_args.begoff
     outdict['Ending_Offset'] = input_args.endoff
-    outdict['Min_SNR'] = input.minsnr
+    outdict['Min_SNR'] = input_args.minsnr
     save_output(input_args.path, outdict)
 
     if input_args.drawplots:
+        print("Plotting data.")
         plot_measurements(outdict, savename)
 
 def parse_command_line(str_input=None):
@@ -533,23 +558,23 @@ def parse_command_line(str_input=None):
                         help="Use configuration file <config>.")
     parser.add_argument('-p', "--path", dest='path',
                         default=None, help='Path to the Digital RF files and meta data.')
-    parser.add_argument('-d', "--drawplots", default=False, dest='drawplots',
+    parser.add_argument('-d', "--drawplots", default=False, dest='drawplots', action="store_true",
                         help="Bool to determine if plots will be made and saved.")
-    parser.add_argument('-s', "--savename", dest='savename', default=None,
+    parser.add_argument('-s', "--savename", dest='savename', default='measured.png',
                         help='Name of plot file.')
-    parser.add_argument('-w', "--window", dest='window', default=4096,
+    parser.add_argument('-w', "--window", dest='window', default=4096, type=int,
                         help='Length of window in samples for FFT in calculations.')
-    parser.add_argument('-i', "--incoh", dest='incoh', default=100,
+    parser.add_argument('-i', "--incoh", dest='incoh', default=100, type=int,
                         help='Number of incoherent integrations in calculations.')
-    parser.add_argument('-o', "--overlap", dest='overlap', default=4,
+    parser.add_argument('-o', "--overlap", dest='overlap', default=4, type=int,
                         help='Overlap for each of the FFTs.')
-    parser.add_argument('-t', "--tleoffset", dest='tleoffset', default=0.,
+    parser.add_argument('-t', "--tleoffset", dest='tleoffset', default=0., type=float,
                         help="Offset of the TLE time from the actual pass.")
-    parser.add_argument('-b', "--begoff", dest='begoff', default=0.,
+    parser.add_argument('-b', "--begoff", dest='begoff', default=0., type=float,
                         help="Number of seconds to jump ahead before measuring.")
-    parser.add_argument('-e', "--endoff", dest='endoff', default=0.,
+    parser.add_argument('-e', "--endoff", dest='endoff', default=0., type=float,
                         help="Number of seconds to jump ahead before measuring.")
-    parser.add_argument('-m', "--minsnr", dest='minsnr', default=0.,
+    parser.add_argument('-m', "--minsnr", dest='minsnr', default=0., type=float,
                         help="Minimum SNR for for phase curve measurement")
 
     return parser.parse_args()
