@@ -340,7 +340,7 @@ def plot_measurements(outdict,savename='measured.png'):
     ax = plt.gca()
     ax.xaxis.set_major_formatter(xfmt)
     plt.title("SNR for Both Channels")
-    plt.xlabel("Unix time (s)")
+    plt.xlabel("UTC")
     plt.ylabel("SNR (dB)")
     plt.subplots_adjust(bottom=0.2)
     plt.xticks(rotation=25)
@@ -540,6 +540,7 @@ def analyzebeacons(input_args):
 
     if input_args.drawplots:
         print("Plotting data.")
+        savename = os.path.expanduser(input_args.savename)
         plot_measurements(outdict, savename)
 
 def parse_command_line(str_input=None):
