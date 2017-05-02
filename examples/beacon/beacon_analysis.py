@@ -424,10 +424,10 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
         doppler0 = -1.0*(150.0/400.0)*resid["doppler_residual"](t_cur) - e["dop1"](t_cur+toff)
         doppler1 = -1.0*resid["doppler_residual"](t_cur) - e["dop2"](t_cur+toff)
 
-        osc00 = phase_00*wmat*sp.exp(1.0j*2.0*sp.pi*doppler0*(IDX/sps))
-        osc01 = phase_00*wmat*sp.exp(1.0j*2.0*sp.pi*doppler0*(IDX/sps+ float(window)/sps))
-        osc10 = phase_10*wmat*sp.exp(1.0j*2.0*sp.pi*doppler1*(IDX/sps))
-        osc11 = phase_10*wmat*sp.exp(1.0j*2.0*sp.pi*doppler1*(IDX/sps+ float(window)/sps))
+        osc00 = phase_00*wmat*sp.exp(1.0j*2.0*sp.pi*doppler0*(Msamp/sps))
+        osc01 = phase_00*wmat*sp.exp(1.0j*2.0*sp.pi*doppler0*(Msamp/sps+ float(window)/sps))
+        osc10 = phase_10*wmat*sp.exp(1.0j*2.0*sp.pi*doppler1*(Msamp/sps))
+        osc11 = phase_10*wmat*sp.exp(1.0j*2.0*sp.pi*doppler1*(Msamp/sps+ float(window)/sps))
 
 
         F0 = scfft.fftshift(scfft.fft(z00*osc00.astype(z00.dtype), axis=-1), axes=-1)
