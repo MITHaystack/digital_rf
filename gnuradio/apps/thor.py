@@ -290,7 +290,7 @@ class Thor(object):
 
         # wait for the start time if it is not past
         while (st is not None) and (st - time.time()) > 10:
-            ttl = st - time.time()
+            ttl = int(math.floor(st - time.time()))
             if (ttl % 10) == 0:
                 print('Standby {0} s remaining...'.format(ttl))
                 sys.stdout.flush()
