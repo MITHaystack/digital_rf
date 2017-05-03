@@ -376,16 +376,18 @@ class Thor(object):
             lt = int(math.ceil(time.time() + 0.5))
         # adjust launch time forward so it falls on an exact sample since epoch
         lt_samples = np.ceil(lt * samplerate_out)
-        # splitting lt into secs/frac lets us set a more accurate time_spec
-        lt_secs = lt_samples // samplerate_out
-        lt_frac = (lt_samples % samplerate_out) / samplerate_out
-        lt = lt_secs + lt_frac
+        lt = lt_samples / samplerate_out
         if op.verbose:
             dtlt = datetime.datetime.utcfromtimestamp(lt)
             dtltstr = dtlt.strftime('%a %b %d %H:%M:%S.%f %Y')
             print('Launch time: {0} ({1})'.format(dtltstr, repr(lt)))
+        # command time
+        ct_samples = lt_samples
+        # splitting ct into secs/frac lets us set a more accurate time_spec
+        ct_secs = ct_samples // samplerate_out
+        ct_frac = (ct_samples % samplerate_out) / samplerate_out
         u.set_start_time(
-            uhd.time_spec(float(lt_secs)) + uhd.time_spec(float(lt_frac))
+            uhd.time_spec(float(ct_secs)) + uhd.time_spec(float(ct_frac))
         )
 
         # start to receive data
@@ -437,13 +439,27 @@ class Thor(object):
             if et is None:
                 fg.wait()
             else:
-                while(time.time() < et):
+                # sleep until end time nears
+                while(time.time() < et - 1):
+                    time.sleep(1)
+                else:
+                    # issue stream stop command at end time
+                    ct_secs = et // 1
+                    ct_frac = et % 1
+                    u.set_command_time(
+                        (uhd.time_spec(float(ct_secs)) +
+                            uhd.time_spec(float(ct_frac))),
+                        uhd.ALL_MBOARDS,
+                    )
+                    stop_enum = uhd.stream_cmd.STREAM_MODE_STOP_CONTINUOUS
+                    u.issue_stream_cmd(uhd.stream_cmd(stop_enum))
+                    u.clear_command_time(uhd.ALL_MBOARDS)
+                    # sleep until after end time
                     time.sleep(1)
         except KeyboardInterrupt:
             # catch keyboard interrupt and simply exit
             pass
         fg.stop()
-        fg.wait()
         print('done')
         sys.stdout.flush()
 
@@ -478,16 +494,12 @@ if __name__ == '__main__':
     )
     egs = [
         '''\
-        {0} -m 192.168.10.2 -c a1,a2 -m 192.168.20.2 -c b1,b2 -d "A:A A:B"
-        -f 15e6 -g 0 -r 100e6/24 /data/test
+        {0} -m 192.168.20.2 -d "A:A A:B" -c h,v -f 95e6 -r 100e6/24
+        /data/test
         ''',
         '''\
-        {0} -m 192.168.10.2,192.168.10.3 -c a1,a2,b1,b2 -d "A:A A:B"
-        -f 15e6 -g 0 -r 100e6/24 /data/test
-        ''',
-        '''\
-        {0} -m 192.168.10.2 -d "A:A A:B" -c ch1,ch2 -f 10e6,20e6
-        -m 192.168.20.2 -d "A:A" -c ch3 -f 30e6 -r 1e6 /data/test
+        {0} -m 192.168.10.2 -d "A:0" -y "TX/RX" -c ch1 -f 20e6 -F 10e3 -g 20
+        -b 0 -r 1e6 /data/test
         ''',
     ]
     egs = [' \\\n'.join(egtw.wrap(dedent(s.format(scriptname)))) for s in egs]
