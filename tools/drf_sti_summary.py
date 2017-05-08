@@ -291,7 +291,7 @@ class DataPlotter:
                 ext = '.png'
             print "Save plot as {}".format(fname+ext)
             matplotlib.pyplot.savefig(fname+ext)
-        else:
+        if self.control.appear:
             print "Show plot"
             matplotlib.pyplot.show()
 
@@ -333,7 +333,8 @@ def parse_command_line(str_input=None):
                       default=False, help="Print status messages to stdout.")
     parser.add_option("-o", "--outname", dest="outname", default=None,
                       type=str, help="Name of file that figure will be saved under.")
-
+    parser.add_option("-a", "--appear", action="store_true", dest="appear",
+                      default=False, help="Makes the plot appear through pyplot show.")
     (options, args) = parser.parse_args()
 
     return (options, args)

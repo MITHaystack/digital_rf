@@ -277,16 +277,22 @@ def plot_resid(d,savename='resfig1.png'):
     t = d['e']['t']
     tlim = [t[1], t[-3]]
 
+    datenums = md.date2num(dates)
+    xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
+
     fig1 = plt.figure(figsize=(15,5))
     tvec = d["resid"]["tvec"]
+    dates = [dt.datetime.fromtimestamp(ts) for ts in tvec]
     fvec = d["resid"]["fvec"]
     res0 = d["resid"]["res0"]
     res1 = d["resid"]["res1"]
     plt.subplot(121)
-    plt.pcolormesh(tvec, fvec, sp.transpose(10.*sp.log10(sp.absolute(res0))), vmin=-5, vmax=25)
-    plt.plot(tvec,(150.0/400.0)*d["resid"]["doppler_residual"](tvec), "k--", label="doppler resid")
+    plt.pcolormesh(datenums, fvec, sp.transpose(10.*sp.log10(sp.absolute(res0))), vmin=-5, vmax=25)
+    plt.plot(datenums,(150.0/400.0)*d["resid"]["doppler_residual"](tvec), "k--", label="doppler resid")
     plt.ylim(flim)
-    plt.xlabel("Unix time (s)")
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
+    plt.xlabel("UTC")
     plt.ylabel("Frequency (Hz)")
     plt.title("Power ch0 (dB) %1.2f MHz"%(150.012))
     plt.legend()
@@ -295,12 +301,14 @@ def plot_resid(d,savename='resfig1.png'):
     plt.xlim(tlim)
      # quicklook spectra of residuals spectra along with measured Doppler residual from second channel.
     plt.subplot(122)
-    plt.pcolormesh(tvec, fvec, sp.transpose(10.*sp.log10(sp.absolute(res1))), vmin=-5, vmax=25)
-    plt.plot(tvec,d["resid"]["doppler_residual"](tvec),"k--",label="doppler resid")
+    plt.pcolormesh(datenums, fvec, sp.transpose(10.*sp.log10(sp.absolute(res1))), vmin=-5, vmax=25)
+    plt.plot(datenums,d["resid"]["doppler_residual"](tvec),"k--",label="doppler resid")
     plt.ylim(flim)
-    plt.xlabel("Unix time (s)")
+    plt.xlabel("UTC")
     plt.ylabel("Frequency (Hz)")
     plt.title("Power ch1 (dB), %1.2f MHz"%(400.032))
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
     plt.colorbar(orientation="horizontal")
     plt.legend()
     plt.xlim(tlim)
