@@ -11,10 +11,8 @@ jitter code from Juha Vierinen.
 
 import os
 import sys
-import time
 import datetime as dt
 import argparse
-import pdb
 import scipy as sp
 import scipy.fftpack as scfft
 import scipy.signal as sig
@@ -219,8 +217,8 @@ def calc_resid(maindir,e,window=2**13,n_measure=500):
     fidx = sp.arange(-bw_indx/2, bw_indx/2, dtype=int) + window/2
 
 
-    res0 = sp.zeros([n_measure, window], dtype=sp.complex64)
-    res1 = sp.zeros([n_measure, window], dtype=sp.complex64)
+    res0 = sp.zeros([n_measure, window], dtype=float)
+    res1 = sp.zeros([n_measure, window], dtype=float)
 
     freqm = sp.zeros([n_measure])
 
@@ -247,16 +245,18 @@ def calc_resid(maindir,e,window=2**13,n_measure=500):
         osc11 = wfun*sp.exp(1.0j*2.0*sp.pi*doppler1*(idx/sps+ float(window)/sps))
         F0 = scfft.fftshift(scfft.fft(z00*osc00.astype(z00.dtype)))
         F1 = scfft.fftshift(scfft.fft(z01*osc01.astype(z01.dtype)))
-        res0[i_t, :] = F0*sp.conj(F1)
+        res_temp = F0*F1.conj()
+        res0[i_t, :] = res_temp.real**2 + res_temp.imag**2
         # Cross correlation for second channel and get residual frequency
         F0 = scfft.fftshift(scfft.fft(z10*osc10.astype(z10.dtype)))
-        F1 = scfft.fftshift(scfft.fft(z11*osc11.astype(z01.dtype)))
-        res1[i_t, :] = F0*sp.conj(F1)
+        F1 = scfft.fftshift(scfft.fft(z11*osc11.astype(z11.dtype)))
+        res_temp = F0*F1.conj()
+        res1[i_t, :] = res_temp.real**2 + res_temp.imag**2
         # find max frequency over restricted sub-band
-        freqm[i_t] = fvec[fidx[sp.argmax(sp.absolute(res1[i_t, fidx]))]]
+        freqm[i_t] = fvec[fidx[sp.argmax(res1[i_t, fidx])]]
         #normalize residuals
-        res0[i_t, :] = res0[i_t, :]/sp.median(sp.absolute(res0[i_t, :]))
-        res1[i_t, :] = res1[i_t, :]/sp.median(sp.absolute(res1[i_t, :]))
+        res0[i_t, :] = res0[i_t, :]/sp.median(res0[i_t, :])
+        res1[i_t, :] = res1[i_t, :]/sp.median(res1[i_t, :])
     tvec[0] = tvec[0] - 100
     tvec[len(tvec)-1] = tvec[len(tvec)-1] + 100
     #outlier removal
@@ -264,7 +264,7 @@ def calc_resid(maindir,e,window=2**13,n_measure=500):
     #interpolate residual
     doppler_residual = sp.interpolate.interp1d(tvec, dopfit)
     # correlate residuals together
-    cspec = sp.mean(sp.absolute(res0*sp.conj(res1)), axis=0)
+    cspec = sp.mean(sp.absolute(res0*res1.conj()), axis=0)
     return({"cspec":cspec, "max_bin":sp.argmax(cspec),
             "doppler_residual":doppler_residual,
             "tvec":tvec, "fvec":fvec, "res1":res1, "res0":res0})
@@ -274,9 +274,10 @@ def plot_resid(d,savename='resfig1.png'):
         Plots the residual frequency after the first wipe using the TLE velocity.
     """
     flim = [-2.e3, 2.e3]
-    t = d['e']['t']
+    t = d['resid']['tvec']
     tlim = [t[1], t[-3]]
 
+    dates = [dt.datetime.fromtimestamp(ts) for ts in t]
     datenums = md.date2num(dates)
     xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
 
@@ -287,8 +288,10 @@ def plot_resid(d,savename='resfig1.png'):
     res0 = d["resid"]["res0"]
     res1 = d["resid"]["res1"]
     plt.subplot(121)
-    plt.pcolormesh(datenums, fvec, sp.transpose(10.*sp.log10(sp.absolute(res0))), vmin=-5, vmax=25)
-    plt.plot(datenums,(150.0/400.0)*d["resid"]["doppler_residual"](tvec), "k--", label="doppler resid")
+    plt.pcolormesh(datenums, fvec, sp.transpose(10.*sp.log10(res0+1e-12)), vmin=-5, vmax=25)
+    plt.plot(datenums, (150.0/400.0)*d["resid"]["doppler_residual"](tvec), "k--", label="doppler resid")
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(xfmt)
     plt.ylim(flim)
     plt.subplots_adjust(bottom=0.2)
     plt.xticks(rotation=25)
@@ -301,8 +304,10 @@ def plot_resid(d,savename='resfig1.png'):
     plt.xlim(tlim)
      # quicklook spectra of residuals spectra along with measured Doppler residual from second channel.
     plt.subplot(122)
-    plt.pcolormesh(datenums, fvec, sp.transpose(10.*sp.log10(sp.absolute(res1))), vmin=-5, vmax=25)
-    plt.plot(datenums,d["resid"]["doppler_residual"](tvec),"k--",label="doppler resid")
+    plt.pcolormesh(datenums, fvec, sp.transpose(10.*sp.log10(res1+1e-12)), vmin=-5, vmax=25)
+    plt.plot(datenums, d["resid"]["doppler_residual"](tvec), "k--", label="doppler resid")
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(xfmt)
     plt.ylim(flim)
     plt.xlabel("UTC")
     plt.ylabel("Frequency (Hz)")
@@ -315,14 +320,28 @@ def plot_resid(d,savename='resfig1.png'):
     plt.savefig(savename)
     plt.close(fig1)
 
-def plot_measurements(outdict,savename='measured.png'):
+def plot_measurements(outdict, savename='measured.png'):
     """
         Plots the rTEC and S4 measurements.
+
+        Args:
+             outdict (dict[str, obj]): Output data dictionary::
+
+                 {
+                            "rTEC": Relative TEC in TECU,
+                            "rTEC_sig":Relative TEC STD in TECU,
+                            "S4": The S4 parameter,
+                            "snr0":snr0,
+                            "snr1":snr1,
+                            "time": Time for each measurement in posix format,
+                 }
+            savename (obj:'str'): Name of the file that it will be saved to.
     """
 
     dates = [dt.datetime.fromtimestamp(ts) for ts in outdict['time']]
     datenums = md.date2num(dates)
     xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
+
 
     fig1 = plt.figure(figsize=(15, 5))
     plt.subplot(121)
@@ -358,6 +377,112 @@ def plot_measurements(outdict,savename='measured.png'):
     fig1.savefig(savename)
     plt.close(fig1)
 
+def plotsti_vel(maindir, timewin=[0,0], offset=0, window=512, sfactor=2, incoh_int=10, Nt=512):
+    """
+        Plot the velocity data over the sti data. This can be used to determie offsets so the data is properly aligned.
+
+        Args:
+            maindir (:obj:`str`): Path for data.
+            window (:obj:'int'): Window length in samples.
+            incoh_int (:obj:'int'): Number of incoherent integrations.
+            sfactor (:obj:'int'): Overlap factor.
+    """
+    # Get the frequency information
+    e = ephem_doponly(maindir, offset)
+
+    mainpath = os.path.expanduser(os.path.dirname(maindir))
+    figpath = os.path.split(mainpath)[0]
+
+    # always -0th subchannel for beacons
+    subchan = 0
+    dec_vec = [8, 5]
+    flim = [-12.5, 12.5]
+    Nr = int(sp.prod(dec_vec)*(incoh_int+sfactor-1)*(window/sfactor))
+
+    drfObj, chandict, start_indx, end_indx = open_file(maindir)
+
+    chans = chandict.keys()
+    sps = chandict[chans[0]]['sps']
+    start_indx = start_indx + timewin[0]*sps
+    end_indx = end_indx - timewin[1]*sps
+    start_vec = sp.linspace(start_indx, end_indx-Nr, Nt, dtype=float)
+    tvec = start_vec/sps
+    f0 = e["dop1"](tvec[::4]) * 1e-3
+    f1 = e["dop2"](tvec)[::4] * 1e-3
+
+    fvec = sp.arange(-window/2, window/2, dtype=float)*sps/sp.prod(dec_vec)/window
+
+    dates = [dt.datetime.fromtimestamp(ts) for ts in tvec]
+    datenums = md.date2num(dates)
+    xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
+
+    soff = window/sfactor
+    idx = sp.arange(window)
+    n_t1 = sp.arange(0, incoh_int)* soff
+    IDX, N_t1 = sp.meshgrid(idx, n_t1)
+    Msamp = IDX + N_t1
+
+    wfun = sig.get_window('hann', window)
+    wmat = sp.tile(wfun[sp.newaxis, :], (incoh_int, 1))
+
+    sti0 = sp.zeros((Nt, window), float)
+    sti1 = sp.zeros_like(sti0)
+    for i_t, c_st in enumerate(start_vec):
+
+        z0 = drfObj.read_vector(c_st, Nr, chans[0])[:, subchan]
+        z1 = drfObj.read_vector(c_st, Nr, chans[1])[:, subchan]
+        for idec in dec_vec:
+            z0 = sig.decimate(z0, idec)
+            z1 = sig.decimate(z1, idec)
+
+        z0 = z0[Msamp]
+        z1 = z1[Msamp]
+
+        fft0 = scfft.fftshift(scfft.fft(z0*wmat, axis=-1), axes=-1)
+        fft1 = scfft.fftshift(scfft.fft(z1*wmat, axis=-1), axes=-1)
+
+        psd0 = sp.sum(fft0.real**2 + fft0.imag**2, axis=0).real
+        psd1 = sp.sum(fft1.real**2 + fft1.imag**2, axis=0).real
+        sti0[i_t] = psd0
+        sti1[i_t] = psd1
+
+
+    fig1 = plt.figure(figsize=(10, 15))
+    plt.subplot(211)
+
+    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti0)))
+    plt.hold(True)
+    scplot = plt.plot(datenums[::4], f0, 'ko')
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(xfmt)
+    plt.ylim(flim)
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
+    plt.xlabel("UTC")
+    plt.ylabel("Frequency (kHz)")
+    plt.title("Power ch0 (dB) %1.2f MHz"%(150.012))
+    plt.colorbar(mesh,ax=ax)
+
+
+    plt.subplot(212)
+    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti1)))
+    plt.hold(True)
+    scplot = plt.plot(datenums[::4], f1, 'ko')
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(xfmt)
+    plt.ylim(flim)
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
+    plt.xlabel("UTC")
+    plt.ylabel("Frequency (kHz)")
+    plt.title("Power ch1 (dB) %1.2f MHz"%(400.032))
+    plt.colorbar(mesh,ax=ax)
+
+    plt.tight_layout()
+    fig1.savefig(os.path.join(figpath, 'chancomp.png'))
+    plt.close(fig1)
+
+
 def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[0,0],snrmin=0.):
     """
     Estimation of phase curve using coherent and incoherent integration.
@@ -367,6 +492,8 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
         window (:obj:'int'): Window length in samples.
         incoh_int (:obj:'int'): Number of incoherent integrations.
         sfactor (:obj:'int'): Overlap factor.
+        offset (:obj:'int'): Overlap factor.
+        timewin ((:obj:'list'): Overlap factor.)
     Returns:
          outdict (dict[str, obj]): Output data dictionary::
 
@@ -555,11 +682,10 @@ def parse_command_line(str_input=None):
     """
         This will parse through the command line arguments
     """
-    if str_input is None:
-        parser = argparse.ArgumentParser()
-    else:
-        parser = argparse.ArgumentParser(str_input)
-
+    # if str_input is None:
+    parser = argparse.ArgumentParser()
+    # else:
+    #     parser = argparse.ArgumentParser(str_input)
     parser.add_argument("-v", "--verbose", action="store_true",
                         dest="verbose", default=False,
                         help="prints debug output and additional detail.")
@@ -586,7 +712,10 @@ def parse_command_line(str_input=None):
     parser.add_argument('-m', "--minsnr", dest='minsnr', default=0., type=float,
                         help="Minimum SNR for for phase curve measurement")
 
-    return parser.parse_args()
+    if str_input is None:
+        return parser.parse_args()
+    else:
+        return parser.parse_args(str_input)
 
 
 

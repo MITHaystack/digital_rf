@@ -297,10 +297,11 @@ class DataPlotter:
 
 
 def parse_command_line(str_input=None):
-    if str_input is None:
-        parser = optparse.OptionParser()
-    else:
-        parser = optparse.OptionParser(str_input)
+    # if str_input is None:
+    #     parser = optparse.OptionParser()
+    # else:
+    #     parser = optparse.OptionParser(str_input)
+    parser = optparse.OptionParser()
 
     parser.add_option("-t", "--title", dest="title",
                       default='Digital RF Data', help="Use title provided for the data.")
@@ -335,7 +336,10 @@ def parse_command_line(str_input=None):
                       type=str, help="Name of file that figure will be saved under.")
     parser.add_option("-a", "--appear", action="store_true", dest="appear",
                       default=False, help="Makes the plot appear through pyplot show.")
-    (options, args) = parser.parse_args()
+    if str_input is None:
+        (options, args) = parser.parse_args()
+    else:
+        (options, args) = parser.parse_args(str_input)
 
     return (options, args)
 
