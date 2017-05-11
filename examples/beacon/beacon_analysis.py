@@ -203,7 +203,6 @@ def calc_resid(maindir,e,window=2**13,n_measure=500):
     # number of Hz to search over for max
     bw_search = 6e3
 
-
     drfObj, chandict, start_indx, end_indx = open_file(maindir)
 
     chans = chandict.keys()
@@ -264,224 +263,11 @@ def calc_resid(maindir,e,window=2**13,n_measure=500):
     #interpolate residual
     doppler_residual = sp.interpolate.interp1d(tvec, dopfit)
     # correlate residuals together
-    cspec = sp.mean(sp.absolute(res0*res1.conj()), axis=0)
+    rescor = res0*res1.conj()
+    cspec = sp.mean(rescor.real**2+rescor.imag**2, axis=0).real
     return({"cspec":cspec, "max_bin":sp.argmax(cspec),
-            "doppler_residual":doppler_residual,
+            "doppler_residual":doppler_residual, 'dopfit':dopfit,
             "tvec":tvec, "fvec":fvec, "res1":res1, "res0":res0})
-
-def plot_resid(d,savename='resfig1.png'):
-    """
-        Plots the residual frequency after the first wipe using the TLE velocity.
-    """
-    flim = [-2.e3, 2.e3]
-    t = d['resid']['tvec']
-    tlim = [t[1], t[-3]]
-
-    dates = [dt.datetime.fromtimestamp(ts) for ts in t]
-    datenums = md.date2num(dates)
-    xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
-
-    fig1 = plt.figure(figsize=(15,5))
-    tvec = d["resid"]["tvec"]
-    dates = [dt.datetime.fromtimestamp(ts) for ts in tvec]
-    fvec = d["resid"]["fvec"]
-    res0 = d["resid"]["res0"]
-    res1 = d["resid"]["res1"]
-    plt.subplot(121)
-    plt.pcolormesh(datenums, fvec, sp.transpose(10.*sp.log10(res0+1e-12)), vmin=-5, vmax=25)
-    plt.plot(datenums, (150.0/400.0)*d["resid"]["doppler_residual"](tvec), "k--", label="doppler resid")
-    ax = plt.gca()
-    ax.xaxis.set_major_formatter(xfmt)
-    plt.ylim(flim)
-    plt.subplots_adjust(bottom=0.2)
-    plt.xticks(rotation=25)
-    plt.xlabel("UTC")
-    plt.ylabel("Frequency (Hz)")
-    plt.title("Power ch0 (dB) %1.2f MHz"%(150.012))
-    plt.legend()
-    plt.colorbar(orientation="horizontal")
-
-    plt.xlim(tlim)
-     # quicklook spectra of residuals spectra along with measured Doppler residual from second channel.
-    plt.subplot(122)
-    plt.pcolormesh(datenums, fvec, sp.transpose(10.*sp.log10(res1+1e-12)), vmin=-5, vmax=25)
-    plt.plot(datenums, d["resid"]["doppler_residual"](tvec), "k--", label="doppler resid")
-    ax = plt.gca()
-    ax.xaxis.set_major_formatter(xfmt)
-    plt.ylim(flim)
-    plt.xlabel("UTC")
-    plt.ylabel("Frequency (Hz)")
-    plt.title("Power ch1 (dB), %1.2f MHz"%(400.032))
-    plt.subplots_adjust(bottom=0.2)
-    plt.xticks(rotation=25)
-    plt.colorbar(orientation="horizontal")
-    plt.legend()
-    plt.xlim(tlim)
-    plt.savefig(savename)
-    plt.close(fig1)
-
-def plot_measurements(outdict, savename='measured.png'):
-    """
-        Plots the rTEC and S4 measurements.
-
-        Args:
-             outdict (dict[str, obj]): Output data dictionary::
-
-                 {
-                            "rTEC": Relative TEC in TECU,
-                            "rTEC_sig":Relative TEC STD in TECU,
-                            "S4": The S4 parameter,
-                            "snr0":snr0,
-                            "snr1":snr1,
-                            "time": Time for each measurement in posix format,
-                 }
-            savename (obj:'str'): Name of the file that it will be saved to.
-    """
-
-    dates = [dt.datetime.fromtimestamp(ts) for ts in outdict['time']]
-    datenums = md.date2num(dates)
-    xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
-
-
-    fig1 = plt.figure(figsize=(15, 5))
-    plt.subplot(121)
-    plt.plot(datenums, outdict['rTEC'], color="black")
-    ax = plt.gca()
-    ax.xaxis.set_major_formatter(xfmt)
-    plt.xlabel("UTC")
-    plt.ylabel("rTEC (TECu)")
-    plt.legend()
-    plt.title("Relative TEC and S4 Parameters")
-    plt.subplots_adjust(bottom=0.2)
-    plt.xticks(rotation=25)
-    ax2 = ax.twinx()
-    plt.plot(datenums, outdict['S4'], color='red')
-    ax2.set_ylabel('S4', color='r')
-    ax2.tick_params('y', colors='r')
-
-    # SNR from beacon at those times
-    plt.subplot(122)
-    plt.plot(datenums, 10.0*sp.log10(outdict["snr0"]), label="150 MHz")
-    plt.plot(datenums, 10.0*sp.log10(outdict["snr1"]), label="400 MHz")
-    plt.legend()
-    ax = plt.gca()
-    ax.xaxis.set_major_formatter(xfmt)
-    plt.title("SNR for Both Channels")
-    plt.xlabel("UTC")
-    plt.ylabel("SNR (dB)")
-    plt.subplots_adjust(bottom=0.2)
-    plt.xticks(rotation=25)
-
-    plt.tight_layout()
-
-    fig1.savefig(savename)
-    plt.close(fig1)
-
-def plotsti_vel(maindir, timewin=[0,0], offset=0, window=512, sfactor=2, incoh_int=10, Nt=512):
-    """
-        Plot the velocity data over the sti data. This can be used to determie offsets so the data is properly aligned.
-
-        Args:
-            maindir (:obj:`str`): Path for data.
-            window (:obj:'int'): Window length in samples.
-            incoh_int (:obj:'int'): Number of incoherent integrations.
-            sfactor (:obj:'int'): Overlap factor.
-    """
-    # Get the frequency information
-    e = ephem_doponly(maindir, offset)
-
-    mainpath = os.path.expanduser(os.path.dirname(maindir))
-    figpath = os.path.split(mainpath)[0]
-
-    # always -0th subchannel for beacons
-    subchan = 0
-    dec_vec = [8, 5]
-    flim = [-12.5, 12.5]
-    Nr = int(sp.prod(dec_vec)*(incoh_int+sfactor-1)*(window/sfactor))
-
-    drfObj, chandict, start_indx, end_indx = open_file(maindir)
-
-    chans = chandict.keys()
-    sps = chandict[chans[0]]['sps']
-    start_indx = start_indx + timewin[0]*sps
-    end_indx = end_indx - timewin[1]*sps
-    start_vec = sp.linspace(start_indx, end_indx-Nr, Nt, dtype=float)
-    tvec = start_vec/sps
-    f0 = e["dop1"](tvec[::4]) * 1e-3
-    f1 = e["dop2"](tvec)[::4] * 1e-3
-
-    fvec = sp.arange(-window/2, window/2, dtype=float)*sps/sp.prod(dec_vec)/window
-
-    dates = [dt.datetime.fromtimestamp(ts) for ts in tvec]
-    datenums = md.date2num(dates)
-    xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
-
-    soff = window/sfactor
-    idx = sp.arange(window)
-    n_t1 = sp.arange(0, incoh_int)* soff
-    IDX, N_t1 = sp.meshgrid(idx, n_t1)
-    Msamp = IDX + N_t1
-
-    wfun = sig.get_window('hann', window)
-    wmat = sp.tile(wfun[sp.newaxis, :], (incoh_int, 1))
-
-    sti0 = sp.zeros((Nt, window), float)
-    sti1 = sp.zeros_like(sti0)
-    for i_t, c_st in enumerate(start_vec):
-
-        z0 = drfObj.read_vector(c_st, Nr, chans[0])[:, subchan]
-        z1 = drfObj.read_vector(c_st, Nr, chans[1])[:, subchan]
-        for idec in dec_vec:
-            z0 = sig.decimate(z0, idec)
-            z1 = sig.decimate(z1, idec)
-
-        z0 = z0[Msamp]
-        z1 = z1[Msamp]
-
-        fft0 = scfft.fftshift(scfft.fft(z0*wmat, axis=-1), axes=-1)
-        fft1 = scfft.fftshift(scfft.fft(z1*wmat, axis=-1), axes=-1)
-
-        psd0 = sp.sum(fft0.real**2 + fft0.imag**2, axis=0).real
-        psd1 = sp.sum(fft1.real**2 + fft1.imag**2, axis=0).real
-        sti0[i_t] = psd0
-        sti1[i_t] = psd1
-
-
-    fig1 = plt.figure(figsize=(10, 15))
-    plt.subplot(211)
-
-    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti0)))
-    plt.hold(True)
-    scplot = plt.plot(datenums[::4], f0, 'ko')
-    ax = plt.gca()
-    ax.xaxis.set_major_formatter(xfmt)
-    plt.ylim(flim)
-    plt.subplots_adjust(bottom=0.2)
-    plt.xticks(rotation=25)
-    plt.xlabel("UTC")
-    plt.ylabel("Frequency (kHz)")
-    plt.title("Power ch0 (dB) %1.2f MHz"%(150.012))
-    plt.colorbar(mesh,ax=ax)
-
-
-    plt.subplot(212)
-    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti1)))
-    plt.hold(True)
-    scplot = plt.plot(datenums[::4], f1, 'ko')
-    ax = plt.gca()
-    ax.xaxis.set_major_formatter(xfmt)
-    plt.ylim(flim)
-    plt.subplots_adjust(bottom=0.2)
-    plt.xticks(rotation=25)
-    plt.xlabel("UTC")
-    plt.ylabel("Frequency (kHz)")
-    plt.title("Power ch1 (dB) %1.2f MHz"%(400.032))
-    plt.colorbar(mesh,ax=ax)
-
-    plt.tight_layout()
-    fig1.savefig(os.path.join(figpath, 'chancomp.png'))
-    plt.close(fig1)
-
 
 def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[0,0],snrmin=0.):
     """
@@ -518,7 +304,7 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
     start_indx = start_indx + timewin[0]*sps
     end_indx = end_indx - timewin[1]*sps
     freq_ratio = chandict[chans[0]]['fo']/chandict[chans[1]]['fo']
-    start_vec = sp.arange(start_indx, end_indx-Nr, Nr, dtype=sp.float64)
+    start_vec = sp.arange(start_indx, end_indx-Nr, Nr, dtype=float)
     tvec = start_vec/sps
 
     soff = window/sfactor
@@ -616,10 +402,227 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
     rTEC_sig = cTEC*stdcurve*1e-16
     S4 = sp.std(snr0[Sampclip], axis=-1)/sp.median(snr0, axis=-1)
 
-    outdict = {'rTEC':rTEC, 'rTEC_sig':rTEC_sig, 'S4':S4, 'snr0':snr0,
-               'snr1':snr1, 'time':tvec}
-    return outdict
 
+    outdict = {'rTEC':rTEC, 'rTEC_sig':rTEC_sig, 'S4':S4, 'snr0':snr0,
+               'snr1':snr1, 'time':tvec,'resid':resid}
+    return outdict
+#%% Plotting
+def plotsti_vel(maindir, timewin=[0,0], offset=0, window=512, sfactor=2, incoh_int=10, Nt=512):
+    """
+        Plot the velocity data over the sti data. This can be used to determie offsets so the data is properly aligned.
+
+        Args:
+            maindir (:obj:`str`): Path for data.
+            window (:obj:'int'): Window length in samples.
+            incoh_int (:obj:'int'): Number of incoherent integrations.
+            sfactor (:obj:'int'): Overlap factor.
+    """
+    # Get the frequency information
+    e = ephem_doponly(maindir, offset)
+
+    figpath = os.path.join(maindir,'Figures')
+
+    # always -0th subchannel for beacons
+    subchan = 0
+    dec_vec = [8, 5]
+    flim = [-12.5, 12.5]
+    Nr = int(sp.prod(dec_vec)*(incoh_int+sfactor-1)*(window/sfactor))
+
+    drfObj, chandict, start_indx, end_indx = open_file(maindir)
+
+    chans = chandict.keys()
+    sps = chandict[chans[0]]['sps']
+    start_indx = start_indx + timewin[0]*sps
+    end_indx = end_indx - timewin[1]*sps
+    start_vec = sp.linspace(start_indx, end_indx-Nr, Nt, dtype=float)
+    tvec = start_vec/sps
+    f0 = e["dop1"](tvec[::4]) * 1e-3
+    f1 = e["dop2"](tvec)[::4] * 1e-3
+
+    fvec = sp.arange(-window/2, window/2, dtype=float)*sps/sp.prod(dec_vec)/window
+
+    dates = [dt.datetime.fromtimestamp(ts) for ts in tvec]
+    datenums = md.date2num(dates)
+    xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
+
+    soff = window/sfactor
+    idx = sp.arange(window)
+    n_t1 = sp.arange(0, incoh_int)* soff
+    IDX, N_t1 = sp.meshgrid(idx, n_t1)
+    Msamp = IDX + N_t1
+
+    wfun = sig.get_window('hann', window)
+    wmat = sp.tile(wfun[sp.newaxis, :], (incoh_int, 1))
+
+    sti0 = sp.zeros((Nt, window), float)
+    sti1 = sp.zeros_like(sti0)
+    for i_t, c_st in enumerate(start_vec):
+
+        z0 = drfObj.read_vector(c_st, Nr, chans[0])[:, subchan]
+        z1 = drfObj.read_vector(c_st, Nr, chans[1])[:, subchan]
+        for idec in dec_vec:
+            z0 = sig.decimate(z0, idec, zero_phase=False)
+            z1 = sig.decimate(z1, idec, zero_phase=False)
+
+        z0 = z0[Msamp]
+        z1 = z1[Msamp]
+
+        fft0 = scfft.fftshift(scfft.fft(z0*wmat, axis=-1), axes=-1)
+        fft1 = scfft.fftshift(scfft.fft(z1*wmat, axis=-1), axes=-1)
+
+        psd0 = sp.sum(fft0.real**2 + fft0.imag**2, axis=0).real
+        psd1 = sp.sum(fft1.real**2 + fft1.imag**2, axis=0).real
+        sti0[i_t] = psd0
+        sti1[i_t] = psd1
+
+
+    fig1 = plt.figure(figsize=(7, 9))
+    plt.subplot(211)
+
+    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti0)))
+
+    scplot = plt.plot(datenums[::4], f0, 'ko')
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(xfmt)
+    plt.ylim(flim)
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
+    plt.xlabel("UTC")
+    plt.ylabel("Frequency (kHz)")
+    plt.title("Power ch0 (dB) %1.2f MHz"%(150.012))
+    plt.colorbar(mesh, ax=ax)
+
+
+    plt.subplot(212)
+    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti1)))
+    scplot = plt.plot(datenums[::4], f1, 'ko')
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(xfmt)
+    plt.ylim(flim)
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
+    plt.xlabel("UTC")
+    plt.ylabel("Frequency (kHz)")
+    plt.title("Power ch1 (dB) %1.2f MHz"%(400.032))
+    plt.colorbar(mesh, ax=ax)
+
+    plt.tight_layout()
+    figname = os.path.join(figpath, 'chancomp.png')
+    print('Saving RF TLE comparison figure: ' + figname)
+    fig1.savefig(figname)
+    plt.close(fig1)
+
+def plot_resid(d,savename='resfig1.png'):
+    """
+        Plots the residual frequency after the first wipe using the TLE velocity.
+    """
+    flim = [-2.e3, 2.e3]
+    t = d['tvec']
+    tlim = [t[1], t[-3]]
+
+    dates = [dt.datetime.fromtimestamp(ts) for ts in t]
+    datenums = md.date2num(dates)
+    xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
+
+    fig1 = plt.figure(figsize=(7, 9))
+
+    fvec = d["fvec"]
+    res0 = d["res0"]
+    res1 = d["res1"]
+    plt.subplot(211)
+    mesh = plt.pcolormesh(datenums, fvec, sp.transpose(10.*sp.log10(res0+1e-12)), vmin=-5, vmax=25)
+    plt.plot(datenums, (150.0/400.0)*d["doppler_residual"](t), "r--", label="doppler resid")
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(xfmt)
+    plt.ylim(flim)
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
+    plt.xlabel("UTC")
+    plt.ylabel("Frequency (Hz)")
+    plt.title("Power ch0 (dB) %1.2f MHz"%(150.012))
+    plt.legend()
+    plt.colorbar(mesh, ax=ax)
+
+     # quicklook spectra of residuals spectra along with measured Doppler residual from second channel.
+    plt.subplot(212)
+    mesh = plt.pcolormesh(datenums, fvec, sp.transpose(10.*sp.log10(res1+1e-12)), vmin=-5, vmax=25)
+    plt.plot(datenums, d["doppler_residual"](t), "r--", label="doppler resid")
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(xfmt)
+    plt.ylim(flim)
+    plt.xlabel("UTC")
+    plt.ylabel("Frequency (Hz)")
+    plt.title("Power ch1 (dB), %1.2f MHz"%(400.032))
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
+    plt.legend()
+    plt.colorbar(mesh, ax=ax)
+
+    plt.tight_layout()
+    print('Saving residual plots: '+savename)
+    plt.savefig(savename)
+    plt.close(fig1)
+
+def plot_measurements(outdict, savename='measured.png'):
+    """
+        Plots the rTEC and S4 measurements.
+
+        Args:
+             outdict (dict[str, obj]): Output data dictionary::
+
+                 {
+                            "rTEC": Relative TEC in TECU,
+                            "rTEC_sig":Relative TEC STD in TECU,
+                            "S4": The S4 parameter,
+                            "snr0":snr0,
+                            "snr1":snr1,
+                            "time": Time for each measurement in posix format,
+                 }
+            savename (obj:'str'): Name of the file that it will be saved to.
+    """
+
+    dates = [dt.datetime.fromtimestamp(ts) for ts in outdict['time']]
+    datenums = md.date2num(dates)
+    xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
+
+
+    fig1 = plt.figure(figsize=(15, 5))
+    plt.subplot(121)
+    plt.plot(datenums, outdict['rTEC'], color="black")
+    ax = plt.gca()
+    ax.grid(True)
+    ax.xaxis.set_major_formatter(xfmt)
+    plt.xlabel("UTC")
+    plt.ylabel("rTEC (TECu)")
+    plt.title("Relative TEC and S4 Parameters")
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
+    ax2 = ax.twinx()
+    plt.plot(datenums, outdict['S4'], color='red')
+    ax2.grid(True)
+    ax2.set_ylabel('S4', color='r')
+    ax2.tick_params('y', colors='r')
+
+    # SNR from beacon at those times
+    plt.subplot(122)
+    plt.plot(datenums, 10.0*sp.log10(outdict["snr0"]), label="150 MHz")
+    plt.plot(datenums, 10.0*sp.log10(outdict["snr1"]), label="400 MHz")
+    plt.legend()
+    ax = plt.gca()
+    ax.grid(True)
+    ax.xaxis.set_major_formatter(xfmt)
+    plt.title("SNR for Both Channels")
+    plt.xlabel("UTC")
+    plt.ylabel("SNR (dB)")
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
+
+    plt.tight_layout()
+    print('Saving measurement plots: ' + savename)
+    fig1.savefig(savename)
+    plt.close(fig1)
+
+#%% I/O for measurements
 def save_output(maindir, outdict):
     """
         This function saves the output of the relative TEC measurement processing.
@@ -637,7 +640,7 @@ def save_output(maindir, outdict):
                            "time": Time for each measurement in posix format,
                 }
         """
-    mainpath = os.path.expanduser(os.path.dirname(maindir))+'_Processed'
+    mainpath = maindir+'_Processed'
     if not os.path.exists(mainpath):
         os.mkdir(mainpath)
 
@@ -649,34 +652,89 @@ def save_output(maindir, outdict):
         sample_rate_denominator=1,
         file_name='Outputparams',
         )
+    # get rid of doppler residual
+    if 'doppler_residual' in outdict['resid'].keys():
+        del outdict['resid']['doppler_residual']
     mdo.write(outdict['time'][0], outdict)
+    # try:
+    #     mdo.write(outdict['time'][0], outdict)
+    # except IOError:
+    #     print('Processed data already exists. If rerunning delete the directory: {}'.format(mainpath))
+def readoutput(maindir):
+    """
+        This function reads the saved output of the relative TEC measurement processing.
+        If the processed data directory doesn't exist it returns None.
 
+        Args:
+            maindir (:obj:`str`): Path for RF data.
+
+        Returns:
+            outdict (dict[str, obj]): Output data dictionary. If the directory
+            doesn't exists it returns None::
+
+                {
+                           "rTEC": Relative TEC in TECU,
+                           "rTEC_sig":Relative TEC STD in TECU,
+                           "S4": The S4 parameter,
+                           "snr0":snr0,
+                           "snr1":snr1,
+                           "time": Time for each measurement in posix format,
+                }
+        """
+    maindirmeta = maindir+'_Processed'
+
+    if not os.path.exists(maindirmeta):
+        return None
+    dmeta = drf.DigitalMetadataReader(maindirmeta)
+    metadict = dmeta.read_latest()
+    outdict = metadict[metadict.keys()[0]]
+    outdict['resid']['doppler_residual'] = sp.interpolate.interp1d(outdict['resid']['tvec'],
+                                                                    outdict['resid']['dopfit'])
+    return outdict
+
+#%% Run from commandline material
 def analyzebeacons(input_args):
     """
         This function will run the analysis code and save the data. Plots will be
         made as well if desired.
     """
-    mainpath = os.path.expanduser(os.path.dirname(input_args.path))
+    # makes sure theres no trailing / for the path
+    mainpath = os.path.expanduser(os.path.dirname(os.path.join(input_args.path, '')))
+    figspath = os.path.join(mainpath, 'Figures')
+    if not os.path.exists(figspath):
+        os.mkdir(figspath)
     if input_args.savename is None:
-        savename = os.path.join(mainpath, 'BeaconPlots.png')
-    outdict = calc_TEC(input_args.path, window=input_args.window,
-                       incoh_int=input_args.incoh, sfactor=input_args.overlap,
-                       offset=input_args.tleoffset, timewin=[input_args.begoff,input_args.endoff],
-                       snrmin=input_args.minsnr)
-    print("Saving everything to digital metadata.")
-    outdict['window'] = input_args.window
-    outdict['incoherent_integrations'] = input_args.incoh
-    outdict['Overlap'] = input_args.overlap
-    outdict['Time_Offset'] = input_args.tleoffset
-    outdict['Beginning_Offset'] = input_args.begoff
-    outdict['Ending_Offset'] = input_args.endoff
-    outdict['Min_SNR'] = input_args.minsnr
-    save_output(input_args.path, outdict)
+        savename = os.path.join(figspath, 'BeaconPlots.png')
+    if input_args.justplots:
+        print('Analysis will not be run, only plots will be made.')
+        plotsti_vel(mainpath, timewin=[input_args.begoff, input_args.endoff],
+                    offset=input_args.tleoffset)
+        outdict = readoutput(mainpath)
+        if outdict is None:
+            print('No ouptut data exists')
+        else:
+            plot_resid(outdict['resid'], os.path.join(figspath, 'resid.png'))
+            plot_measurements(outdict, savename)
+    else:
 
-    if input_args.drawplots:
-        print("Plotting data.")
-        savename = os.path.expanduser(input_args.savename)
-        plot_measurements(outdict, savename)
+        outdict = calc_TEC(mainpath, window=input_args.window,
+                           incoh_int=input_args.incoh, sfactor=input_args.overlap,
+                           offset=input_args.tleoffset, timewin=[input_args.begoff, input_args.endoff],
+                           snrmin=input_args.minsnr)
+        print("Saving everything to digital metadata.")
+        outdict['window'] = input_args.window
+        outdict['incoherent_integrations'] = input_args.incoh
+        outdict['Overlap'] = input_args.overlap
+        outdict['Time_Offset'] = input_args.tleoffset
+        outdict['Beginning_Offset'] = input_args.begoff
+        outdict['Ending_Offset'] = input_args.endoff
+        outdict['Min_SNR'] = input_args.minsnr
+        save_output(mainpath, outdict)
+
+        if input_args.drawplots:
+            print("Plotting data.")
+            plot_resid(outdict['resid'], os.path.join(figspath, 'resid.png'))
+            plot_measurements(outdict, savename)
 
 def parse_command_line(str_input=None):
     """
@@ -695,7 +753,7 @@ def parse_command_line(str_input=None):
                         default=None, help='Path to the Digital RF files and meta data.')
     parser.add_argument('-d', "--drawplots", default=False, dest='drawplots', action="store_true",
                         help="Bool to determine if plots will be made and saved.")
-    parser.add_argument('-s', "--savename", dest='savename', default='measured.png',
+    parser.add_argument('-s', "--savename", dest='savename', default=None,
                         help='Name of plot file.')
     parser.add_argument('-w', "--window", dest='window', default=4096, type=int,
                         help='Length of window in samples for FFT in calculations.')
@@ -711,6 +769,9 @@ def parse_command_line(str_input=None):
                         help="Number of seconds to jump ahead before measuring.")
     parser.add_argument('-m', "--minsnr", dest='minsnr', default=0., type=float,
                         help="Minimum SNR for for phase curve measurement")
+    parser.add_argument('-j', "--justplots", action="store_true",
+                        dest="justplots", default=False,
+                        help="Makes plots for input, residuals, and final measurements if avalible.")
 
     if str_input is None:
         return parser.parse_args()
