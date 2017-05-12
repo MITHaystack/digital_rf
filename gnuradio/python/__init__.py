@@ -33,3 +33,4 @@ except ImportError:
 
 # import any pure python here
 #
+from digital_rf_source import digital_rf_source, digital_rf_channel_source
