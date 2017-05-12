@@ -235,8 +235,9 @@ def calc_resid(maindir,e,window=2**13,n_measure=500):
         z11 = drfObj.read_vector(c_st+window, window, chans[1])[:, subchan]
         # determine the doppler shift from the sat motion
         # d["e"]["vel2"] is a function derived from the interp1d function
-        doppler0 = -e["dop1"](t_cur+toff)
-        doppler1 = -e["dop2"](t_cur+toff)
+        tphase = sp.float64(t_cur+toff)
+        doppler0 = -e["dop1"](tphase)
+        doppler1 = -e["dop2"](tphase)
         # Cross correlation for first channel and get residual frequency
         osc00 = wfun*sp.exp(1.0j*2.0*sp.pi*doppler0*(idx/sps))
         osc01 = wfun*sp.exp(1.0j*2.0*sp.pi*doppler0*(idx/sps+ float(window)/sps))
@@ -341,9 +342,9 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
         z10 = drfObj.read_vector(c_st, Nr, chans[1])[Msamp, subchan]
         z11 = drfObj.read_vector(c_st+soff, Nr, chans[1])[Msamp, subchan]
 
-
-        doppler0 = -1.0*(150.0/400.0)*resid["doppler_residual"](t_cur) - e["dop1"](t_cur+toff)
-        doppler1 = -1.0*resid["doppler_residual"](t_cur) - e["dop2"](t_cur+toff)
+        tphase = sp.float64(t_cur+toff)
+        doppler0 = -1.0*(150.0/400.0)*resid["doppler_residual"](t_cur) - e["dop1"](tphase)
+        doppler1 = -1.0*resid["doppler_residual"](t_cur) - e["dop2"](tphase)
 
         osc00 = phase_00*wmat*sp.exp(1.0j*2.0*sp.pi*doppler0*(Msamp/sps))
         osc01 = phase_00*wmat*sp.exp(1.0j*2.0*sp.pi*doppler0*(Msamp/sps+ float(window)/sps))
