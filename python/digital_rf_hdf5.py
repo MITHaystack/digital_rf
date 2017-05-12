@@ -780,9 +780,10 @@ class DigitalRFReader:
             Name of channel to read from, one of ``get_channels()``.
 
         sub_channel : None | int, optional
-            If None, the return array will be 2-d and contain all subchannels
-            of data. If an integer, the return array will be 1-d and contain
-            the data of the subchannel given by that integer index.
+            If None, the return array will contain all subchannels of data and
+            be 2-d or 1-d depending on the number of subchannels. If an
+            integer, the return array will be 1-d and contain the data of the
+            subchannel given by that integer index.
 
 
         Returns
