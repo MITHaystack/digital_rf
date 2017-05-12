@@ -518,20 +518,19 @@ def plot_resid(d,savename='resfig1.png'):
     """
     flim = [-2.e3, 2.e3]
     t = d['tvec']
-    tlim = [t[1], t[-3]]
 
     dates = [dt.datetime.fromtimestamp(ts) for ts in t]
     datenums = md.date2num(dates)
     xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
 
     fig1 = plt.figure(figsize=(7, 9))
-
+    doppler_residual = sp.interpolate.interp1d(d['tvec'],d['dopfit'])
     fvec = d["fvec"]
     res0 = d["res0"]
     res1 = d["res1"]
     plt.subplot(211)
     mesh = plt.pcolormesh(datenums, fvec, sp.transpose(10.*sp.log10(res0+1e-12)), vmin=-5, vmax=25)
-    plt.plot(datenums, (150.0/400.0)*d["doppler_residual"](t), "r--", label="doppler resid")
+    plt.plot(datenums, (150.0/400.0)*doppler_residual(t), "r--", label="doppler resid")
     ax = plt.gca()
     ax.xaxis.set_major_formatter(xfmt)
     plt.ylim(flim)
@@ -546,7 +545,7 @@ def plot_resid(d,savename='resfig1.png'):
      # quicklook spectra of residuals spectra along with measured Doppler residual from second channel.
     plt.subplot(212)
     mesh = plt.pcolormesh(datenums, fvec, sp.transpose(10.*sp.log10(res1+1e-12)), vmin=-5, vmax=25)
-    plt.plot(datenums, d["doppler_residual"](t), "r--", label="doppler resid")
+    plt.plot(datenums, doppler_residual(t), "r--", label="doppler resid")
     ax = plt.gca()
     ax.xaxis.set_major_formatter(xfmt)
     plt.ylim(flim)
@@ -623,7 +622,7 @@ def plot_measurements(outdict, savename='measured.png'):
     plt.close(fig1)
 
 #%% I/O for measurements
-def save_output(maindir, outdict):
+def save_output(maindirmeta, outdict):
     """
         This function saves the output of the relative TEC measurement processing.
 
@@ -640,12 +639,12 @@ def save_output(maindir, outdict):
                            "time": Time for each measurement in posix format,
                 }
         """
-    mainpath = maindir+'_Processed'
-    if not os.path.exists(mainpath):
-        os.mkdir(mainpath)
+
+    if not os.path.exists(maindirmeta):
+        os.mkdir(maindirmeta)
 
     mdo = drf.DigitalMetadataWriter(
-        metadata_dir=mainpath,
+        metadata_dir=maindirmeta,
         subdir_cadence_secs=3600,
         file_cadence_secs=1,
         sample_rate_numerator=1,
@@ -656,11 +655,8 @@ def save_output(maindir, outdict):
     if 'doppler_residual' in outdict['resid'].keys():
         del outdict['resid']['doppler_residual']
     mdo.write(outdict['time'][0], outdict)
-    # try:
-    #     mdo.write(outdict['time'][0], outdict)
-    # except IOError:
-    #     print('Processed data already exists. If rerunning delete the directory: {}'.format(mainpath))
-def readoutput(maindir):
+
+def readoutput(maindirmeta):
     """
         This function reads the saved output of the relative TEC measurement processing.
         If the processed data directory doesn't exist it returns None.
@@ -681,15 +677,12 @@ def readoutput(maindir):
                            "time": Time for each measurement in posix format,
                 }
         """
-    maindirmeta = maindir+'_Processed'
-
     if not os.path.exists(maindirmeta):
         return None
     dmeta = drf.DigitalMetadataReader(maindirmeta)
     metadict = dmeta.read_latest()
     outdict = metadict[metadict.keys()[0]]
-    outdict['resid']['doppler_residual'] = sp.interpolate.interp1d(outdict['resid']['tvec'],
-                                                                    outdict['resid']['dopfit'])
+
     return outdict
 
 #%% Run from commandline material
@@ -700,7 +693,12 @@ def analyzebeacons(input_args):
     """
     # makes sure theres no trailing / for the path
     mainpath = os.path.expanduser(os.path.dirname(os.path.join(input_args.path, '')))
-    figspath = os.path.join(mainpath, 'Figures')
+    maindirmeta = input_args.newdir
+    if maindirmeta is None:
+        maindirmeta = os.path.dirname(maindirmeta)+'_Processed'
+    if not os.path.exists(maindirmeta):
+        os.mkdir(maindirmeta)
+    figspath = os.path.join(maindirmeta, 'Figures')
     if not os.path.exists(figspath):
         os.mkdir(figspath)
     if input_args.savename is None:
@@ -709,7 +707,7 @@ def analyzebeacons(input_args):
         print('Analysis will not be run, only plots will be made.')
         plotsti_vel(mainpath, timewin=[input_args.begoff, input_args.endoff],
                     offset=input_args.tleoffset)
-        outdict = readoutput(mainpath)
+        outdict = readoutput(maindirmeta)
         if outdict is None:
             print('No ouptut data exists')
         else:
@@ -729,7 +727,7 @@ def analyzebeacons(input_args):
         outdict['Beginning_Offset'] = input_args.begoff
         outdict['Ending_Offset'] = input_args.endoff
         outdict['Min_SNR'] = input_args.minsnr
-        save_output(mainpath, outdict)
+        save_output(maindirmeta, outdict)
 
         if input_args.drawplots:
             print("Plotting data.")
@@ -772,6 +770,8 @@ def parse_command_line(str_input=None):
     parser.add_argument('-j', "--justplots", action="store_true",
                         dest="justplots", default=False,
                         help="Makes plots for input, residuals, and final measurements if avalible.")
+    parser.add_argument('-n', "--newdir", dest="newdir", default=None,
+                        help='Directory that measured data will be saved.')
 
     if str_input is None:
         return parser.parse_args()
