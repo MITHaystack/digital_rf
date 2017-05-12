@@ -81,11 +81,9 @@ class Thor(object):
         """Put all keyword options in a namespace and normalize them."""
         op = Namespace(**kwargs)
 
-        print(op.uuid)
         if op.uuid is None:
             # generate random UUID
             op.uuid = uuid.uuid4().hex
-        print(op.uuid)
 
         op.nmboards = len(op.mboards) if len(op.mboards) > 0 else 1
         op.nchs = len(op.chs)
@@ -137,6 +135,7 @@ class Thor(object):
                 Sample rate: {samplerate}
                 Data dir: {datadir}
                 Metadata: {metadata}
+                UUID: {uuid}
             ''').strip().format(**op.__dict__)
             print(opstr)
 
