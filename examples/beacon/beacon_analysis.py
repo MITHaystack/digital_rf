@@ -678,7 +678,7 @@ def readoutput(maindirmeta):
                            "time": Time for each measurement in posix format,
                 }
         """
-    if not os.path.exists(maindirmeta):
+    if not os.path.isfile(os.path.join(maindirmeta,'metadata.h5')):
         return None
     dmeta = drf.DigitalMetadataReader(maindirmeta)
     metadict = dmeta.read_latest()
