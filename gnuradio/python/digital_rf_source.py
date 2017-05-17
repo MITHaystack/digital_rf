@@ -17,6 +17,8 @@ H5T_LOOKUP = {
     # (class, itemsize, is_complex): {name, dtype}
     (h5py.h5t.INTEGER, 1, False): dict(name='s8', dtype=np.int8),
     (h5py.h5t.INTEGER, 2, False): dict(name='s16', dtype=np.int16),
+    (h5py.h5t.INTEGER, 4, False): dict(name='s32', dtype=np.int32),
+    (h5py.h5t.INTEGER, 8, False): dict(name='s64', dtype=np.int64),
     (h5py.h5t.FLOAT, 4, False): dict(name='f32', dtype=np.float32),
     (h5py.h5t.FLOAT, 8, False): dict(name='f64', dtype=np.float64),
     (h5py.h5t.INTEGER, 1, True): dict(
@@ -24,6 +26,12 @@ H5T_LOOKUP = {
     ),
     (h5py.h5t.INTEGER, 2, True): dict(
         name='sc16', dtype=np.dtype([('r', np.int16), ('i', np.int16)]),
+    ),
+    (h5py.h5t.INTEGER, 4, True): dict(
+        name='sc32', dtype=np.dtype([('r', np.int32), ('i', np.int32)]),
+    ),
+    (h5py.h5t.INTEGER, 8, True): dict(
+        name='sc64', dtype=np.dtype([('r', np.int64), ('i', np.int64)]),
     ),
     (h5py.h5t.FLOAT, 4, True): dict(name='fc32', dtype=np.complex64),
     (h5py.h5t.FLOAT, 8, True): dict(name='fc64', dtype=np.complex128),
@@ -124,6 +132,7 @@ class digital_rf_channel_source(gr.sync_block):
 
         self._itemsize = itemsize
         self._sample_rate = sr
+        self._sample_rate_pmt = pmt.from_double(float(sr))
 
         # determine output signature from HDF5 type metadata
         typedict = get_h5type(typeclass, itemsize, is_complex)
@@ -143,12 +152,20 @@ class digital_rf_channel_source(gr.sync_block):
 
         self.message_port_register_out(pmt.intern('metadata'))
         self._id = pmt.intern(self._ch)
+        self._tag_queue = {}
 
         self._start = start
         self._end = end
         self._repeat = repeat
 
-        self._DMDReader = self._Reader.get_digital_metadata(self._ch)
+        try:
+            self._DMDReader = self._Reader.get_digital_metadata(self._ch)
+        except IOError:
+            self._DMDReader = None
+
+        # FIXME: should not be necessary, sets a large output buffer so that
+        # we don't underrun on frequent calls to work
+        self.set_output_multiple(int(sr))
 
     @staticmethod
     def _parse_sample_identifier(iden, sample_rate=None, ref_index=None):
@@ -221,6 +238,40 @@ class digital_rf_channel_source(gr.sync_block):
         else:
             return idx
 
+    def _queue_tags(self, sample, tags):
+        """Queue stream tags to be attached to data in the work function.
+
+        In addition to the tags specified in the `tags` dictionary, this will
+        add `rx_time` and `rx_rate` tags giving the sample time and rate.
+
+
+        Parameters
+        ----------
+
+        sample : int | long
+            Sample index for the sample to tag, given in the number of samples
+            since the epoch (time_since_epoch*sample_rate).
+
+        tags : dict
+            Dictionary containing the tags to add with keys specifying the tag
+            name. The value is cast as an appropriate pmt type, while the name
+            will be turned into a pmt string in the work function.
+
+        """
+        # add to current queued tags for sample if applicable
+        tag_dict = self._tag_queue.get(sample, {})
+        if not tag_dict:
+            # add time and rate tags
+            time = sample/self._sample_rate
+            tag_dict['rx_time'] = pmt.make_tuple(
+                pmt.from_uint64(long(np.uint64(time))),
+                pmt.from_double(float(time % 1)),
+            )
+            tag_dict['rx_rate'] = self._sample_rate_pmt
+        for k, v in tags.items():
+            tag_dict[k] = pmt.to_pmt(v)
+        self._tag_queue[sample] = tag_dict
+
     def start(self):
         self._bounds = self._Reader.get_bounds(self._ch)
         self._start_sample = self._parse_sample_identifier(
@@ -233,6 +284,8 @@ class digital_rf_channel_source(gr.sync_block):
             self._global_index = self._bounds[0]
         else:
             self._global_index = self._start_sample
+        # add default tags to first sample
+        self._queue_tags(self._global_index, {})
         # replace longdouble samples_per_second with float for pmt conversion
         message_metadata = self._metadata.copy()
         message_metadata['samples_per_second'] = \
@@ -275,42 +328,41 @@ class digital_rf_channel_source(gr.sync_block):
                     ke = ks + data.shape[0]
                     # out is zeroed, so only have to write samples we have
                     out[ks:ke] = data.squeeze()
+                # now read corresponding metadata
+                if self._DMDReader is not None:
+                    meta_dict = self._DMDReader.read(
+                        start_sample, end_sample,
+                    )
+                    for sample, meta in meta_dict.items():
+                        # add center frequency tag from metadata
+                        # (in addition to default time and rate tags)
+                        tags = dict(
+                            rx_freq=meta['center_frequencies'].ravel()[0]
+                        )
+                        self._queue_tags(sample, tags)
+                # add queued tags to stream
+                for sample, tag_dict in self._tag_queue.items():
+                    offset = (
+                        self.nitems_written(0) + nout +
+                        (sample - start_sample)
+                    )
+                    for name, val in tag_dict.items():
+                        self.add_item_tag(
+                            0, offset, pmt.intern(name), val, self._id,
+                        )
+                self._tag_queue.clear()
                 # no errors, so we read all the samples we wanted
                 # (end_sample is inclusive, hence the +1)
-                nout += (end_sample + 1 - start_sample)
-                self._global_index += nout
-                # now read corresponding metadata
-                meta_dict = self._DMDReader.read(
-                    start_sample, end_sample,
-                )
-                for sample, meta in meta_dict.items():
-                    offset = self.nitems_written(0) + (sample - start_sample)
-                    time = sample/self._sample_rate
-                    self.add_item_tag(
-                        0, offset, pmt.intern('rx_time'),
-                        pmt.make_tuple(
-                            pmt.from_uint64(long(np.uint64(time))),
-                            pmt.from_double(float(time % 1)),
-                        ),
-                        self._id,
-                    )
-                    self.add_item_tag(
-                        0, offset, pmt.intern('rx_rate'),
-                        pmt.from_double(float(self._sample_rate)),
-                        self._id,
-                    )
-                    self.add_item_tag(
-                        0, offset, pmt.intern('rx_freq'),
-                        pmt.from_double(meta['center_frequencies'].ravel()[0]),
-                        self._id,
-                    )
+                nread = (end_sample + 1 - start_sample)
+                nout += nread
+                self._global_index += nread
             except EOFError:
                 if self._repeat:
                     if self._start_sample is None:
                         self._global_index = self._bounds[0]
                     else:
                         self._global_index = self._start_sample
-                    print('End of data reached, repeating.')
+                    self._queue_tags(self._global_index, {})
                     continue
                 else:
                     break
