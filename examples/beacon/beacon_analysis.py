@@ -410,7 +410,7 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
                'snr1':snr1, 'time':tvec,'resid':resid}
     return outdict
 #%% Plotting
-def plotsti_vel(maindir, timewin=[0,0], offset=0, window=512, sfactor=2, incoh_int=10, Nt=512):
+def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window=512, sfactor=2, incoh_int=10, Nt=512):
     """
         Plot the velocity data over the sti data. This can be used to determie offsets so the data is properly aligned.
 
@@ -423,7 +423,6 @@ def plotsti_vel(maindir, timewin=[0,0], offset=0, window=512, sfactor=2, incoh_i
     # Get the frequency information
     e = ephem_doponly(maindir, offset)
 
-    figpath = os.path.join(maindir,'Figures')
 
     # always -0th subchannel for beacons
     subchan = 0
@@ -510,9 +509,8 @@ def plotsti_vel(maindir, timewin=[0,0], offset=0, window=512, sfactor=2, incoh_i
     plt.colorbar(mesh, ax=ax)
 
     plt.tight_layout()
-    figname = os.path.join(figpath, 'chancomp.png')
-    print('Saving RF TLE comparison figure: ' + figname)
-    fig1.savefig(figname)
+    print('Saving RF TLE comparison figure: ' + savename)
+    fig1.savefig(savename)
     plt.close(fig1)
 
 def plot_resid(d,savename='resfig1.png'):
@@ -708,7 +706,8 @@ def analyzebeacons(input_args):
         savename = os.path.join(figspath, 'BeaconPlots.png')
     if input_args.justplots:
         print('Analysis will not be run, only plots will be made.')
-        plotsti_vel(mainpath, timewin=[input_args.begoff, input_args.endoff],
+        plotsti_vel(mainpath, savename=os.path.join(figspath,'chancomp.png'),
+                    timewin=[input_args.begoff, input_args.endoff],
                     offset=input_args.tleoffset)
         outdict = readoutput(maindirmeta)
         if outdict is None:
