@@ -478,8 +478,9 @@ def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window
         sti1[i_t] = psd1
 
 
-    fig1 = plt.figure(figsize=(7, 9))
-    plt.subplot(211)
+    fig1 = plt.figure(figsize=(12, 12))
+
+    plt.subplot(221)
 
     mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti0)))
 
@@ -494,8 +495,22 @@ def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window
     plt.title("Power ch0 (dB) %1.2f MHz"%(150.012))
     plt.colorbar(mesh, ax=ax)
 
+    plt.subplot(222)
 
-    plt.subplot(212)
+    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti0)))
+
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(xfmt)
+    plt.ylim(flim)
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
+    plt.xlabel("UTC")
+    plt.ylabel("Frequency (kHz)")
+    plt.title("Power ch0 (dB) %1.2f MHz"%(150.012))
+    plt.colorbar(mesh, ax=ax)
+
+
+    plt.subplot(223)
     mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti1)))
     scplot = plt.plot(datenums[::4], f1, 'ko')
     ax = plt.gca()
@@ -508,6 +523,17 @@ def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window
     plt.title("Power ch1 (dB) %1.2f MHz"%(400.032))
     plt.colorbar(mesh, ax=ax)
 
+    plt.subplot(224)
+    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti1)))
+    ax = plt.gca()
+    ax.xaxis.set_major_formatter(xfmt)
+    plt.ylim(flim)
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
+    plt.xlabel("UTC")
+    plt.ylabel("Frequency (kHz)")
+    plt.title("Power ch1 (dB) %1.2f MHz"%(400.032))
+    plt.colorbar(mesh, ax=ax)
     plt.tight_layout()
     print('Saving RF TLE comparison figure: ' + savename)
     fig1.savefig(savename)
