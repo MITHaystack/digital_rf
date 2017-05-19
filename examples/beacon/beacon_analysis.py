@@ -462,8 +462,8 @@ def plotsti_vel(maindir, timewin=[0,0], offset=0, window=512, sfactor=2, incoh_i
         z0 = drfObj.read_vector(c_st, Nr, chans[0])[:, subchan]
         z1 = drfObj.read_vector(c_st, Nr, chans[1])[:, subchan]
         for idec in dec_vec:
-            z0 = sig.decimate(z0, idec, zero_phase=False)
-            z1 = sig.decimate(z1, idec, zero_phase=False)
+            z0 = sig.decimate(z0, idec)
+            z1 = sig.decimate(z1, idec)
 
         z0 = z0[Msamp]
         z1 = z1[Msamp]
