@@ -427,7 +427,8 @@ def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window
     # always -0th subchannel for beacons
     subchan = 0
     dec_vec = [8, 5]
-    flim = [-12.5, 12.5]
+    flim = [-10, 10]
+    mindb=15.
     Nr = int(sp.prod(dec_vec)*(incoh_int+sfactor-1)*(window/sfactor))
 
     drfObj, chandict, start_indx, end_indx = open_file(maindir)
@@ -482,7 +483,7 @@ def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window
 
     plt.subplot(221)
 
-    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti0)))
+    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti0)), vmin=mindb)
 
     scplot = plt.plot(datenums[::4], f0, 'ko')
     ax = plt.gca()
@@ -497,7 +498,7 @@ def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window
 
     plt.subplot(222)
 
-    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti0)))
+    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti0)), vmin=mindb)
 
     ax = plt.gca()
     ax.xaxis.set_major_formatter(xfmt)
@@ -511,7 +512,7 @@ def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window
 
 
     plt.subplot(223)
-    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti1)))
+    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti1)), vmin=mindb)
     scplot = plt.plot(datenums[::4], f1, 'ko')
     ax = plt.gca()
     ax.xaxis.set_major_formatter(xfmt)
@@ -524,7 +525,7 @@ def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window
     plt.colorbar(mesh, ax=ax)
 
     plt.subplot(224)
-    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti1)))
+    mesh = plt.pcolormesh(datenums, fvec*1e-3, sp.transpose(10.*sp.log10(sti1)), vmin=mindb)
     ax = plt.gca()
     ax.xaxis.set_major_formatter(xfmt)
     plt.ylim(flim)
