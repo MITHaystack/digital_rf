@@ -18,6 +18,8 @@ import scipy.fftpack as scfft
 import scipy.signal as sig
 import scipy.constants as s_const
 
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
 # Millstone imports
