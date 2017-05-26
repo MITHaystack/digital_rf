@@ -13,7 +13,17 @@ set(libdigital_rf_VERSION ${libdigital_rf_VERSION_MAJOR}.${libdigital_rf_VERSION
 include(GNUInstallDirs)
 
 find_package(HDF5 REQUIRED)
-find_library(HDF5_LIBRARY hdf5 PATHS ${HDF5_LIBRARY_DIRS})
+# need the dirs to explicitly find just the 'hdf5' library
+set(HDF5_LIBRARY_DIRS)
+foreach(LIB IN LISTS HDF5_LIBRARIES)
+    get_filename_component(LIBDIR ${LIB} DIRECTORY)
+    list(APPEND HDF5_LIBRARY_DIRS ${LIBDIR})
+endforeach(LIB)
+list(REMOVE_DUPLICATES HDF5_LIBRARY_DIRS)
+find_library(HDF5_LIBRARY hdf5 HINTS ${HDF5_LIBRARY_DIRS})
+# need the library directory for python build (guaranteed to exist since we
+# found HDF5 package and must have found the 'hdf5' library)
+get_filename_component(HDF5_LIBRARY_DIR ${HDF5_LIBRARY} DIRECTORY)
 add_library(digital_rf::hdf5 SHARED IMPORTED)
 set_target_properties(digital_rf::hdf5 PROPERTIES
     IMPORTED_LOCATION ${HDF5_LIBRARY}
@@ -113,14 +123,16 @@ add_subdirectory(examples EXCLUDE_FROM_ALL)
 add_subdirectory(tests)
 
 # gr_drf gnuradio module
+option(ENABLE_GNURADIO "Build gr_drf GNU Radio module." ON)
 set(GR_REQUIRED_COMPONENTS RUNTIME)
-find_package(Gnuradio REQUIRED)
-if(GNURADIO_RUNTIME_FOUND)
-    message("GNU Radio found, gr_drf module will be built.")
-    add_subdirectory(gnuradio)
-else(GNURADIO_RUNTIME_FOUND)
-    message("GNU Radio not found, gr_drf module will be skipped.")
-endif(GNURADIO_RUNTIME_FOUND)
+find_package(Gnuradio)
+if(GNURADIO_RUNTIME_FOUND AND ENABLE_GNURADIO)
+  message("| GNU Radio found, gr_drf module ENABLED.")
+  add_subdirectory(gnuradio)
+else(GNURADIO_RUNTIME_FOUND AND ENABLE_GNURADIO)
+  message("| GNU Radio not found or disabled, gr_drf module will be SKIPPED.")
+endif(GNURADIO_RUNTIME_FOUND AND ENABLE_GNURADIO)
+
 
 # add uninstall target
 # uninstall target

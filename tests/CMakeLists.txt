@@ -1,7 +1,7 @@
 function(InitializeTest test_name file)
     add_executable(${test_name} ${file})
     set_target_properties(${test_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY .)
-    target_link_libraries(${test_name} digital_rf ${HDF5_LIBRARIES})
+    target_link_libraries(${test_name} digital_rf)
     add_test(NAME ${test_name} COMMAND ${test_name})
 endfunction()
 

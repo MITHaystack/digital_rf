@@ -76,7 +76,7 @@ set(GR_CONF_DIR         etc)
 set(GR_PKG_CONF_DIR     ${GR_CONF_DIR}/${PROJECT_NAME}/conf.d)
 set(GR_LIBEXEC_DIR      libexec)
 set(GR_PKG_LIBEXEC_DIR  ${GR_LIBEXEC_DIR}/${PROJECT_NAME})
-set(GRC_BLOCKS_DIR      ${GR_PKG_DATA_DIR}/grc/blocks)
+set(GRC_BLOCKS_DIR      ${GR_DATA_DIR}/gnuradio/grc/blocks)
 
 ########################################################################
 # On Apple only, set install name and use rpath correctly, if not already set

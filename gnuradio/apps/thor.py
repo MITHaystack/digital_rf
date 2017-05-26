@@ -5,32 +5,32 @@
 """Record data from synchronized USRPs in Digital RF format."""
 from __future__ import print_function
 
-import sys
-import os
-import math
-import re
-import time
 import datetime
-import dateutil.parser
-import pytz
+import math
+import os
+import re
+import sys
+import time
 import uuid
-import numpy as np
-from argparse import ArgumentParser, RawDescriptionHelpFormatter, Namespace
-from textwrap import fill, dedent, TextWrapper
-from itertools import chain, cycle, islice, repeat
+from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
 from ast import literal_eval
-from subprocess import call
 from fractions import Fraction
-from gnuradio import gr
-from gnuradio import uhd
-from gnuradio import filter
+from itertools import chain, cycle, islice, repeat
+from subprocess import call
+from textwrap import TextWrapper, dedent, fill
+
+import dateutil.parser
+import numpy as np
+import pytz
+from gnuradio import filter, gr, uhd
 from gnuradio.filter import firdes
 
-import gr_drf
 import digital_rf as drf
+import gr_drf
 
 
 class Thor(object):
+    """Record data from synchronized USRPs in DigitalRF format."""
 
     def __init__(
         self, datadir, mboards=[], subdevs=['A:A'],
@@ -81,11 +81,9 @@ class Thor(object):
         """Put all keyword options in a namespace and normalize them."""
         op = Namespace(**kwargs)
 
-        print(op.uuid)
         if op.uuid is None:
             # generate random UUID
             op.uuid = uuid.uuid4().hex
-        print(op.uuid)
 
         op.nmboards = len(op.mboards) if len(op.mboards) > 0 else 1
         op.nchs = len(op.chs)
@@ -137,8 +135,20 @@ class Thor(object):
                 Sample rate: {samplerate}
                 Data dir: {datadir}
                 Metadata: {metadata}
+                UUID: {uuid}
             ''').strip().format(**op.__dict__)
             print(opstr)
+
+        # check that subdevice specifications are unique per-mainboard
+        for sd in op.subdevs:
+            sds = sd.split()
+            if len(set(sds)) != len(sds):
+                errstr = (
+                    'Invalid subdevice specification: "{0}". '
+                    'Each subdevice specification for a given mainboard must '
+                    'be unique.'
+                )
+                raise ValueError(errstr.format(sd))
 
         # sanity check: # of total subdevs should be same as # of channels
         op.mboards_bychan = []
@@ -151,8 +161,8 @@ class Thor(object):
             op.subdevs_bychan.extend(sds)
         if len(op.subdevs_bychan) != op.nchs:
             raise ValueError(
-                '''Number of device channels does not match the number of
-                   channel names provided'''
+                'Number of device channels does not match the number of '
+                'channel names provided.'
             )
 
         return op
@@ -279,7 +289,7 @@ class Thor(object):
 
         # wait for the start time if it is not past
         while (st is not None) and (st - time.time()) > 10:
-            ttl = st - time.time()
+            ttl = int(math.floor(st - time.time()))
             if (ttl % 10) == 0:
                 print('Standby {0} s remaining...'.format(ttl))
                 sys.stdout.flush()
@@ -365,16 +375,18 @@ class Thor(object):
             lt = int(math.ceil(time.time() + 0.5))
         # adjust launch time forward so it falls on an exact sample since epoch
         lt_samples = np.ceil(lt * samplerate_out)
-        # splitting lt into secs/frac lets us set a more accurate time_spec
-        lt_secs = lt_samples // samplerate_out
-        lt_frac = (lt_samples % samplerate_out) / samplerate_out
-        lt = lt_secs + lt_frac
+        lt = lt_samples / samplerate_out
         if op.verbose:
             dtlt = datetime.datetime.utcfromtimestamp(lt)
             dtltstr = dtlt.strftime('%a %b %d %H:%M:%S.%f %Y')
             print('Launch time: {0} ({1})'.format(dtltstr, repr(lt)))
+        # command time
+        ct_samples = lt_samples
+        # splitting ct into secs/frac lets us set a more accurate time_spec
+        ct_secs = ct_samples // samplerate_out
+        ct_frac = (ct_samples % samplerate_out) / samplerate_out
         u.set_start_time(
-            uhd.time_spec(float(lt_secs)) + uhd.time_spec(float(lt_frac))
+            uhd.time_spec(float(ct_secs)) + uhd.time_spec(float(ct_frac))
         )
 
         # start to receive data
@@ -426,13 +438,27 @@ class Thor(object):
             if et is None:
                 fg.wait()
             else:
-                while(time.time() < et):
+                # sleep until end time nears
+                while(time.time() < et - 1):
+                    time.sleep(1)
+                else:
+                    # issue stream stop command at end time
+                    ct_secs = et // 1
+                    ct_frac = et % 1
+                    u.set_command_time(
+                        (uhd.time_spec(float(ct_secs)) +
+                            uhd.time_spec(float(ct_frac))),
+                        uhd.ALL_MBOARDS,
+                    )
+                    stop_enum = uhd.stream_cmd.STREAM_MODE_STOP_CONTINUOUS
+                    u.issue_stream_cmd(uhd.stream_cmd(stop_enum))
+                    u.clear_command_time(uhd.ALL_MBOARDS)
+                    # sleep until after end time
                     time.sleep(1)
         except KeyboardInterrupt:
             # catch keyboard interrupt and simply exit
             pass
         fg.stop()
-        fg.wait()
         print('done')
         sys.stdout.flush()
 
@@ -467,16 +493,12 @@ if __name__ == '__main__':
     )
     egs = [
         '''\
-        {0} -m 192.168.10.2 -c a1,a2 -m 192.168.20.2 -c b1,b2 -d "A:A A:B"
-        -f 15e6 -g 0 -r 100e6/24 /data/test
+        {0} -m 192.168.20.2 -d "A:A A:B" -c h,v -f 95e6 -r 100e6/24
+        /data/test
         ''',
         '''\
-        {0} -m 192.168.10.2,192.168.10.3 -c a1,a2,b1,b2 -d "A:A A:B"
-        -f 15e6 -g 0 -r 100e6/24 /data/test
-        ''',
-        '''\
-        {0} -m 192.168.10.2 -d "A:A A:B" -c ch1,ch2 -f 10e6,20e6
-        -m 192.168.20.2 -d "A:A" -c ch3 -f 30e6 -r 1e6 /data/test
+        {0} -m 192.168.10.2 -d "A:0" -y "TX/RX" -c ch1 -f 20e6 -F 10e3 -g 20
+        -b 0 -r 1e6 /data/test
         ''',
     ]
     egs = [' \\\n'.join(egtw.wrap(dedent(s.format(scriptname)))) for s in egs]
@@ -488,9 +510,11 @@ if __name__ == '__main__':
 
     parser.add_argument(
         '--version', action='version',
-        version='''THOR version 3.0 (The Haystack Observatory Recorder)
-
-                   Copyright (c) 2017 Massachusetts Institute of Technology''',
+        version=(
+            'THOR version 3.0 (The Haystack Observatory Recorder)\n'
+            '\n'
+            'Copyright (c) 2017 Massachusetts Institute of Technology'
+        )
     )
     parser.add_argument(
         '-q', '--quiet', dest='verbose', action='store_false',
@@ -605,7 +629,7 @@ if __name__ == '__main__':
     )
     timegroup.add_argument(
         '-l', '--duration', dest='duration',
-        default=None, type=int,
+        default=None,
         help='''Duration of experiment in seconds. When endtime is not given,
                 end this long after start time. (default: %(default)s)''',
     )
@@ -719,9 +743,9 @@ if __name__ == '__main__':
 
     # evaluate samplerate to float
     op.samplerate = float(eval(op.samplerate))
-    # evaluate duration to float
+    # evaluate duration to int
     if op.duration is not None:
-        op.duration = float(eval(op.duration))
+        op.duration = int(eval(op.duration))
 
     # convert metadata strings to a dictionary
     metadata_dict = {}

@@ -580,7 +580,7 @@ def ephemeris_passes(opt, st0, et0):
                             except:
                                 pass
 
-                            md_site_obj = DigitalMetadataWriter(mdata_dir + '/config/%s' % (k), 3600, 60, 1.0, k)
+                            md_site_obj = DigitalMetadataWriter(mdata_dir + '/config/%s' % (k), 3600, 60, 1, 1, k)
 
                             if opt.debug:
                                 print site[k]
@@ -596,7 +596,7 @@ def ephemeris_passes(opt, st0, et0):
                         except:
                             pass
 
-                        md_info_obj = DigitalMetadataWriter(mdata_dir + '/info', 3600, 60, 1.0, 'info')
+                        md_info_obj = DigitalMetadataWriter(mdata_dir + '/info', 3600, 60, 1, 1, 'info')
 
                         if opt.verbose:
                             print "# writing metadata info"
@@ -612,7 +612,7 @@ def ephemeris_passes(opt, st0, et0):
                         except:
                             pass
 
-                        md_pass_obj = DigitalMetadataWriter(mdata_dir + '/pass', 3600, 60, 1.0, 'pass')
+                        md_pass_obj = DigitalMetadataWriter(mdata_dir + '/pass', 3600, 60, 1, 1, 'pass')
 
                         if opt.verbose:
                             print "# writing metadata pass"

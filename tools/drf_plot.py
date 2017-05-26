@@ -51,23 +51,18 @@ def voltage_process(data, sfreq, toffset, modulus, integration, log_scale, title
     else:
         yield voltage_plot(data, sfreq, toffset, log_scale, title)
 
-"""
-
-    Plot the real and imaginary voltage from IQ data.
-
-"""
-
 
 def voltage_plot(data, sfreq, toffset, log_scale, title):
+    """Plot the real and imaginary voltage from IQ data."""
 
     print("voltage")
 
     t_axis = numpy.arange(0, len(data)) / sfreq + toffset
 
-    fig, axs = plt.subplots(2, 1)
-
-    axs[0].plot(t_axis, data.real)
-    axs[0].grid(True)
+    fig = plt.figure()
+    ax0 = fig.add_subplot(2, 1, 1)
+    ax0.plot(t_axis, data.real)
+    ax0.grid(True)
     maxr = numpy.max(data.real)
     minr = numpy.min(data.real)
 
@@ -75,11 +70,12 @@ def voltage_plot(data, sfreq, toffset, log_scale, title):
         minr = -1.0
         maxr = 1.0
 
-    axs[0].axis([t_axis[0], t_axis[len(t_axis) - 1], minr, maxr])
-    axs[0].set_ylabel('I sample value (A/D units)')
+    ax0.axis([t_axis[0], t_axis[len(t_axis) - 1], minr, maxr])
+    ax0.set_ylabel('I sample value (A/D units)')
 
-    axs[1].plot(t_axis, data.imag)
-    axs[1].grid(True)
+    ax1 = fig.add_subplot(2, 1, 2)
+    ax1.plot(t_axis, data.imag)
+    ax1.grid(True)
     maxi = numpy.max(data.imag)
     mini = numpy.min(data.imag)
 
@@ -87,12 +83,12 @@ def voltage_plot(data, sfreq, toffset, log_scale, title):
         mini = -1.0
         maxi = 1.0
 
-    axs[1].axis([t_axis[0], t_axis[len(t_axis) - 1], mini, maxi])
+    ax1.axis([t_axis[0], t_axis[len(t_axis) - 1], mini, maxi])
 
-    axs[1].set_xlabel('time (seconds)')
+    ax1.set_xlabel('time (seconds)')
 
-    axs[1].set_ylabel('Q sample value (A/D units)')
-    axs[1].set_title(title)
+    ax1.set_ylabel('Q sample value (A/D units)')
+    ax1.set_title(title)
 
     return fig
 
@@ -129,15 +125,8 @@ def power_process(data, sfreq, toffset, modulus, integration, log_scale, zscale,
         yield power_plot(pdata, sfreq, toffset, log_scale, zscale, title)
 
 
-"""
-
-    Plot the computed power of the iq data.
-
-"""
-
-
 def power_plot(data, sfreq, toffset, log_scale, zscale, title):
-
+    """Plot the computed power of the iq data."""
     print("power")
 
     t_axis = numpy.arange(0, len(data)) / sfreq + toffset
@@ -158,7 +147,8 @@ def power_plot(data, sfreq, toffset, log_scale, zscale, title):
             zscale_low = numpy.min(lrxpwr)
             zscale_high = numpy.max(lrxpwr)
 
-    fig, ax = plt.subplots(1, 1)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
     ax.plot(t_axis, lrxpwr.real)
     ax.grid(True)
     ax.axis([toffset, t_axis[len(t_axis) - 1], zscale_low, zscale_high])
@@ -199,15 +189,8 @@ def iq_process(data, sfreq,  toffset, modulus, integration, log_scale, title):
         yield iq_plot(data, toffset, log_scale, title)
 
 
-"""
-
-    Plot an IQ circle from the data in linear or log scale.
-
-"""
-
-
 def iq_plot(data, toffset, log_scale, title):
-
+    """Plot an IQ circle from the data in linear or log scale."""
     print("iq")
 
     if log_scale:
@@ -220,7 +203,8 @@ def iq_plot(data, toffset, log_scale, title):
         rx_raster_r = data.real
         rx_raster_i = data.imag
 
-    fig, ax = plt.subplots(1, 1)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
     ax.plot(rx_raster_r, rx_raster_i, '.')
 
     axmx = numpy.max([numpy.max(rx_raster_r), numpy.max(rx_raster_i)])
@@ -259,20 +243,15 @@ def phase_process(data, sfreq,  toffset, modulus, integration, log_scale, title)
     else:
         yield phase_plot(data, toffset, log_scale, title)
 
-"""
-
-    Plot the phase of the data in linear or log scale.
-
-"""
-
 
 def phase_plot(data, toffset, log_scale, title):
-
+    """Plot the phase of the data in linear or log scale."""
     print("phase")
 
     phase = numpy.angle(data) / numpy.pi
 
-    fig, ax = plt.subplots(1, 1)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
     ax.plot(phase)
 
     axmx = numpy.max(phase)
@@ -290,7 +269,6 @@ def spectrum_process(data, sfreq, cfreq, toffset, modulus, integration, bins, lo
     """ Break spectrum by modulus and display each block. Integration here acts
     as a pure average on the spectral data.
     """
-
     if detrend:
         dfn = matplotlib.mlab.detrend_mean
     else:
@@ -319,7 +297,7 @@ def spectrum_process(data, sfreq, cfreq, toffset, modulus, integration, bins, lo
 
             pblock /= integration
 
-            yield spectrum_plot(pblock, freq, block_toffset,
+            yield spectrum_plot(pblock, freq, cfreq, block_toffset,
                                 log_scale, zscale, title, clr)
 
             block += 1
@@ -332,14 +310,8 @@ def spectrum_process(data, sfreq, cfreq, toffset, modulus, integration, bins, lo
                             log_scale, zscale, title, clr)
 
 
-"""
-    Plot a spectrum from the data for a given fft bin size.
-
-"""
-
-
 def spectrum_plot(data, freq, cfreq, toffset, log_scale, zscale, title, clr):
-
+    """Plot a spectrum from the data for a given fft bin size."""
     print("spectrum")
     tail_str = ''
     if log_scale:
@@ -363,7 +335,8 @@ def spectrum_plot(data, freq, cfreq, toffset, log_scale, zscale, title, clr):
             zscale_low = numpy.median(numpy.min(pss))
             zscale_high = numpy.median(numpy.max(pss))
 
-    fig, ax = plt.subplots(1, 1)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
     ax.plot(freq_s, pss, clr)
     print freq_s[0], freq_s[-1], zscale_low, zscale_high
     ax.axis([freq_s[0], freq_s[-1], zscale_low, zscale_high])
@@ -402,17 +375,12 @@ def histogram_process(data, sfreq, toffset, modulus, integration, bins, log_scal
         yield histogram_plot(data, sfreq, toffset, bins, log_scale, title)
 
 
-"""
-    Plot a histogram of the data for a given bin size.
-
-"""
-
-
 def histogram_plot(data, sfreq, toffset, bins, log_scale, title):
-
+    """Plot a histogram of the data for a given bin size."""
     print("histogram")
 
-    fig, ax = plt.subplots(1, 1)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
     ax.hist(numpy.real(data), bins,
             log=log_scale, histtype='bar', color=['green'])
     ax.hold(True)
@@ -495,15 +463,8 @@ def specgram_process(data, sfreq, cfreq, toffset, modulus, integration, bins, de
         yield specgram_plot(pdata, extent, log_scale, zscale, title)
 
 
-"""
-
-    Plot a specgram from the data for a given fft size.
-
-"""
-
-
 def specgram_plot(data, extent, log_scale, zscale, title):
-
+    """Plot a specgram from the data for a given fft size."""
     print("specgram")
 
     # set to log scaling
@@ -529,7 +490,8 @@ def specgram_plot(data, extent, log_scale, zscale, title):
     vmin = zscale_low
     vmax = zscale_high
 
-    fig, ax = plt.subplots(1, 1)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
     img = ax.imshow(
         Pss, extent=extent, vmin=vmin, vmax=vmax,
         origin='lower', interpolation='none', aspect='auto',
@@ -587,14 +549,13 @@ def rti_process(data, sfreq, toffset, modulus, integration, detrend, log_scale, 
             block += 1
             block_toffset += block_size / sfreq
     else:
-        print "Must have a modulus for an RTI!"
-        return
+        raise ValueError('Must have a modulus for an RTI!')
 
     # create time axis
-    tick_spacing = numpy.arange(0, rti_bins, rti_bins / len(RTItimes))
+    tick_locs = numpy.arange(0, rti_bins, rti_bins / len(RTItimes))
     tick_labels = []
 
-    for s in tick_spacing:
+    for s in tick_locs:
         tick_time = RTItimes[s]
 
         if tick_time == 0:
@@ -614,11 +575,11 @@ def rti_process(data, sfreq, toffset, modulus, integration, detrend, log_scale, 
     # determine image x-y extent
     extent = 0, rti_bins, 0, numpy.max(rx_axis)
 
-    yield rti_plot(RTIdata.real, extent, tick_spacing,
+    yield rti_plot(RTIdata.real, extent, tick_locs,
                    tick_labels, log_scale, zscale, title)
 
 
-def rti_plot(data, extent, tick_spacing, tick_labels, log_scale, zscale, title):
+def rti_plot(data, extent, tick_locs, tick_labels, log_scale, zscale, title):
 
     # set to log scaling
     if log_scale:
@@ -639,14 +600,15 @@ def rti_plot(data, extent, tick_spacing, tick_labels, log_scale, zscale, title):
     vmin = zscale_low
     vmax = zscale_high
 
-    fig, ax = plt.subplots(1, 1)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
     img = ax.imshow(RTId, origin='lower',
                     extent=extent, interpolation='none', vmin=vmin, vmax=vmax, aspect='auto')
 
     # plot dates
 
-    plt.xticks(tick_spacing, tick_labels,
-               rotation=-45, fontsize=10)
+    ax.set_xticks(tick_locs)
+    ax.set_xticklabels(tick_labels, rotation=-45, fontsize=10)
     cb = fig.colorbar(img, ax=ax)
     ax.set_xlabel('time (seconds)', fontsize=12)
     ax.set_ylabel('range (km)', fontsize=12)
@@ -655,7 +617,7 @@ def rti_plot(data, extent, tick_spacing, tick_labels, log_scale, zscale, title):
     return fig
 
 
-def sti_process(data, sfreq, toffset, modulus, integration, bins, detrend, log_scale, zscale, title):
+def sti_process(data, sfreq, cfreq, toffset, modulus, integration, bins, detrend, log_scale, zscale, title):
     """ Break data by modulus and make an STI stripe for each block. Integration here acts
     as a pure average on the spectrum level data.
     """
@@ -703,14 +665,13 @@ def sti_process(data, sfreq, toffset, modulus, integration, bins, detrend, log_s
             block += 1
             block_toffset += block_size / sfreq
     else:
-        print "Must have a modulus for an STI!"
-        return
+        raise ValueError('Must have a modulus for an STI!')
 
     # create time axis
-    tick_spacing = numpy.arange(0, sti_bins, sti_bins / len(STItimes))
+    tick_locs = numpy.arange(0, sti_bins, sti_bins / len(STItimes))
     tick_labels = []
 
-    for s in tick_spacing:
+    for s in tick_locs:
         tick_time = STItimes[s]
 
         if tick_time == 0:
@@ -720,14 +681,18 @@ def sti_process(data, sfreq, toffset, modulus, integration, bins, detrend, log_s
 
         tick_labels.append(tick_string)
 
-    axf = -sfreq / 2000.0
-    extent = [0, sti_bins, -axf, axf]
+    extent = (
+        0,
+        sti_bins,
+        -(sfreq / 2.0E6) + (cfreq / 1.0E6),
+        (sfreq / 2.0E6) + (cfreq / 1.0E6),
+    )
 
-    yield sti_plot(STIdata.real, freq, extent, tick_spacing,
+    yield sti_plot(STIdata.real, freq, extent, tick_locs,
                    tick_labels, log_scale, zscale, title)
 
 
-def sti_plot(data, freq, extent, tick_spacing, tick_labels, log_scale, zscale, title):
+def sti_plot(data, freq, extent, tick_locs, tick_labels, log_scale, zscale, title):
 
     pss = data
     freq_s = freq / 1000.0
@@ -752,17 +717,18 @@ def sti_plot(data, freq, extent, tick_spacing, tick_labels, log_scale, zscale, t
     vmin = zscale_low
     vmax = zscale_high
 
-    fig, ax = plt.subplots(1, 1)
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
     img = ax.imshow(STId, origin='lower',
                     extent=extent, interpolation='none', vmin=vmin, vmax=vmax, aspect='auto')
 
     # plot dates
 
     cb = fig.colorbar(img, ax=ax)
-    plt.xticks(tick_spacing, tick_labels,
-               rotation=-45, fontsize=10)
+    ax.set_xticks(tick_locs)
+    ax.set_xticklabels(tick_labels, rotation=-45, fontsize=10)
     ax.set_xlabel('time (seconds)', fontsize=12)
-    ax.set_ylabel('frequency (kHz)', fontsize=12)
+    ax.set_ylabel('frequency (MHz)', fontsize=12)
     if log_scale:
         cb.set_label('power (dB)')
     else:
@@ -927,9 +893,6 @@ def usage():
     print("\nWhen using wildcards in the input file name it is important to use small quotes \'example*.bin\'")
 
 if __name__ == "__main__":
-    # make sure matplotlib is in non-interactive mode
-    plt.ioff()
-
     # default values
     input_files = []
     sfreq = 0.0
@@ -1101,11 +1064,17 @@ if __name__ == "__main__":
 
         save_plot = False
         if plot_file != "":
-            path_head, _ = os.path.split(plot_file)
+            path_head, _ = os.path.split(os.path.abspath(plot_file))
             if not os.path.isdir(path_head):
                 os.makedirs(path_head)
             save_plot = True
         print "generating plot"
+
+        if save_plot:
+            # do not need gui, so use non-interactive backend for speed
+            plt.switch_backend('agg')
+        # make sure matplotlib is in non-interactive mode
+        plt.ioff()
 
         try:
             if plot_type == 'power':

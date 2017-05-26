@@ -114,7 +114,7 @@
     <name>Stop on Dropped</name>
     <key>stop_on_dropped</key>
     <value>False</value>
-    <type>bool</type>
+    <type>enum</type>
     <hide>#if $stop_on_dropped() then 'none' else 'part'#</hide>
     <option>
       <name>True</name>

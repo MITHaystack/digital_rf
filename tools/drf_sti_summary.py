@@ -291,16 +291,17 @@ class DataPlotter:
                 ext = '.png'
             print "Save plot as {}".format(fname+ext)
             matplotlib.pyplot.savefig(fname+ext)
-        else:
+        if self.control.appear:
             print "Show plot"
             matplotlib.pyplot.show()
 
 
 def parse_command_line(str_input=None):
-    if str_input is None:
-        parser = optparse.OptionParser()
-    else:
-        parser = optparse.OptionParser(str_input)
+    # if str_input is None:
+    #     parser = optparse.OptionParser()
+    # else:
+    #     parser = optparse.OptionParser(str_input)
+    parser = optparse.OptionParser()
 
     parser.add_option("-t", "--title", dest="title",
                       default='Digital RF Data', help="Use title provided for the data.")
@@ -333,8 +334,12 @@ def parse_command_line(str_input=None):
                       default=False, help="Print status messages to stdout.")
     parser.add_option("-o", "--outname", dest="outname", default=None,
                       type=str, help="Name of file that figure will be saved under.")
-
-    (options, args) = parser.parse_args()
+    parser.add_option("-a", "--appear", action="store_true", dest="appear",
+                      default=False, help="Makes the plot appear through pyplot show.")
+    if str_input is None:
+        (options, args) = parser.parse_args()
+    else:
+        (options, args) = parser.parse_args(str_input)
 
     return (options, args)
 
