@@ -156,7 +156,7 @@ class DataPlotter:
         for p in numpy.arange(self.control.frames):
             sti_psd_data = numpy.zeros(
                 [self.control.num_fft, self.control.bins], numpy.float)
-            sti_times = numpy.zeros([samples_per_stripe], numpy.complex128)
+            sti_times = numpy.zeros([self.control.bins], numpy.complex128)
 
             for b in numpy.arange(self.control.bins):
 
