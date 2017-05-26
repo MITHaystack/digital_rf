@@ -1,6 +1,6 @@
 /* -*- c++ -*- */
 /*
- * Copyright (c) 2015 Massachusetts Institute of Technology
+ * Copyright (c) 2017 Massachusetts Institute of Technology
  *
  */
 
