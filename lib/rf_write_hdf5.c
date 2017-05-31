@@ -196,12 +196,6 @@ Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t d
 	}
 
 	/* check for illegal values */
-	if (global_start_sample == 0)
-	{
-		fprintf(stderr, "Illegal global_start_sample, must not be zero\n");
-		digital_rf_close_write_hdf5(hdf5_data_object);
-		return(NULL);
-	}
 	if (hdf5_data_object->sample_rate <= 0.0)
 	{
 		fprintf(stderr, "Illegal sample_rate, must be positive\n");

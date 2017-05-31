@@ -8,6 +8,7 @@
 #include "config.h"
 #endif
 
+#include <ctime>
 #include <stdexcept>
 #include <gnuradio/io_signature.h>
 #include "digital_rf_sink_impl.h"
@@ -27,14 +28,16 @@ namespace gr {
                           uint64_t sample_rate_numerator,
                           uint64_t sample_rate_denominator,
                           char *uuid, bool is_complex,
-                          int num_subchannels, bool stop_on_dropped_packet)
+                          int num_subchannels, bool stop_on_dropped_packet,
+                          uint64_t *start_sample_index, bool ignore_tags)
     {
       return gnuradio::get_initial_sptr
         (new digital_rf_sink_impl(dir, sample_size, subdir_cadence_s,
                                   file_cadence_ms, sample_rate_numerator,
                                   sample_rate_denominator, uuid,
                                   is_complex, num_subchannels,
-                                  stop_on_dropped_packet));
+                                  stop_on_dropped_packet, start_sample_index,
+                                  ignore_tags));
     }
 
 
@@ -44,8 +47,9 @@ namespace gr {
     digital_rf_sink_impl::digital_rf_sink_impl(
             char *dir, size_t sample_size, uint64_t subdir_cadence_s,
             uint64_t file_cadence_ms, uint64_t sample_rate_numerator,
-            uint64_t sample_rate_denominator, char* uuid,
-            bool is_complex, int num_subchannels, bool stop_on_dropped_packet
+            uint64_t sample_rate_denominator, char *uuid,
+            bool is_complex, int num_subchannels, bool stop_on_dropped_packet,
+            uint64_t *start_sample_index, bool ignore_tags
     )
       : gr::sync_block("digital_rf_sink",
                gr::io_signature::make(1, 1, sample_size*num_subchannels),
@@ -55,7 +59,8 @@ namespace gr {
         d_sample_rate_numerator(sample_rate_numerator),
         d_sample_rate_denominator(sample_rate_denominator),
         d_is_complex(is_complex), d_num_subchannels(num_subchannels),
-        d_stop_on_dropped_packet(stop_on_dropped_packet)
+        d_stop_on_dropped_packet(stop_on_dropped_packet),
+        d_ignore_tags(ignore_tags)
     {
       char command[4096];
       int i;
@@ -82,7 +87,7 @@ namespace gr {
           d_dtype = H5T_NATIVE_DOUBLE;
         }
         else {
-          std::invalid_argument("Item size not supported");
+          throw std::invalid_argument("Item size not supported");
         }
       }
       else
@@ -104,8 +109,20 @@ namespace gr {
           d_dtype = H5T_NATIVE_DOUBLE;
         }
         else {
-          std::invalid_argument("Item size not supported");
+          throw std::invalid_argument("Item size not supported");
         }
+      }
+
+      if(!start_sample_index && d_ignore_tags) {
+        throw std::invalid_argument("Must specify start_sample_index if ignore_tags is True");
+      }
+      if(start_sample_index) {
+        d_t0 = *start_sample_index;
+        d_t0_set = 1;
+      }
+      else {
+        d_t0 = 0;
+        d_t0_set = 0;
       }
 
       strcpy(d_dir, dir);
@@ -125,7 +142,6 @@ namespace gr {
       }
 
       d_first = 1;
-      d_t0 = 1;
       d_local_index = 0;
       d_total_dropped = 0;
     }
@@ -140,33 +156,59 @@ namespace gr {
     }
 
 
-    void
-    digital_rf_sink_impl::get_rx_time(int n)
+    int
+    digital_rf_sink_impl::get_rx_time(int ninput_items)
     {
-      struct timeval tv;
-
-      std::vector<gr::tag_t> rx_time_tags;
-      get_tags_in_range(rx_time_tags, 0, 0, n, pmt::string_to_symbol("rx_time"));
-
       double t0_frac;
       uint64_t t0_sec;
+      std::vector<gr::tag_t> rx_time_tags;
 
-      //print all tags
+      if(d_ignore_tags) {
+        // ok to return here since can't have ignore_tags==1 with d_t0_set==0
+        // use given index for first sample
+        return 0;
+      }
+
+      get_tags_in_window(rx_time_tags, 0, 0, ninput_items,
+                         pmt::string_to_symbol("rx_time"));
+
+      // return first valid tag
       BOOST_FOREACH(const gr::tag_t &rx_time_tag, rx_time_tags) {
         const uint64_t offset = rx_time_tag.offset;
         const pmt::pmt_t &value = rx_time_tag.value;
 
         t0_sec = pmt::to_uint64(pmt::tuple_ref(value, 0));
         t0_frac = pmt::to_double(pmt::tuple_ref(value, 1));
+
+        if(t0_sec == 0) {
+          printf("Invalid time tag @ sample %lu: %lu+%f. Skipping.\n",
+                 offset, t0_sec, t0_frac);
+          continue;
+        }
+
         d_t0 = (uint64_t)(d_sample_rate*t0_sec)
                 + (uint64_t)(d_sample_rate*t0_frac);
-        printf("Time tag @ sample %lu (%lu): %lu+%f\n", offset, d_t0, t0_sec, t0_frac);
+        d_t0_set = 1;
+        printf("Time tag @ sample %lu (%lu): %lu+%f\n",
+               offset, d_t0, t0_sec, t0_frac);
+
+        return offset - nitems_read(0);
+      }
+
+      // no valid time tag found
+      if(d_t0_set) {
+        // use default index for first sample
+        return 0;
+      }
+      else {
+        // with no default available, indicate failure
+        return -1;
       }
     }
 
     int
-    digital_rf_sink_impl::detect_and_handle_overflow(uint64_t start,
-                                                     uint64_t end,
+    digital_rf_sink_impl::detect_and_handle_overflow(uint64_t rel_start,
+                                                     uint64_t rel_end,
                                                      char *in)
     {
       std::vector<gr::tag_t> rx_time_tags;
@@ -174,10 +216,15 @@ namespace gr {
       uint64_t dropped = 0;
       uint64_t drop_index;
       int result;
-      int consumed = 0;
       int filled;
+      int consumed;
 
-      get_tags_in_range(rx_time_tags, 0, start, end, pmt::string_to_symbol("rx_time"));
+      if(d_ignore_tags) {
+        return 0;
+      }
+
+      get_tags_in_window(rx_time_tags, 0, rel_start, rel_end,
+                         pmt::string_to_symbol("rx_time"));
 
       //print all tags
       BOOST_FOREACH(const gr::tag_t &rx_time_tag, rx_time_tags) {
@@ -191,7 +238,8 @@ namespace gr {
         drop_index = offset + d_total_dropped;
 
         // we should have this many samples
-        dt = ((uint64_t)(d_sample_rate*tt0_sec) + (uint64_t)(d_sample_rate*tt0_frac)
+        dt = ((uint64_t)(d_sample_rate*tt0_sec)
+              + (uint64_t)(d_sample_rate*tt0_frac)
               - d_t0 - d_total_dropped);
 
         dropped = dt - offset;
@@ -200,14 +248,15 @@ namespace gr {
                dropped, drop_index, d_total_dropped);
 
         // write in-sequence data up to drop_index
-        result = digital_rf_write_hdf5(d_drfo, d_local_index,
-                                       in + consumed*d_sample_size*d_num_subchannels,
+        result = digital_rf_write_hdf5(d_drfo, d_local_index, in,
                                        drop_index - d_local_index);
         if(result) {
           throw std::runtime_error("Nonzero result on write");
         }
         consumed += drop_index - d_local_index;
         d_local_index = drop_index;
+        // move data pointer
+        in += consumed*d_sample_size*d_num_subchannels;
 
         if(d_stop_on_dropped_packet && dropped > 0) {
           printf("Stopping as requested\n");
@@ -222,7 +271,8 @@ namespace gr {
           else {
             filled = ZERO_BUFFER_SIZE/d_sample_size/d_num_subchannels;
           }
-          result = digital_rf_write_hdf5(d_drfo, d_local_index, d_zero_buffer, filled);
+          result = digital_rf_write_hdf5(d_drfo, d_local_index, d_zero_buffer,
+                                         filled);
           if(result) {
             throw std::runtime_error("Nonzero result on write");
           }
@@ -230,7 +280,7 @@ namespace gr {
           dropped -= filled;
         }
       }
-      return(consumed);
+      return 0;
     }
 
 
@@ -242,20 +292,26 @@ namespace gr {
       char *in = (char *)input_items[0];
       int result, i;
       int samples_consumed = 0;
+      int tag_rel_offset = -1;
 
       if(d_first) {
         // sets start time d_t0
-        get_rx_time(noutput_items);
+        tag_rel_offset = get_rx_time(noutput_items);
+
+        if(tag_rel_offset < 0) {
+          // no tags and no default, eat the input items without outputting
+          return noutput_items;
+        }
 
         printf("Creating %s t0 %ld\n", d_dir, d_t0);
         fflush(stdout);
-        /*      Digital_rf_write_object * digital_rf_create_write_hdf5(
-                    char * directory, hid_t dtype_id, uint64_t subdir_cadence_secs,
-                    uint64_t file_cadence_millisecs, uint64_t global_start_sample,
-                    uint64_t sample_rate_numerator, uint64_t sample_rate_denominator,
-                    char * uuid_str, int compression_level, int checksum, int is_complex,
-                    int num_subchannels, int is_continuous, int marching_dots
-                )
+        /* Digital_rf_write_object * digital_rf_create_write_hdf5(
+             char * directory, hid_t dtype_id, uint64_t subdir_cadence_secs,
+             uint64_t file_cadence_millisecs, uint64_t global_start_sample,
+             uint64_t sample_rate_numerator, uint64_t sample_rate_denominator,
+             char * uuid_str, int compression_level, int checksum, int is_complex,
+             int num_subchannels, int is_continuous, int marching_dots
+           )
         */
         d_drfo = digital_rf_create_write_hdf5(
                 d_dir, d_dtype, d_subdir_cadence_s, d_file_cadence_ms, d_t0,
@@ -266,14 +322,19 @@ namespace gr {
         }
         printf("done\n");
         d_first = 0;
+
+        // skip samples before the time tag
+        samples_consumed += tag_rel_offset;
+        in += samples_consumed*d_sample_size*d_num_subchannels;
       }
-      else {
-        samples_consumed = detect_and_handle_overflow(nitems_read(0),
-                                                      nitems_read(0) + noutput_items,
-                                                      in);
+      samples_consumed += detect_and_handle_overflow(tag_rel_offset + 1,
+                                                     noutput_items,
+                                                     in);
+      if(samples_consumed < 0) {
+          // negative samples_consumed is an error value (e.g. WORK_DONE)
+          return samples_consumed;
       }
 
-      in += samples_consumed*d_sample_size*d_num_subchannels;
       result = digital_rf_write_hdf5(d_drfo, d_local_index, in,
                                      noutput_items - samples_consumed);
       if(result) {

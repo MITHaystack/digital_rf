@@ -63,7 +63,8 @@
     }
 }
 
+%apply unsigned long long *INPUT { uint64_t *start_sample_index }
+
 
 %include "gr_drf/digital_rf_sink.h"
 GR_SWIG_BLOCK_MAGIC2(drf, digital_rf_sink);
-

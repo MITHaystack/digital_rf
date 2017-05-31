@@ -3,7 +3,18 @@
   <key>drf_digital_rf_sink</key>
   <category>Digital RF</category>
   <import>import gr_drf</import>
-  <make>gr_drf.digital_rf_sink($dir, $input.size, $subdir_cadence_s, $file_cadence_ms, $sample_rate_numerator, $sample_rate_denominator, $uuid, $input.complex, $vlen, $stop_on_dropped)</make>
+  <make>\
+  gr_drf.digital_rf_sink(
+      dir=$dir, sample_size=$input.size,
+      subdir_cadence_s=$subdir_cadence_s, file_cadence_ms=$file_cadence_ms,
+      sample_rate_numerator=$sample_rate_numerator,
+      sample_rate_denominator=$sample_rate_denominator,
+      uuid=$uuid, is_complex=$input.complex, num_subchannels=$vlen,
+      stop_on_dropped_packet=$stop_on_dropped,
+      start_sample_index=None if $start_sample_index=='' else int(eval($start_sample_index)),
+      ignore_tags=$ignore_tags,
+  )
+  </make>
   <param>
     <name>Directory</name>
     <key>dir</key>
@@ -73,10 +84,11 @@
     </option>
   </param>
   <param>
-    <name>Vec Length</name>
+    <name>Vector Length</name>
     <key>vlen</key>
     <value>1</value>
     <type>int</type>
+    <hide>part</hide>
   </param>
   <param>
     <name>Subdir Cadence (s)</name>
@@ -93,13 +105,13 @@
     <hide>part</hide>
   </param>
   <param>
-    <name>Sample Rate (numerator)</name>
+    <name>Sample rate (num)</name>
     <key>sample_rate_numerator</key>
-    <value>samp_rate</value>
+    <value>int(samp_rate)</value>
     <type>int</type>
   </param>
   <param>
-    <name>Sample Rate (denominator)</name>
+    <name>Sample rate (den)</name>
     <key>sample_rate_denominator</key>
     <value>1</value>
     <type>int</type>
@@ -109,19 +121,42 @@
     <key>uuid</key>
     <value>THIS_UUID_LACKS_ENTROPY</value>
     <type>string</type>
+    <hide>#if $uuid() then 'none' else 'part'#</hide>
   </param>
   <param>
-    <name>Stop on Dropped</name>
-    <key>stop_on_dropped</key>
+    <name>Start Index</name>
+    <key>start_sample_index</key>
+    <value></value>
+    <type>string</type>
+    <hide>#if $start_sample_index() then 'none' else 'part'#</hide>
+  </param>
+  <param>
+    <name>Ignore Tags</name>
+    <key>ignore_tags</key>
     <value>False</value>
-    <type>enum</type>
-    <hide>#if $stop_on_dropped() then 'none' else 'part'#</hide>
+    <type>bool</type>
+    <hide>#if $ignore_tags() then 'none' else 'part'#</hide>
     <option>
-      <name>True</name>
+      <name>Yes</name>
       <key>True</key>
     </option>
     <option>
-      <name>False</name>
+      <name>No</name>
+      <key>False</key>
+    </option>
+  </param>
+  <param>
+    <name>Stop on Drop</name>
+    <key>stop_on_dropped</key>
+    <value>False</value>
+    <type>bool</type>
+    <hide>#if $stop_on_dropped() then 'none' else 'part'#</hide>
+    <option>
+      <name>Yes</name>
+      <key>True</key>
+    </option>
+    <option>
+      <name>No</name>
       <key>False</key>
     </option>
   </param>
@@ -130,6 +165,9 @@
   <check>$subdir_cadence_s > 0</check>
   <check>$file_cadence_ms > 0</check>
   <check>$subdir_cadence_s*1000 % $file_cadence_ms == 0</check>
+  <check>$sample_rate_numerator > 0</check>
+  <check>$sample_rate_denominator > 0</check>
+  <check>$start_sample_index == '' or int(eval($start_sample_index)) >= 0</check>
 
   <sink>
     <name>in</name>
@@ -144,12 +182,14 @@ An 'rx_time' stream tag is used to indicate the sample time whenever a break in 
 
 - Directory --- Directory to write to.
 - Input Type --- Size and type of the input samples.
-- Vec Length --- Vector length of the input. Each sample of the vector will be written to a different subchannel.
+- Vector Length --- Vector length of the input. Each sample of the vector will be written to a different subchannel.
 - Subdir Cadence (s) --- Number of seconds of data per subdirectory.
 - File Cadence (ms) --- Number of milliseconds of data per file.
-- Sample Rate (numerator) --- Number of samples per second, numerator part.
-- Sample Rate (denominator) --- Number of samples per second, denominator part.
+- Sample rate (num) --- Number of samples per second, numerator part.
+- Sample rate (den) --- Number of samples per second, denominator part.
 - UUID --- Unique ID to associate with this data, for pairing metadata.
-- Stop on Dropped Packet --- If True, stop when a packet is dropped.
+- Start Index --- Index in samples since epoch for first sample.
+- Ignore Tags --- If True, do not use rx_time tag to set sample index.
+- Stop on Drop --- If True, stop when a packet is dropped.
   </doc>
 </block>

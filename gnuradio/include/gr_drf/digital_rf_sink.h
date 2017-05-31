@@ -25,7 +25,7 @@ namespace gr {
       typedef boost::shared_ptr<digital_rf_sink> sptr;
 
       /*!
-       * \brief Return a shared_ptr to a new instance of gr_drf::digital_rf_sink.
+       * \brief Create a Digital RF sink block.
        *
        * \param dir Directory to write to.
        * \param sample_size Size of the input data items.
@@ -37,18 +37,18 @@ namespace gr {
        * \param is_complex True if the data samples are complex.
        * \param num_subchannels Number of subchannels (i.e. vector length).
        * \param stop_on_dropped_packet If True, stop when a packet is dropped.
+       * \param start_sample_index Index in samples since epoch for first sample.
+       * \param ignore_tags If True, do not use rx_time tag to set sample index.
        *
-       * To avoid accidental use of raw pointers, gr_drf::digital_rf_sink's
-       * constructor is in a private implementation
-       * class. gr_drf::digital_rf_sink::make is the public interface for
-       * creating new instances.
        */
       static sptr make(char *dir, size_t sample_size,
                        uint64_t subdir_cadence_s, uint64_t file_cadence_ms,
                        uint64_t sample_rate_numerator,
                        uint64_t sample_rate_denominator,
-                       char* uuid, bool is_complex,
-                       int num_subchannels, bool stop_on_dropped_packet);
+                       char *uuid, bool is_complex,
+                       int num_subchannels, bool stop_on_dropped_packet = 0,
+                       uint64_t *start_sample_index = NULL,
+                       bool ignore_tags = 0);
     };
 
   } // namespace drf

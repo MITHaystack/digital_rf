@@ -341,16 +341,43 @@ class Thor(object):
             sample_size = 2 * gr.sizeof_short
             sample_dtype = '<i2'
 
+        # set launch time
+        # (at least 1 second out so USRP time is set, time to set up flowgraph)
+        if st is not None:
+            lt = st
+        else:
+            lt = int(math.ceil(time.time() + 1.0))
+        # adjust launch time forward so it falls on an exact sample since epoch
+        lt_samples = np.ceil(lt * samplerate_out)
+        lt = lt_samples / samplerate_out
+        if op.verbose:
+            dtlt = datetime.datetime.utcfromtimestamp(lt)
+            dtltstr = dtlt.strftime('%a %b %d %H:%M:%S.%f %Y')
+            print('Launch time: {0} ({1})'.format(dtltstr, repr(lt)))
+        # command time
+        ct_samples = lt_samples
+        # splitting ct into secs/frac lets us set a more accurate time_spec
+        ct_secs = ct_samples // samplerate_out
+        ct_frac = (ct_samples % samplerate_out) / samplerate_out
+        u.set_start_time(
+            uhd.time_spec(float(ct_secs)) + uhd.time_spec(float(ct_frac))
+        )
+
         # populate flowgraph one channel at a time
         fg = gr.top_block()
         for k in range(op.nchs):
             # create digital RF sink
             chdir = os.path.join(op.datadir, op.chs[k])
             dst = gr_drf.digital_rf_sink(
-                chdir, sample_size, op.subdir_cadence_s, op.file_cadence_ms,
-                samplerate_num_out, samplerate_den_out,
-                op.uuid, True, 1,
-                op.stop_on_dropped,
+                dir=chdir, sample_size=sample_size,
+                subdir_cadence_s=op.subdir_cadence_s,
+                file_cadence_ms=op.file_cadence_ms,
+                sample_rate_numerator=samplerate_num_out,
+                sample_rate_denominator=samplerate_den_out,
+                uuid=op.uuid, is_complex=True, num_subchannels=1,
+                stop_on_dropped_packet=op.stop_on_dropped,
+                start_sample_index=int(lt * samplerate_out),
+                ignore_tags=False,
             )
 
             if op.dec > 1:
@@ -367,27 +394,6 @@ class Thor(object):
 
             # make channel connections in flowgraph
             fg.connect(*connections)
-
-        # set launch time
-        if st is not None:
-            lt = st
-        else:
-            lt = int(math.ceil(time.time() + 0.5))
-        # adjust launch time forward so it falls on an exact sample since epoch
-        lt_samples = np.ceil(lt * samplerate_out)
-        lt = lt_samples / samplerate_out
-        if op.verbose:
-            dtlt = datetime.datetime.utcfromtimestamp(lt)
-            dtltstr = dtlt.strftime('%a %b %d %H:%M:%S.%f %Y')
-            print('Launch time: {0} ({1})'.format(dtltstr, repr(lt)))
-        # command time
-        ct_samples = lt_samples
-        # splitting ct into secs/frac lets us set a more accurate time_spec
-        ct_secs = ct_samples // samplerate_out
-        ct_frac = (ct_samples % samplerate_out) / samplerate_out
-        u.set_start_time(
-            uhd.time_spec(float(ct_secs)) + uhd.time_spec(float(ct_frac))
-        )
 
         # start to receive data
         fg.start()
