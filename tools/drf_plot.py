@@ -1039,6 +1039,7 @@ if __name__ == "__main__":
                         'Center frequency metadata does not exist for given'
                         ' start sample.'
                     )
+                    cfreq = 0.0
                 else:
                     metadata = md_dict[md_idx[md_loc]]
                     cfreq = metadata['center_frequencies'].ravel()[subchan]
