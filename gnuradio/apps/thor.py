@@ -414,19 +414,10 @@ class Thor(object):
             )
             md = op.metadata.copy()
             md.update(
-                # output sample rate as float until h5py>=2.7 gets widespread
-                sample_rate=float(samplerate_out),
-                sample_period_ps=long(np.uint64(np.round(
-                    1000000000000 / samplerate_out
-                ))),
+                uuid_str=op.uuid,
                 # put in a list because we want the data to be a 1-D array
                 # and it would be a single value if we didn't
                 center_frequencies=[np.array([op.centerfreqs[k]])],
-                # output t0 as float until h5py>=2.7 gets widespread
-                t0=float(lt),
-                n_channels=1,
-                itemsize=sample_size,
-                dtype=sample_dtype,
                 usrp_id=op.mboards_bychan[k],
                 usrp_subdev=op.subdevs_bychan[k],
                 usrp_gain=op.gains[k],
