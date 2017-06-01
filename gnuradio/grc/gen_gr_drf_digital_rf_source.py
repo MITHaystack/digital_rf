@@ -32,7 +32,7 @@ MAIN_TMPL = """\
         <name>Repeat</name>
         <key>repeat</key>
         <value>False</value>
-        <type>enum</type>
+        <type>bool</type>
         <hide>\#if \$repeat() then 'none' else 'part'\#</hide>
         <option>
             <name>Yes</name>
@@ -47,7 +47,7 @@ MAIN_TMPL = """\
         <name>Throttle</name>
         <key>throttle</key>
         <value>False</value>
-        <type>enum</type>
+        <type>bool</type>
         <hide>\#if \$throttle() then 'none' else 'part'\#</hide>
         <option>
             <name>Yes</name>
