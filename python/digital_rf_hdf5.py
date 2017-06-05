@@ -23,8 +23,7 @@ import h5py
 import numpy
 
 # local imports
-from . import _py_rf_write_hdf5  # c extension
-from . import digital_metadata
+from . import _py_rf_write_hdf5, digital_metadata, list_drf
 from ._version import __version__
 
 __all__ = (
@@ -86,20 +85,14 @@ def recreate_metadata_file(channel_dir):
     if os.access(metadata_file, os.R_OK):
         raise IOError('metadata.h5 already exists in %s' % (channel_dir))
 
-    # define glob string for sub_directories in form YYYY-MM-DDTHH-MM-SS
-    sub_directory_glob = (
-        '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T'
-        '[0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
-    )
-    rf_file_glob = 'rf@[0-9]*.[0-9][0-9][0-9].h5'
-
-    subdirs = glob.glob(os.path.join(channel_dir, sub_directory_glob))
+    subdirs = glob.glob(os.path.join(channel_dir, list_drf.GLOB_SUBDIR))
     if len(subdirs) == 0:
         errstr = 'No subdirectories in form YYYY-MM-DDTHH-MM-SS found in %s'
         raise IOError(errstr % str(channel_dir))
 
     this_subdir = subdirs[len(subdirs) / 2]
 
+    rf_file_glob = list_drf.GLOB_DRFFILE.replace('*', 'rf', 1)
     rf_files = glob.glob(os.path.join(this_subdir, rf_file_glob))
     if len(rf_files) == 0:
         errstr = 'No rf files in form rf@<ts>.h5 found in %s'
@@ -1596,14 +1589,6 @@ class _top_level_dir_metadata:
             String giving the access mode ('local', 'file', or 'http').
 
         """
-        # constants
-        # define glob string for sub_directories in form YYYY-MM-DDTHH-MM-SS
-        self._sub_directory_glob = (
-            '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T'
-            '[0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
-        )
-        self._rf_file_glob = 'rf@[0-9]*.[0-9][0-9][0-9].h5'
-
         self.top_level_dir = top_level_dir
         self.channel_name = channel_name
         self.access_mode = access_mode
@@ -1808,17 +1793,20 @@ class _top_level_dir_metadata:
                 os.path.join(
                     self.top_level_dir,
                     self.channel_name,
-                    self._sub_directory_glob,
+                    list_drf.GLOB_SUBDIR,
                 ),
             )
             if len(subdir_list) == 0:
                 return((None, None))
             subdir_list.sort()
+            rf_file_glob = list_drf.GLOB_DRFFILE.replace('*', 'rf', 1)
             for i, subdir in enumerate((subdir_list[0], subdir_list[-1])):
-                rf_list = glob.glob(os.path.join(subdir, self._rf_file_glob))
+                rf_list = glob.glob(
+                    os.path.join(subdir, rf_file_glob)
+                )
                 if len(rf_list) == 0:
                     continue
-                rf_list.sort()
+                rf_list.sort(key=list_drf.sortkey_drf)
                 if i == 0:
                     fullname = rf_list[0]
                 else:
@@ -1840,9 +1828,10 @@ class _top_level_dir_metadata:
 
             # check for all bad files in last subdirectory
             if this_last_sample is None:
-                rf_list = sorted(glob.glob(os.path.join(
-                    subdir_list[-2], self._rf_file_glob
-                )))
+                rf_list = glob.glob(
+                    os.path.join(subdir_list[-2], rf_file_glob)
+                )
+                rf_list.sort(key=list_drf.sortkey_drf)
                 this_last_sample = self._get_last_sample(rf_list[-1])
 
             if first_unix_sample is not None:

@@ -1,8 +1,9 @@
 from argparse import ArgumentParser
 
+from .list_drf import _build_ls_parser
 from .mirror import _build_mirror_parser
 from .ringbuffer import _build_ringbuffer_parser
-from .watchdog_drf import _build_ls_parser, _build_watch_parser
+from .watchdog_drf import _build_watch_parser
 
 def main(args=None):
     parser = ArgumentParser(

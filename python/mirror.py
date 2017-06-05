@@ -8,7 +8,8 @@ import time
 
 from watchdog.observers import Observer
 
-from .watchdog_drf import DigitalRFEventHandler, lsdrf
+from .list_drf import lsdrf
+from .watchdog_drf import DigitalRFEventHandler
 
 __all__ = (
     'DigitalRFMirrorHandler', 'DigitalRFMirror',

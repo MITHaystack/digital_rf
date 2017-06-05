@@ -9,7 +9,8 @@ from collections import OrderedDict, deque, namedtuple
 
 from watchdog.observers import Observer
 
-from .watchdog_drf import DigitalRFEventHandler, lsdrf
+from .list_drf import lsdrf, sortkey_drf
+from .watchdog_drf import DigitalRFEventHandler
 
 __all__ = (
     'DigitalRFRingbufferHandler', 'DigitalRFRingbuffer',
@@ -51,11 +52,17 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         for r in self.regexes:
             m = r.match(path)
             try:
-                key = m.group('secs')
-            except (AttributeError, IndexError):
+                secs = int(m.group('secs'))
+            except (AttributeError, IndexError, TypeError):
                 # no match, or regex matched but there is no 'secs' in regex
                 continue
             else:
+                try:
+                    frac = int(m.group('frac'))
+                except (IndexError, TypeError):
+                    frac = 0
+                # key is time in milliseconds
+                key = secs*1000 + frac
                 break
         if key is None:
             return
@@ -274,6 +281,7 @@ class DigitalRFRingbuffer(object):
 
         # add existing files to ringbuffer handler
         existing = lsdrf(self.path, include_dmd=False, include_metadata=False)
+        existing.sort(key=sortkey_drf)
         self.event_handler.add_files(existing)
 
     def join(self):

@@ -24,6 +24,7 @@ import h5py
 import numpy
 
 # local imports
+from . import list_drf
 from ._version import __version__
 
 __all__ = (
@@ -670,23 +671,21 @@ class DigitalMetadataReader:
 
         """
         # get subdirectory list
-        subdir_glob = (
-            '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T'
-            '[0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+        subdir_path_glob = os.path.join(
+            self._metadata_dir, list_drf.GLOB_SUBDIR,
         )
-        subdir_path_glob = os.path.join(self._metadata_dir, subdir_glob)
         subdir_list = glob.glob(subdir_path_glob)
         subdir_list.sort()
         if len(subdir_list) == 0:
             errstr = 'glob returned no directories for %s'
             raise IOError(errstr % subdir_path_glob)
 
-        filename_glob = '{0}@*.h5'.format(self._file_name)
+        filename_glob = list_drf.GLOB_DMDFILE.replace('*', self._file_name, 1)
         first_sample = None
         # try first three subdirectories in case of subdirectory deletion
         for subdir in subdir_list[:3]:
             file_list = glob.glob(os.path.join(subdir, filename_glob))
-            file_list.sort()
+            file_list.sort(list_drf.sortkey_drf)
             # try first three files in case of file deletion occuring
             for filepath in file_list[:3]:
                 try:
@@ -704,7 +703,7 @@ class DigitalMetadataReader:
         last_file = None
         for subdir in reversed(subdir_list[-20:]):
             file_list = glob.glob(os.path.join(subdir, filename_glob))
-            file_list.sort()
+            file_list.sort(list_drf.sortkey_drf)
             # try last files
             for filepath in reversed(file_list[-20:]):
                 if os.path.getsize(filepath) == 0:
