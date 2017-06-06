@@ -188,6 +188,19 @@ data_object.close()
 print(result)
 print("done test 3.1")
 
+print("Test 3.2 - use complex double in complex form, no compress, no checksum - channel 3")
+os.system("rm -rf /tmp/hdf5/junk3.2 ; mkdir /tmp/hdf5/junk3.2")
+dbl_data = numpy.array(base_data, numpy.double)
+data = numpy.zeros((dbl_data.shape[0], dbl_data.shape[1]/2), numpy.complex128)
+data.real = dbl_data[:, ::2]
+data.imag = dbl_data[:, 1::2]
+data_object = digital_rf.DigitalRFWriter("/tmp/hdf5/junk3.2", data.dtype, subdir_cadence_secs, file_cadence_millisecs, start_global_index,
+                                                 sample_rate_numerator, sample_rate_denominator, "FAKE_UUID_3.2", 0, False, True, num_subchannels=num_subchannels)
+data_object.rf_write(data)
+data_object.close()
+print(result)
+print("done test 3.2")
+
 print("Test 4.1 - use single 8 byte ints with 10 on/10 missing blocks, both compress (level 6) and checksum - channel 4.1")
 os.system("rm -rf /tmp/hdf5/junk4.1 ; mkdir /tmp/hdf5/junk4.1")
 data_object = digital_rf.DigitalRFWriter("/tmp/hdf5/junk4.1", 'i8', subdir_cadence_secs, file_cadence_millisecs, start_global_index,
@@ -322,6 +335,15 @@ print('Test of read_vector from 4 subchannel double channel')
 start_index, end_index = testReadObj.get_bounds('junk3.1')
 result = testReadObj.read_vector(
     start_index, end_index - start_index, 'junk3.1')
+print('result')
+print(result)
+print('result.shape is %s' % (str(result.shape)))
+print(result.dtype)
+
+print('Test of read_vector from 4 subchannel double channel v2')
+start_index, end_index = testReadObj.get_bounds('junk3.2')
+result = testReadObj.read_vector(
+    start_index, end_index - start_index, 'junk3.2')
 print('result')
 print(result)
 print('result.shape is %s' % (str(result.shape)))

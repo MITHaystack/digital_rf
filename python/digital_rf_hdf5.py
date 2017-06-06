@@ -171,7 +171,7 @@ class DigitalRFWriter:
     """Write a channel of data in Digital RF HDF5 format."""
 
     def __init__(
-        self, directory, dtype_str, subdir_cadence_secs,
+        self, directory, dtype, subdir_cadence_secs,
         file_cadence_millisecs, start_global_index, sample_rate_numerator,
         sample_rate_denominator, uuid_str, compression_level=0, checksum=False,
         is_complex=True, num_subchannels=1, is_continuous=True,
@@ -186,12 +186,12 @@ class DigitalRFWriter:
             The directory where this channel is to be written. It must already
             exist and be writable.
 
-        dtype_str : string
-            Format of numpy data in string format, to be passed into
-            ``numpy.dtype`` (e.g. ``numpy.dtype('>i4')``). Valid strings start
-            with any legal byte-order character (no character means native) and
-            are followed by a type and size identifier such as one of 'i1',
-            'u1', 'i2', 'u2', 'i4', 'u4', 'i8', 'u8', 'f', or 'd'.
+        dtype : numpy.dtype | object to be cast by numpy.dtype()
+            Object that gives the numpy dtype of the data to be written. This
+            value is passed into ``numpy.dtype`` to get the actual dtype
+            (e.g. ``numpy.dtype('>i4')``). Scalar types, complex types, and
+            structured complex types with 'r' and 'i' fields of scalar types
+            are valid.
 
         subdir_cadence_secs : int
             The number of seconds of data to store in one subdirectory. The
@@ -237,8 +237,9 @@ class DigitalRFWriter:
             checksum.
 
         is_complex : bool, optional
-            If True (the default), data is IQ. If false, each sample has a
-            single value.
+            This parameter is only used when `dtype` is not complex.
+            If True (the default), interpret supplied data as interleaved
+            complex I/Q samples. If False, each sample has a single value.
 
         num_subchannels : int, optional
             Number of subchannels to write simultaneously. Default is 1.
@@ -260,10 +261,19 @@ class DigitalRFWriter:
         self.directory = directory
 
         # use numpy to get all needed info about this datatype
-        self.dtype = numpy.dtype(dtype_str)
-        self.byteorder = self.dtype.byteorder
+        dtype = numpy.dtype(dtype)
+        if numpy.issubdtype(dtype, numpy.complexfloating):
+            self.is_complex = True
+            self.itemdtype = numpy.dtype('f{0}'.format(dtype.itemsize/2))
+        elif dtype.names == ('r', 'i') or dtype.names == ('i', 'r'):
+            self.is_complex = True
+            self.itemdtype = dtype['r']
+        else:
+            self.is_complex = bool(is_complex)
+            self.itemdtype = dtype
+        self.byteorder = self.itemdtype.byteorder
         if self.byteorder == '=':
-            # simplify C code by convertion here
+            # simplify C code by conversion here
             if sys.byteorder == 'big':
                 self.byteorder = '>'
             else:
@@ -319,7 +329,6 @@ class DigitalRFWriter:
         self.compression_level = compression_level
 
         self.checksum = bool(checksum)
-        self.is_complex = bool(is_complex)
 
         if num_subchannels < 1:
             errstr = 'Number of subchannels must be at least one, not %i'
@@ -335,7 +344,8 @@ class DigitalRFWriter:
 
         # call the underlying C extension, which will call the C init method
         self._channelObj = _py_rf_write_hdf5.init(
-            directory, self.byteorder, self.dtype.char, self.dtype.itemsize,
+            directory, self.byteorder, self.itemdtype.char,
+            self.itemdtype.itemsize,
             self.subdir_cadence_secs, self.file_cadence_millisecs,
             self.start_global_index, self.sample_rate_numerator,
             self.sample_rate_denominator, uuid_str, compression_level,
@@ -362,12 +372,12 @@ class DigitalRFWriter:
             subchannels and type as declared when initializing the writer
             object, or an error will be raised. For single valued data, number
             of columns == number of subchannels. For complex data, there are
-            two types of input arrays that are allowed:
-                1. An array without column names with number of columns =
-                    2*num_subchannels.  I/Q are assumed to be interleaved.
-                2. A structured array with column names r and i, as stored in
-                    the Hdf5 file.  Then the shape will be N * num_subchannels,
-                    because numpy considered the r/i data as one piece of data.
+            two sizes of input arrays that are allowed:
+                1. For a complex array or a structured array with column names
+                    'r' and 'i' (as stored in the HDF5 file), the shape must
+                    be (N, num_subchannels).
+                2. For a non-structured, non-complex array, the shape must be
+                    (N, 2*num_subchannels). I/Q are assumed to be interleaved.
 
         next_sample : long, optional
             Global index of next sample to write to. If None (default), the
@@ -405,7 +415,7 @@ class DigitalRFWriter:
                     arr_data[j,i]['r'] = 2
                     arr_data[j,i]['i'] = 3
 
-        The same data could be passed in via the array created as::
+        The same data could be also be passed as an interleaved array::
 
             arr_data = numpy.ones(
                 (num_rows, num_subchannels*2),
@@ -585,7 +595,7 @@ class DigitalRFWriter:
 
         """
         if self.is_complex:
-            # there are two allowed ways to pass in complex data - see which
+            # there are three allowed ways to pass in complex data - see which
             # one used
             if arr.dtype.names is not None:
                 # this must be be r/i format:
@@ -593,10 +603,10 @@ class DigitalRFWriter:
                     if name not in arr.dtype.names:
                         errstr = 'column names must be r and i, not %s'
                         raise ValueError(errstr % str(arr.dtype.names))
-                    if arr.dtype[name] != self.dtype:
+                    if not numpy.issubdtype(arr.dtype[name], self.itemdtype):
                         errstr = 'column %s must have dtype %s, not %s'
                         raise ValueError(errstr % (
-                            name, str(self.dtype), str(arr.dtype[name]),
+                            name, str(self.itemdtype), str(arr.dtype[name]),
                         ))
                 if len(arr.dtype.names) != 2:
                     errstr = 'column names must be only r and i, not %s'
@@ -607,23 +617,39 @@ class DigitalRFWriter:
                         ' num_subchannels, not %s'
                     )
                     raise ValueError(errstr % str(arr.shape))
+            elif numpy.issubdtype(arr.dtype, numpy.complexfloating):
+                itemdtype = numpy.dtype('f{0}'.format(arr.dtype.itemsize/2))
+                if not numpy.issubdtype(itemdtype, self.itemdtype):
+                    errstr = (
+                        'complex arr has item dtype %s, but dtype set in init'
+                        ' was %s'
+                    )
+                    raise ValueError(
+                        errstr % (str(itemdtype), str(self.itemdtype))
+                    )
+                if arr.shape[1] != self.num_subchannels:
+                    errstr = (
+                        'complex array in complex form must have shape N x'
+                        ' num_subchannels, not %s'
+                    )
+                    raise ValueError(errstr % str(arr.shape))
             else:
+                if not numpy.issubdtype(arr.dtype, self.itemdtype):
+                    errstr = 'arr has dtype %s, but dtype set in init was %s'
+                    raise ValueError(
+                        errstr % (str(arr.dtype), str(self.itemdtype))
+                    )
                 if arr.shape[1] != 2 * self.num_subchannels:
                     errstr = (
                         'complex array in flat form must have shape N x'
                         ' 2*num_subchannels, not %s'
                     )
                     raise ValueError(errstr % str(arr.shape))
-                if arr.dtype != self.dtype:
-                    errstr = 'arr has dtype %s, but dtype set in init was %s'
-                    raise ValueError(
-                        errstr % (str(arr.dtype), str(self.dtype))
-                    )
 
         else:  # single value checks
-            if arr.dtype != self.dtype:
-                errstr = 'arr has dtype %s, but dtype set in init was %s'
-                raise ValueError(errstr % (str(arr.dtype), str(self.dtype)))
+            if not numpy.issubdtype(arr.dtype, self.itemdtype):
+                estr = 'arr has dtype %s, but dtype set in init was %s'
+                raise ValueError(estr % (str(arr.dtype), str(self.itemdtype)))
             if len(arr.shape) == 1 and self.num_subchannels > 1:
                 errstr = (
                     'single valued array must just have one subchannel, not'
@@ -1119,11 +1145,11 @@ class DigitalRFReader:
         return((None, None))
 
     def read_vector(
-        self, unix_sample, vector_length, channel_name, sub_channel=None,
+        self, start_sample, vector_length, channel_name, sub_channel=None,
     ):
         """Read a complex vector of data beginning at the given sample index.
 
-        This method returns the vector of the data beginning at `unix_sample`
+        This method returns the vector of the data beginning at `start_sample`
         with length `vector_length` for the given channel and sub_channel(s).
         The vector is always cast to a complex64 dtype no matter the original
         type of the data.
@@ -1172,29 +1198,30 @@ class DigitalRFReader:
             estr = 'Number of samples requested must be greater than 0, not %i'
             raise IOError(estr % vector_length)
 
+        start_sample = long(start_sample)
+        end_sample = start_sample + (long(vector_length) - 1)
         data_dict = self.read(
-            unix_sample, unix_sample + (vector_length - 1), channel_name,
-            sub_channel,
+            start_sample, end_sample, channel_name, sub_channel,
         )
 
         if len(data_dict.keys()) > 1:
             errstr = (
-                'Data gaps found with unix_sample %i and vector_length %i'
+                'Data gaps found with start_sample %i and vector_length %i'
                 ' with channel %s'
             )
-            raise IOError(errstr % (unix_sample, vector_length, channel_name))
+            raise IOError(errstr % (start_sample, vector_length, channel_name))
         elif len(data_dict.keys()) == 0:
             errstr = (
-                'No data found with unix_sample %i and vector_length %i'
+                'No data found with start_sample %i and vector_length %i'
                 ' with channel %s'
             )
-            raise IOError(errstr % (unix_sample, vector_length, channel_name))
+            raise IOError(errstr % (start_sample, vector_length, channel_name))
 
         key = data_dict.keys()[0]
         z = data_dict[key]
 
         if len(z) != vector_length:
-            errstr = 'Requested %i samples, but only got %i'
+            errstr = 'Requested %i samples, but got %i'
             raise IOError(errstr % (vector_length, len(z)))
 
         if not hasattr(z.dtype, 'names'):
@@ -1204,10 +1231,10 @@ class DigitalRFReader:
         z = numpy.array(z['r'] + z['i'] * 1.0j, dtype=numpy.complex64)
         return(z)
 
-    def read_vector_raw(self, unix_sample, vector_length, channel_name):
+    def read_vector_raw(self, start_sample, vector_length, channel_name):
         """Read a vector of data beginning at the given sample index.
 
-        This method returns the vector of the data beginning at `unix_sample`
+        This method returns the vector of the data beginning at `start_sample`
         with length `vector_length` for the given channel. The data is returned
         in its HDF5-native type (e.g. complex integer-typed data has a
         stuctured dtype with 'r' and 'i' fields) and includes all subchannels.
@@ -1251,34 +1278,34 @@ class DigitalRFReader:
             estr = 'Number of samples requested must be greater than 0, not %i'
             raise IOError(estr % vector_length)
 
-        data_dict = self.read(
-            unix_sample, long(unix_sample + (vector_length - 1)), channel_name,
-        )
+        start_sample = long(start_sample)
+        end_sample = start_sample + (long(vector_length) - 1)
+        data_dict = self.read(start_sample, end_sample, channel_name)
 
         if len(data_dict.keys()) > 1:
             errstr = (
-                'Data gaps found with unix_sample %i and vector_length %i'
+                'Data gaps found with start_sample %i and vector_length %i'
                 ' with channel %s'
             )
-            raise IOError(errstr % (unix_sample, vector_length, channel_name))
+            raise IOError(errstr % (start_sample, vector_length, channel_name))
         elif len(data_dict.keys()) == 0:
             errstr = (
-                'No data found with unix_sample %i and vector_length %i'
+                'No data found with start_sample %i and vector_length %i'
                 ' with channel %s'
             )
-            raise IOError(errstr % (unix_sample, vector_length, channel_name))
+            raise IOError(errstr % (start_sample, vector_length, channel_name))
 
         key = data_dict.keys()[0]
         z = data_dict[key]
 
         if len(z) != vector_length:
-            errstr = 'Requested %i samples, but only got %i'
+            errstr = 'Requested %i samples, but got %i'
             raise IOError(errstr % (vector_length, len(z)))
 
         return(z)
 
     def read_vector_c81d(
-        self, unix_sample, vector_length, channel_name, sub_channel=0,
+        self, start_sample, vector_length, channel_name, sub_channel=0,
     ):
         """Read a complex vector of data beginning at the given sample index.
 
@@ -1322,7 +1349,7 @@ class DigitalRFReader:
 
         """
         return(self.read_vector(
-            unix_sample, vector_length, channel_name, sub_channel,
+            start_sample, vector_length, channel_name, sub_channel,
         ))
 
     @staticmethod
@@ -1370,6 +1397,8 @@ class DigitalRFReader:
         if (sample1 - sample0) > 1e12:
             warnstr = 'Requested read size, %i samples, is very large'
             warnings.warn(warnstr % (sample1 - sample0), RuntimeWarning)
+        sample0 = long(sample0)
+        sample1 = long(sample1)
         # need to go through numpy uint64 to prevent conversion to float
         start_ts = long(numpy.uint64(sample0 / samples_per_second))
         end_ts = long(numpy.uint64(sample1 / samples_per_second)) + 1
