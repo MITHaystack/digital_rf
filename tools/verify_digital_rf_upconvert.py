@@ -15,7 +15,7 @@ import numpy
 
 # Millstone imports
 import digital_rf
-import digital_rf_deprecated_hdf5  # for reading old formatter
+from digital_rf import digital_rf_deprecated_hdf5  # for reading old formatter
 
 read_len = 1000000  # default read len
 
@@ -50,7 +50,6 @@ if __name__ == '__main__':
         bounds2 = reader2.get_bounds(channel)
         bounds1 = reader1.get_bounds(channel)
         metaDict = reader1.get_rf_file_metadata(channel)
-        is_complex = bool(metaDict['is_complex'][0])
 
         cont_blocks_2 = reader2.get_continuous_blocks(
             bounds2[0], bounds2[1], channel)
@@ -64,12 +63,8 @@ if __name__ == '__main__':
             if n1 > read_len:
                 # keep array size reasonable
                 n1 = read_len
-            if not is_complex:
-                data1 = reader1.read_vector_raw(s1, n1, channel)
-                data2 = reader2.read_vector_raw(s1, n1, channel)
-            else:
-                data1 = reader1.read_vector(s1, n1, channel)
-                data2 = reader2.read_vector(s1, n1, channel)
+            data1 = reader1.read_vector_raw(s1, n1, channel)
+            data2 = reader2.read_vector_raw(s1, n1, channel)
             if not numpy.array_equal(data1, data2):
                 print(data1)
                 print(data2)

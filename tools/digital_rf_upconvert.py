@@ -74,10 +74,8 @@ if __name__ == '__main__':
         num_subchannels = metaDict['num_subchannels'][0]
 
         # get first sample to find dtype
-        if is_complex:
-            data = reader.read_vector(bounds[0], 1, channel)
-        else:
-            data = reader.read_vector_raw(bounds[0], 1, channel)
+        data = reader.read_vector_raw(bounds[0], 1, channel)
+        this_dtype = data.dtype
         cont_blocks = reader.get_continuous_blocks(
             bounds[0], bounds[1], channel)
         subdir = os.path.join(args.target, channel)
@@ -91,18 +89,6 @@ if __name__ == '__main__':
             os.makedirs(os.path.join(subdir, 'metadata'))
         for f in metadataFiles:
             shutil.copy(f, os.path.join(subdir, 'metadata'))
-
-        # get dtype to convert to if complex
-        if is_complex:
-            if data.dtype == numpy.complex64:
-                this_dtype = numpy.float32
-            elif data.dtype == numpy.complex128:
-                this_dtype = numpy.float64
-            else:
-                raise ValueError, 'Unexpected complex type %s' % (
-                    str(data.dtype))
-        else:
-            this_dtype = data.dtype
 
         # create a drf 2 writer
         writer = digital_rf.DigitalRFWriter(subdir, this_dtype, args.dir_secs, args.file_millisecs, bounds[0],
@@ -122,19 +108,9 @@ if __name__ == '__main__':
             endSample = (startSample + sampleLen) - 1
             while thisSample < endSample:
                 this_len = min((endSample - thisSample) + 1, read_len)
-
-                # convert if complex
-                if is_complex:
-                    data = reader.read_vector(thisSample, this_len, channel)
-                    new_data = numpy.zeros(
-                        (len(data), 2 * num_subchannels), dtype=this_dtype)
-                    new_data[:, 0:2 * num_subchannels:2] = data.real
-                    new_data[:, 1:2 * num_subchannels:2] = data.imag
-                    writer.rf_write(new_data, thisSample - bounds[0])
-                else:
-                    data = reader.read_vector_raw(
-                        thisSample, this_len, channel)
-                    writer.rf_write(data, thisSample - bounds[0])
+                data = reader.read_vector_raw(
+                    thisSample, this_len, channel)
+                writer.rf_write(data, thisSample - bounds[0])
                 thisSample += this_len
 
         writer.close()
