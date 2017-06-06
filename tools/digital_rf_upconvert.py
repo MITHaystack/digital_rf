@@ -8,19 +8,20 @@ $Id$
 """
 
 # standard python imports
-import os
-import sys
 import argparse
-import traceback
 import glob
+import math
+import os
 import shutil
+import sys
+import traceback
 
 # third party imports
 import numpy
 
 # Millstone imports
 import digital_rf
-import digital_rf_deprecated_hdf5  # for reading old formatter
+from digital_rf import digital_rf_deprecated_hdf5  # for reading old formatter
 
 read_len = 1000000  # default read len
 
@@ -86,8 +87,10 @@ if __name__ == '__main__':
         # copy in any metadata* files
         metadataFiles = glob.glob(os.path.join(
             args.source, channel, 'metadata*.h5'))
+        if metadataFiles and not os.access(os.path.join(subdir, 'metadata'), os.R_OK):
+            os.makedirs(os.path.join(subdir, 'metadata'))
         for f in metadataFiles:
-            shutil.copy(f, subdir)
+            shutil.copy(f, os.path.join(subdir, 'metadata'))
 
         # get dtype to convert to if complex
         if is_complex:
