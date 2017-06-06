@@ -1171,9 +1171,6 @@ class DigitalRFReader:
         if vector_length < 1:
             estr = 'Number of samples requested must be greater than 0, not %i'
             raise IOError(estr % vector_length)
-        if vector_length > 1e12:
-            warnstr = 'Requested vector_length, %i, is very large'
-            warnings.warn(warnstr % vector_length, RuntimeWarning)
 
         data_dict = self.read(
             unix_sample, unix_sample + (vector_length - 1), channel_name,
@@ -1253,9 +1250,6 @@ class DigitalRFReader:
         if vector_length < 1:
             estr = 'Number of samples requested must be greater than 0, not %i'
             raise IOError(estr % vector_length)
-        if vector_length > 1e12:
-            warnstr = 'Requested vector_length, %i, is very large'
-            warnings.warn(warnstr % vector_length, RuntimeWarning)
 
         data_dict = self.read(
             unix_sample, long(unix_sample + (vector_length - 1)), channel_name,
@@ -1373,6 +1367,9 @@ class DigitalRFReader:
             to the subdirectory and file cadence naming scheme.
 
         """
+        if (sample1 - sample0) > 1e12:
+            warnstr = 'Requested read size, %i samples, is very large'
+            warnings.warn(warnstr % (sample1 - sample0), RuntimeWarning)
         # need to go through numpy uint64 to prevent conversion to float
         start_ts = long(numpy.uint64(sample0 / samples_per_second))
         end_ts = long(numpy.uint64(sample1 / samples_per_second)) + 1
@@ -1808,11 +1805,7 @@ class _top_level_dir_metadata:
                     continue
                 rf_list.sort(key=list_drf.sortkey_drf)
                 if i == 0:
-                    fullname = rf_list[0]
-                else:
-                    fullname = rf_list[-1]
-                if i == 0:
-                    this_first_sample = self._get_first_sample(fullname)
+                    this_first_sample = self._get_first_sample(rf_list[0])
                 else:
                     for fullname in reversed(rf_list):
                         try:
