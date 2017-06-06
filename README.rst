@@ -23,7 +23,6 @@ Build:
 * python == 2.7 (``python-dev``)
 * numpy (``python-numpy``)
 * cmake (``cmake``)
-* libtool (``libtool``)
 
 Additional optional build dependencies:
 
