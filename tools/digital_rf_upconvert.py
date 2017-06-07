@@ -1,6 +1,6 @@
 #!python
 
-"""digital_rf_upconvert will convert a deprecated digital rf format to the newest one
+"""Convert Digital RF 1 formatted data to the current version.
 
 Use verify_digital_rf_upconvert.py if you want to test the conversion.
 
@@ -12,12 +12,9 @@ import argparse
 import glob
 import math
 import os
-import shutil
-import sys
-import traceback
 
-# third party imports
-import numpy
+import h5py
+import numpy as np
 
 # Millstone imports
 import digital_rf
@@ -26,34 +23,44 @@ from digital_rf import digital_rf_deprecated_hdf5  # for reading old formatter
 read_len = 1000000  # default read len
 
 
-### main begins here ###
 if __name__ == '__main__':
-
     # command line interface
     parser = argparse.ArgumentParser(
-        description='digital_rf_upconvert will convert a deprecated digital rf format to the newest one.')
-    parser.add_argument('--source', metavar='sourceDir',
-                        help='Source top level directory containing Digital RF channels to be converted', required=True)
-    parser.add_argument('--target', metavar='targetDir',
-                        help='Target top level directory where Digital RF channels will be written after upconversion', required=True)
-    parser.add_argument('--dir_secs', metavar='Subdir_cadence_seconds',
-                        help='Number of seconds of data to store per subdirectory. Default is 3600 (one hour)',
-                        default=3600, type=int)
-    parser.add_argument('--file_millisecs', metavar='File_cadence_milliseconds',
-                        help='Number of milliseconds of data to store per file. Default is 1000 (one second)',
-                        default=1000, type=int)
-    parser.add_argument('--gzip', metavar='GZIP compression 0-9.',
-                        help='Level of GZIP compression 1-9.  Default=0, for no compression',
-                        type=int, default=0)
-    parser.add_argument('--checksum', action='store_true',
-                        help='Set this flag to turn on Hdf5 checksums')
+        description='''Convert Digital RF 1 formatted data to the current
+                       version.'''
+    )
+    parser.add_argument(
+        '--source', metavar='sourceDir', required=True,
+        help='''Source top level directory containing Digital RF channels to be
+                converted''',
+    )
+    parser.add_argument(
+        '--target', metavar='targetDir', required=True,
+        help='''Target top level directory where Digital RF channels will be
+                written after upconversion''',
+    )
+    parser.add_argument(
+        '--dir_secs', metavar='Subdir_cadence_seconds', type=int, default=3600,
+        help='''Number of seconds of data to store per subdirectory.
+                Default is 3600 (one hour)''',
+    )
+    parser.add_argument(
+        '--file_millisecs', metavar='File_cadence_milliseconds', type=int,
+        default=1000,
+        help='''Number of milliseconds of data to store per file.
+                Default is 1000 (one second)''',
+    )
+    parser.add_argument(
+        '--gzip', metavar='GZIP compression 0-9.', type=int, default=0,
+        help='''Level of GZIP compression 1-9.  Default=0 (no compression)''',
+    )
+    parser.add_argument(
+        '--checksum', action='store_true',
+        help='''Set this flag to turn on Hdf5 checksums''',
+    )
     args = parser.parse_args()
 
-    try:
-        reader = digital_rf_deprecated_hdf5.read_hdf5(args.source)
-    except:
-        traceback.print_exc()
-        sys.exit(-1)
+    reader = digital_rf_deprecated_hdf5.read_hdf5(args.source)
 
     # convert each channel separately
     for channel in reader.get_channels():
@@ -64,14 +71,18 @@ if __name__ == '__main__':
         # this code only works if the sample rate is an integer
         sample_rate = metaDict['sample_rate'][0]
         if math.fmod(sample_rate, 1.0) != 0.0:
-            raise ValueError, 'Cannot guess the numerator and denominator with a fractional sample rate %f' % (
-                sample_rate)
+            errstr = (
+                'Cannot guess the numerator and denominator with a fractional'
+                ' sample rate %f'
+            )
+            raise ValueError(errstr % sample_rate)
         sample_rate_numerator = long(sample_rate)
         sample_rate_denominator = long(1)
 
         # read critical metadata
         is_complex = bool(metaDict['is_complex'][0])
         num_subchannels = metaDict['num_subchannels'][0]
+        uuid_str = str(metaDict['uuid_str'])
 
         # get first sample to find dtype
         data = reader.read_vector_raw(bounds[0], 1, channel)
@@ -82,25 +93,47 @@ if __name__ == '__main__':
         if not os.access(subdir, os.R_OK):
             os.makedirs(subdir)
 
-        # copy in any metadata* files
+        # extract sampler_util metadata in any metadata* files
         metadataFiles = glob.glob(os.path.join(
-            args.source, channel, 'metadata*.h5'))
-        if metadataFiles and not os.access(os.path.join(subdir, 'metadata'), os.R_OK):
-            os.makedirs(os.path.join(subdir, 'metadata'))
-        for f in metadataFiles:
-            shutil.copy(f, os.path.join(subdir, 'metadata'))
+            args.source, channel, 'metadata*.h5',
+        ))
+        if metadataFiles:
+            # create metadata dir, dmd object, and write channel metadata
+            mddir = os.path.join(subdir, 'metadata')
+            if not os.path.exists(mddir):
+                os.makedirs(mddir)
+            mdo = digital_rf.DigitalMetadataWriter(
+                metadata_dir=mddir,
+                subdir_cadence_secs=args.dir_secs,
+                file_cadence_secs=1,
+                sample_rate_numerator=sample_rate_numerator,
+                sample_rate_denominator=sample_rate_denominator,
+                file_name='metadata',
+            )
+            for filepath in metadataFiles:
+                with h5py.File(filepath, 'r') as mdfile:
+                    md = dict(
+                        uuid_str=uuid_str,
+                        # put in a list because we want the data to be a 1-D
+                        # array and it would be a single value if we didn't
+                        center_frequencies=[
+                            mdfile['center_frequencies'][()].reshape((-1,))
+                        ],
+                        usrp_id=str(mdfile['usrp_ip'][()]),
+                    )
+                fname = os.path.basename(filepath)
+                t = np.longdouble(fname.split('@', 1)[1][:-3])
+                s = int((t * sample_rate_numerator) / sample_rate_denominator)
+                mdo.write(samples=s, data_dict=md)
 
         # create a drf 2 writer
-        writer = digital_rf.DigitalRFWriter(subdir, this_dtype, args.dir_secs, args.file_millisecs, bounds[0],
-                                            sample_rate_numerator, sample_rate_denominator, str(metaDict[
-                                                                                                'uuid_str']),
-                                            is_complex=is_complex,
-                                            num_subchannels=num_subchannels,
-                                            compression_level=args.gzip, checksum=args.checksum,
-                                            marching_periods=False)
-
-        if not os.access(subdir, os.R_OK):
-            os.mkdir(subdir)
+        writer = digital_rf.DigitalRFWriter(
+            subdir, this_dtype, args.dir_secs, args.file_millisecs, bounds[0],
+            sample_rate_numerator, sample_rate_denominator,
+            uuid_str=uuid_str, is_complex=is_complex,
+            num_subchannels=num_subchannels, compression_level=args.gzip,
+            checksum=args.checksum, marching_periods=False,
+        )
 
         # write all the data
         for startSample, sampleLen in cont_blocks:
