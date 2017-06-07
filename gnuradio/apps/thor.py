@@ -420,7 +420,10 @@ class Thor(object):
                 center_frequencies=[np.array([op.centerfreqs[k]])],
                 usrp_id=op.mboards_bychan[k],
                 usrp_subdev=op.subdevs_bychan[k],
+                usrp_antenna=op.antennas[k],
+                usrp_bandwidth=op.bandwidths[k],
                 usrp_gain=op.gains[k],
+                usrp_lo_offset=op.lo_offsets[k],
                 usrp_stream_args=','.join(op.stream_args),
             )
             mdo.write(
