@@ -119,8 +119,20 @@ if __name__ == '__main__':
                         center_frequencies=[
                             mdfile['center_frequencies'][()].reshape((-1,))
                         ],
-                        usrp_id=str(mdfile['usrp_ip'][()]),
                     )
+                    try:
+                        # try for newer added metadata, usrp_id and friends
+                        md.update(
+                            usrp_id=str(mdfile['usrp_id'][()]),
+                            usrp_subdev=str(mdfile['usrp_subdev'][()]),
+                            usrp_gain=str(mdfile['usrp_gain'][()]),
+                            usrp_stream_args=str(
+                                mdfile['usrp_stream_args'][()]
+                            ),
+                        )
+                    except KeyError:
+                        # fallback to original usrp metadata
+                        md.update(usrp_id=str(mdfile['usrp_ip'][()]))
                 fname = os.path.basename(filepath)
                 t = np.longdouble(fname.split('@', 1)[1][:-3])
                 s = int((t * sample_rate_numerator) / sample_rate_denominator)
