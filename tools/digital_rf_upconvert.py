@@ -12,6 +12,7 @@ import argparse
 import glob
 import math
 import os
+import warnings
 
 import h5py
 import numpy as np
@@ -97,6 +98,7 @@ if __name__ == '__main__':
         metadataFiles = glob.glob(os.path.join(
             args.source, channel, 'metadata*.h5',
         ))
+        metadataFiles.sort()
         if metadataFiles:
             # create metadata dir, dmd object, and write channel metadata
             mddir = os.path.join(subdir, 'metadata')
@@ -111,32 +113,39 @@ if __name__ == '__main__':
                 file_name='metadata',
             )
             for filepath in metadataFiles:
-                with h5py.File(filepath, 'r') as mdfile:
-                    md = dict(
-                        uuid_str=uuid_str,
-                        # put in a list because we want the data to be a 1-D
-                        # array and it would be a single value if we didn't
-                        center_frequencies=[
-                            mdfile['center_frequencies'][()].reshape((-1,))
-                        ],
-                    )
-                    try:
-                        # try for newer added metadata, usrp_id and friends
-                        md.update(
-                            usrp_id=str(mdfile['usrp_id'][()]),
-                            usrp_subdev=str(mdfile['usrp_subdev'][()]),
-                            usrp_gain=str(mdfile['usrp_gain'][()]),
-                            usrp_stream_args=str(
-                                mdfile['usrp_stream_args'][()]
-                            ),
+                try:
+                    with h5py.File(filepath, 'r') as mdfile:
+                        md = dict(
+                            uuid_str=uuid_str,
+                            # put in a list because we want the data to be a
+                            # 1-D array and it would be a single value o/w
+                            center_frequencies=[
+                                mdfile['center_frequencies'][()].reshape((-1,))
+                            ],
                         )
-                    except KeyError:
-                        # fallback to original usrp metadata
-                        md.update(usrp_id=str(mdfile['usrp_ip'][()]))
-                fname = os.path.basename(filepath)
-                t = np.longdouble(fname.split('@', 1)[1][:-3])
-                s = int((t * sample_rate_numerator) / sample_rate_denominator)
-                mdo.write(samples=s, data_dict=md)
+                        try:
+                            # try for newer added metadata, usrp_id and friends
+                            md.update(
+                                usrp_id=str(mdfile['usrp_id'][()]),
+                                usrp_subdev=str(mdfile['usrp_subdev'][()]),
+                                usrp_gain=str(mdfile['usrp_gain'][()]),
+                                usrp_stream_args=str(
+                                    mdfile['usrp_stream_args'][()]
+                                ),
+                            )
+                        except KeyError:
+                            # fallback to original usrp metadata
+                            md.update(usrp_id=str(mdfile['usrp_ip'][()]))
+                except (IOError, KeyError):
+                    # file is bad, warn and ignore
+                    errstr = 'Skipping bad metadata file {0}.'
+                    warnings.warn(errstr.format(filepath))
+                else:
+                    fname = os.path.basename(filepath)
+                    t = np.longdouble(fname.split('@', 1)[1][:-3])
+                    s = int((t * sample_rate_numerator)
+                            / sample_rate_denominator)
+                    mdo.write(samples=s, data_dict=md)
 
         # create a drf 2 writer
         writer = digital_rf.DigitalRFWriter(
