@@ -685,7 +685,7 @@ class DigitalMetadataReader:
         # try first three subdirectories in case of subdirectory deletion
         for subdir in subdir_list[:3]:
             file_list = glob.glob(os.path.join(subdir, filename_glob))
-            file_list.sort(list_drf.sortkey_drf)
+            file_list.sort(key=list_drf.sortkey_drf)
             # try first three files in case of file deletion occuring
             for filepath in file_list[:3]:
                 try:
@@ -703,7 +703,7 @@ class DigitalMetadataReader:
         last_file = None
         for subdir in reversed(subdir_list[-20:]):
             file_list = glob.glob(os.path.join(subdir, filename_glob))
-            file_list.sort(list_drf.sortkey_drf)
+            file_list.sort(key=list_drf.sortkey_drf)
             # try last files
             for filepath in reversed(file_list[-20:]):
                 if os.path.getsize(filepath) == 0:
@@ -775,6 +775,8 @@ class DigitalMetadataReader:
         columns : None | string | list of strings
             A string or list of strings giving the field/column name of
             metadata to return. If None, all available columns will be read.
+            Using a string results in a different returned object than a one-
+            element list containing the string, see below.
 
 
         Returns
@@ -783,15 +785,15 @@ class DigitalMetadataReader:
         OrderedDict
             The dictionary's keys are the sample index for each sample of
             metadata found between `start_sample` and `end_sample` (inclusive).
-            Each value is a metadata sample, given as a dictionary with
-            column names as keys and numpy objects as leaf values.
+            Each value is a metadata sample, given as either the column value
+            (if `columns` is a string) or a dictionary with column names as
+            keys and numpy objects as leaf values (if `columns` is None or
+            a list).
 
         """
         if start_sample > end_sample:
             errstr = 'Start sample %i more than end sample %i'
             raise ValueError(errstr % (start_sample, end_sample))
-        if isinstance(columns, types.StringTypes):
-            columns = [columns]
 
         file_list = self._get_file_list(start_sample, end_sample)
         ret_dict = collections.OrderedDict()
@@ -931,9 +933,9 @@ class DigitalMetadataReader:
         this_file : string
             Full path to the file from which metadata will be read.
 
-        columns : None | list of strings
-            A  list of strings giving the field/column name of metadata to
-            return. If None, all available columns will be read.
+        columns : None | string | list of strings
+            A string or list of strings giving the field/column name of
+            metadata to return. If None, all available columns will be read.
 
         sample0 : long
             Sample index for start of read, given in the number of samples
@@ -952,23 +954,25 @@ class DigitalMetadataReader:
         """
         try:
             with h5py.File(this_file, 'r') as f:
-                if columns is None:
-                    columns = self._fields
-                    columns.sort()
-                idx = f.keys()
-                idx = numpy.array(
-                    [long(key) for key in idx], dtype=numpy.int64,
-                )
-                idx.sort()  # a list of all samples in file
-                # file has idx column
+                # get sorted numpy array of all samples in file
+                idxs = numpy.fromiter(f.keys(), numpy.int64)
+                idxs.sort()
                 if is_edge:
-                    # calculate indices
-                    valid = numpy.logical_and(idx >= sample0, idx <= sample1)
-                    indices = valid.nonzero()[0]
-                else:
-                    indices = numpy.arange(len(idx))
-                for key in idx[indices]:
-                    self._populate_data(ret_dict, f[str(key)], key)
+                    # calculate valid samples based on sample range
+                    valid = numpy.logical_and(idxs >= sample0, idxs <= sample1)
+                    idxs = idxs[valid]
+                for idx in idxs:
+                    value = f[str(idx)]
+                    if columns is None:
+                        self._populate_data(ret_dict, value, idx)
+                    elif isinstance(columns, types.StringTypes):
+                        self._populate_data(ret_dict, value[columns], idx)
+                    else:
+                        ret_dict[idx] = {}
+                        for column in columns:
+                            self._populate_data(
+                                ret_dict[idx], value[column], column,
+                            )
         except IOError:
             # decide whether this file is corrupt, or too new, or just missing
             if os.access(this_file, os.R_OK) and os.access(this_file, os.W_OK):
@@ -982,14 +986,13 @@ class DigitalMetadataReader:
                     print(errstr % this_file)
                     os.remove(this_file)
 
-    def _populate_data(self, ret_dict, grp, name):
-        """Read data recursively from an HDF5 group and add it to `ret_dict`.
+    def _populate_data(self, ret_dict, obj, name):
+        """Read data recursively from an HDF5 value and add it to `ret_dict`.
 
-        A dictionary is created at ``ret_dict[name]`` to hold the group's
-        values. Any datasets found in `grp` are added to the dictionary as
-        numpy objects, and any subgroups found in `grp` are added to the
-        dictionary as sub-dictionaries populated by a recursive call to this
-        function.
+        If `obj` is a dataset, it is added to `ret_dict`. If `obj` is a group,
+        a sub-dictionary is created in `ret_dict` for `obj` and populated
+        recursively by calling this function on all of  the items in the `obj`
+        group.
 
         Parameters
         ----------
@@ -997,23 +1000,21 @@ class DigitalMetadataReader:
         ret_dict : OrderedDict
             Dictionary to which metadata will be added.
 
-        grp : h5py.Group
-            HDF5 group from which to read metadata.
+        obj : h5py.Dataset | h5py.Group
+            HDF5 value from which to read metadata.
 
-        name : string
-            Name for the h5py.Group. Data from `grp` is returned in a
-            dictionary stored at ``ret_dict[name]``.
+        name : valid dictionary key
+            Dictionary key in `ret_dict` under which to store the data from
+            `obj`.
 
         """
-        # create a dictionary for this group
-        ret_dict[name] = {}
-
-        for key, value in grp.items():
-            if isinstance(value, h5py.Dataset):
-                # [()] casts a Dataset as a numpy array
-                ret_dict[name][key] = value[()]
-            else:
-                # subgroup found
+        if isinstance(obj, h5py.Dataset):
+            # [()] casts a Dataset as a numpy array
+            ret_dict[name] = obj[()]
+        else:
+            # create a dictionary for this group
+            ret_dict[name] = {}
+            for key, value in obj.items():
                 self._populate_data(ret_dict[name], value, key)
 
     def _check_compatible_version(self):
