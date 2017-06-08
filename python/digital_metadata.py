@@ -674,10 +674,10 @@ class DigitalMetadataReader:
                     with h5py.File(filepath, 'r') as f:
                         groups = f.keys()
                         groups.sort()
-                        first_sample = long(groups[0])
-                    break
                 except (IOError, IndexError):
                     pass
+                else:
+                    break
         if first_sample is None:
             raise IOError('All attempts to read first sample failed')
 
@@ -696,7 +696,6 @@ class DigitalMetadataReader:
                         groups = f.keys()
                         groups.sort()
                         last_sample = long(groups[-1])
-                    return((first_sample, last_sample))
                 except (IOError, IndexError):
                     # delete as corrupt if not too new
                     if not (time.time() - os.path.getmtime(last_file) <
@@ -707,6 +706,8 @@ class DigitalMetadataReader:
                         print(errstr % last_file)
                         os.remove(last_file)
                     last_file = None
+                else:
+                    return((first_sample, last_sample))
 
         if last_file is None:
             raise IOError('All attempts to read last file failed')
