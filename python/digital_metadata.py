@@ -674,6 +674,7 @@ class DigitalMetadataReader:
                     with h5py.File(filepath, 'r') as f:
                         groups = f.keys()
                         groups.sort()
+                        first_sample = long(groups[0])
                 except (IOError, IndexError):
                     pass
                 else:
