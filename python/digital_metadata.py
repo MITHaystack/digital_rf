@@ -676,9 +676,11 @@ class DigitalMetadataReader:
                         groups.sort()
                         first_sample = long(groups[0])
                 except (IOError, IndexError):
-                    pass
+                    continue
                 else:
                     break
+            if first_sample is not None:
+                break
         if first_sample is None:
             raise IOError('All attempts to read first sample failed')
 
