@@ -163,7 +163,7 @@ class DigitalMetadataWriter:
         Parameters
         ----------
 
-        samples : list | long | int | float
+        samples : list | 1-D array | long | int | float
             A single sample index or an list of sample indices, given in
             the number of samples since the epoch (t_since_epoch*sample_rate),
             for the data to be written.
@@ -182,18 +182,23 @@ class DigitalMetadataWriter:
                 - another dictionary with keys that are valid Group name
                     strings and leaf values that are one of the above
 
-            This dictionary must always have the same keys each time the write
-            method is called.
+            This dictionary should always have the same keys each time the
+            write method is called.
 
         """
+        try:
+            samples = numpy.array(
+                samples, dtype=numpy.uint64, copy=False, ndmin=1,
+            )
+        except (TypeError, ValueError):
+            raise ValueError(
+                'Values in `samples` must be convertible to uint64'
+            )
+        if len(samples) == 0:
+            raise ValueError('`samples` must not be empty')
+
         if self._fields is None:
             self._set_fields(data_dict.keys())
-
-        if isinstance(samples, types.FloatType):
-            samples = long(samples)
-
-        if isinstance(samples, (types.LongType, types.IntType)):
-            samples = [samples]
 
         # get mapping of sample ranges to subdir/filenames
         file_info_list = self._get_subdir_filename_info(samples)
@@ -349,9 +354,9 @@ class DigitalMetadataWriter:
         Parameters
         ----------
 
-        samples : list
-            A list of sample indices, given in the number of samples since the
-            epoch (time_since_epoch*sample_rate).
+        samples : 1-D numpy array of type uint64
+            An array of sample indices, given in the number of samples since
+            the epoch (time_since_epoch*sample_rate).
 
 
         Returns
@@ -372,52 +377,29 @@ class DigitalMetadataWriter:
                 Full name of file.
 
         """
+        samples_per_file = self._file_cadence_secs * self._samples_per_second
+        # floor using uint64
+        file_indices = numpy.uint64(samples / samples_per_file)
         ret_list = []
-        index = 0
-        while True:
-            # loop until index beyond length of samples or no more samples
-            # start_ts: need to go through numpy uint64 to prevent conversion
-            #           to float
-            start_ts = long(numpy.uint64(
-                samples[index]/self._samples_per_second
-            ))
+        for file_idx in numpy.unique(file_indices):
+            idxs = (file_indices == file_idx)
+            index_list = list(idxs.nonzero()[0])
+            sample_list = list(samples[idxs])
+
+            file_ts = file_idx * self._file_cadence_secs
+            file_basename = '%s@%i.h5' % (self._file_name, file_ts)
+
             start_sub_ts = (
-                (start_ts//self._subdir_cadence_secs)*self._subdir_cadence_secs
+                (file_ts//self._subdir_cadence_secs)*self._subdir_cadence_secs
             )
             sub_dt = datetime.datetime.utcfromtimestamp(start_sub_ts)
             subdir = os.path.join(
                 self._metadata_dir, sub_dt.strftime('%Y-%m-%dT%H-%M-%S'),
             )
-            file_num = (start_ts - start_sub_ts) // self._file_cadence_secs
-            file_ts = start_sub_ts + file_num * self._file_cadence_secs
-            file_basename = '%s@%i.h5' % (self._file_name, file_ts)
-            # start sample list
-            sample_list = [samples[index]]
-            index_list = [index]
-            # find sample of next file
-            next_file_start_sample = long(numpy.uint64(numpy.ceil(
-                (file_ts + self._file_cadence_secs)*self._samples_per_second
-            )))
-            sample_found = False
-            while True:
-                index += 1
-                if index >= len(samples):
-                    break
-                if samples[index] >= next_file_start_sample:
-                    sample_found = True
-                    ret_list.append(
-                        (sample_list, index_list, subdir, file_basename)
-                    )
-                    break
-                else:
-                    sample_list.append(samples[index])
-                    index_list.append(index)
 
-            if not sample_found:
-                ret_list.append(
-                    (sample_list, index_list, subdir, file_basename)
-                )
-                break
+            ret_list.append(
+                (sample_list, index_list, subdir, file_basename)
+            )
 
         return(ret_list)
 
@@ -955,7 +937,8 @@ class DigitalMetadataReader:
         try:
             with h5py.File(this_file, 'r') as f:
                 # get sorted numpy array of all samples in file
-                idxs = numpy.fromiter(f.keys(), numpy.int64)
+                keys = f.keys()
+                idxs = numpy.fromiter(keys, numpy.int64, count=len(keys))
                 idxs.sort()
                 if is_edge:
                     # calculate valid samples based on sample range
