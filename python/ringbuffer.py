@@ -30,7 +30,7 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
 
     def __init__(
         self, size, verbose=False, dryrun=False,
-        include_drf=True, include_dmd=False, include_metadata=False,
+        include_drf=True, include_dmd=False, include_properties=False,
     ):
         """Create ringbuffer handler given a size in bytes."""
         self.size = size
@@ -42,7 +42,7 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         self.active_size = 0
         super(DigitalRFRingbufferHandler, self).__init__(
             include_drf=include_drf, include_dmd=include_dmd,
-            include_metadata=include_metadata,
+            include_properties=include_properties,
         )
 
     def _get_file_record(self, path):
@@ -263,7 +263,7 @@ class DigitalRFRingbuffer(object):
             statvfs = os.statvfs(self.path)
             bytes_available = statvfs.f_frsize*statvfs.f_bavail
             existing = lsdrf(
-                self.path, include_dmd=False, include_metadata=False,
+                self.path, include_dmd=False, include_properties=False,
             )
             bytes_available += sum([os.stat(p).st_size for p in existing])
             self.size = max(bytes_available + self.size, 0)
@@ -280,7 +280,9 @@ class DigitalRFRingbuffer(object):
         self.observer.start()
 
         # add existing files to ringbuffer handler
-        existing = lsdrf(self.path, include_dmd=False, include_metadata=False)
+        existing = lsdrf(
+            self.path, include_dmd=False, include_properties=False,
+        )
         existing.sort(key=sortkey_drf)
         self.event_handler.add_files(existing)
 

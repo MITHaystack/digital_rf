@@ -170,7 +170,7 @@ if __name__ == '__main__':
             os.remove(f)
 
     d = drf.DigitalRFReader(op.datadir)
-    sr = d.get_digital_rf_metadata(op.ch)['samples_per_second']
+    sr = d.get_properties(op.ch)['samples_per_second']
     b = d.get_bounds(op.ch)
     idx = np.array(b[0])
     if os.path.isfile(datpath):

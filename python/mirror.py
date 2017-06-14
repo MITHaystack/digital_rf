@@ -26,7 +26,7 @@ class DigitalRFMirrorHandler(DigitalRFEventHandler):
 
     def __init__(
         self, src, dest, verbose=False, mirror_fun=shutil.copy2,
-        include_drf=True, include_dmd=True, include_metadata=True,
+        include_drf=True, include_dmd=True, include_properties=True,
     ):
         """Create Digital RF mirror handler given source and destination."""
         self.src = os.path.abspath(src)
@@ -35,7 +35,7 @@ class DigitalRFMirrorHandler(DigitalRFEventHandler):
         self.mirror_fun = mirror_fun
         super(DigitalRFMirrorHandler, self).__init__(
             include_drf=include_drf, include_dmd=include_dmd,
-            include_metadata=include_metadata,
+            include_properties=include_properties,
         )
 
     def _get_dest_path(self, src_path):
@@ -121,11 +121,11 @@ class DigitalRFMirror(object):
         self.verbose = verbose
         self.drf_handler = DigitalRFMirrorHandler(
             src, dest, verbose=verbose, mirror_fun=mirror_fun,
-            include_drf=True, include_dmd=False, include_metadata=False,
+            include_drf=True, include_dmd=False, include_properties=False,
         )
         self.md_handler = DigitalRFMirrorHandler(
             src, dest, verbose=verbose, mirror_fun=shutil.copy2,
-            include_drf=False, include_dmd=True, include_metadata=True,
+            include_drf=False, include_dmd=True, include_properties=True,
         )
         self.observer = Observer()
         self.observer.schedule(
@@ -150,7 +150,7 @@ class DigitalRFMirror(object):
 
         if not self.ignore_existing:
             drfpaths = lsdrf(
-                self.src, include_dmd=False, include_metadata=False,
+                self.src, include_dmd=False, include_properties=False,
             )
             for p in drfpaths:
                 self.drf_handler.mirror_to_dest(p)

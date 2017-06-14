@@ -59,8 +59,8 @@ class digital_rf_channel_source(gr.sync_block):
         ----------
 
         channel_dir : string
-            Either a single channel directory containing 'metadata.h5' and
-            timestamped subdirectories with Digital RF files, or a list of
+            Either a single channel directory containing 'drf_properties.h5'
+            and timestamped subdirectories with Digital RF files, or a list of
             such. A directory can be a file system path or a url, where the url
             points to a channel directory. Each must be a local path, or start
             with 'http://'', 'file://'', or 'ftp://''.
@@ -122,13 +122,13 @@ class digital_rf_channel_source(gr.sync_block):
         self._ch = ch
 
         self._Reader = DigitalRFReader(top_level_dirs)
-        self._metadata = self._Reader.get_digital_rf_metadata(self._ch)
+        self._properties = self._Reader.get_properties(self._ch)
 
-        typeclass = self._metadata['H5Tget_class']
-        itemsize = self._metadata['H5Tget_size']
-        is_complex = self._metadata['is_complex']
-        vlen = self._metadata['num_subchannels']
-        sr = self._metadata['samples_per_second']
+        typeclass = self._properties['H5Tget_class']
+        itemsize = self._properties['H5Tget_size']
+        is_complex = self._properties['is_complex']
+        vlen = self._properties['num_subchannels']
+        sr = self._properties['samples_per_second']
 
         self._itemsize = itemsize
         self._sample_rate = sr
@@ -287,7 +287,7 @@ class digital_rf_channel_source(gr.sync_block):
         # add default tags to first sample
         self._queue_tags(self._global_index, {})
         # replace longdouble samples_per_second with float for pmt conversion
-        message_metadata = self._metadata.copy()
+        message_metadata = self._properties.copy()
         message_metadata['samples_per_second'] = \
             float(message_metadata['samples_per_second'])
         self.message_port_pub(

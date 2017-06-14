@@ -1247,7 +1247,7 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 
 void digital_rf_write_metadata(Digital_rf_write_object *hdf5_data_object)
 /* digital_rf_write_metadata writes the following metadata to the open file:
- *  Fields that match those in the metadata.h5 file
+ *  Fields that match those in the drf_properties.h5 file
  * 	1. uint64_t H5Tget_class (result of H5Tget_class(hdf5_data_object->hdf5_data_object)
  * 	2. uint64_t H5Tget_size (result of H5Tget_size(hdf5_data_object->hdf5_data_object)
  * 	3. uint64_t H5Tget_order (result of H5Tget_order(hdf5_data_object->hdf5_data_object)
@@ -1264,13 +1264,13 @@ void digital_rf_write_metadata(Digital_rf_write_object *hdf5_data_object)
  * 	14. char[] digital_rf_time_description
  * 	15. char[] digital_rf_version
  *
- * 	Not found in metadata.h5 because possibly unique to each file
+ * 	Not found in drf_properties.h5 because possibly unique to each file
  * 	1. int sequence_num (incremented for each file)
  * 	2. uint64_t init_utc_timestamp (changes at each restart of the recorder - needed if leapseconds correction applied)
  * 	3. uint64_t computer_time (time of initial file creation)
  * 	4. char[] uuid_str - set independently at each restart of the recorder
  *
- * 	Must match metadata.h5, except adds sequence_num
+ * 	Must match drf_properties.h5, except adds sequence_num
  *
  * Inputs:
  * 	Digital_rf_write_object *hdf5_data_object - the Digital_rf_write_object created by digital_rf_create_write_hdf5
@@ -1737,9 +1737,9 @@ int digital_rf_extend_dataset(Digital_rf_write_object * hdf5_data_object, uint64
 }
 
 int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
-/* digital_rf_handle_metadata is a method that either creates or verifies consistency with <channel>/metadata.h5
+/* digital_rf_handle_metadata is a method that either creates or verifies consistency with <channel>/drf_properties.h5
  *
- * metadata.h5 is a simple hdf5 file where the root group has the following attributes:
+ * drf_properties.h5 is a simple hdf5 file where the root group has the following attributes:
  * 	1. uint64_t H5Tget_class (result of H5Tget_class(hdf5_data_object->hdf5_data_object)
  * 	2. uint64_t H5Tget_size (result of H5Tget_size(hdf5_data_object->hdf5_data_object)
  * 	3. uint64_t H5Tget_order (result of H5Tget_order(hdf5_data_object->hdf5_data_object)
@@ -1756,9 +1756,9 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
  * 	14. char[] digital_rf_time_description
  * 	15. char[] digital_rf_version
  *
- * 	If metadata.h5 does not exist, creates it. Returns 0 if success, 1 if not.
+ * 	If drf_properties.h5 does not exist, creates it. Returns 0 if success, 1 if not.
  *
- * 	If metadata.h5 does exist, verifies that first 11 attributes match that in init.  If so, returns
+ * 	If drf_properties.h5 does exist, verifies that first 11 attributes match that in init.  If so, returns
  * 	0. If not, returns -1
  *
  */
@@ -1773,9 +1773,9 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 	uint64_t result;
 	int int_result;
 
-	/* find out if metadata.h5 exists */
+	/* find out if drf_properties.h5 exists */
 	strcpy(metadata_file, hdf5_data_object->directory);
-	strcat(metadata_file, "metadata.h5");
+	strcat(metadata_file, "drf_properties.h5");
 	if( access( metadata_file, R_OK ) != -1 )
 	    metadata_exists = 1;
 	else

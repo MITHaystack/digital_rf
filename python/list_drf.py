@@ -2,9 +2,9 @@ import os
 import re
 
 __all__ = (
-    'GLOB_SUBDIR', 'RE_SUBDIR', 'GLOB_DRFFILE', 'RE_DRFFILE',
-    'GLOB_DMDFILE', 'RE_DMDFILE', 'RE_FILE', 'GLOB_MDFILE', 'RE_MDFILE',
-    'RE_DRF', 'RE_DMD', 'RE_DRFDMD', 'RE_METADATA',
+    'GLOB_DMDFILE', 'GLOB_DMDPROPFILE', 'GLOB_DRFFILE', 'GLOB_DRFPROPFILE',
+    'GLOB_SUBDIR', 'RE_DMD', 'RE_DMDPROP', 'RE_DRF', 'RE_DRFDMD',
+    'RE_DRFDMDPROP', 'RE_DRFPROP',
     'lsdrf', 'sortkey_drf'
 )
 
@@ -31,9 +31,18 @@ RE_FILE = (
     r'(?P<name>(?!tmp\.).+?)@(?P<secs>[0-9]+)(?:\.(?P<frac>[0-9]{3}))?\.h5'
 )
 
-# channel metadata file, e.g. metadata.h5
-GLOB_MDFILE = 'metadata.h5'
-RE_MDFILE = r'(?P<name>metadata)\.h5'
+# Digital RF channel properties file, e.g. drf_properties.h5
+# include pre-2.5-style metadata.h5 for now
+GLOB_DRFPROPFILE = '*.h5'
+RE_DRFPROPFILE = r'(?P<name>drf_properties|metadata)\.h5'
+
+# Digital RF channel properties file, e.g. dmd_properties.h5
+# include pre-2.5-style metadata.h5 for now
+GLOB_DMDPROPFILE = '*.h5'
+RE_DMDPROPFILE = r'(?P<name>dmd_properties|metadata)\.h5'
+
+# either Digital RF or Digital Metadata channel properties file
+RE_PROPFILE = r'(?P<name>(?:drf|dmd)_properties|metadata)\.h5'
 
 # Digital RF file in correct subdirectory structure
 RE_DRF = re.escape(os.sep).join((r'.*?', RE_SUBDIR, RE_DRFFILE))
@@ -41,8 +50,12 @@ RE_DRF = re.escape(os.sep).join((r'.*?', RE_SUBDIR, RE_DRFFILE))
 RE_DMD = re.escape(os.sep).join((r'.*?', RE_SUBDIR, RE_DMDFILE))
 # either Digital RF or Digital Metadata in its correct subdirectory
 RE_DRFDMD = re.escape(os.sep).join((r'.*?', RE_SUBDIR, RE_FILE))
-# metadata file associated with Digital RF or Digital Metadata directory
-RE_METADATA = re.escape(os.sep).join((r'.*?', RE_MDFILE))
+# properties file associated with Digital RF directory
+RE_DRFPROP = re.escape(os.sep).join((r'.*?', RE_DRFPROPFILE))
+# properties file associated with Digital Metadata directory
+RE_DMDPROP = re.escape(os.sep).join((r'.*?', RE_DMDPROPFILE))
+# properties file associated with Digital RF or Digital Metadata directory
+RE_DRFDMDPROP = re.escape(os.sep).join((r'.*?', RE_PROPFILE))
 
 
 def sortkey_drf(filename, _r=re.compile(RE_FILE)):
@@ -67,17 +80,23 @@ def sortkey_drf(filename, _r=re.compile(RE_FILE)):
     return key
 
 
-def lsdrf(path, include_drf=True, include_dmd=True, include_metadata=True):
+def lsdrf(path, include_drf=True, include_dmd=True, include_properties=True):
     """Get list of Digital RF files contained in a directory."""
     regexes = []
     if include_drf and include_dmd:
         regexes.append(re.compile(RE_DRFDMD))
+        if include_properties:
+            regexes.append(re.compile(RE_DRFDMDPROP))
     elif include_drf:
         regexes.append(re.compile(RE_DRF))
+        if include_properties:
+            regexes.append(re.compile(RE_DRFPROP))
     elif include_dmd:
         regexes.append(re.compile(RE_DMD))
-    if include_metadata:
-        regexes.append(re.compile(RE_METADATA))
+        if include_properties:
+            regexes.append(re.compile(RE_DMDPROP))
+    elif include_properties:
+        regexes.append(re.compile(RE_DRFDMDPROP))
 
     drf_files = []
     for root, dirs, files in os.walk(os.path.abspath(path)):
@@ -109,8 +128,8 @@ def _build_ls_parser(Parser, *args):
                 (default: False)''',
     )
     includegroup.add_argument(
-        '--nometadata', dest='include_metadata', action='store_false',
-        help='''Do not list metadata.h5 files.
+        '--nometadata', dest='include_properties', action='store_false',
+        help='''Do not list (drf|dmd)_properties.h5 files.
                 (default: False)''',
     )
 
@@ -126,7 +145,7 @@ def _run_ls(args):
         args.dir,
         include_drf=args.include_drf,
         include_dmd=args.include_dmd,
-        include_metadata=args.include_metadata,
+        include_properties=args.include_properties,
     )
     files.sort(key=sortkey_drf)
     print('\n'.join(files))

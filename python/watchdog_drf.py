@@ -8,7 +8,8 @@ from watchdog.events import (FileCreatedEvent, FileDeletedEvent,
 from watchdog.observers import Observer
 from watchdog.utils import unicode_paths
 
-from .list_drf import RE_DMD, RE_DRF, RE_DRFDMD, RE_METADATA
+from .list_drf import (RE_DMD, RE_DMDPROP, RE_DRF, RE_DRFDMD, RE_DRFDMDPROP,
+                       RE_DRFPROP)
 
 __all__ = (
     'DigitalRFEventHandler',
@@ -29,18 +30,24 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
     """
 
     def __init__(
-        self, include_drf=True, include_dmd=True, include_metadata=True,
+        self, include_drf=True, include_dmd=True, include_properties=True,
     ):
-        """Create event handler, optionally ignoring all metadata."""
+        """Create event handler, optionally ignoring all properties."""
         regexes = []
         if include_drf and include_dmd:
             regexes.append(RE_DRFDMD)
+            if include_properties:
+                regexes.append(RE_DRFDMDPROP)
         elif include_drf:
             regexes.append(RE_DRF)
+            if include_properties:
+                regexes.append(RE_DRFPROP)
         elif include_dmd:
             regexes.append(RE_DMD)
-        if include_metadata:
-            regexes.append(RE_METADATA)
+            if include_properties:
+                regexes.append(RE_DMDPROP)
+        elif include_properties:
+            regexes.append(RE_DRFDMDPROP)
         super(DigitalRFEventHandler, self).__init__(
             regexes=regexes, ignore_directories=True,
         )

@@ -251,15 +251,15 @@ start_sample = cont_data_dict.keys()[0]
 sample_len = cont_data_dict[start_sample]
 print((start_sample, sample_len))
 
-print('checking get_digital_rf_metadata - global values')
-d = testReadObj.get_digital_rf_metadata('junk4.1')
+print('checking get_properties - global values')
+d = testReadObj.get_properties('junk4.1')
 keys = d.keys()
 keys.sort()
 for key in keys:
     print('%s: %s' % (str(key), str(d[key])))
 
-print('checking get_digital_rf_metadata at set sammple %i' % (start_sample))
-d = testReadObj.get_digital_rf_metadata('junk4.1', start_sample)
+print('checking get_properties at set sammple %i' % (start_sample))
+d = testReadObj.get_properties('junk4.1', start_sample)
 keys = d.keys()
 keys.sort()
 for key in keys:
@@ -296,7 +296,7 @@ print('read took %f' % (time.time() - t))
 print(len(result))
 
 print('print all channel rf file metadata for junk1.2')
-this_dict = testReadObj.get_digital_rf_metadata('junk1.2')
+this_dict = testReadObj.get_properties('junk1.2')
 keys = this_dict.keys()
 keys.sort()
 for key in keys:

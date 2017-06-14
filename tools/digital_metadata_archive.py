@@ -130,8 +130,8 @@ class archive:
         end_sub_ts = (end_ts // self._subdirectory_cadence_seconds) * \
             self._subdirectory_cadence_seconds
 
-        # ordered list of full file paths to return, always include metadata.h5
-        ret_list = ['metadata.h5']
+        # ordered list of full file paths to return, always include dmd_properties.h5
+        ret_list = ['dmd_properties.h5']
 
         for sub_ts in range(start_sub_ts, end_sub_ts + self._subdirectory_cadence_seconds, self._subdirectory_cadence_seconds):
             sub_datetime = datetime.datetime.utcfromtimestamp(sub_ts)

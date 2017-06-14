@@ -1007,8 +1007,8 @@ if __name__ == "__main__":
 
             print "loading metadata"
 
-            drf_metadata = drf.get_digital_rf_metadata(chans[chidx])
-            sfreq_ld = drf_metadata['samples_per_second']
+            drf_properties = drf.get_properties(chans[chidx])
+            sfreq_ld = drf_properties['samples_per_second']
             sfreq = float(sfreq_ld)
             toffset = start_sample
 

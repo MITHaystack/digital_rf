@@ -14,7 +14,7 @@ import distutils.version
 import fractions
 import glob
 import os
-import os.path
+import re
 import sys
 import types
 import warnings
@@ -27,7 +27,7 @@ from . import _py_rf_write_hdf5, digital_metadata, list_drf
 from ._version import __version__
 
 __all__ = (
-    'get_unix_time', 'recreate_metadata_file',
+    'get_unix_time', 'recreate_properties_file',
     'DigitalRFReader', 'DigitalRFWriter',
 )
 
@@ -35,11 +35,12 @@ __all__ = (
 _min_version = '2.0'  # the version digital rf must be to be successfully read
 
 
-def recreate_metadata_file(channel_dir):
-    """Helper function to re-create the top-level metadata.h5 in channel dir.
+def recreate_properties_file(channel_dir):
+    """Helper function to re-create top-level drf_properties.h5 in channel dir.
 
-    This function re-creates a missing metadata.h5 file in a Digital RF channel
-    directory using the duplicate metadata stored in one of the data files.
+    This function re-creates a missing drf_properties.h5 file in a Digital RF
+    channel directory using the duplicate attributes stored in one of the data
+    files.
 
 
     Parameters
@@ -47,14 +48,14 @@ def recreate_metadata_file(channel_dir):
 
     channel_dir : string
         Channel directory containing Digital RF subdirectories in the form
-        YYYY-MM-DDTHH-MM-SS, but missing a metadata.h5 file.
+        YYYY-MM-DDTHH-MM-SS, but missing a drf_properties.h5 file.
 
 
     Notes
     -----
 
-    The following metadata is read from a data file and stored as attributes in
-    a new metadata.h5 file:
+    The following properties are read from a data file and stored as attributes
+    in a new drf_properties.h5 file:
 
         H5Tget_class : long
             Result of H5Tget_class(hdf5_data_object->hdf5_data_object)
@@ -81,9 +82,9 @@ def recreate_metadata_file(channel_dir):
         subdir_cadence_secs : long
 
     """
-    metadata_file = os.path.join(channel_dir, 'metadata.h5')
-    if os.access(metadata_file, os.R_OK):
-        raise IOError('metadata.h5 already exists in %s' % (channel_dir))
+    properties_file = os.path.join(channel_dir, 'drf_properties.h5')
+    if os.access(properties_file, os.R_OK):
+        raise IOError('drf_properties.h5 already exists in %s' % (channel_dir))
 
     subdirs = glob.glob(os.path.join(channel_dir, list_drf.GLOB_SUBDIR))
     if len(subdirs) == 0:
@@ -99,7 +100,7 @@ def recreate_metadata_file(channel_dir):
         raise IOError(errstr % this_subdir)
 
     with h5py.File(rf_files[0], 'r') as fi:
-        with h5py.File(metadata_file, 'w') as fo:
+        with h5py.File(properties_file, 'w') as fo:
             md = fi['rf_data'].attrs
             fo.attrs['H5Tget_class'] = md['H5Tget_class']
             fo.attrs['H5Tget_size'] = md['H5Tget_size']
@@ -705,7 +706,7 @@ class DigitalRFReader:
         #   value = access mode (eg, 'local', 'file', or 'http')
         # _channel_dict
         #   a dictionary with keys = channel_name,
-        #   and value is a _channel_metadata object.
+        #   and value is a _channel_properties object.
 
         # first, make top_level_directory_arg a list if a string
         if isinstance(top_level_directory_arg, types.StringType):
@@ -747,25 +748,25 @@ class DigitalRFReader:
 
         # update all channels
         for channel_name in channel_dict.keys():
-            top_level_dir_metadata_list = []
+            top_level_dir_properties_list = []
             for top_level_dir in channel_dict[channel_name]:
-                new_top_level_metaddata = _top_level_dir_metadata(
+                new_top_level_metaddata = _top_level_dir_properties(
                     top_level_dir, channel_name,
                     self._top_level_dir_dict[top_level_dir],
                 )
-                top_level_dir_metadata_list.append(new_top_level_metaddata)
-            new_channel_metadata = _channel_metadata(
+                top_level_dir_properties_list.append(new_top_level_metaddata)
+            new_channel_properties = _channel_properties(
                 channel_name,
-                top_level_dir_meta_list=top_level_dir_metadata_list,
+                top_level_dir_meta_list=top_level_dir_properties_list,
             )
-            self._channel_dict[channel_name] = new_channel_metadata
+            self._channel_dict[channel_name] = new_channel_properties
 
         if not self._channel_dict:
             errstr = (
                 'No channels found: top_level_directory_arg = {0}. '
                 'If path is correct, you may need to run '
-                'recreate_metadata_file to re-create missing metadata.h5 '
-                'files.'
+                'recreate_properties_file to re-create missing '
+                'drf_properties.h5 files.'
             )
             raise ValueError(errstr.format(top_level_directory_arg))
 
@@ -825,14 +826,14 @@ class DigitalRFReader:
         read_vector_raw : Read data into a vector of HDF5-native type.
 
         """
-        file_metadata = self.get_digital_rf_metadata(channel_name)
-        is_continuous = file_metadata['is_continuous']
+        file_properties = self.get_properties(channel_name)
+        is_continuous = file_properties['is_continuous']
         if end_sample < start_sample:
             errstr = 'start_sample %i greater than end sample %i'
             raise ValueError(errstr % (start_sample, end_sample))
 
         if sub_channel is not None:
-            num_sub_channels = file_metadata['num_subchannels']
+            num_sub_channels = file_properties['num_subchannels']
             if num_sub_channels - 1 < sub_channel:
                 errstr = (
                     'Data only has %i sub_channels, no sub_channel index %i'
@@ -840,9 +841,9 @@ class DigitalRFReader:
                 raise ValueError(errstr % (num_sub_channels, sub_channel))
 
         # first get the names of all possible files with data
-        subdir_cadence_secs = file_metadata['subdir_cadence_secs']
-        file_cadence_millisecs = file_metadata['file_cadence_millisecs']
-        samples_per_second = file_metadata['samples_per_second']
+        subdir_cadence_secs = file_properties['subdir_cadence_secs']
+        file_cadence_millisecs = file_properties['file_cadence_millisecs']
+        samples_per_second = file_properties['samples_per_second']
         filepaths = self._get_file_list(
             start_sample, end_sample, samples_per_second,
             subdir_cadence_secs, file_cadence_millisecs,
@@ -902,8 +903,8 @@ class DigitalRFReader:
 
         return((first_unix_sample, last_unix_sample))
 
-    def get_digital_rf_metadata(self, channel_name, sample=None):
-        """Get dictionary of the metadata particular to a Digital RF channel.
+    def get_properties(self, channel_name, sample=None):
+        """Get dictionary of the properties particular to a Digital RF channel.
 
         Parameters
         ----------
@@ -912,26 +913,26 @@ class DigitalRFReader:
             Name of channel, one of ``get_channels()``.
 
         sample : None | long
-            If None, return the metadata attributes of the top-level
-            metadata.h5 file in the channel directory which applies to all
-            samples. If a sample index is given, then return the metadata
-            particular to the file containing that sample index. This includes
-            the top-level metadata and additional attributes that can vary
-            from file to file. If no data file is found associated with the
-            input sample, then an IOError is raised.
+            If None, return the properties of the top-level drf_properties.h5
+            file in the channel directory which applies to all samples. If a
+            sample index is given, then return the properties particular to the
+            file containing that sample index. This includes the top-level
+            properties and additional attributes that can vary from file to
+            file. If no data file is found associated with the input sample,
+            then an IOError is raised.
 
 
         Returns
         -------
 
         dict
-            Dictionary providing the metadata.
+            Dictionary providing the properties.
 
 
         Notes
         -----
 
-        The top-level metadata attributes, always returned, are:
+        The top-level properties, always returned, are:
 
             H5Tget_class : long
                 Result of H5Tget_class(hdf5_data_object->hdf5_data_object)
@@ -958,7 +959,7 @@ class DigitalRFReader:
             samples_per_second : numpy.longdouble
             subdir_cadence_secs : long
 
-        The additional metadata attributes particular to each file are:
+        The additional properties particular to each file are:
 
             computer_time : long
                 Unix time of initial file creation.
@@ -971,13 +972,13 @@ class DigitalRFReader:
                 Set independently at each restart of the recorder.
 
         """
-        global_metadata = self._channel_dict[channel_name].metadata_dict
+        global_properties = self._channel_dict[channel_name].properties
         if sample is None:
-            return(global_metadata)
+            return(global_properties)
 
-        subdir_cadence_secs = global_metadata['subdir_cadence_secs']
-        file_cadence_millisecs = global_metadata['file_cadence_millisecs']
-        samples_per_second = global_metadata['samples_per_second']
+        subdir_cadence_secs = global_properties['subdir_cadence_secs']
+        file_cadence_millisecs = global_properties['file_cadence_millisecs']
+        samples_per_second = global_properties['samples_per_second']
 
         file_list = self._get_file_list(
             sample, sample, samples_per_second,
@@ -987,7 +988,7 @@ class DigitalRFReader:
         if len(file_list) != 1:
             raise ValueError('file_list is %s' % (str(file_list)))
 
-        sample_metadata = global_metadata.copy()
+        sample_properties = global_properties.copy()
         for top_level_obj in (
             self._channel_dict[channel_name].top_level_dir_meta_list
         ):
@@ -998,8 +999,8 @@ class DigitalRFReader:
             if os.access(fullfile, os.R_OK):
                 with h5py.File(fullfile, 'r') as f:
                     md = {k: v.item() for k, v in f['rf_data'].attrs.items()}
-                    sample_metadata.update(md)
-                    return(sample_metadata)
+                    sample_properties.update(md)
+                    return(sample_properties)
 
         errstr = 'No data file found in channel %s associated with sample %i'
         raise IOError(errstr % (channel_name, sample))
@@ -1080,10 +1081,10 @@ class DigitalRFReader:
 
         """
         # first get the names of all possible files with data
-        file_metadata = self.get_digital_rf_metadata(channel_name)
-        subdir_cadence_secs = file_metadata['subdir_cadence_secs']
-        file_cadence_millisecs = file_metadata['file_cadence_millisecs']
-        samples_per_second = file_metadata['samples_per_second']
+        file_properties = self.get_properties(channel_name)
+        subdir_cadence_secs = file_properties['subdir_cadence_secs']
+        file_cadence_millisecs = file_properties['file_cadence_millisecs']
+        samples_per_second = file_properties['samples_per_second']
         filepaths = self._get_file_list(
             start_sample, end_sample, samples_per_second,
             subdir_cadence_secs, file_cadence_millisecs,
@@ -1126,10 +1127,10 @@ class DigitalRFReader:
         first_sample, last_sample = self.get_bounds(channel_name)
         if first_sample is None:
             return((None, None))
-        file_metadata = self.get_digital_rf_metadata(channel_name)
-        subdir_cadence_seconds = file_metadata['subdir_cadence_secs']
-        file_cadence_millisecs = file_metadata['file_cadence_millisecs']
-        samples_per_second = file_metadata['samples_per_second']
+        file_properties = self.get_properties(channel_name)
+        subdir_cadence_seconds = file_properties['subdir_cadence_secs']
+        file_cadence_millisecs = file_properties['file_cadence_millisecs']
+        samples_per_second = file_properties['samples_per_second']
         file_list = self._get_file_list(
             last_sample - 1, last_sample, samples_per_second,
             subdir_cadence_seconds, file_cadence_millisecs,
@@ -1510,7 +1511,7 @@ class DigitalRFReader:
     def _get_channels_in_dir(self, top_level_dir):
         """Return a list of channel names found in a top-level directory.
 
-        A channel is any subdirectory with a metadata.h5 file.
+        A channel is any subdirectory with a drf_properties.h5 file.
 
 
         Parameters
@@ -1531,9 +1532,12 @@ class DigitalRFReader:
         access_mode = self._top_level_dir_dict[top_level_dir]
 
         if access_mode == 'local':
-            potential_channels = glob.glob(
-                os.path.join(top_level_dir, '*', 'metadata.h5')
-            )
+            # list and match all channel dirs with properties files
+            potential_channels = [
+                f for f in glob.glob(os.path.join(
+                    top_level_dir, '*', list_drf.GLOB_DRFPROPFILE,
+                )) if re.match(list_drf.RE_DRFPROP, f)
+            ]
             for potential_channel in potential_channels:
                 channel_name = os.path.dirname(potential_channel)
                 if channel_name not in retList:
@@ -1545,13 +1549,13 @@ class DigitalRFReader:
         return(retList)
 
 
-class _channel_metadata:
-    """Metadata for a Digital RF channel over one or more top-level dirs."""
+class _channel_properties:
+    """Properties for a Digital RF channel over one or more top-level dirs."""
 
     def __init__(self, channel_name, top_level_dir_meta_list=[]):
-        """Create a new _channel_metadata object.
+        """Create a new _channel_properties object.
 
-        This populates `self.metadata_dict`, which is a dictionary of
+        This populates `self.properties`, which is a dictionary of
         attributes found in the HDF5 files (eg, samples_per_second). It also
         sets the attribute `max_samples_per_file`.
 
@@ -1563,43 +1567,43 @@ class _channel_metadata:
             Name of subdirectory defining this channel.
 
         top_level_dir_meta_list : list
-            A time ordered list of _top_level_dir_metadata objects.
+            A time ordered list of _top_level_dir_properties objects.
 
         """
         self.channel_name = channel_name
         self.top_level_dir_meta_list = top_level_dir_meta_list
-        self.metadata_dict = self._get_rf_metadata()
-        file_cadence_millisecs = self.metadata_dict['file_cadence_millisecs']
-        samples_per_second = self.metadata_dict['samples_per_second']
+        self.properties = self._read_properties()
+        file_cadence_millisecs = self.properties['file_cadence_millisecs']
+        samples_per_second = self.properties['samples_per_second']
         self.max_samples_per_file = long(numpy.uint64(numpy.ceil(
             file_cadence_millisecs * samples_per_second / 1000
         )))
 
-    def _get_rf_metadata(self):
-        """Get a dict of the metadata stored in the channel's metadata.h5 file.
+    def _read_properties(self):
+        """Get a dict of the properties stored in the drf_properties.h5 file.
 
         Returns
         -------
 
         dict
-            A dictionary of the metadata stored in the channel's metadata.h5
-            file.
+            A dictionary of the properties stored in the channel's
+            drf_properties.h5 file.
 
         """
         ret_dict = {}
 
         for top_level_dir in self.top_level_dir_meta_list:
-            if len(top_level_dir.metadata_dict.keys()) > 0:
-                return(top_level_dir.metadata_dict)
+            if len(top_level_dir.properties.keys()) > 0:
+                return(top_level_dir.properties)
 
         return(ret_dict)
 
 
-class _top_level_dir_metadata:
+class _top_level_dir_properties:
     """A Digital RF channel in a specific top-level directory."""
 
     def __init__(self, top_level_dir, channel_name, access_mode):
-        """Create a new _top_level_dir_metadata object.
+        """Create a new _top_level_dir_properties object.
 
         Parameters
         ----------
@@ -1618,14 +1622,17 @@ class _top_level_dir_metadata:
         self.top_level_dir = top_level_dir
         self.channel_name = channel_name
         self.access_mode = access_mode
-        self.metadata_dict = self._get_rf_metadata()
+        # expect that _read_properties() will not raise error since we
+        # already checked for existence of drf_properties.h5 before init
+        self.properties = self._read_properties()
         try:
-            version = self.metadata_dict['digital_rf_version']
+            version = self.properties['digital_rf_version']
         except KeyError:
-            # version is before 2.3 when key was added to metadata.h5
-            # (versions before 2.0 will not have metadata.h5, so the
-            #  directories will not register as channels and the reader will
-            #  not try to read them, so we can assume at least 2.0)
+            # version is before 2.3 when key was added to metadata.h5/
+            # drf_properties.h5 (versions before 2.0 will not have metadata.h5/
+            # drf_properties.h5, so the directories will not register as
+            # channels and the reader will not try to read them, so we can
+            # assume at least 2.0)
             version = '2.0'
         if (
             distutils.version.StrictVersion(version) <
@@ -1639,27 +1646,34 @@ class _top_level_dir_metadata:
         self._cachedFilename = None  # full name of last file opened
         self._cachedFile = None  # h5py.File object of last file opened
 
-    def _get_rf_metadata(self):
-        """Get a dict of the metadata stored in the channel's metadata.h5 file.
+    def _read_properties(self):
+        """Get a dict of the properties stored in the drf_properties.h5 file.
 
-        If no metadata.h5 file is found, and empty dict is returned.
+        If no drf_properties.h5 file is found, an IOError is raised.
 
 
         Returns
         -------
 
         dict
-            A dictionary of the metadata stored in the channel's metadata.h5
-            file.
+            A dictionary of the properties stored in the channel's
+            drf_properties.h5 file.
 
         """
         ret_dict = {}
 
         if self.access_mode == 'local':
-            metadata_file = os.path.join(
-                self.top_level_dir, self.channel_name, 'metadata.h5',
+            # list and match first properties file
+            properties_file = next(
+                (f for f in glob.glob(os.path.join(
+                    self.top_level_dir, self.channel_name,
+                    list_drf.GLOB_DRFPROPFILE,
+                )) if re.match(list_drf.RE_DRFPROP, f)),
+                None,
             )
-            f = h5py.File(metadata_file, 'r')
+            if properties_file is None:
+                raise IOError('drf_properties.h5 not found')
+            f = h5py.File(properties_file, 'r')
             for key in f.attrs.keys():
                 ret_dict[key] = f.attrs[key].item()
             f.close()
@@ -1667,7 +1681,7 @@ class _top_level_dir_metadata:
         else:
             raise ValueError('mode %s not implemented' % (self.access_mode))
 
-        # calculate samples_per_second as longdouble and add to metadata
+        # calculate samples_per_second as longdouble and add to properties
         # (so we only have to do this in one place)
         try:
             srn = ret_dict['sample_rate_numerator']

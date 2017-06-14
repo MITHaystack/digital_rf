@@ -13,6 +13,7 @@ import datetime
 import fractions
 import glob
 import os
+import re
 import time
 import traceback
 import types
@@ -35,7 +36,7 @@ __all__ = (
 class DigitalMetadataWriter:
     """Write data in Digital Metadata HDF5 format."""
 
-    _min_version = StrictVersion('2.4')
+    _min_version = StrictVersion('2.5')
     _max_version = StrictVersion(__version__)
 
     def __init__(
@@ -146,12 +147,15 @@ class DigitalMetadataWriter:
             numpy.longdouble(numpy.uint64(self._sample_rate_denominator))
         )
 
-        if os.access(os.path.join(self._metadata_dir, 'metadata.h5'), os.R_OK):
-            self._parse_metadata()
+        if os.access(
+            os.path.join(self._metadata_dir, 'dmd_properties.h5'),
+            os.R_OK,
+        ):
+            self._parse_properties()
         else:
             self._digital_metadata_version = __version__
             self._fields = None  # No data written yet
-            self._write_metadata_summary()
+            self._write_properties()
 
     def get_samples_per_second(self):
         """Return the sample rate in Hz as a numpy.longdouble."""
@@ -407,7 +411,7 @@ class DigitalMetadataWriter:
         """Set the field names used in this metadata channel.
 
         This method sets both the `_fields` attribute and writes the field
-        names to the channels top-level 'metadata.h5' file.
+        names to the channels top-level 'dmd_properties.h5' file.
 
 
         Parameters
@@ -427,12 +431,14 @@ class DigitalMetadataWriter:
             recarray[i] = (key,)
 
         # write recarray to metadata
-        metadata_h5file_path = os.path.join(self._metadata_dir, 'metadata.h5')
-        with h5py.File(metadata_h5file_path, 'a') as f:
+        properties_file_path = os.path.join(
+            self._metadata_dir, 'dmd_properties.h5',
+        )
+        with h5py.File(properties_file_path, 'a') as f:
             f.create_dataset('fields', data=recarray)
 
-    def _parse_metadata(self):
-        """Check writer parameters against existing ones for the channel.
+    def _parse_properties(self):
+        """Check writer properties against existing ones for the channel.
 
         When a metadata channel already exists on disk, call this method when
         creating a new DigitalMetadataWriter to check its parameters against
@@ -450,7 +456,7 @@ class DigitalMetadataWriter:
             is not compatible with this software version.
 
         """
-        # reader will raise IOError if existing metadata can't be read
+        # reader will raise IOError if existing properties can't be read
         # because of version incompatibilities
         org_obj = DigitalMetadataReader(self._metadata_dir, accept_empty=True)
         # but we also have to check if the metadata is the current major
@@ -484,10 +490,12 @@ class DigitalMetadataWriter:
                                     str(self._min_version),
                                     str(self._max_version)))
 
-    def _write_metadata_summary(self):
-        """Write Digital Metadata parameters to top-level metadata.h5 file."""
-        metadata_h5file_path = os.path.join(self._metadata_dir, 'metadata.h5')
-        with h5py.File(metadata_h5file_path, 'w') as f:
+    def _write_properties(self):
+        """Write Digital Metadata properties to dmd_properties.h5 file."""
+        properties_file_path = os.path.join(
+            self._metadata_dir, 'dmd_properties.h5',
+        )
+        with h5py.File(properties_file_path, 'w') as f:
             f.attrs['subdir_cadence_secs'] = self._subdir_cadence_secs
             f.attrs['file_cadence_secs'] = self._file_cadence_secs
             f.attrs['sample_rate_numerator'] = self._sample_rate_numerator
@@ -523,37 +531,44 @@ class DigitalMetadataReader:
         """Initialize reader to metadata channel directory.
 
         Channel parameters are read from the attributes of the top-level file
-        'metadata.h5' in the `metadata_dir`.
+        'dmd_properties.h5' in the `metadata_dir`.
 
 
         Parameters
         ----------
 
         metadata_dir : string
-            Path to metadata channel directory, which contains a 'metadata.h5'
-            file and timestamped subdirectories containing data.
+            Path to metadata channel directory, which contains a
+            'dmd_properties.h5' file and timestamped subdirectories containing
+            data.
 
         accept_empty : bool, optional
-            If True, do not raise an IOError if the 'metadata.h5' file is
+            If True, do not raise an IOError if the 'dmd_properties.h5' file is
             empty. If False, raise an IOError in that case and delete the
-            empty 'metadata.h5' file.
+            empty 'dmd_properties.h5' file.
 
 
         Raises
         ------
 
         IOError
-            If 'metadata.h5' file is not found in `metadata_dir` or if
-            `accept_empty` is False and the 'metadata.h5' file is empty.
+            If 'dmd_properties.h5' file is not found in `metadata_dir` or if
+            `accept_empty` is False and the 'dmd_properties.h5' file is empty.
 
         """
         self._metadata_dir = metadata_dir
         if self._metadata_dir.find('http://') != -1:
             self._local = False
-            # put metadata file in /tmp/metadata_%i.h5 % (pid)
-            url = os.path.join(self._metadata_dir, 'metadata.h5')
-            f = urllib2.urlopen(url)
-            tmp_file = os.path.join('/tmp', 'metadata_%i.h5' % (os.getpid()))
+            # put properties file in /tmp/dmd_properties_%i.h5 % (pid)
+            url = os.path.join(self._metadata_dir, 'dmd_properties.h5')
+            try:
+                f = urllib2.urlopen(url)
+            except (urllib2.URLError, urllib2.HTTPError):
+                url = os.path.join(self._metadata_dir, 'metadata.h5')
+                f = urllib2.urlopen(url)
+            tmp_file = os.path.join(
+                '/tmp', 'dmd_properties_%i.h5' % (os.getpid()),
+            )
             fo = open(tmp_file, 'w')
             fo.write(f.read())
             f.close()
@@ -561,7 +576,15 @@ class DigitalMetadataReader:
 
         else:
             self._local = True
-            tmp_file = os.path.join(metadata_dir, 'metadata.h5')
+            # list and match first properties file
+            tmp_file = next(
+                (f for f in glob.glob(os.path.join(
+                    metadata_dir, list_drf.GLOB_DMDPROPFILE,
+                )) if re.match(list_drf.RE_DMDPROP, f)),
+                None,
+            )
+            if tmp_file is None:
+                raise IOError('dmd_properties.h5 not found')
 
         with h5py.File(tmp_file, 'r') as f:
             try:
@@ -614,10 +637,10 @@ class DigitalMetadataReader:
                 fields_dataset = f['fields']
             except KeyError:
                 if not accept_empty:
-                    os.remove(os.path.join(metadata_dir, 'metadata.h5'))
+                    os.remove(tmp_file)
                     errstr = (
                         'No metadata yet written to %s, removing empty'
-                        ' "metadata.h5"'
+                        ' "dmd_properties.h5"'
                     )
                     raise IOError(errstr % self._metadata_dir)
                 else:

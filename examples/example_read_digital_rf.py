@@ -37,7 +37,7 @@ for i in range(4):
     except IOError:
         print('Read number %i went beyond existing data and raised an IOError' % (i))
 
-# finally, get all the built in rf metadata
-rf_dict = testReadObj.get_digital_rf_metadata('junk0')
-print('Here is the metadata built into metadata.h5 (valid for all data): %s' %
+# finally, get all the built in rf properties
+rf_dict = testReadObj.get_properties('junk0')
+print('Here is the metadata built into drf_properties.h5 (valid for all data): %s' %
       (str(rf_dict)))

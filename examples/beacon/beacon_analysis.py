@@ -160,7 +160,7 @@ def open_file(maindir):
     # Get channel info
     for ichan in chans:
         curdict = {}
-        chanmeta = drfObj.get_digital_rf_metadata(ichan)
+        chanmeta = drfObj.get_properties(ichan)
         curdict['sps'] = chanmeta['samples_per_second']
 
         curdict['sind'], curdict['eind'] = drfObj.get_bounds(ichan)
@@ -705,9 +705,10 @@ def readoutput(maindirmeta):
                            "time": Time for each measurement in posix format,
                 }
         """
-    if not os.path.isfile(os.path.join(maindirmeta,'metadata.h5')):
+    try:
+        dmeta = drf.DigitalMetadataReader(maindirmeta)
+    except IOError:
         return None
-    dmeta = drf.DigitalMetadataReader(maindirmeta)
     metadict = dmeta.read_latest()
     outdict = metadict[metadict.keys()[0]]
 
