@@ -183,8 +183,10 @@ class Thor(object):
         for mb_num in range(op.nmboards):
             u.set_subdev_spec(op.subdevs[mb_num], mb_num)
         # set global options
+        # sample rate
         u.set_samp_rate(float(op.samplerate))
-        samplerate = u.get_samp_rate()  # may be different than desired
+        # read back actual value
+        samplerate = u.get_samp_rate()
         # calculate longdouble precision sample rate
         # (integer division of clock rate)
         cr = u.get_clock_rate()
@@ -196,16 +198,27 @@ class Thor(object):
         op.samplerate_den = sr_rat.denominator
         # set per-channel options
         for ch_num in range(op.nchs):
-            u.set_center_freq(
+            # center frequency and tuning offset
+            tune_res = u.set_center_freq(
                 uhd.tune_request(
                     op.centerfreqs[ch_num], op.lo_offsets[ch_num],
                 ),
                 ch_num,
             )
+            # read back actual values
+            op.centerfreqs[ch_num] = u.get_center_freq(chan=ch_num)
+            op.lo_offsets[ch_num] = tune_res.actual_dsp_freq
+            # gain
             u.set_gain(op.gains[ch_num], ch_num)
+            # read back actual value
+            op.gains[ch_num] = u.get_gain(chan=ch_num)
+            # bandwidth
             bw = op.bandwidths[ch_num]
             if bw:
                 u.set_bandwidth(bw, ch_num)
+            # read back actual value
+            op.bandwidths[ch_num] = u.get_bandwidth(chan=ch_num)
+            # antenna
             ant = op.antennas[ch_num]
             if ant != '':
                 try:
@@ -215,6 +228,8 @@ class Thor(object):
                     errstr += ' Must be one of {1}.'
                     errstr = errstr.format(ant, u.get_antennas(ch_num))
                     raise ValueError(errstr)
+            # read back actual value
+            op.antennas[ch_num] = u.get_antenna(chan=ch_num)
 
         if op.verbose:
             print('Using the following devices:')
@@ -235,7 +250,7 @@ class Thor(object):
                 info['mb_addr'] = mba
                 info['db_subdev'] = usrpinfo['rx_subdev_name']
                 info['subdev'] = op.subdevs_bychan[ch_num]
-                info['ant'] = u.get_antenna(ch_num)
+                info['ant'] = op.antennas[ch_num]
                 print(chinfo.format(**info))
                 print('-' * 78)
 
@@ -435,12 +450,12 @@ class Thor(object):
                 receiver=dict(
                     description='UHD USRP source using GNU Radio',
                     info=dict(u.get_usrp_info(chan=k)),
-                    antenna=u.get_antenna(chan=k),
-                    bandwidth=u.get_bandwidth(chan=k),
-                    center_freq=u.get_center_freq(chan=k),
+                    antenna=op.antennas[k],
+                    bandwidth=op.bandwidths[k],
+                    center_freq=op.centerfreqs[k],
                     clock_rate=u.get_clock_rate(mboard=mbnum),
                     clock_source=u.get_clock_source(mboard=mbnum),
-                    gain=u.get_gain(k),
+                    gain=op.gains[k],
                     id=op.mboards_bychan[k],
                     lo_offset=op.lo_offsets[k],
                     otw_format=op.otw_format,
