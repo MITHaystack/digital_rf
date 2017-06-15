@@ -117,6 +117,8 @@ if __name__ == '__main__':
                     with h5py.File(filepath, 'r') as mdfile:
                         md = dict(
                             uuid_str=uuid_str,
+                            sample_rate_numerator=sample_rate_numerator,
+                            sample_rate_denominator=sample_rate_denominator,
                             # put in a list because we want the data to be a
                             # 1-D array and it would be a single value o/w
                             center_frequencies=[
@@ -125,17 +127,22 @@ if __name__ == '__main__':
                         )
                         try:
                             # try for newer added metadata, usrp_id and friends
-                            md.update(
-                                usrp_id=str(mdfile['usrp_id'][()]),
-                                usrp_subdev=str(mdfile['usrp_subdev'][()]),
-                                usrp_gain=str(mdfile['usrp_gain'][()]),
-                                usrp_stream_args=str(
+                            receiver_dict = dict(
+                                description='UHD USRP source using GNU Radio',
+                                gain=str(mdfile['usrp_gain'][()]),
+                                id=str(mdfile['usrp_id'][()]),
+                                stream_args=str(
                                     mdfile['usrp_stream_args'][()]
                                 ),
+                                subdev=str(mdfile['usrp_subdev'][()]),
                             )
                         except KeyError:
                             # fallback to original usrp metadata
-                            md.update(usrp_id=str(mdfile['usrp_ip'][()]))
+                            receiver_dict = dict(
+                                description='UHD USRP source using GNU Radio',
+                                id=str(mdfile['usrp_ip'][()]),
+                            )
+                        md['receiver'] = receiver_dict
                 except (IOError, KeyError):
                     # file is bad, warn and ignore
                     errstr = 'Skipping bad metadata file {0}.'

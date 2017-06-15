@@ -51,29 +51,9 @@ class Thor(object):
 
         # test usrp device settings, release device when done
         if op.test_settings:
-            u = self._usrp_setup()
             if op.verbose:
-                print('Using the following devices:')
-                chinfo = '  Motherboard: {mb_id} ({mb_addr})\n'
-                chinfo += '  Daughterboard: {db_subdev}\n'
-                chinfo += '  Subdev: {subdev}\n'
-                chinfo += '  Antenna: {ant}'
-                for ch_num in range(op.nchs):
-                    header = '---- {0} '.format(op.chs[ch_num])
-                    header += '-' * (78 - len(header))
-                    print(header)
-                    usrpinfo = dict(u.get_usrp_info(chan=ch_num))
-                    info = {}
-                    info['mb_id'] = usrpinfo['mboard_id']
-                    mba = op.mboards_bychan[ch_num]
-                    if mba == 'default':
-                        mba = usrpinfo['mboard_serial']
-                    info['mb_addr'] = mba
-                    info['db_subdev'] = usrpinfo['rx_subdev_name']
-                    info['subdev'] = op.subdevs_bychan[ch_num]
-                    info['ant'] = u.get_antenna(ch_num)
-                    print(chinfo.format(**info))
-                    print('-' * 78)
+                print('Initialization: testing device settings.')
+            u = self._usrp_setup()
             del u
 
     @staticmethod
@@ -153,12 +133,15 @@ class Thor(object):
         # sanity check: # of total subdevs should be same as # of channels
         op.mboards_bychan = []
         op.subdevs_bychan = []
+        op.mboardnum_bychan = []
         mboards = op.mboards if op.mboards else ['default']
-        for mb, sd in zip(mboards, op.subdevs):
+        for mbnum, (mb, sd) in enumerate(zip(mboards, op.subdevs)):
             sds = sd.split()
             mbs = list(repeat(mb, len(sds)))
+            mbnums = list(repeat(mbnum, len(sds)))
             op.mboards_bychan.extend(mbs)
             op.subdevs_bychan.extend(sds)
+            op.mboardnum_bychan.extend(mbnums)
         if len(op.subdevs_bychan) != op.nchs:
             raise ValueError(
                 'Number of device channels does not match the number of '
@@ -172,14 +155,15 @@ class Thor(object):
         op = self.op
         # create usrp source block
         if op.dec > 1:
-            cpu_format = 'fc32'
+            op.cpu_format = 'fc32'
         else:
-            cpu_format = 'sc16'
+            op.cpu_format = 'sc16'
+        op.otw_format = 'sc16'
         u = uhd.usrp_source(
             device_addr=','.join(chain(op.mboard_strs, op.dev_args)),
             stream_args=uhd.stream_args(
-                cpu_format=cpu_format,
-                otw_format='sc16',
+                cpu_format=op.cpu_format,
+                otw_format=op.otw_format,
                 channels=range(len(op.chs)),
                 args=','.join(op.stream_args)
             ),
@@ -231,6 +215,30 @@ class Thor(object):
                     errstr += ' Must be one of {1}.'
                     errstr = errstr.format(ant, u.get_antennas(ch_num))
                     raise ValueError(errstr)
+
+        if op.verbose:
+            print('Using the following devices:')
+            chinfo = '  Motherboard: {mb_id} ({mb_addr})\n'
+            chinfo += '  Daughterboard: {db_subdev}\n'
+            chinfo += '  Subdev: {subdev}\n'
+            chinfo += '  Antenna: {ant}'
+            for ch_num in range(op.nchs):
+                header = '---- {0} '.format(op.chs[ch_num])
+                header += '-' * (78 - len(header))
+                print(header)
+                usrpinfo = dict(u.get_usrp_info(chan=ch_num))
+                info = {}
+                info['mb_id'] = usrpinfo['mboard_id']
+                mba = op.mboards_bychan[ch_num]
+                if mba == 'default':
+                    mba = usrpinfo['mboard_serial']
+                info['mb_addr'] = mba
+                info['db_subdev'] = usrpinfo['rx_subdev_name']
+                info['subdev'] = op.subdevs_bychan[ch_num]
+                info['ant'] = u.get_antenna(ch_num)
+                print(chinfo.format(**info))
+                print('-' * 78)
+
         return u
 
     def run(self, starttime=None, endtime=None, duration=None, period=10):
@@ -400,6 +408,7 @@ class Thor(object):
 
         # write metadata one channel at a time
         for k in range(op.nchs):
+            mbnum = op.mboardnum_bychan[k]
             # create metadata dir, dmd object, and write channel metadata
             mddir = os.path.join(op.datadir, op.chs[k], 'metadata')
             if not os.path.exists(mddir):
@@ -414,17 +423,32 @@ class Thor(object):
             )
             md = op.metadata.copy()
             md.update(
+                # standard metadata by convention
                 uuid_str=op.uuid,
+                sample_rate_numerator=samplerate_num_out,
+                sample_rate_denominator=samplerate_den_out,
                 # put in a list because we want the data to be a 1-D array
                 # and it would be a single value if we didn't
                 center_frequencies=[np.array([op.centerfreqs[k]])],
-                usrp_id=op.mboards_bychan[k],
-                usrp_subdev=op.subdevs_bychan[k],
-                usrp_antenna=op.antennas[k],
-                usrp_bandwidth=op.bandwidths[k],
-                usrp_gain=op.gains[k],
-                usrp_lo_offset=op.lo_offsets[k],
-                usrp_stream_args=','.join(op.stream_args),
+
+                # additional receiver metadata for USRP
+                receiver=dict(
+                    description='UHD USRP source using GNU Radio',
+                    info=dict(u.get_usrp_info(chan=k)),
+                    antenna=u.get_antenna(chan=k),
+                    bandwidth=u.get_bandwidth(chan=k),
+                    center_freq=u.get_center_freq(chan=k),
+                    clock_rate=u.get_clock_rate(mboard=mbnum),
+                    clock_source=u.get_clock_source(mboard=mbnum),
+                    gain=u.get_gain(k),
+                    id=op.mboards_bychan[k],
+                    lo_offset=op.lo_offsets[k],
+                    otw_format=op.otw_format,
+                    samp_rate=u.get_samp_rate(),
+                    stream_args=','.join(op.stream_args),
+                    subdev=op.subdevs_bychan[k],
+                    time_source=u.get_time_source(mboard=mbnum),
+                ),
             )
             mdo.write(
                 samples=int(lt * samplerate_out),
