@@ -211,7 +211,7 @@ class Thor(object):
             # gain
             u.set_gain(op.gains[ch_num], ch_num)
             # read back actual value
-            op.gains[ch_num] = u.get_gain(chan=ch_num)
+            op.gains[ch_num] = u.get_gain(ch_num)
             # bandwidth
             bw = op.bandwidths[ch_num]
             if bw:
