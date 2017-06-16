@@ -10,7 +10,7 @@ copyright_owner:
 dependencies:
   - gnuradio, libdigital_rf
 license: GPLv3
-#repo: https://github.com/<>/gr_drf
+repo: https://github.com/MITHaystack/digital_rf
 #website: <module_website> # If you have a separate project website, put it here
 #icon: <icon_url> # Put a URL to a square image here that will be used as an icon on CGRAN
 ---

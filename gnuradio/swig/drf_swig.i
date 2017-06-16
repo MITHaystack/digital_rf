@@ -12,9 +12,6 @@
 
 %include "gnuradio.i"			// the common stuff
 
-//load generated python docstrings
-%include "drf_swig_doc.i"
-
 %{
 #define SWIG_FILE_WITH_INIT
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION

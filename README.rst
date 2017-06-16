@@ -29,7 +29,6 @@ Additional optional build dependencies:
 * gnuradio (``gnuradio-dev``) [gnuradio]
 * boost (``libboost-dev``) [gnuradio]
 * swig (``swig``) [gnuradio]
-* cppunit (``libcppunit-dev``) [gnuradio]
 
 Runtime:
 
