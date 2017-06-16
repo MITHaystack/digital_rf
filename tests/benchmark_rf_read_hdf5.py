@@ -1,3 +1,11 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+# All rights reserved.
+#
+# Distributed under the terms of the BSD 3-clause license.
+#
+# The full license is in the LICENSE file, distributed with this software.
+# ----------------------------------------------------------------------------
 """benchmark_rf_read_hdf5.py is a script to benchmark reading the Hdf5 files produced by benchmark_rf_write_hdf5.py
 
 $Id$

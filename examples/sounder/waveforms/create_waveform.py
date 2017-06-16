@@ -1,7 +1,13 @@
-#!/usr/bin/python
+#!python
+# ----------------------------------------------------------------------------
+# Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+# All rights reserved.
 #
-# Create waveform files for hfradar
+# Distributed under the terms of the BSD 3-clause license.
 #
+# The full license is in the LICENSE file, distributed with this software.
+# ----------------------------------------------------------------------------
+"""Create pseudorandom-coded waveform files for sounding."""
 import math
 from argparse import ArgumentParser
 

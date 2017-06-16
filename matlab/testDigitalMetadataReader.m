@@ -1,3 +1,11 @@
+% ----------------------------------------------------------------------------
+% Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+% All rights reserved.
+%
+% Distributed under the terms of the BSD 3-clause license.
+%
+% The full license is in the LICENSE file, distributed with this software.
+% ----------------------------------------------------------------------------
 % example usage of DigitalMetadataReader.m
 % Requires python test_write_digital_metadata.py be run first to create test data
 % $Id$
@@ -30,5 +38,5 @@ for i=1:length(fields)
 
     disp(sprintf('Displaying all data relating to field %s', fields{i}));
     recursive_disp_map(data_map);
-    
+
 end

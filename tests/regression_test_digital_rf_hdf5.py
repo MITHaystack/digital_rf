@@ -1,3 +1,11 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+# All rights reserved.
+#
+# Distributed under the terms of the BSD 3-clause license.
+#
+# The full license is in the LICENSE file, distributed with this software.
+# ----------------------------------------------------------------------------
 """regression_test_digital_rf_hdf5.py is a script to regression test the digital_rf_hdf5 module
 
 Exits with 0 if successful test, non-zero if failure

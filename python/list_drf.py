@@ -1,3 +1,12 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+# All rights reserved.
+#
+# Distributed under the terms of the BSD 3-clause license.
+#
+# The full license is in the LICENSE file, distributed with this software.
+# ----------------------------------------------------------------------------
+"""Module for listing Digital RF/Metadata files in a directory."""
 import os
 import re
 
@@ -113,7 +122,7 @@ def _build_ls_parser(Parser, *args):
     parser = Parser(*args, description=desc)
 
     parser.add_argument('dir', nargs='?', default='.',
-                        help='''Data directory to monitor.
+                        help='''Data directory to list.
                                (default: %(default)s)''')
 
     includegroup = parser.add_argument_group(title='include')

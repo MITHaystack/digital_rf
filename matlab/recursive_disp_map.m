@@ -1,6 +1,14 @@
-% a function giving a simple example of walking through a map with multiple submaps, as
-% returned by DigitalMetadataReader.read.  As the name suggests, it calls
-% itself recursively.
+% ----------------------------------------------------------------------------
+% Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+% All rights reserved.
+%
+% Distributed under the terms of the BSD 3-clause license.
+%
+% The full license is in the LICENSE file, distributed with this software.
+% ----------------------------------------------------------------------------
+% a function giving a simple example of walking through a map with multiple
+% submaps, as returned by DigitalMetadataReader.read.  As the name suggests,
+% it calls itself recursively.
 %
 % $Id$
 
@@ -26,4 +34,3 @@ function recursive_disp_map(map)
         end
     end
 end
-

@@ -1,23 +1,31 @@
+% ----------------------------------------------------------------------------
+% Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+% All rights reserved.
+%
+% Distributed under the terms of the BSD 3-clause license.
+%
+% The full license is in the LICENSE file, distributed with this software.
+% ----------------------------------------------------------------------------
 classdef drf_channel
     % class drf_channel is a private class to describe a single
     % DigitalRFReader channel - do not create directly
     %
     % $Id$
-    
+
     properties
         channel_name % channel name (string)
         top_level_dirs % char array of one or more top level dirs
         subdir_cadence_secs % seconds per subdirectory (int)
         file_cadence_millisecs % number of millseconds per file (int)
-        samples_per_second_numerator % sample rate numerator in Hz in this drf_channel (int) 
-        samples_per_second_denominator % sample rate denomerator in Hz in this drf_channel (int) 
-        samples_per_second % sample rate in Hz in this drf_channel (numerator/denominator) (double) 
+        samples_per_second_numerator % sample rate numerator in Hz in this drf_channel (int)
+        samples_per_second_denominator % sample rate denomerator in Hz in this drf_channel (int)
+        samples_per_second % sample rate in Hz in this drf_channel (numerator/denominator) (double)
         is_complex % 1 if channel has real and imag data, 0 if real only
         num_subchannels % number of subchannels - 1 or greater
         sub_directory_glob % glob string for subdirectories
         rf_file_glob % glob string for rf files
     end
-    
+
     methods
         function channel = drf_channel(channel_name, top_level_dirs, subdir_cadence_secs, file_cadence_millisecs, ...
                 samples_per_second_numerator, samples_per_second_denominator, is_complex, num_subchannels)
@@ -27,17 +35,17 @@ classdef drf_channel
             %   top_level_dirs - char array of one or more top level dirs
             %   subdir_cadence_secs - seconds per subdirectory (int)
             %   file_cadence_millisecs - number of millseconds per file (int)
-            %   samples_per_second_numerator - sample rate numerator in Hz in this drf_channel (int) 
-            %   samples_per_second_denominator - sample rate denominator in Hz in this drf_channel (int) 
+            %   samples_per_second_numerator - sample rate numerator in Hz in this drf_channel (int)
+            %   samples_per_second_denominator - sample rate denominator in Hz in this drf_channel (int)
             %   is_complex - 1 if channel has real and imag data, 0 if real only
             %   num_subchannels - number of subchannels - 1 or greater
-            
-                        
+
+
             % constants
             % define glob string for sub_directories in form YYYY-MM-DDTHH-MM-SS
             channel.sub_directory_glob = '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]-[0-9][0-9]-[0-9][0-9]';
             channel.rf_file_glob = 'rf@[0-9]*.[0-9][0-9][0-9].h5';
-            
+
             channel.channel_name = channel_name;
             channel.top_level_dirs = top_level_dirs;
             channel.subdir_cadence_secs = subdir_cadence_secs;
@@ -48,8 +56,8 @@ classdef drf_channel
             channel.is_complex = is_complex;
             channel.num_subchannels = num_subchannels;
         end
-        
-        
+
+
         function [lower_sample, upper_sample] = get_bounds(obj)
             % get bounds returns upper and lower bounds in channel in
             % samples
@@ -62,7 +70,7 @@ classdef drf_channel
                 if (isempty(subdirs))
                     continue
                 end
-                
+
                 % first find first sample
                 first_sub = subdirs(1);
                 this_glob = char(fullfile(first_sub, obj.rf_file_glob));
@@ -79,7 +87,7 @@ classdef drf_channel
                 elseif (lower_sample > start_sample)
                     lower_sample = start_sample;
                 end
-                
+
                 % next find last sample
                 last_sub = subdirs(end);
                 this_glob = char(fullfile(last_sub, obj.rf_file_glob));
@@ -104,12 +112,12 @@ classdef drf_channel
                 elseif (upper_sample < last_sample)
                     upper_sample = last_sample;
                 end
-                
+
             end
-            
+
         end
-        
-        
+
+
         function [data_map] = read(obj, start_sample, end_sample, subchannel)
             % read returns a containers.Map() object containing key= all
             % first samples of continuous block of data found between
@@ -165,18 +173,18 @@ classdef drf_channel
                                 % no data in this block to read
                                 continue
                             end
-                            
+
                             if (end_sample >= last_sample)
                                 read_end_index = last_index;
                             else
                                 read_end_index = last_index - (last_sample - end_sample);
                             end
-                            
+
                             % skip if no data found
                             if (read_start_index > read_end_index)
                                 continue
                             end
-                            
+
                             % add this block of data - 1 added because
                             % logic was based on python indexing
                             if (subchannel == -1)
@@ -191,9 +199,9 @@ classdef drf_channel
                 data_map = obj.combine_blocks(first_data_map, subchannel);
             end
         end
-        
-        
-        
+
+
+
         function [new_data_map] = combine_blocks(obj, data_map, combine_flag)
             % combine_blocks takes as a input data_map which is a
             % containers.Map with key = start_sample, value = array being
@@ -247,23 +255,23 @@ classdef drf_channel
                     end
                 end
             end
-            
+
             % append last block
             new_data_map(last_start_sample) = last_data;
         end
-        
-        
-        
-        
+
+
+
+
         function [file_list] = get_file_list(obj, sample0, sample1)
-            % _get_file_list returns an ordered list of full file names, starting at subdir, 
+            % _get_file_list returns an ordered list of full file names, starting at subdir,
             % of data files that could contain data.
             % Inputs:
             %   sample0 - the first sample to read
             %   sample1 - the last sample (inclusive) to read
-            
+
             file_list = {};
-            
+
             sps_n = obj.samples_per_second_numerator;
             sps_d = obj.samples_per_second_denominator;
             sample0 = uint64(sample0);
@@ -276,7 +284,7 @@ classdef drf_channel
             % get subdirectory start and end ts
             start_sub_ts = floor((start_ts / obj.subdir_cadence_secs) * obj.subdir_cadence_secs);
             end_sub_ts = floor((end_ts / obj.subdir_cadence_secs) * obj.subdir_cadence_secs);
-            
+
             sub_ts_arr = start_sub_ts:obj.subdir_cadence_secs:end_sub_ts + obj.subdir_cadence_secs;
             for i = 1:length(sub_ts_arr)
                 sub_datetime = datetime(sub_ts_arr(i),'ConvertFrom','posixtime');
@@ -294,11 +302,10 @@ classdef drf_channel
                     file_list(end+1) = cellstr(full_filename);
                 end
             end
-            
+
         end
-     
-   
-        
+
+
+
     end % end methods
 end % end class
-

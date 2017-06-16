@@ -1,7 +1,15 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+# All rights reserved.
+#
+# Distributed under the terms of the BSD 3-clause license.
+#
+# The full license is in the LICENSE file, distributed with this software.
+# ----------------------------------------------------------------------------
 """digital_rf_deprecated_hdf5.py is a module that allows python to read deprecated digital rf version 1 data.
 
 It uses h5py to read old format.  Maintain to support upconversion to digital rf 2 only. No ability to write Drf 1.
-    
+
 
 $Id$
 """
@@ -16,19 +24,19 @@ import warnings
 # third party imports
 import numpy
 import h5py
-            
-            
+
+
 class read_hdf5:
     """The class read_hdf5 is an object used to read digital rf v1 Hdf5 files as specified
     in the http://www.haystack.mit.edu/pipermail/rapid-dev/2014-February/000273.html email thread.
-    
+
     This class allows random access to the rf data.
-    
+
     """
     def __init__(self, top_level_directory_arg, load_all_metadata=False):
         """__init__ will verify the data in top_level_directory_arg is as expected.  It will analyze metadata
         to the degree specified in the load_all_metadata flag so that other methods can return more quickly
-        
+
         Inputs:
             top_level_directory_arg - either a single top level, directory, or a list.  A directory can be a file system path or a url,
                 where the url points to a top level directory.
@@ -36,32 +44,32 @@ class read_hdf5:
                 level metadata for faster __init__ speed.   A basic rule of thumb:
                     **** use load_all_metadata=False to make __init__ faster   ****
                     **** use load_all_metadata=True to make read_vector faster, at the cost of slower __init__ ****
-            
+
         A top level directory must contain <channel_name>/<YYYY-MM-DDTHH-MM-SS/rf@<unix_seconds>.<%03i milliseconds>.h5
-        
+
         If more than one top level directory contains the same channel_name subdirectory, this is considered the same channel.  An error
         is raised if their sample rates differ, or if their time periods overlap.
-        
+
         This method will create the following attributes:
-        
+
         self._top_level_dir_dict - a dictionary with keys = top_level_directory string, value = access mode (eg, 'local', 'file', or 'http')
             This attribute is static, that is, it is not updated when self.reload() called
-            
+
         self._channel_dict - a dictionary with keys = channel_name, and value is a _channel_metadata object.
-        
+
         self._load_all_metadata - True if full metadata search required by default, False if minimal metadata.
-        
+
         self._last_update_has_full_metadata - True if last update got full metadata, False is last update got minimal
             metadata.  At init will equal self._load_all_metadata, but will be set to the load_all_metadata in reload
             when that method is called later.
         """
-        
+
         # first, make top_level_directory_arg a list if a string
         if type(top_level_directory_arg) == types.StringType:
             top_level_arg = [top_level_directory_arg]
         else:
             top_level_arg = top_level_directory_arg
-        
+
         # create static attribute self._top_level_dir_dict
         self._top_level_dir_dict = {}
         for top_level_directory in top_level_arg:
@@ -76,27 +84,27 @@ class read_hdf5:
                 else:
                     this_top_level_dir = top_level_directory
                 self._top_level_dir_dict[this_top_level_dir] = 'local'
-                
+
         self._channel_dict = {}
-        
+
         self._load_all_metadata = load_all_metadata
-        
+
         self.reload()
-        
-        
+
+
     def reload(self, load_all_metadata=None):
-        """reload updates the attribute self._channel_dict.  
-        
+        """reload updates the attribute self._channel_dict.
+
             Inputs:
-                load_all_metadata - If load_all_metadata is True, then get complete metadata.  If 
+                load_all_metadata - If load_all_metadata is True, then get complete metadata.  If
                     load_all_metadata is False, only get high level metadata. Default is None, in which
                     case load_all_metadata=self._load_all_metadata, as set in init.
         """
         if load_all_metadata is None:
             load_all_metadata = self._load_all_metadata
-            
+
         self._last_update_has_full_metadata = load_all_metadata
-            
+
         # first update the channel list
         channel_dict = {} # a temporary dict with key = channels, value = list of top level directories where found
         for top_level_dir in self._top_level_dir_dict.keys():
@@ -107,7 +115,7 @@ class read_hdf5:
                     channel_dict[channel_name].append(top_level_dir)
                 else:
                     channel_dict[channel_name] = [top_level_dir]
-                    
+
         # next throw away any metadata where the entire channel not longer exists
         remove_keys = []
         for channel_name in self._channel_dict.keys():
@@ -116,9 +124,9 @@ class read_hdf5:
                 remove_keys.append(channel_name)
         if len(remove_keys):
             for remove_key in remove_keys:
-                del self._channel_dict[remove_key] 
-                
-                    
+                del self._channel_dict[remove_key]
+
+
         # update all channels
         for channel_name in channel_dict.keys():
             if not self._channel_dict.has_key(channel_name):
@@ -132,7 +140,7 @@ class read_hdf5:
                 new_channel_metadata = _channel_metadata(channel_name, top_level_dir_meta_list = top_level_dir_metadata_list)
                 new_channel_metadata.update(complete_update=load_all_metadata)
                 self._channel_dict[channel_name] = new_channel_metadata
-                
+
             else:
                 # handle any changes to the top_level_dir list
                 chan_obj = self._channel_dict[channel_name] # just to shorten the following code
@@ -150,47 +158,47 @@ class read_hdf5:
                                                                      self._top_level_dir_dict[top_level_dir])
                         chan_obj.add_top_level(new_top_level_meta)
                         found_dirs.append(top_level_dir)
-                        
+
                 # make sure all top level dirs in chan metadata still exist
                 for chan_top_dir in chan_obj.top_level_dir_meta_list:
                     if chan_top_dir.top_level_dir not in found_dirs:
                         # this top level dir no longer has data
                         chan_obj.remove_top_level_metadata(chan_top_dir.top_level_dir)
-                        
+
                 chan_obj.update(complete_update=load_all_metadata)
-                    
-                
+
+
     def get_channels(self):
         """get_channels returns a alphabetically sorted list of channels in this read_hdf5 object
         """
         channels = self._channel_dict.keys()
         channels.sort()
         return(channels)
-    
-    
+
+
     def get_bounds(self, channel_name):
         """get_bounds returns a tuple of (first_unix_sample, last_unix_sample) for a given channel name
         """
         channel_metadata = self._channel_dict[channel_name]
-        return((long(channel_metadata.unix_start_sample), 
+        return((long(channel_metadata.unix_start_sample),
                 long(channel_metadata.unix_start_sample + channel_metadata.sample_extent)))
-        
-        
-    
+
+
+
     def get_rf_file_metadata(self, channel_name):
         """get_rf_file_metadata returns a dictionary of metadata found as attributes in the Hdf5 file /rf_data
         dataset for the given channel name.
         """
         return(self._channel_dict[channel_name].metadata_dict)
-    
-    
-    
+
+
+
     def get_metadata(self, channel_name, timestamp=None):
-        """get_metadata returns a h5py.File object pointing to the metadata*.h5 file at the top level of the 
+        """get_metadata returns a h5py.File object pointing to the metadata*.h5 file at the top level of the
         channel directory.  The user is responsible for closing that file when done.  If timestamp is None,
         the latest metadata*.h5 will be returned.  Otherwise it will open the earliest metadata file with timestamp
         greater than or equal to timestamp
-        
+
         Use of this old metadata scheme is now strongly discouraged. Use get_rf_file_metadata for metadata within the
         Digital RF standard, or Digital Metdata for other metadata.
         """
@@ -201,7 +209,7 @@ class read_hdf5:
         metadata_basename_list = [] # to make sure there are no repeated basenames
         channel = self._channel_dict[channel_name]
         for top_level_dir_obj in channel.top_level_dir_meta_list:
-            metadata_files = glob.glob(os.path.join(top_level_dir_obj.top_level_dir, 
+            metadata_files = glob.glob(os.path.join(top_level_dir_obj.top_level_dir,
                                                     top_level_dir_obj.channel_name, 'metadata@*.h5'))
             metadata_files.sort()
             for metadata_file in metadata_files:
@@ -216,10 +224,10 @@ class read_hdf5:
                     continue
                 metadata_basename_list.append(basename)
                 metadata_file_list.append(metadata_file)
-                
+
         if len(metadata_file_list) == 0:
             raise IOError, 'No metadata files found in channel %s' % (channel_name)
-                
+
         # open right metadata file
         if timestamp is None:
             return(h5py.File(metadata_file_list[-1], 'r'))
@@ -235,26 +243,26 @@ class read_hdf5:
             if rightFile is None:
                 raise IOError, 'All metadata files found in channel %s after timestamp' % (channel_name, timestamp)
             return(h5py.File(rightFile, 'r'))
-            
-        
-        
-        
-        
+
+
+
+
+
     def get_continuous_blocks(self, start_unix_sample, stop_unix_sample, channel_name):
         """get_continuous_blocks returns a numpy array of dtype u64 and shape (N,2) where the first
         column represents the unix_sample of a continuous block of data, and the second column represents the
         number of samples in that continuous block.  Only samples between (start_unix_sample, stop_unix_sample)
         inclusive will be returned.
-        
+
         Calls the private method _get_continuous_blocks.  If that raises a _MissingMetadata exception, calls
         reload with load_all_metadata == True to get missing metadata, and then retries _get_continuous_blocks.
-        
+
         Returns IOError if no blocks found
-        
+
         Inputs:
             start_unix_sample, stop_unix_sample - only samples between (start_unix_sample, stop_unix_sample)
                 inclusive will be returned.  Value of both are samples since 1970-01-01
-                
+
             channel_name - channel to examine
         """
         try:
@@ -263,78 +271,78 @@ class read_hdf5:
             self.reload(True)
             # try again
             return(self._get_continuous_blocks(start_unix_sample, stop_unix_sample, channel_name))
-        
-        
-        
+
+
+
     def read_vector(self, unix_sample, vector_length, channel_name):
         """read_vector returns a numpy vector of complex8 type, no matter the dtype of the Hdf5 file
         or the number of channels. Shape is (vector_length, num_subchannels). Single value (real) files will
         have the imaginary part set to zero.
-        
+
         Calls read_vector_raw, then converts result.
-        
+
         Inputs:
             unix_sample - the number of samples since 1970-01-01 at start of data
-            
+
             vector_length - the number of continuous samples to include
-            
+
             channel_name - the channel name to use
-        
-        This method will raise an IOError error if the returned vector would include any missing data. 
-        It will also raise an IOError is any of the files needed to read the data have been deleted.  
+
+        This method will raise an IOError error if the returned vector would include any missing data.
+        It will also raise an IOError is any of the files needed to read the data have been deleted.
         This is possible because metadata on which this call is based might be out of date.
         """
         z = self.read_vector_raw(unix_sample, vector_length, channel_name)
-            
+
         if z.dtype == numpy.complex64:
             return(z)
         elif z.dtype in (numpy.complex128, numpy.complex256):
             return(numpy.array(z, dtype=numpy.complex64))
-        
+
         if not hasattr(z.dtype, 'names'):
             return(numpy.array(z, dtype=numpy.complex64))
         elif z.dtype.names is None:
             return(numpy.array(z, dtype=numpy.complex64))
         z = numpy.array(z['r'] + z['i']*1.0j, dtype=numpy.complex64)
         return(z)
-                
-        
-    
+
+
+
     def read_vector_raw(self, unix_sample, vector_length, channel_name):
         """read_vector_raw returns a numpy array of dim(up to num_samples, num_subchannels) of the dtype in the Hdf5 files.
-        
-        If complex data, real and imag data will have names 'r' and 'i' if underlying data are integers 
+
+        If complex data, real and imag data will have names 'r' and 'i' if underlying data are integers
         or be numpy complex data type if underlying data floats.
-        
+
         Inputs:
             unix_sample - the number of samples since 1970-01-01 at start of data
-            
+
             vector_length - the number of continuous samples to include
-            
+
             channel_name - the channel name to use
-        
-        This method will raise an IOError error if the returned vector would include any missing data. 
-        It will also raise an IOError is any of the files needed to read the data have been deleted.  
+
+        This method will raise an IOError error if the returned vector would include any missing data.
+        It will also raise an IOError is any of the files needed to read the data have been deleted.
         This is possible because metadata on which this call is based might be out of date.
         """
         if vector_length < 1:
             raise IOError, 'Number of samples requested must be greater than 0, not %i' % (vector_length)
-        
+
         # make sure everything is a long
         unix_sample = long(unix_sample)
         vector_length = long(vector_length)
-        
+
         channel_metadata = self._channel_dict[channel_name]
-        
+
         ret_array = None
         first_unix_sample = None
-        
+
         if self._last_update_has_full_metadata:
             # make sure we don't request beyond the metadata
             last_top_level_metadata = channel_metadata.top_level_dir_meta_list[-1]
             if last_top_level_metadata.unix_start_sample + last_top_level_metadata.sample_extent < unix_sample + vector_length:
                 raise IOError, 'request in _read_vector beyond existing Metadata using full metadata'
-        
+
         for top_level_dir in channel_metadata.top_level_dir_meta_list:
             # note - even with partial metadata, the edges of top_level_dir are absolutely correct
             if top_level_dir.unix_start_sample + top_level_dir.sample_extent < unix_sample:
@@ -345,50 +353,50 @@ class read_hdf5:
                 continue
             # run the faster version if self._last_update_has_full_metadata == True, version with searching if False
             this_array, this_unix_sample = top_level_dir.get_continuous_vector(max(unix_sample, top_level_dir.unix_start_sample),
-                                                                               min(unix_sample + vector_length, 
+                                                                               min(unix_sample + vector_length,
                                                                                    top_level_dir.unix_start_sample + top_level_dir.sample_extent),
                                                                                self._last_update_has_full_metadata)
             ret_array = self._combine_continuous_vectors(ret_array, this_array, first_unix_sample, this_unix_sample)
             if first_unix_sample is None:
                 first_unix_sample = unix_sample
-            
+
         if ret_array is None:
-            raise IOError, 'No data found for channel %s between %i and %i' % (channel_name, unix_sample, 
+            raise IOError, 'No data found for channel %s between %i and %i' % (channel_name, unix_sample,
                                                                                unix_sample + vector_length)
-            
+
         if len(ret_array) != vector_length:
             raise IOError, 'Requested %i samples, but only found %i' % (vector_length, len(ret_array))
-                
+
         return(ret_array)
-        
-        
+
+
     def read_vector_c81d(self, unix_sample, vector_length, channel_name, subchannel=0):
         """read_vector_c81d returns a numpy vector of complex8 type, no matter the dtype of the Hdf5 file
         or the number of channels. Error thrown if subchannel doesn't exist.
-        
+
         Inputs:
             unix_sample - the number of samples since 1970-01-01 at start of data
-            
+
             vector_length - the number of continuous samples to include
-            
+
             channel_name - the channel name to use
-            
+
             subchannel - which subchannel to use.  Default is 0 (first)
-        
-        This method will raise an IOError error if the returned vector would include any missing data. 
-        It will also raise an IOError is any of the files needed to read the data have been deleted.  
+
+        This method will raise an IOError error if the returned vector would include any missing data.
+        It will also raise an IOError is any of the files needed to read the data have been deleted.
         This is possible because metadata on which this call is based might be out of date.
         """
         z = self.read_vector_raw(unix_sample, vector_length, channel_name)
-            
+
         if z.shape[1] < subchannel + 1:
             raise ValueError, 'Returned data has only %i subchannels, does not have subchannel %i' % (z.shape[1], subchannel)
-        
+
         if z.dtype == numpy.complex64:
             return(z[:,subchannel])
         elif z.dtype in (numpy.complex128, numpy.complex256):
             return(numpy.array(z[:,subchannel], dtype=numpy.complex64))
-        
+
         slice = (z[:,subchannel])
         if not hasattr(slice.dtype, 'names'):
             raise ValueError, 'Single valued channels cannot be cast to complex'
@@ -396,29 +404,29 @@ class read_hdf5:
             raise ValueError, 'Single valued channels cannot be cast to complex'
         slice = numpy.array(slice['r'] + slice['i']*1.0j, dtype=numpy.complex64)
         return(slice)
-        
-        
-    
-    
-    
+
+
+
+
+
     def _get_continuous_blocks(self, start_unix_sample, stop_unix_sample, channel_name):
         """_get_continuous_blocks is a private method that returns a numpy array of dtype u64 and shape (N,2) where the first
         column represents the unix_sample of a continuous block of data, and the second column represents the
         number of samples in that continuous block.  Only samples between (start_unix_sample, stop_unix_sample)
         inclusive will be returned.
-        
-        Raises _MissingMetadata exception if reload needs to be called. 
-        
+
+        Raises _MissingMetadata exception if reload needs to be called.
+
         Returns IOError if no blocks found
-        
+
         Inputs:
             start_unix_sample, stop_unix_sample - only samples between (start_unix_sample, stop_unix_sample)
                 inclusive will be returned.  Value of both are samples since 1970-01-01
-                
+
             channel_name - channel to examine
-        """ 
+        """
         channel_metadata = self._channel_dict[channel_name]
-        
+
         ret_array = numpy.array([], dtype=numpy.uint64)
         for top_level_dir in channel_metadata.top_level_dir_meta_list:
             if top_level_dir.unix_start_sample + top_level_dir.sample_extent < start_unix_sample:
@@ -430,36 +438,36 @@ class read_hdf5:
             this_array = top_level_dir.get_continuous_blocks(max(start_unix_sample, top_level_dir.unix_start_sample),
                                                              min(stop_unix_sample, top_level_dir.unix_start_sample + top_level_dir.sample_extent))
             ret_array = self._combine_blocks(ret_array, this_array, top_level_dir.samples_per_file)
-            
+
         if len(ret_array) == 0:
-            raise IOError, 'No data found for channel %s between %i and %i' % (channel_name, start_unix_sample, 
+            raise IOError, 'No data found for channel %s between %i and %i' % (channel_name, start_unix_sample,
                                                                                stop_unix_sample)
-            
+
         return(ret_array)
-    
-    
-    
+
+
+
     def _combine_continuous_vectors(self, first_array, second_array, first_start_sample, second_start_sample):
         """_combine_continuous_vectors returns the concatenation of first_array and second_array,  Raises error
         if two vectors are not continuous.
-        
+
         Inputs:
             first_array - first array to combine.  If None, just return second_array
             second_array - second_array to merge at end of first
             first_start_sample - unix_sample of first sample in first_array.  None if first_array is None
             second_start_sample - unix_sample of first sample in second_array
         """
-        
+
         if first_array is None:
             return(second_array)
-        
+
         if len(first_array) != second_start_sample - first_start_sample:
             raise IOError, '_combine_continuous_vectors trying to combine two non-continuous vectors'
-        
+
         return(numpy.concatenate((first_array, second_array)))
-    
-    
-    
+
+
+
     def _combine_blocks(self, first_array, second_array, samples_per_file):
         """_combine_blocks combines two numpy array of dtype u64 and shape (N,2) where the first
         column represents the unix_sample of a continuous block of data, and the second column represents the
@@ -484,55 +492,55 @@ class read_hdf5:
                 return(numpy.concatenate([first_array, second_array[1:]]))
         else:
             return(numpy.concatenate([first_array, second_array]))
-    
-    
-    
+
+
+
     def _get_channels_in_dir(self, top_level_dir):
         """_get_channels_in_dir returns a list of channel names found in top_level_dir
-        
+
         Inputs:
             top_level_dir - string indicating top_level_dir
         """
         # define glob string for sub_directories in form YYYY-MM-DDTHH-MM-SS
         sub_directory_glob = '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
-        
+
         retList = []
         access_mode = self._top_level_dir_dict[top_level_dir]
         # for now only local access
         if access_mode not in ('local'):
             raise ValueError, 'access_mode %s not yet implemented' % (access_mode)
-        
+
         if access_mode == 'local':
             potential_channels = glob.glob(os.path.join(top_level_dir, '*', sub_directory_glob))
             for potential_channel in potential_channels:
                 channel_name = os.path.dirname(potential_channel)
                 if channel_name not in retList:
                     retList.append(channel_name)
-                    
+
         return(retList)
-    
-    
- 
-    
+
+
+
+
 class _channel_metadata:
     """The _channel_metadata is a private class to hold and access metadata about a particular digital_rf channel.
     A channel can extend over one of more top level directories.
     """
-    
+
     def __init__(self, channel_name, unix_start_sample = 0, sample_extent = 0, top_level_dir_meta_list = []):
         """__init__ creates a new _channel_metadata object
-        
+
         Inputs:
             channel_name - channel name (name of subdirectory defining this channel)
             unix_start_sample - unix start sample - first sample time in unix timeseconds * sample rate. If default
                 0, then unknown
             sample_extent - number of samples between first and last in data
             top_level_dir_meta_list - a time ordered list of _top_level_dir_metadata objects.  Default is empty list
-            
+
         Affects:
             create four input arguments as attributes.  Also creates self.metadata_dict, which is a dictionary of atributes
             found in the Hdf5 files (eg, sample_rate)
-            
+
         """
         self.channel_name = channel_name
         self.unix_start_sample = long(unix_start_sample)
@@ -540,14 +548,14 @@ class _channel_metadata:
         self.top_level_dir_meta_list = top_level_dir_meta_list
         self.top_level_dir_meta_list.sort()
         self.metadata_dict = {} # stores all metadata for this _channel_metadata
-        
-        
+
+
     def update(self, complete_update=False):
         """update will cause this _channel_metadata object to update itself.
-        
-        If complete_update == False, then only get high level metadata.  If complete_update, 
+
+        If complete_update == False, then only get high level metadata.  If complete_update,
         update all possible metadata.
-        
+
         Inputs:
             complete_update - if True, then update all metadata.  If False,
                     the default, only update high level metadata.
@@ -558,19 +566,19 @@ class _channel_metadata:
                 for key in top_level_meta.metadata_dict.keys():
                     self.metadata_dict[key] = top_level_meta.metadata_dict[key]
         self.reset_indices()
-    
-    
+
+
     def add_top_level(self, top_level_dir_meta):
         """add_top_level will add a new _top_level_dir_metadata object to self.top_level_dir_meta_list
-        
+
         Inputs:
             top_level_dir_meta - new _top_level_dir_metadata object to add
         """
         self.top_level_dir_meta_list.append(top_level_dir_meta)
         self.top_level_dir_meta_list.sort()
         self.update()
-        
-        
+
+
     def remove_top_level_metadata(self, top_level_dir):
         """remove_top_level_metadata removes all metadata associated with this channel and one top_level_directory.  Raise
         ValueError is top_level_dir not found
@@ -579,17 +587,17 @@ class _channel_metadata:
         for i, top_level_dir_meta in enumerate(self.top_level_dir_meta_list):
             if top_level_dir == top_level_dir_meta.top_level_dir:
                 remove_list.append(i)
-                
+
         if len(remove_list) == 0:
             raise ValueError, 'No directory %s found in this channel' % (top_level_dir)
         elif len(remove_list) > 1:
             raise ValueError, 'More than one directory %s found in this channel' % (top_level_dir)
-        
+
         self.top_level_dir_meta_list.pop(remove_list[0])
-        
+
         self.reset_indicies()
-        
-        
+
+
     def reset_indices(self):
         """reset_indices recalculates self.unix_start_sample and self.sample_extent based on self.top_level_dir_meta_list
         """
@@ -598,12 +606,12 @@ class _channel_metadata:
             self.unix_start_sample = long(0)
             self.sample_extent = long(0)
             return
-        
+
         self._verify_non_overlapping_data()
         self.unix_start_sample = long(self.top_level_dir_meta_list[0].unix_start_sample)
         self.sample_extent = long(self.top_level_dir_meta_list[-1].unix_start_sample + self.top_level_dir_meta_list[-1].sample_extent - self.unix_start_sample)
-        
-        
+
+
     def _verify_non_overlapping_data(self):
         """_verify_non_overlapping_data raises an error if any overlapping top level directories found
         """
@@ -618,18 +626,18 @@ class _channel_metadata:
                     raise IOError, 'Overlapping samples found in top level dir %s' % (record.top_level_dir)
                 last_unix_start_sample = this_unix_start_sample
                 last_sample_extent = this_sample_extent
-        
+
 
 
 class _top_level_dir_metadata:
     """The _top_level_dir_metadata is a private class to hold and access metadata about a particular digital_rf channel in
     a particular top level directory.
     """
-    
-    def __init__(self, top_level_dir, channel_name, access_mode, unix_start_sample = 0, sample_extent = 0, 
+
+    def __init__(self, top_level_dir, channel_name, access_mode, unix_start_sample = 0, sample_extent = 0,
                  samples_per_file=0, sub_directory_recarray=None, sub_directory_dict=None):
         """__init__ creates a new _top_level_dir_metadata
-        
+
         Inputs:
             top_level_dir - full path the top level directory that contains the parent channel_name
             channel_name - the channel_name subdirectory name
@@ -639,8 +647,8 @@ class _top_level_dir_metadata:
             sample_extent - number of samples between first and last in data. If default 0, then unknown
             samples_per_file - number of samples per file. If default 0, then unknown
             sub_directory_recarray - a ordered numpy recarray with one row describing summary information about a single
-                sub_directory in that channel/top_level_dir named YYYY-MM-DDTHH-MM-SS with the following columns: 
-                1) 'subdirectory' - in form YYYY-MM-DDTHH-MM-SS, 
+                sub_directory in that channel/top_level_dir named YYYY-MM-DDTHH-MM-SS with the following columns:
+                1) 'subdirectory' - in form YYYY-MM-DDTHH-MM-SS,
                 2) 'unix_start_sample' (for that subdirectory).  May be zero in no detailed metadata for this directory yet
                 3) 'sample_extent' eg, number of samples to last sample in that subdirectory.  May be zero if no detailed
                     metadata yet for this subdirectory.
@@ -650,14 +658,14 @@ class _top_level_dir_metadata:
                     metadata yet for this subdirectory
                 Order is by subdirectory and/or unix_start_sample
             sub_directory_dict - a dictionary with key = sub_directory, value = _sub_directory_metadata object
-            
+
         Affects: creates an attribute for each input argument
-            
+
         Also creates cached attributes to speed reads with sparse metadata:
             self._last_file - open H5py file last read
             self._last_start_sample - sample start index of cached file
             This file must be gap free, or it is never cached
-            
+
         """
         self.top_level_dir = top_level_dir
         self.channel_name = channel_name
@@ -668,30 +676,30 @@ class _top_level_dir_metadata:
         self.sub_directory_recarray = sub_directory_recarray
         self.sub_directory_dict = sub_directory_dict
         self.metadata_dict = {} # to be populated by rf file metadata
-        
+
         # data type of sub_directory_array
         self.data_t = numpy.dtype([('subdirectory', numpy.str_, 512), ('unix_start_sample', numpy.uint64, 1), ('sample_extent', numpy.uint64, 1),
                                    ('file_count', numpy.uint64, 1), ('last_timestamp', numpy.double, 1)])
-        
+
         if self.sub_directory_recarray is None:
             # create empty array
             self.sub_directory_recarray = numpy.array([], dtype=self.data_t)
-            
+
         # define glob strings for sub_directories in form YYYY-MM-DDTHH-MM-SS and rf files in form rf@*.*.h5
         self._sub_directory_glob = '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
         self._rf_file_glob = 'rf@[0-9]*.[0-9][0-9][0-9].h5'
-        
+
         # attributes to allow caching
         self._last_file = None
         self._last_start_sample = None
-        
-        
+
+
     def update(self, complete_update=False):
         """update will cause this _top_level_dir_metadata object to update itself.
-        
+
         If complete_update == False, then only get high level metadata.
         If complete_update, update all possible metadata.
-        
+
         Inputs:
             complete_update - if True, then update all metadata, not matter the other arguments.  If False,
                     the default, limited update according to the other arguments.
@@ -700,23 +708,23 @@ class _top_level_dir_metadata:
             self._full_update()
         else:
             self._high_level_reload()
-            
-            
-            
+
+
+
     def get_continuous_blocks(self, start_unix_sample, stop_unix_sample):
         """get_continuous_blocks returns a numpy array of dtype u64 and shape (N,2) where the first
         column represents the unix_sample of a continuous block of data, and the second column represents the
         number of samples in that continuous block.  Only samples between (start_unix_sample, stop_unix_sample)
         inclusive will be returned.
-        
+
         Returns IOError if no blocks found
-        
+
         Inputs:
             start_unix_sample, stop_unix_sample - only samples between (start_unix_sample, stop_unix_sample)
                 inclusive will be returned.
         """
         # to improve speed, do searchsorted to get first index to look into
-        first_index = numpy.searchsorted(self.sub_directory_recarray['unix_start_sample'], 
+        first_index = numpy.searchsorted(self.sub_directory_recarray['unix_start_sample'],
                                          numpy.array([start_unix_sample]))
         first_index = first_index[0]
         if first_index > 0:
@@ -731,38 +739,38 @@ class _top_level_dir_metadata:
             this_extent = long(self.sub_directory_recarray['sample_extent'][i])
             if this_extent == 0:
                 raise _MissingMetadata, 'this_extent == 0'
-            
+
             # now check that subdirectories with metadata are still up to date
             base_subdirectory = self.sub_directory_recarray['subdirectory'][i]
             file_count, last_timestamp = self._get_subdirectory_file_info(base_subdirectory)
             self.sub_directory_dict[base_subdirectory].update_if_needed(file_count, last_timestamp)
-            
+
             sub_dir_metadata = self.sub_directory_dict[self.sub_directory_recarray['subdirectory'][i]]
             this_array = sub_dir_metadata.get_continuous_blocks(max(start_unix_sample, this_start_sample),
                                                                 min(stop_unix_sample, (this_start_sample + this_extent)-1))
             ret_array = self._combine_blocks(ret_array, this_array, self.samples_per_file)
-            
+
         return(ret_array)
-    
-    
-    
+
+
+
     def get_continuous_vector(self, start_unix_sample, stop_unix_sample, last_update_has_full_metadata=False):
         """get_continuous_vector returns a tuple of (numpy array of data, first unix_sample in returned data)
         Only samples between (start_unix_sample, stop_unix_sample) (excludes stop_unix_sample) will be returned.
-        
+
         Returns (None, None) if no blocks found
-        
+
         Inputs:
             start_unix_sample, stop_unix_sample - only samples between (start_unix_sample, stop_unix_sample)
                 (excludes stop_unix_sample) will be returned.
-                
-            last_update_has_full_metadata - if True, use standard metadata to access data.  If False (the default), 
+
+            last_update_has_full_metadata - if True, use standard metadata to access data.  If False (the default),
                 use glob to search for right file without using detailed metadata (slower performance, but less metadata
                 discovery time).
         """
         if last_update_has_full_metadata:
             # to improve speed, do searchsorted to get first index to look into
-            first_index = numpy.searchsorted(self.sub_directory_recarray['unix_start_sample'], 
+            first_index = numpy.searchsorted(self.sub_directory_recarray['unix_start_sample'],
                                              numpy.array([start_unix_sample]))
             first_index = first_index[0]
             if first_index > 0:
@@ -780,17 +788,17 @@ class _top_level_dir_metadata:
                     raise IOError, 'Metadata not found in recarray'
                 if this_start_sample + this_extent <= start_unix_sample:
                     continue
-                
+
                 sub_dir_metadata = self.sub_directory_dict[self.sub_directory_recarray['subdirectory'][i]]
                 this_array, unix_sample = sub_dir_metadata.get_continuous_vector(max(start_unix_sample, this_start_sample),
                                                                                   min(stop_unix_sample, this_start_sample + this_extent))
-                
+
                 ret_array = self._combine_continuous_vectors(ret_array, this_array, first_unix_sample, unix_sample)
                 if first_unix_sample is None:
                     first_unix_sample = unix_sample
-                    
+
             return((ret_array, first_unix_sample))
-                    
+
         else:
             # check if we can use cached file
             if self._last_start_sample:
@@ -805,7 +813,7 @@ class _top_level_dir_metadata:
                         pass
                     self._last_file = None
                     self._last_start_sample = None
-                    
+
             # only partial metadata
             files_to_search = self._get_files_to_search(start_unix_sample, stop_unix_sample)
             ret_array = None
@@ -820,24 +828,24 @@ class _top_level_dir_metadata:
                 if not ret_array is None:
                     if len(ret_array) == stop_unix_sample - start_unix_sample:
                         break
-                
+
             # verify success
             if ret_array is None:
                 raise IOError, 'No valid data found'
             if len(ret_array) != stop_unix_sample - start_unix_sample:
                 raise IOError, 'Wanted len %i, but got len %i' % (stop_unix_sample - start_unix_sample, len(ret_array))
-                
+
             return((ret_array, start_unix_sample))
-                
-        
-    
-    
+
+
+
+
     def _high_level_reload(self):
         """_high_level_reload updates only high level metadata.  Basically this is only the first and last sample
         """
         base_subdirectory_list = self._get_subdirectories()
         dt1970 = datetime.datetime(1970,1,1)
-        
+
         # first pass is to remove any subdirectories that have disappeared
         rows_to_delete_arr = []
         for i, subdirectory in enumerate(self.sub_directory_recarray['subdirectory']):
@@ -847,13 +855,13 @@ class _top_level_dir_metadata:
         if len(rows_to_delete_arr) > 0:
             rows_to_delete_arr = numpy.array(rows_to_delete_arr, numpy.int64)
             self.sub_directory_recarray = numpy.delete(self.sub_directory_recarray, rows_to_delete_arr)
-        
+
         # next pass creates any new rows in _sub_directory_metadata
         for base_subdirectory in base_subdirectory_list:
             try:
                 file_count, last_timestamp = self._get_subdirectory_file_info(base_subdirectory)
             except IOError:
-                new_sub_dir_meta = _sub_directory_metadata(self.top_level_dir, self.channel_name, 
+                new_sub_dir_meta = _sub_directory_metadata(self.top_level_dir, self.channel_name,
                                                            self.access_mode, base_subdirectory)
                 if not self.sub_directory_dict is None:
                     self.sub_directory_dict[base_subdirectory] = new_sub_dir_meta
@@ -861,7 +869,7 @@ class _top_level_dir_metadata:
                     self.sub_directory_dict = {base_subdirectory: new_sub_dir_meta}
                 # extend self.sub_directory_recarray by one
                 self.sub_directory_recarray.resize(len(self.sub_directory_recarray) + 1)
-                
+
                 # get estimate of first sample without IO
                 subDirDT = datetime.datetime.strptime(os.path.basename(base_subdirectory), '%Y-%m-%dT%H-%M-%S')
                 total_secs = (subDirDT - dt1970).total_seconds()
@@ -872,25 +880,25 @@ class _top_level_dir_metadata:
                     self.samples_per_file = self.metadata_dict['samples_per_file']
                 sample_index = total_secs * self.metadata_dict['sample_rate']
                 self.sub_directory_recarray[-1] = (base_subdirectory, sample_index, 0, 0, 0) # use default values
-                
+
         # update first and last only
         self.sub_directory_dict[base_subdirectory_list[0]].update()
         if len(base_subdirectory_list) > 1:
             self.sub_directory_dict[base_subdirectory_list[-1]].update()
-            
+
         self.unix_start_sample = long(self.sub_directory_dict[base_subdirectory_list[0]].get_first_sample())
         last_sample = long(self.sub_directory_dict[base_subdirectory_list[-1]].get_last_sample())
         self.sample_extent = long(last_sample - self.unix_start_sample)
 
-            
-                    
-                    
+
+
+
     def _full_update(self):
         """_full_update will cause this _top_level_dir_metadata object to update all possible metadata
         """
         update_needed = False # will be set to True if any subdirectory updated
         base_subdirectory_list = self._get_subdirectories(verify_files=True)
-        
+
         # first pass is to remove any subdirectories that have disappeared
         rows_to_delete_arr = []
         for i, subdirectory in enumerate(self.sub_directory_recarray['subdirectory']):
@@ -900,7 +908,7 @@ class _top_level_dir_metadata:
         if len(rows_to_delete_arr) > 0:
             rows_to_delete_arr = numpy.array(rows_to_delete_arr, numpy.int64)
             self.sub_directory_recarray = numpy.delete(self.sub_directory_recarray, rows_to_delete_arr)
-        
+
         # next pass
         for i, base_subdirectory in enumerate(base_subdirectory_list):
             try:
@@ -909,12 +917,12 @@ class _top_level_dir_metadata:
                 if self.sub_directory_dict[base_subdirectory].update_if_needed(file_count, last_timestamp):
                     first_unix_sample, sample_extent, file_count, samples_per_file, last_timestamp = \
                         self.sub_directory_dict[base_subdirectory].get_summary_metadata()
-                    self.sub_directory_recarray[i] = (base_subdirectory, first_unix_sample, sample_extent, 
+                    self.sub_directory_recarray[i] = (base_subdirectory, first_unix_sample, sample_extent,
                                                            file_count, last_timestamp)
                     update_needed = True
             except IOError:
                 update_needed = True
-                new_sub_dir_meta = _sub_directory_metadata(self.top_level_dir, self.channel_name, 
+                new_sub_dir_meta = _sub_directory_metadata(self.top_level_dir, self.channel_name,
                                                            self.access_mode, base_subdirectory)
                 new_sub_dir_meta.update()
                 if len(self.metadata_dict.keys()) == 0:
@@ -929,7 +937,7 @@ class _top_level_dir_metadata:
                 self.sub_directory_recarray.resize(len(self.sub_directory_recarray) + 1)
                 self.sub_directory_recarray[-1] = (base_subdirectory, first_unix_sample, sample_extent, file_count,
                                                    last_timestamp)
-                
+
                 # handle samples_per_file
                 if self.samples_per_file == 0:
                     self.samples_per_file = long(samples_per_file)
@@ -937,9 +945,9 @@ class _top_level_dir_metadata:
                     raise IOError, 'Samples per file changed from %i to %i with subdirectory %s' % \
                         (self.samples_per_file, samples_per_file, base_subdirectory)
                 continue
-            
-            
-                
+
+
+
         if update_needed:
             self._verify_non_overlapping_data()
             # update summary metadata
@@ -947,10 +955,10 @@ class _top_level_dir_metadata:
             last_sample = long(self.sub_directory_recarray['unix_start_sample'][-1]) + \
                 long(self.sub_directory_recarray['sample_extent'][-1])
             self.sample_extent = long(last_sample - self.unix_start_sample)
-            
-    
-    
-    
+
+
+
+
     def _verify_non_overlapping_data(self):
         """_verify_non_overlapping_data raises an error if any overlapping subdirectories found
         """
@@ -967,9 +975,9 @@ class _top_level_dir_metadata:
                             % (record['subdirectory'], last_unix_start_sample, last_sample_extent, this_unix_start_sample)
                 last_unix_start_sample = this_unix_start_sample
                 last_sample_extent = this_sample_extent
-            
-                
-                
+
+
+
     def _get_subdirectory_file_info(self, subdirectory):
         """_get_subdirectory_file_info returns a tuple ot (num_files, last_timestamp) for a given
         subdirectory using the self.sub_directory_recarray recarray.  Raises IOError if subdirectory
@@ -980,35 +988,35 @@ class _top_level_dir_metadata:
             raise IOError, 'subdirectory %s not found' % (subdirectory)
         if len(result) > 1:
             raise ValueError, 'got unexpected result %s' % (str(result))
-        return((self.sub_directory_recarray['file_count'][result[0][0]], 
+        return((self.sub_directory_recarray['file_count'][result[0][0]],
                 self.sub_directory_recarray['last_timestamp'][result[0][0]]))
-        
-        
-        
+
+
+
     def _combine_continuous_vectors(self, first_array, second_array, first_start_sample, second_start_sample):
         """_combine_continuous_vectors returns the concatenation of first_array and second_array,  Raises error
         if two vectors are not continuous.
-        
+
         Inputs:
             first_array - first array to combine.  If None, just return second_array
             second_array - second_array to merge at end of first
             first_start_sample - unix_sample of first sample in first_array.  None if first_array is None
             second_start_sample - unix_sample of first sample in second_array
         """
-        
+
         if first_array is None:
             return(second_array)
-        
+
         if len(first_array) != second_start_sample - first_start_sample:
             raise IOError, '_combine_continuous_vectors trying to combine two non-continuous vectors'
-        
+
         return(numpy.concatenate((first_array, second_array)))
-                
-        
-        
+
+
+
     def _get_subdirectories(self, verify_files=False):
         """_get_subdirectories returns a sorted list of base subdirectory names
-        
+
         Inputs:
             verify_files - If True, only return subdirectories with h5 files.  If False (the default),
             return any subdirectory that matches the format, independent of whether it has files
@@ -1025,9 +1033,9 @@ class _top_level_dir_metadata:
             if len(glob.glob(os.path.join(subdirectory, '*.h5'))) > 0:
                 retList.append(subdirectory)
         return(retList)
-    
-    
-    
+
+
+
     def _combine_blocks(self, first_array, second_array, samples_per_file):
         """_combine_blocks combines two numpy array of dtype u64 and shape (N,2) where the first
         column represents the unix_sample of a continuous block of data, and the second column represents the
@@ -1052,12 +1060,12 @@ class _top_level_dir_metadata:
                 return(numpy.concatenate([first_array, second_array[1:]]))
         else:
             return(numpy.concatenate([first_array, second_array]))
-        
-        
+
+
     def _get_files_to_search(self, start_unix_sample, stop_unix_sample):
         """_get_files_to_search is a private method designed to return a subset of data files that might contain
         data to return.  Used only when complete metadata not available.
-        
+
         Inputs:
             start_unix_sample, stop_unix_sample - only samples between (start_unix_sample, stop_unix_sample)
                 (excludes stop_unix_sample) will be returned, so only return files that might contain that range
@@ -1066,10 +1074,10 @@ class _top_level_dir_metadata:
         start_integer_sec = long(start_unix_sample/self.metadata_dict['sample_rate'][0])
         stop_integer_sec = long(stop_unix_sample/self.metadata_dict['sample_rate'][0])
         seconds_list = range(start_integer_sec - seconds_per_file, stop_integer_sec + 1)
-    
+
         # now glob for these files in all directories until no more found
         files_to_search = []
-        first_index = numpy.searchsorted(self.sub_directory_recarray['unix_start_sample'], 
+        first_index = numpy.searchsorted(self.sub_directory_recarray['unix_start_sample'],
                                          numpy.array([start_unix_sample]))
         first_index = first_index[0]
         if first_index == len(self.sub_directory_recarray['unix_start_sample']):
@@ -1092,11 +1100,11 @@ class _top_level_dir_metadata:
             # break if none found after second subdirectory
             if i > first_index and files_this_subdir == 0:
                 break
-            
+
         files_to_search.sort()
         return(files_to_search)
-    
-    
+
+
     def _read_data_from_file(self, file_to_search, start_unix_sample, stop_unix_sample, ret_array):
         """_read_data_from_file reads data (if any) from file.  Used with minimal metadata
         """
@@ -1108,11 +1116,11 @@ class _top_level_dir_metadata:
                 pass
             self._last_file = None
             self._last_start_sample = None
-            
+
         samples_per_file = long(self.metadata_dict['samples_per_file'][0])
         f = h5py.File(file_to_search, 'r')
         rf_data_index = f['/rf_data_index']
-        
+
         if ret_array is None:
             # see if this is the first file with data
             file_start_index = None
@@ -1149,14 +1157,14 @@ class _top_level_dir_metadata:
                     else:
                         f.close()
                     return(rf_data)
-                
+
             # no data found
             try:
                 f.close()
             except:
                 pass
             return(None)
-                
+
         else:
             # make sure cache is clear if muliple file read
             if self._last_start_sample:
@@ -1166,7 +1174,7 @@ class _top_level_dir_metadata:
                     pass
                 self._last_file = None
                 self._last_start_sample = None
-            
+
             # append all needed data from this file
             # first, verify this file begins where we expect
             first_file_sample = rf_data_index[0,0]
@@ -1180,58 +1188,58 @@ class _top_level_dir_metadata:
                 if samples_in_this_file < (stop_unix_sample - start_unix_sample) - len(ret_array):
                     f.close()
                     raise IOError, 'not enough samples in file %s before data gap' % (file_to_search)
-                
+
             samples_to_read = min(samples_per_file, (stop_unix_sample - start_unix_sample) - len(ret_array))
             rf_data = f['/rf_data'][0:samples_to_read]
             f.close()
             return(rf_data)
-                
-    
-        
-        
+
+
+
+
     def _get_data_from_cache(self, start_unix_sample, stop_unix_sample):
         """_get_data_from_cache simple returns the desired data from the cached Hdf5 file
-        
+
         Inputs: start_unix_sample, stop_unix_sample - only samples between (start_unix_sample, stop_unix_sample)
                 (excludes stop_unix_sample) will be returned.
-                
+
         Calling method tested that this read is possible entirely within this file
         """
         start_index = start_unix_sample - self._last_start_sample
         samples_to_read = stop_unix_sample - start_unix_sample
         return((self._last_file['/rf_data'][start_index: start_index+samples_to_read], start_unix_sample))
-        
-        
+
+
     def __cmp__(self, other):
         """__cmp__ compares two _top_level_dir_metadata objects
         """
         # only the same channel can be compared
         if self.channel_name != other.channel_name:
             raise ValueError, 'Cannot compare mismatched channel names %s and %s' % (self.channel_name, other.channel_name)
-        
+
         if self.unix_start_sample != 0 and other.unix_start_sample != 0:
             return(cmp(self.unix_start_sample, other.unix_start_sample))
-        
+
         # use subdirectory names instead
         # for now only local access
         if self.access_mode not in ('local'):
             raise ValueError, 'access_mode %s not yet implemented' % (access_mode)
-        
+
         first_subdirectory_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self._sub_directory_glob))
         first_subdirectory_list.sort()
         if len(first_subdirectory_list) == 0:
             raise ValueError, 'Cannot compare top level directory because it has no data' % (self.top_level_dir)
         first_subdirectory = os.path.basename(first_subdirectory_list[0])
-        
+
         second_subdirectory_list = glob.glob(os.path.join(other.top_level_dir, other.channel_name, self._sub_directory_glob))
         second_subdirectory_list.sort()
         if len(second_subdirectory_list) == 0:
             raise ValueError, 'Cannot compare top level directory because it has no data' % (other.top_level_dir)
         second_subdirectory = os.path.basename(second_subdirectory_list[0])
-        
+
         return(cmp(first_subdirectory, second_subdirectory))
-    
-    
+
+
     def __del__(self):
         """__del__makes sure self._last_file is closed.  Does not happen automatically.
         """
@@ -1240,43 +1248,43 @@ class _top_level_dir_metadata:
                 self._last_file.close()
             except:
                 pass
-            
-    
-    
+
+
+
 class _sub_directory_metadata:
     """The _sub_directory_metadata is a private class to hold and access metadata about a particular digital_rf channel in
     a particular subdirectory.
     """
-    
+
     def __init__(self, top_level_dir, channel_name, access_mode, subdirectory):
         """__init__ creates a new _sub_directory_metadata object
-        
+
         Inputs:
             top_level_dir - full path the top level directory that contains the parent channel_name
             channel_name - the channel_name subdirectory name
             access_mode - string giving access mode (eg, 'local', 'file', or 'http')
             subdirectory - subdirectory name in form YYYY-MM-DDTHH-MM-SS
-            
+
         Affects:
             Sets self.metadata to None.  When update called, self.metadata will be set to a numpy.recarray
-            with columns:  
+            with columns:
                 1. unix_sample_index - number of samples since 1970-01-01 to the start of a contiguous data block (uint64_t)
                 2. file_index - where in the file this contiguous block of data begins
                 3. rf_basename (25 char string)
-            
-            Also sets self.cont_metadata to None.  When update called, self.cont_metadata will be set 
-            to a numpy.recarray about block of contiguous data with columns:  
+
+            Also sets self.cont_metadata to None.  When update called, self.cont_metadata will be set
+            to a numpy.recarray about block of contiguous data with columns:
                 1. unix_sample_index - number of samples since 1970-01-01 to the start of a contiguous data block (uint64_t)
                 2. sample_extent - number of continuous samples
-            
-            Also sets self.samples_per_file and self.file_count and self.last_timestamp to None.  Will be set with 
+
+            Also sets self.samples_per_file and self.file_count and self.last_timestamp to None.  Will be set with
             first call to update
-            
+
             Also creates cached attributes to speed reads with detailed metadata:
             self._last_file - open H5py file last read
             self._last_start_sample - sample start index of cached file
             This file must be gap free, or it is never cached
-          
+
         """
         self.top_level_dir = top_level_dir
         self.channel_name = channel_name
@@ -1288,58 +1296,58 @@ class _sub_directory_metadata:
         self.file_count = None
         self.last_timestamp = None # timestamp of last file in UTC
         self.metadata_dict = {} # to be populated by rf file metadata
-        
+
         self._rf_file_glob = 'rf@[0-9]*.[0-9][0-9][0-9].h5'
-        
+
         # data type of sub_directory_array
-        self.data_t = numpy.dtype([('unix_sample_index', numpy.uint64, 1), ('file_index', numpy.uint64, 1), 
+        self.data_t = numpy.dtype([('unix_sample_index', numpy.uint64, 1), ('file_index', numpy.uint64, 1),
                                    ('rf_basename', numpy.str_, 25)])
         self.cont_data_t = numpy.dtype([('unix_sample_index', numpy.uint64, 1), ('sample_extent', numpy.uint64, 1)])
-                
+
         # set to an empty recarray
         if self.metadata is None:
             self.metadata = numpy.array([], dtype=self.data_t)
         if self.cont_metadata is None:
             self.cont_metadata = numpy.array([], dtype=self.cont_data_t)
-            
+
         # attributes to allow caching
         self._last_file = None
         self._last_start_sample = None
-            
-            
+
+
     def get_summary_metadata(self):
         """get_summary_metadata returns a tuple of (first_unix_sample, sample_extent, file_count, samples_per_file,
         last_timestamp) for this _sub_directory_metadata object.
-        
+
         Raises IOError if no self.metadata
         """
         if len(self.metadata) == 0:
             raise IOError, 'Must call update before calling get_summary_metadata, or subdirectory %s empty' % (self.subdirectory)
-        
+
         first_unix_sample = long(self.metadata['unix_sample_index'][0])
         last_unix_sample = long(self.metadata['unix_sample_index'][-1]) + ((self.samples_per_file - long(self.metadata['file_index'][-1])) - 1)
         return((first_unix_sample, 1+(last_unix_sample-first_unix_sample), self.file_count, self.samples_per_file,
                 self.last_timestamp))
-        
-        
+
+
     def update_if_needed(self, file_count, last_timestamp):
         """update_if_needed calls update only if input file_count or last_timestamp indicate an update
         is needed. Returns True if update actually called, False otherwise
-        
+
         Inputs:
             file_count - number of file in subdirectory when last checked
             last_timestamp - UTC timestamp of last file in subdirectory when last checked
         """
-            
+
         # for now only local access
         if self.access_mode not in ('local'):
             raise ValueError, 'access_mode %s not yet implemented' % (access_mode)
-        
-        rf_file_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self.subdirectory, 
+
+        rf_file_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self.subdirectory,
                                               self._rf_file_glob))
         if len(rf_file_list) == 0:
             raise IOError, 'subdirectory %s empty' % (self.subdirectory)
-        
+
         rf_file_list.sort()
         if len(rf_file_list) != file_count:
             self.update()
@@ -1348,29 +1356,29 @@ class _sub_directory_metadata:
             # leave margin for error
             self.update()
             return(True)
-        
+
         return(False)
-                
-                
-                
+
+
+
     def update(self):
         """update updates self.metadata.  If it was a file name, it reads that data into memory, and then updates it
         """
         # for now only local access
         if self.access_mode not in ('local'):
             raise ValueError, 'access_mode %s not yet implemented' % (access_mode)
-        
-        rf_file_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self.subdirectory, 
+
+        rf_file_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self.subdirectory,
                                               self._rf_file_glob))
         rf_file_list.sort()
         rf_file_basename_list = [os.path.basename(rf_file) for rf_file in rf_file_list]
-        
+
         # first check to see if we can update things quickly if the data is continuous
         if self._update_continuous_data(rf_file_basename_list, rf_file_list):
             return
-        
+
         unique_rf_basenames = numpy.unique(self.metadata['rf_basename'])
-        
+
         # first step is to delete all lines where the rf file has been deleted
         rows_to_delete_arr = numpy.array([], dtype=numpy.int64)
         for rf_basename in unique_rf_basenames:
@@ -1382,7 +1390,7 @@ class _sub_directory_metadata:
         if len(rows_to_delete_arr) > 0:
             self.metadata = numpy.delete(self.metadata, rows_to_delete_arr)
             unique_rf_basenames = numpy.unique(self.metadata['rf_basename'])
-            
+
         # the next step is to add rows from each file where it does not yet exist in self.metadata
         if len(self.metadata['rf_basename']) > 0:
             first_file_index = rf_file_basename_list.index(self.metadata['rf_basename'][-1]) + 1
@@ -1406,35 +1414,35 @@ class _sub_directory_metadata:
             if len(self.metadata_dict.keys()) == 0:
                 self.metadata_dict = self._get_rf_metadata(rf_file_basename)
             self.metadata = numpy.concatenate((self.metadata, added_rows))
-            
+
         self._update_cont_metadata()
-            
-            
+
+
     def get_continuous_blocks(self, start_unix_sample, stop_unix_sample):
         """get_continuous_blocks returns a numpy array of dtype u64 and shape (N,2) where the first
         column represents the unix_sample of a continuous block of data, and the second column represents the
         number of samples in that continuous block.  Only samples between (start_unix_sample, stop_unix_sample)
         inclusive will be returned.
-        
+
         Returns IOError if no blocks found
-        
+
         Inputs:
             start_unix_sample, stop_unix_sample - only samples between (start_unix_sample, stop_unix_sample)
                 inclusive will be returned.
         """
         # to improve speed, do searchsorted to get first index to look into
-        first_index = numpy.searchsorted(self.cont_metadata['unix_sample_index'], 
+        first_index = numpy.searchsorted(self.cont_metadata['unix_sample_index'],
                                          numpy.array([start_unix_sample]))
         first_index = first_index[0]
         if first_index > 0:
             first_index -= 1
-            
+
         # for now, deal with two edges later
         bool_arr = self.cont_metadata['unix_sample_index'] >= start_unix_sample
         bool_arr1 = self.cont_metadata['unix_sample_index'] <= stop_unix_sample
         bool_arr = numpy.logical_and(bool_arr, bool_arr1)
         metadata_slice = self.cont_metadata[bool_arr]
-        
+
         # handle front edge
         ones = numpy.ones((len(bool_arr),))
         zeros = numpy.zeros((len(bool_arr),))
@@ -1458,27 +1466,27 @@ class _sub_directory_metadata:
                 metadata_slice = numpy.zeros((1,), dtype=self.cont_data_t)
                 metadata_slice[0] = (start_unix_sample, previous_sample_extent - \
                     (start_unix_sample - previous_sample_index))
-                
+
         # fix end if need
         last_sample_index = metadata_slice[-1]['unix_sample_index']
         last_sample_extent = metadata_slice[-1]['sample_extent']
         real_last_sample_extent = 1 + (stop_unix_sample - last_sample_index)
         if real_last_sample_extent < last_sample_extent:
             metadata_slice[-1]['sample_extent'] = real_last_sample_extent
-        
+
         ret_arr = numpy.zeros((len(metadata_slice), 2), dtype=numpy.uint64)
         ret_arr[:,0] = metadata_slice['unix_sample_index']
         ret_arr[:,1] = metadata_slice['sample_extent']
-        
+
         return(ret_arr)
-    
-    
+
+
     def get_continuous_vector(self, start_unix_sample, stop_unix_sample):
         """get_continuous_vector returns a tuple of (numpy array of data, first unix_sample in returned data)
         Only samples between (start_unix_sample, stop_unix_sample) (excludes stop_unix_sample) will be returned.
-        
+
         Returns IOError if no blocks found
-        
+
         Inputs:
             start_unix_sample, stop_unix_sample - only samples between (start_unix_sample, stop_unix_sample)
                 (excludes stop_unix_sample) will be returned.
@@ -1496,12 +1504,12 @@ class _sub_directory_metadata:
                     pass
                 self._last_file = None
                 self._last_start_sample = None
-                    
+
         # first verify no gaps in this range
         self._verify_no_gaps(start_unix_sample, stop_unix_sample)
-        
+
         # to improve speed, do searchsorted to get first index to look into
-        first_index = numpy.searchsorted(self.metadata['unix_sample_index'], 
+        first_index = numpy.searchsorted(self.metadata['unix_sample_index'],
                                          numpy.array([start_unix_sample]))
         first_index = long(first_index[0])
         if first_index == len(self.metadata):
@@ -1516,10 +1524,10 @@ class _sub_directory_metadata:
         for i in range(first_index, len(self.metadata)):
             if self.metadata['unix_sample_index'][i] >= stop_unix_sample:
                 raise IOError, 'Did not get expected read - debug'
-            
+
             this_hdf5_file = self.metadata['rf_basename'][i]
             full_hdf5_file = os.path.join(self.top_level_dir, self.channel_name, self.subdirectory, this_hdf5_file)
-            
+
             # get max possible length of this read as block_len
             if i == len(self.metadata) - 1:
                 # last index
@@ -1528,7 +1536,7 @@ class _sub_directory_metadata:
                 block_len = long(self.metadata['file_index'][i+1]) - long(self.metadata['file_index'][i])
             else:
                 block_len = self.samples_per_file - long(self.metadata['file_index'][i])
-                
+
             # next get file start index
             if i == first_index:
                 offset = long(start_unix_sample) - long(self.metadata['unix_sample_index'][first_index])
@@ -1536,17 +1544,17 @@ class _sub_directory_metadata:
                 start_file_index = long(self.metadata['file_index'][i]) + offset
             else:
                 start_file_index = long(self.metadata['file_index'][i])
-                
+
             # next get read len
             if samples_read + block_len > samples_to_read:
                 read_len = samples_to_read - samples_read
             else:
                 read_len = block_len
-                
+
             # finally - read it!!!
             f = h5py.File(full_hdf5_file, 'r')
             rf_data = f['/rf_data'][start_file_index:start_file_index + read_len]
-            
+
             if ret_array is None:
                 ret_array = rf_data
             else:
@@ -1567,53 +1575,53 @@ class _sub_directory_metadata:
                 break
             else:
                 f.close()
-                
+
         return((ret_array, start_unix_sample))
-    
-    
-    
+
+
+
     def get_first_sample(self):
         """get_first_sample returns the first sample index in this subdirectory.  May be exact (if self.metadata
         not is None) or an estimate based one subdirectory naming convention.
         """
         if len(self.metadata) > 0:
             return(self.metadata['unix_sample_index'][0])
-        
-        rf_file_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self.subdirectory, 
+
+        rf_file_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self.subdirectory,
                                               self._rf_file_glob))
-        
+
         if len(rf_file_list) == 0:
             raise IOError, 'No valid rf files found in subdirectory %s' % \
                 (os.path.join(self.top_level_dir, self.channel_name, self.subdirectory))
-                
+
         rf_file_list.sort()
-        
+
         new_rows = self._get_new_rows(os.path.basename(rf_file_list[0]))
         return(new_rows['unix_sample_index'][0])
-    
-    
+
+
     def get_last_sample(self):
-        """get_last_sample returns the last sample in a subdirectory.  
+        """get_last_sample returns the last sample in a subdirectory.
         """
         if len(self.metadata) > 0 and len(self.metadata_dict.keys()):
             return(self.metadata['unix_sample_index'][-1] + self.metadata_dict['samples_per_file'] - self.metadata['file_index'][-1])
-        
-        rf_file_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self.subdirectory, 
+
+        rf_file_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self.subdirectory,
                                               self._rf_file_glob))
-        
+
         if len(rf_file_list) == 0:
             raise IOError, 'No valid rf files found in subdirectory %s' % \
                 (os.path.join(self.top_level_dir, self.channel_name, self.subdirectory))
-                
+
         rf_file_list.sort()
-        
+
         if len(self.metadata_dict.keys()) == 0:
             self.metadata_dict = self._get_rf_metadata(os.path.basename(rf_file_list[0]))
-            
+
         index = -1
         if self._file_is_open(rf_file_list[-1]) and len(rf_file_list) > 1:
             index = -2
-            
+
         new_rows = self._get_new_rows(os.path.basename(rf_file_list[index]))
         if (new_rows is None and index == -2) or (new_rows is None and len(rf_file_list) == 1):
             raise IOError, 'Unable to read rf file %s - one possible error is an empty file, which can be removed via <find . -size 0 -exec rm {} \;>' % \
@@ -1637,22 +1645,22 @@ class _sub_directory_metadata:
                 return(new_rows['unix_sample_index'][-1] + self.metadata_dict['samples_per_file'] - new_rows['file_index'][-1])
             else:
                 raise
-    
-    
-    
+
+
+
     def _update_continuous_data(self, rf_file_basename_list, rf_file_list):
         """_update_continuous_data updates all metadata if data in subdirectory is continuous, then return True.  Does nothing
-        and returns False if not continuous data.  
-        
+        and returns False if not continuous data.
+
         Determines if continuous by looking only at first and last file in rf_file_basename_list.
-        
+
         Inputs:
             rf_file_basename_list - sorted list of basenames in subdirectory
             rf_file_list - sorted list of full names  in subdirectory
         """
         first_index = None
         last_index = None
-        
+
         # get info from first file
         for i, rf_file_basename in enumerate(rf_file_basename_list):
             if first_index is None:
@@ -1665,10 +1673,10 @@ class _sub_directory_metadata:
                     break
                 else:
                     continue
-                
+
         if first_index is None:
             return(False)
-        
+
         # get info from last file
         if not self._file_is_open(rf_file_list[-1]):
             last_row = self._get_new_rows(rf_file_basename_list[-1])
@@ -1687,7 +1695,7 @@ class _sub_directory_metadata:
         if (self.file_count - 1) * self.samples_per_file < last_sample - first_sample:
             # data gaps detected
             return(False)
-        
+
         # create all metadata
         self.metadata = numpy.recarray((self.file_count,), dtype = self.data_t)
         sample_data = numpy.arange(0,self.file_count*self.samples_per_file, self.samples_per_file,dtype=numpy.int64)
@@ -1695,18 +1703,18 @@ class _sub_directory_metadata:
         self.metadata['unix_sample_index'] = sample_data
         self.metadata['file_index'][:] = 0
         self.metadata['rf_basename'] = rf_file_basename_list[first_index:last_index]
-        
+
         self._update_cont_metadata()
         return(True)
-    
-    
-    
-    
+
+
+
+
     def _verify_no_gaps(self, start_unix_sample, stop_unix_sample):
         """_verify_no_gaps raises an IOError if there is a gap between start_unix_sample, stop_unix_sample
         """
          # to improve speed, do searchsorted to get first index to look into
-        first_index = numpy.searchsorted(self.cont_metadata['unix_sample_index'], 
+        first_index = numpy.searchsorted(self.cont_metadata['unix_sample_index'],
                                          numpy.array([start_unix_sample]))
         first_index = first_index[0]
         if first_index == len(self.cont_metadata):
@@ -1716,13 +1724,13 @@ class _sub_directory_metadata:
         offset = start_unix_sample - long(self.cont_metadata['unix_sample_index'][first_index])
         if self.cont_metadata['sample_extent'][first_index] - offset < stop_unix_sample - start_unix_sample:
             raise IOError, 'gap found between samples %i and %i' % (start_unix_sample, stop_unix_sample)
-        
-    
-    
+
+
+
     def _get_new_rows(self, rf_file_basename):
         """_get_new_rows is a private method that returns all needed rows for self.metadata in the correct recarray
         format for rf_file_basename, or None if that file has disappeared
-        
+
         Inputs:
             rf_file_basename - rf file to examine
 
@@ -1742,22 +1750,22 @@ class _sub_directory_metadata:
         elif self.samples_per_file != int(samples_per_file):
             raise IOError, 'Illegal change in samples_per_file from %i to %i in file %s' % (self.samples_per_file, int(samples_per_file),
                                                                                             fullname)
-            
+
         # create recarray
         new_rows = numpy.zeros((len(rf_data_index),),dtype=self.data_t)
         new_rows['unix_sample_index'] = rf_data_index[:,0]
         new_rows['file_index'] = rf_data_index[:,1]
         new_rows['rf_basename'] = rf_file_basename
-        
+
         f.close()
-        
+
         return(new_rows)
-    
-    
+
+
     def _get_rf_metadata(self, rf_file_basename):
         """_get_rf_metadata is a private method that returns a dictionary of all metadata stored in each rf file,
         or empty dict if that file has disappeared
-        
+
         Inputs:
             rf_file_basename - rf file to examine
 
@@ -1775,12 +1783,12 @@ class _sub_directory_metadata:
         dataset = f['/rf_data']
         for attr in dataset.attrs:
             ret_dict[str(attr)] = dataset.attrs[attr]
-        
+
         f.close()
         return(ret_dict)
-        
-    
-    
+
+
+
     def _combine_blocks(self, first_array, second_array, samples_per_file):
         """_combine_blocks combines two numpy array of dtype u64 and shape (N,2) where the first
         column represents the unix_sample of a continuous block of data, and the second column represents the
@@ -1805,8 +1813,8 @@ class _sub_directory_metadata:
                 return(numpy.concatenate([first_array, second_array[1:]]))
         else:
             return(numpy.concatenate([first_array, second_array]))
-        
-        
+
+
     def _update_cont_metadata(self):
         """_update_cont_metadata completely rebuilds self.cont_metadata
         """
@@ -1837,21 +1845,21 @@ class _sub_directory_metadata:
                 cont_meta.append([this_sample, 0])
             last_sample = this_sample
             last_index = this_index
-                
+
         # handle end of last file
         edge_samples = self.samples_per_file - last_index
 
         cont_meta[-1][1] += edge_samples
-        
+
         cont_meta = numpy.array(cont_meta)
-        
+
         # create self.cont_metadata
         self.cont_metadata = numpy.zeros((len(cont_meta),), dtype=self.cont_data_t)
         self.cont_metadata['unix_sample_index'] = cont_meta[:,0]
         self.cont_metadata['sample_extent'] = cont_meta[:,1]
-        
-    
-    
+
+
+
     def _file_is_open(self, rf_file):
         """_file_is_open returns True if rf_file might be open (or corrupt), False otherwise
         """
@@ -1869,31 +1877,31 @@ class _sub_directory_metadata:
                 except:
                     pass
                 return(True)
-            
-        
+
+
     def _get_utc_timestamp(self, fullfile):
         """_get_utc_timestamp returns the last modification timestamp of fullfile in UTC
         """
         # for now only local access
         if self.access_mode not in ('local'):
             raise ValueError, 'access_mode %s not yet implemented' % (access_mode)
-        
+
         return(os.path.getmtime(fullfile) - time.timezone)
-    
-    
+
+
     def _get_data_from_cache(self, start_unix_sample, stop_unix_sample):
         """_get_data_from_cache simple returns the desired data from the cached Hdf5 file
-        
+
         Inputs: start_unix_sample, stop_unix_sample - only samples between (start_unix_sample, stop_unix_sample)
                 (excludes stop_unix_sample) will be returned.
-                
+
         Calling method tested that this read is possible entirely within this file
         """
         start_index = start_unix_sample - self._last_start_sample
         samples_to_read = stop_unix_sample - start_unix_sample
         return((self._last_file['/rf_data'][start_index: start_index+samples_to_read], start_unix_sample))
-    
-    
+
+
 class _MissingMetadata(Exception):
     """_MissingMetadata is a Exception that will be raised when metadata needs to be updated
     """
@@ -1901,6 +1909,3 @@ class _MissingMetadata(Exception):
         self.value = value
     def __str__(self):
         return repr(self.value)
-        
-    
-    

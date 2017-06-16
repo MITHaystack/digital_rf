@@ -1,3 +1,11 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+# All rights reserved.
+#
+# Distributed under the terms of the BSD 3-clause license.
+#
+# The full license is in the LICENSE file, distributed with this software.
+# ----------------------------------------------------------------------------
 """example_digital_rf_hdf5.py is an example script using the digital_rf_hdf5 module
 
 Assumes one of the example Digital RF scripts has already been run (C: example_rf_write_hdf5, or

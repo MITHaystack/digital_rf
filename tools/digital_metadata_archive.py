@@ -1,5 +1,12 @@
 #!python
-
+# ----------------------------------------------------------------------------
+# Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+# All rights reserved.
+#
+# Distributed under the terms of the BSD 3-clause license.
+#
+# The full license is in the LICENSE file, distributed with this software.
+# ----------------------------------------------------------------------------
 """digital_metadata_archive.py is a tool for archiving Digital Metadata data.
 
 $Id$

@@ -1,7 +1,12 @@
-#!/usr/bin/env python
+#!python
+# ----------------------------------------------------------------------------
+# Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+# All rights reserved.
 #
-# Copyright (c) 2017 Massachusetts Institute of Technology
+# Distributed under the terms of the BSD 3-clause license.
 #
+# The full license is in the LICENSE file, distributed with this software.
+# ----------------------------------------------------------------------------
 import datetime
 import math
 import os

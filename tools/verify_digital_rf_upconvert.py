@@ -1,5 +1,12 @@
 #!python
-
+# ----------------------------------------------------------------------------
+# Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+# All rights reserved.
+#
+# Distributed under the terms of the BSD 3-clause license.
+#
+# The full license is in the LICENSE file, distributed with this software.
+# ----------------------------------------------------------------------------
 """verify_digital_rf_upconvert will test if a digital rf 2 subdirectory matches sample for sample a digital rf 1 subdirectory.
 
 $Id$
