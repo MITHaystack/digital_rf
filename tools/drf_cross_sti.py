@@ -145,19 +145,9 @@ class DataPlotter:
             if self.control.verbose:
                 print 'pair is : ', xidx, yidx
 
-            # channel info
-            xmdf = self.dmd[xidx].read_latest()
-            xmd = xmdf[xmdf.keys()[0]]
-            print xmd['center_frequencies']
-            xcfreq = xmd['center_frequencies'][0]
-            xsr = long(xmd['sample_rate'])
-            print xcfreq, xsr
-
-            ymdf = self.dmd[yidx].read_latest()
-            ymd = ymdf[ymdf.keys()[0]]
-            ycfreq = ymd['center_frequencies'][0]
-            ysr = long(ymd['sample_rate'])
-            print ycfreq, ysr
+            # sample rate
+            xsr = self.dio[xidx].get_properties(self.channel[xidx])['samples_per_second']
+            ysr = self.dio[yidx].get_properties(self.channel[yidx])['samples_per_second']
 
             if self.control.verbose:
                 print 'sample rate, x: ', xsr, ' y: ', ysr
@@ -215,6 +205,23 @@ class DataPlotter:
 
             print 'first ', start_sample
 
+            # get metadata
+            # this could be done better to ensure we catch frequency or sample rate
+            # changes
+            xmdf = self.dio[xidx].read_metadata(st0, et0, self.channel[xidx])
+            try:
+                xmd = xmdf[xmdf.keys()[0]]
+                xcfreq = xmd['center_frequencies'].ravel()[self.sub_channel[xidx]]
+            except (IndexError, KeyError):
+                xcfreq = 0.0
+            ymdf = self.dio[yidx].read_metadata(st0, et0, self.channel[yidx])
+            try:
+                ymd = ymdf[ymdf.keys()[0]]
+                ycfreq = ymd['center_frequencies'].ravel()[self.sub_channel[yidx]]
+            except (IndexError, KeyError):
+                ycfreq = 0.0
+            print 'center frequencies ', xcfreq, ycfreq
+
             if self.control.verbose:
                 print 'processing info : ', self.control.frames, self.control.bins, samples_per_stripe, bin_stride
 
@@ -249,7 +256,7 @@ class DataPlotter:
                         detrend_fn = matplotlib.mlab.detrend_none
 
                     try:
-                        csd_data, freq_axis = matplotlib.mlab.csd(xdata,ydata, NFFT=self.control.num_fft, Fs=sample_freq, sides='default', detrend=detrend_fn,scale_by_freq=False)
+                        csd_data, freq_axis = matplotlib.mlab.csd(xdata,ydata, NFFT=self.control.num_fft, Fs=float(sample_freq), sides='default', detrend=detrend_fn,scale_by_freq=False)
                     except:
                         traceback.print_exc(file=sys.stdout)
 
