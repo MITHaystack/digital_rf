@@ -51,13 +51,13 @@ setup(
     author='MIT Haystack Observatory',
     # author_email='digital_rf@haystack.mit.edu',
 
-    license='MIT',
+    license='BSD-3-Clause',
 
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: MIT License',
+        'License :: OSI Approved :: BSD License',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: C',
         'Programming Language :: Python',

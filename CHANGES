@@ -1,0 +1,34 @@
+2.5 - June 16, 2017
+-------------------
+
+First release intended for public use. The 'metadata.h5' files that previously indicated a Digital RF/Metadata channel directory and that stored properties inherent to the channel have been renamed to 'drf_properties.h5' and 'dmd_properties.h5', respectively, to avoid confusion with accompanying Digital Metadata.
+
+
+2.4 - April 7, 2017
+-------------------
+
+First release with a revamped CMake build system and including the gr_drf GNU Radio module and many examples.
+
+
+2.0 - Dec 30, 2015
+------------------
+
+Major update to Digital RF, in that file and subdirectory names were made predictable. To do this, each file and subdirectory now contains a set range of samples, and files and subdirectories will no longer have set number of samples when data is gappy. This greatly simplified the read api, since globs were no longer needed to find the data files that need to be opened; instead all needed file names can be derived.
+
+
+1.1.1 - Aug 4, 2014
+-------------------
+
+The python read methods have changed. The method read_vector now returns all data in format numpy.complex8, no matter how the data was stored in the underlying Hdf5 file. A new method, read_vector_raw duplicates the old read_vector method, returning data in the format stored in the Hdf5 raw files. The method read_vector_c81d that returns data as a single subchannel in numpy.complex8 format still exists, but issues a UserWarning recommending use of the other methods.
+
+
+1.1 - July 7, 2014
+------------------
+
+The directory naming convention has changed from HH:MM:SS since certain file systems disallowed colons in directory names.  This affected both the read and write API's.
+
+
+1.0 - May 29, 2014
+------------------
+
+The first major release of the C and Python API's supporting the Digital RF HDF5 raw data format.

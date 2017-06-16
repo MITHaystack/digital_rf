@@ -1,0 +1,17 @@
+History
+=======
+
+This project started in 2014 to provide a disk storage and archival format for
+radio signals for use in projects at MIT Haystack Observatory. The concept was
+born out of years of experience in collecting and wrangling RF data and
+incorporates many lessons learned over that time. In 2017, the project was
+officially released to the community under an open source BSD license.
+
+People
+======
+
+- Bill Rideout (brideout@haystack.mit.edu), 2014-
+- Juha Vierinen (x@mit.edu), 2014-2016
+- Frank Lind (flind@haystack.mit.edu), 2014-
+- Ryan Volz (rvolz@haystack.mit.edu), 2016-
+- John Swoboda (swoboj@mit.edu), 2017-

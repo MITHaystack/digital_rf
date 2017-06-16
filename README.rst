@@ -5,13 +5,14 @@ The Digital RF project encompasses a standardized HDF5 format for reading and wr
 
 This suite of software includes libraries for reading and writing data in the Digital RF HDF5 format in C (``libdigital_rf``) and Python (``digital_rf``), with optional interfaces for GNU Radio (``gr_drf``) and MATLAB. It also contains the `thor` UHD radio recorder script, Python tools for managing and processing Digital RF data, example scripts that demonstrate basic usage, and example applications that encompass a complete data recording and processing chain for various use cases.
 
-Authors
-=======
 
-* Bill Rideout (brideout@haystack.mit.edu)
-* Juha Vierinan (jvi019@uit.no)
-* Frank Lind (flind@haystack.mit.edu)
-* Ryan Volz (rvolz@haystack.mit.edu)
+Important Links
+===============
+
+Website:
+Official source code repo: https://github.com/MITHaystack/digital_rf
+Issue tracker: https://github.com/MITHaystack/digital_rf/issues
+Email list:
 
 
 Dependencies
