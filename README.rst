@@ -12,7 +12,7 @@ Important Links
 Website:
 Official source code repo: https://github.com/MITHaystack/digital_rf
 Issue tracker: https://github.com/MITHaystack/digital_rf/issues
-Email list:
+Mailing list: openradar-developers@openradar.org
 
 
 Dependencies
