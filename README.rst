@@ -45,6 +45,7 @@ Additional optional runtime dependencies:
 * gr-uhd (``libgnuradio-uhd``) [thor]
 * pytz (``python-tz``) [thor]
 * dateutil (``python-dateutil``) [thor]
+* python-sounddevice (``pip install sounddevice``) [drf_sound]
 
 
 Installation

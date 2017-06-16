@@ -44,24 +44,13 @@ class SoundDRF:
 
         print 'bounds ', self.bounds
 
-        # open digital metadata path
-        self.mdf = drf.DigitalMetadataReader(
-            self.control.path + '/' + self.channel + '/metadata')
-        self.mdbounds = self.mdf.get_bounds()
     def makeasound(self):
         """
 
             Iterate over the data set and output a sound through sounddevice.
 
         """
-
-        # first channel info from latest data
-        # this could be done better to ensure we catch frequency or sample rate
-        # changes
-        mdt = self.mdf.read_latest()
-        md = mdt[mdt.keys()[0]]
-
-        sr = md['sample_rate']
+        sr = self.dio.get_properties(self.channel)['samples_per_second']
 
         if self.control.verbose:
             print 'sample rate: ', sr
@@ -193,7 +182,7 @@ def parse_command_line(str_input=None):
                       type=float, help="Audio sampling frequency in Hz.")
     parser.add_option("-t", "--timedilation", dest="timedilation", default=1.,
                       type=float, help="Time dilation of data.")
-    parser.add_option("-b", "--blocks", dest="blocks", default=1.,
+    parser.add_option("-b", "--blocks", dest="blocks", default=1,
                       type=int, help="Number of blocks the file will be broken into.")
 
 

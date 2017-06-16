@@ -750,11 +750,11 @@ class DigitalRFReader:
         for channel_name in channel_dict.keys():
             top_level_dir_properties_list = []
             for top_level_dir in channel_dict[channel_name]:
-                new_top_level_metaddata = _top_level_dir_properties(
+                new_top_level_metadata = _top_level_dir_properties(
                     top_level_dir, channel_name,
                     self._top_level_dir_dict[top_level_dir],
                 )
-                top_level_dir_properties_list.append(new_top_level_metaddata)
+                top_level_dir_properties_list.append(new_top_level_metadata)
             new_channel_properties = _channel_properties(
                 channel_name,
                 top_level_dir_meta_list=top_level_dir_properties_list,
@@ -769,6 +769,9 @@ class DigitalRFReader:
                 'drf_properties.h5 files.'
             )
             raise ValueError(errstr.format(top_level_directory_arg))
+
+        # dictionary to store cached Digital Metadata reader for each channel
+        self._channel_metadata_reader = {}
 
     def get_channels(self):
         """Return an alphabetically sorted list of channels."""
@@ -1008,10 +1011,10 @@ class DigitalRFReader:
     def get_digital_metadata(self, channel_name, top_level_dir=None):
         """Return `DigitalMetadataReader` object for <channel_name>/metadata.
 
-        By convention, additional metadata in Digital Metadata format is
-        stored in the 'metadata' directory in a particular channel directory.
-        This method returns a reader object for accessing that metadata. If no
-        such directory exists, an IOError is raised.
+        By convention, metadata in Digital Metadata format is stored in the
+        'metadata' directory in a particular channel directory. This method
+        returns a reader object for accessing that metadata. If no such
+        directory exists, an IOError is raised.
 
 
         Parameters
@@ -1026,7 +1029,18 @@ class DigitalRFReader:
             is more than one match. Otherwise, use the given path as the
             top-level directory.
 
+
+        Returns
+        -------
+
+        DigitalMetadataReader
+            Metadata reader object for the given channel.
+
         """
+        try:
+            return self._channel_metadata_reader[channel_name]
+        except KeyError:
+            pass
         if top_level_dir is None:
             top_level_dirs = self._top_level_dir_dict.keys()
         else:
@@ -1036,11 +1050,98 @@ class DigitalRFReader:
                 this_top_level_dir, channel_name, 'metadata',
             )
             if os.access(metadata_dir, os.R_OK):
-                return(digital_metadata.DigitalMetadataReader(metadata_dir))
+                reader = digital_metadata.DigitalMetadataReader(metadata_dir)
+                self._channel_metadata_reader[channel_name] = reader
+                return reader
 
         # None found
         errstr = 'Could not find valid digital_metadata in channel %s'
         raise IOError(errstr % channel_name)
+
+    def read_metadata(
+        self, start_sample, end_sample, channel_name, columns=None,
+        method='ffill'
+    ):
+        """Read Digital Metadata accompanying a Digital RF channel.
+
+        By convention, metadata in Digital Metadata format is stored in the
+        'metadata' directory in a particular channel directory. This function
+        reads that metadata for a specified sample range by getting a
+        DigitalMetadataReader and calling its `read` function.
+
+
+        Parameters
+        ----------
+
+        start_sample : long
+            Sample index for start of read, given in the number of samples
+            since the epoch (time_since_epoch*sample_rate).
+
+        end_sample : None | long
+            Sample index for end of read (inclusive), given in the number of
+            samples since the epoch (time_since_epoch*sample_rate). If None,
+            use `end_sample` equal to `start_sample`.
+
+        channel_name : string
+            Name of channel to read from, one of ``get_channels()``.
+
+        columns : None | string | list of strings
+            A string or list of strings giving the field/column name of
+            metadata to return. If None, all available columns will be read.
+            Using a string results in a different returned object than a one-
+            element list containing the string, see below.
+
+        method : None | 'pad'/'ffill'
+            If None, return only samples within the given range. If 'pad' or
+            'ffill', the first sample no later than `start_sample` (if any)
+            will also be included so that values are forward filled into the
+            desired range.
+
+        Returns
+        -------
+
+        OrderedDict
+            The dictionary's keys are the sample index for each sample of
+            metadata found between `start_sample` and `end_sample` (inclusive).
+            Each value is a metadata sample, given as either the column value
+            (if `columns` is a string) or a dictionary with column names as
+            keys and numpy objects as leaf values (if `columns` is None or
+            a list).
+
+        Notes
+        -----
+
+        For convenience, some pertinent metadata inherent to the Digital RF
+        channel is added to the Digital Metadata, including:
+
+            sample_rate_numerator : long
+            sample_rate_denominator : long
+            samples_per_second : numpy.longdouble
+
+        """
+        properties = self.get_properties(channel_name)
+        added_metadata = {
+            key: properties[key] for key in (
+                u'sample_rate_numerator', u'sample_rate_denominator',
+                u'samples_per_second',
+            )
+        }
+        try:
+            reader = self.get_digital_metadata(channel_name)
+        except IOError:
+            ret_dict = collections.OrderedDict()
+        else:
+            ret_dict = reader.read(
+                start_sample=start_sample, end_sample=end_sample,
+                columns=columns, method=method,
+            )
+
+        for d in ret_dict.values():
+            d.update(added_metadata)
+        if not ret_dict:
+            # return inherent metadata even if Digital Metadata doesn't exist
+            ret_dict[start_sample] = added_metadata
+        return ret_dict
 
     def get_continuous_blocks(self, start_sample, end_sample, channel_name):
         """Find continuous blocks of data between start and end samples.

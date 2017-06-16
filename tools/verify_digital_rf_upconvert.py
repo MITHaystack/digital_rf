@@ -49,7 +49,6 @@ if __name__ == '__main__':
         print('comparing channel %s' % (channel))
         bounds2 = reader2.get_bounds(channel)
         bounds1 = reader1.get_bounds(channel)
-        metaDict = reader1.get_rf_file_metadata(channel)
 
         cont_blocks_2 = reader2.get_continuous_blocks(
             bounds2[0], bounds2[1], channel)

@@ -160,20 +160,17 @@ def open_file(maindir):
     # Get channel info
     for ichan in chans:
         curdict = {}
-        chanmeta = drfObj.get_properties(ichan)
-        curdict['sps'] = chanmeta['samples_per_second']
 
         curdict['sind'], curdict['eind'] = drfObj.get_bounds(ichan)
         # determine the read boundrys assuming the sampling is the same.
         start_indx = sp.maximum(curdict['sind'], start_indx)
         end_indx = sp.minimum(curdict['eind'], end_indx)
 
-        dmetaObj = drfObj.get_digital_metadata(ichan)
-        fsamp, lsamp = dmetaObj.get_bounds()
-        dmetadict = dmetaObj.read(fsamp, lsamp)
+        dmetadict = drfObj.read_metadata(start_indx, end_indx, ichan)
         dmetakeys = dmetadict.keys()
 
-        curdict['fo'] = dmetadict[dmetakeys[0]]['center_frequencies'][0][0]
+        curdict['sps'] = dmetadict[dmetakeys[0]]['samples_per_second']
+        curdict['fo'] = dmetadict[dmetakeys[0]]['center_frequencies'].ravel()[0]
         chandict[ichan] = curdict
 
     return (drfObj, chandict, start_indx, end_indx)

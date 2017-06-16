@@ -1025,24 +1025,25 @@ if __name__ == "__main__":
             print sstart, dlen
 
             if cfreq is None:
-                # read center frequency from Digital Metadata
-                mdf = drf.get_digital_metadata(chans[chidx])
-                mdstart = mdf.get_bounds()
-                md_dict = mdf.read(mdstart[0], mdstart[1])
-                md_idx = sorted(md_dict.keys())
-                # get index into md_idx so that md_idx[md_loc] is less than
-                # or equal to sstart and md_idx[md_loc] is greater than sstart
-                # (this gives the metadata value assuming a forward fill)
-                md_loc = numpy.searchsorted(md_idx, sstart, side='right') - 1
-                if md_loc == -1:
+                # read center frequency from metadata
+                metadata_samples = drf.read_metadata(
+                    start_sample=sstart, end_sample=sstart + dlen,
+                    channel_name=chans[chidx],
+                )
+                # use center frequency of start of data, even if it changes
+                for metadata in metadata_samples.values():
+                    try:
+                        cfreq = metadata['center_frequencies'].ravel()[subchan]
+                    except KeyError:
+                        continue
+                    else:
+                        break
+                if cfreq is None:
                     print(
                         'Center frequency metadata does not exist for given'
                         ' start sample.'
                     )
                     cfreq = 0.0
-                else:
-                    metadata = md_dict[md_idx[md_loc]]
-                    cfreq = metadata['center_frequencies'].ravel()[subchan]
 
             d = drf.read_vector(sstart, dlen, chans[chidx])
 

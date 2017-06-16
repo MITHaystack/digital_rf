@@ -54,11 +54,6 @@ class DataPlotter:
 
         print 'bounds ', self.bounds
 
-        # open digital metadata path
-        self.mdf = drf.DigitalMetadataReader(
-            self.control.path + '/' + self.channel + '/metadata')
-        self.mdbounds = self.mdf.get_bounds()
-
         # Figure setup
 
         self.f = matplotlib.pyplot.figure(figsize=(7, numpy.min(
@@ -92,14 +87,7 @@ class DataPlotter:
         pmin = 0
         pmax = 0
 
-        # first channel info from latest data
-        # this could be done better to ensure we catch frequency or sample rate
-        # changes
-        mdt = self.mdf.read_latest()
-        md = mdt[mdt.keys()[0]]
-
-        cfreq = md['center_frequencies'][0]
-        sr = md['sample_rate']
+        sr = self.dio.get_properties(self.channel)['samples_per_second']
 
         if self.control.verbose:
             print 'sample rate: ', sr
@@ -150,6 +138,16 @@ class DataPlotter:
 
         print 'first ', start_sample
 
+        # get metadata
+        # this could be done better to ensure we catch frequency or sample rate
+        # changes
+        mdt = self.dio.read_metadata(st0, et0, self.channel)
+        try:
+            md = mdt[mdt.keys()[0]]
+            cfreq = md['center_frequencies'].ravel()[self.sub_channel]
+        except (IndexError, KeyError):
+            cfreq = 0.0
+
         if self.control.verbose:
             print 'processing info : ', self.control.frames, self.control.bins, samples_per_stripe, bin_stride
 
@@ -180,7 +178,7 @@ class DataPlotter:
 
                 try:
                     psd_data, freq_axis = matplotlib.mlab.psd(
-                        data, NFFT=self.control.num_fft, Fs=sample_freq, detrend=detrend_fn, scale_by_freq=False)
+                        data, NFFT=self.control.num_fft, Fs=float(sample_freq), detrend=detrend_fn, scale_by_freq=False)
                 except:
                     traceback.print_exc(file=sys.stdout)
 
@@ -195,11 +193,14 @@ class DataPlotter:
             ax = self.subplots[p]
 
             # determine image x-y extent
-            extent = 0, self.control.bins, - \
-                numpy.max(freq_axis) * 1.1 / \
-                1e3, numpy.max(freq_axis) * 1.1 / 1e3
-            # determine image color extent in log scale units
+            extent = (
+                0,
+                self.control.bins,
+                numpy.min(freq_axis) / 1e3,
+                numpy.max(freq_axis) / 1e3,
+            )
 
+            # determine image color extent in log scale units
             Pss = sti_psd_data
             vmin = numpy.real(numpy.median(Pss) - 6.0)
             vmax = numpy.real(numpy.median(
@@ -291,7 +292,7 @@ class DataPlotter:
                 ext = '.png'
             print "Save plot as {}".format(fname+ext)
             matplotlib.pyplot.savefig(fname+ext)
-        if self.control.appear:
+        if self.control.appear or not self.control.outname:
             print "Show plot"
             matplotlib.pyplot.show()
 

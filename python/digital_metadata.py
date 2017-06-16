@@ -767,7 +767,7 @@ class DigitalMetadataReader:
         """Return the metadata file name prefix."""
         return(self._file_name)
 
-    def read(self, start_sample, end_sample, columns=None):
+    def read(self, start_sample, end_sample=None, columns=None, method=None):
         """Read metadata between start and end samples.
 
         Parameters
@@ -777,15 +777,22 @@ class DigitalMetadataReader:
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
-        end_sample : long
+        end_sample : None | long
             Sample index for end of read (inclusive), given in the number of
-            samples since the epoch (time_since_epoch*sample_rate).
+            samples since the epoch (time_since_epoch*sample_rate). If None,
+            use `end_sample` equal to `start_sample`.
 
         columns : None | string | list of strings
             A string or list of strings giving the field/column name of
             metadata to return. If None, all available columns will be read.
             Using a string results in a different returned object than a one-
             element list containing the string, see below.
+
+        method : None | 'pad'/'ffill'
+            If None, return only samples within the given range. If 'pad' or
+            'ffill', the first sample no later than `start_sample` (if any)
+            will also be included so that values are forward filled into the
+            desired range.
 
 
         Returns
@@ -800,12 +807,37 @@ class DigitalMetadataReader:
             a list).
 
         """
-        if start_sample > end_sample:
+        if end_sample is None:
+            end_sample = start_sample
+        elif start_sample > end_sample:
             errstr = 'Start sample %i more than end sample %i'
             raise ValueError(errstr % (start_sample, end_sample))
 
-        file_list = self._get_file_list(start_sample, end_sample)
         ret_dict = collections.OrderedDict()
+
+        if method in ('pad', 'ffill'):
+            # simple forward fill until something better is needed:
+            #  get start bound of data and search for metadata within
+            #  [start_bound, start_sample] until last sample is found
+            ffill_dict = collections.OrderedDict()
+            start_bound, end_bound = self.get_bounds()
+            file_list = self._get_file_list(start_bound, start_sample)
+            # go through files in reverse to break at last found sample
+            for this_file in reversed(file_list):
+                self._add_metadata(
+                    ffill_dict, this_file, columns, start_bound, start_sample,
+                    is_edge=False,
+                )
+                if ffill_dict:
+                    # get last entry of ffill_dict which will be latest found
+                    # sample in the file
+                    key = next(reversed(ffill_dict))
+                    ret_dict[key] = ffill_dict[key]
+                    break
+            # increment start sample so we don't re-add any data at that sample
+            start_sample += 1
+
+        file_list = self._get_file_list(start_sample, end_sample)
         for this_file in file_list:
             if this_file in (file_list[0], file_list[-1]):
                 is_edge = True
@@ -816,14 +848,22 @@ class DigitalMetadataReader:
                 is_edge,
             )
 
-        return(ret_dict)
+        return ret_dict
 
-    def read_latest(self):
+    def read_latest(self, columns=None):
         """Read the most recent metadata sample.
 
         This method calls `get_bounds` to find the last sample index and `read`
-        to read the metadata near the last sample. It returns all columns of
-        the metadata found at the latest sample.
+        to read the latest metadata at or before the last sample.
+
+        Parameters
+        ----------
+
+        columns : None | string | list of strings
+            A string or list of strings giving the field/column name of
+            metadata to return. If None, all available columns will be read.
+            Using a string results in a different returned object than a one-
+            element list containing the string, see below.
 
 
         Returns
@@ -831,22 +871,14 @@ class DigitalMetadataReader:
 
         dict
             Dictionary containing the latest metadata, where the key is the
-            sample index and the value is the metadata sample itself given as
-            a dictionary with column names as keys and numpy objects as leaf
-            values.
+            sample index and the value is the metadata sample given as either
+            the column value (if `columns` is a string) or a dictionary with
+            column names as keys and numpy objects as leaf values (if `columns`
+            is None or a list).
 
         """
         start_sample, last_sample = self.get_bounds()
-        dict = self.read(
-            long(last_sample - 2*self._samples_per_second), last_sample,
-        )
-        keys = dict.keys()
-        if len(keys) == 0:
-            raise IOError('Unable to find metadata near the last sample')
-        keys.sort()
-        ret_dict = {}
-        ret_dict[keys[-1]] = dict[keys[-1]]
-        return(ret_dict)
+        return self.read(last_sample, columns=columns, method='ffill')
 
     def _get_file_list(self, sample0, sample1):
         """Get an ordered list of data file names that could contain data.
