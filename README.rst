@@ -13,7 +13,9 @@ Official source code repo: https://github.com/MITHaystack/digital_rf
 
 Issue tracker: https://github.com/MITHaystack/digital_rf/issues
 
-Mailing list: openradar-developers@openradar.org
+User mailing list for help/questions: openradar-users@openradar.org
+
+Developer mailing list: openradar-developers@openradar.org
 
 
 Dependencies
