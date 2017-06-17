@@ -9,8 +9,6 @@ This suite of software includes libraries for reading and writing data in the Di
 Important Links
 ===============
 
-Website:
-
 Official source code repo: https://github.com/MITHaystack/digital_rf
 
 Issue tracker: https://github.com/MITHaystack/digital_rf/issues
@@ -114,3 +112,9 @@ The python tests found in the tests directory in the source tree can be run dire
 Both the C and python tests create test files in '/tmp/hdf5*'. To cleanup afterward, run::
 
     rm -r /tmp/hdf5*
+
+
+Acknowledgments
+===============
+
+This work was supported by the National Science Foundation under the Geospace Facilities and MRI programs, and by National Instruments / Ettus corporation through the donation of software radio hardware. We are grateful for the support that made this development possible.
