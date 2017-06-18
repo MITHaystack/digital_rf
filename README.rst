@@ -54,24 +54,46 @@ Additional optional runtime dependencies:
 Installation
 ============
 
-First, create a build directory to keep the source tree clean::
+Using source code package
+-------------------------
+
+First, ensure that you have the above-listed dependencies installed.
+
+Clone the repository and enter the source directory::
+
+    git clone https://github.com/MITHaystack/digital_rf.git
+    cd digital_rf
+
+Create a build directory to keep the source tree clean::
 
     mkdir build
     cd build
 
-To build and install, do::
+Build and install::
 
     cmake ..
     make
     sudo make install
 
-You will probably then need to update the library cache so the newly-installed ``libdigital_rf`` is found::
+Finally, you will probably then need to update the library cache so the newly-installed ``libdigital_rf`` is found::
 
     sudo ldconfig
 
 The above commands will build the ``gr_drf`` module for GNU Radio if GNU Radio is found on the system. To disable ``gr_drf`` manually, set the 'ENABLE_GNURADIO' option to 'OFF' when invoking cmake::
 
     cmake -DENABLE_GNURADIO=OFF ..
+
+
+Using Conda package
+-------------------
+
+Alternatively, you can install digital_rf using our `Conda <https://conda.io/docs/>`_ binary package. Our package is compatible with the `conda-forge <https://conda-forge.github.io/>`_ distribution of community-maintained packages.
+
+In an existing Conda environment, run the following to install digital_rf and its dependencies::
+
+    conda config --add channels ryanvolz
+    conda config --add channels conda-forge
+    conda install digital_rf
 
 
 Example Usage
