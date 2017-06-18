@@ -1,5 +1,10 @@
 # example prc transmit, record, and processing
 
+# see the following paper for a description and application of the technique:
+# Vierinen, J., Chau, J. L., Pfeffer, N., Clahsen, M., and Stober, G.,
+# Coded continuous wave meteor radar, Atmos. Meas. Tech., 9, 829-839,
+# doi:10.5194/amt-9-829-2016, 2016.
+
 # create a waveform
 python create_waveform.py -l 10000 -b 10 -s 0
 

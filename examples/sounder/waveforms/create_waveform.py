@@ -7,7 +7,16 @@
 #
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
-"""Create pseudorandom-coded waveform files for sounding."""
+"""Create pseudorandom-coded waveform files for sounding.
+
+See the following paper for a description and application of meteor radar using
+pseudorandom codes:
+
+Vierinen, J., Chau, J. L., Pfeffer, N., Clahsen, M., and Stober, G.,
+Coded continuous wave meteor radar, Atmos. Meas. Tech., 9, 829-839,
+doi:10.5194/amt-9-829-2016, 2016.
+
+"""
 import math
 from argparse import ArgumentParser
 

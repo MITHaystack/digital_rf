@@ -7,6 +7,7 @@
 #
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
+"""Script for transmitting data in binary format with a single USRP."""
 import datetime
 import math
 import os

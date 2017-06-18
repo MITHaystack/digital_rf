@@ -7,6 +7,15 @@
 #
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
+"""Script for analyzing pseudorandom-coded waveforms.
+
+See the following paper for a description and application of the technique:
+
+Vierinen, J., Chau, J. L., Pfeffer, N., Clahsen, M., and Stober, G.,
+Coded continuous wave meteor radar, Atmos. Meas. Tech., 9, 829-839,
+doi:10.5194/amt-9-829-2016, 2016.
+
+"""
 import datetime
 import glob
 import itertools
@@ -128,7 +137,17 @@ if __name__ == '__main__':
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
 
-    parser = ArgumentParser()
+    desc = """Script for analyzing pseudorandom-coded waveforms.
+
+    See the following paper for a description and application of the technique:
+
+    Vierinen, J., Chau, J. L., Pfeffer, N., Clahsen, M., and Stober, G.,
+    Coded continuous wave meteor radar, Atmos. Meas. Tech., 9, 829-839,
+    doi:10.5194/amt-9-829-2016, 2016.
+
+    """
+
+    parser = ArgumentParser(description=desc)
 
     parser.add_argument(
         'datadir', help='''Data directory to analyze.''',
