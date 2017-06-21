@@ -1,5 +1,9 @@
-Digital RF
-==========
+|DigitalRF|
+===========
+
+.. |DigitalRF| image:: docs/digital_rf_logo.png
+    :alt: Digital RF
+    :width: 100%
 
 The Digital RF project encompasses a standardized HDF5 format for reading and writing of radio frequency data and the software for doing so. The format is designed to be self-documenting for data archive and to allow rapid random access for data processing. For details on the format, refer to the 'documents' directory in the source tree.
 
