@@ -8,6 +8,14 @@
 # ----------------------------------------------------------------------------
 MAIN_TMPL = """\
 <?xml version="1.0"?>
+<!--
+  Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+  All rights reserved.
+
+  Distributed under the terms of the BSD 3-clause license.
+
+  The full license is in the LICENSE file, distributed with this software.
+-->
 <block>
     <name>Digital RF Source</name>
     <key>gr_drf_digital_rf_source</key>
@@ -104,7 +112,7 @@ MAIN_TMPL = """\
         <nports>\$nchan</nports>
     </source>
     <source>
-        <name>metadata</name>
+        <name>properties</name>
         <type>message</type>
         <optional>True</optional>
         <hide>\$hide_msg_port</hide>
@@ -113,12 +121,18 @@ MAIN_TMPL = """\
     <doc>
 Read data in Digital RF format.
 
+In addition to outputting samples from Digital RF format data, this
+block also emits a 'properties' message containing inherent channel
+properties and adds stream tags using the channel's accompanying
+Digital Metadata. See the Notes section for details on what the
+messages and stream tags contain.
+
 
 Parameters
 ---------------
 
 Directory : string
-    A top level directory containing Digital RF channel directories.
+    A top-level directory containing Digital RF channel directories.
 
 Repeat : bool
     If True, loop the data continuously from the start after the end
@@ -155,6 +169,40 @@ ChN end : string
     A value giving the end of the channel's playback.
     If None or '', the end of the channel's available data is used.
     Otherwise, this is interpreted in the same way as the start value.
+
+
+Notes
+-----
+
+A top-level directory must contain files in the format:
+    [channel]/[YYYY-MM-DDTHH-MM-SS]/rf@[seconds].[%03i milliseconds].h5
+
+If more than one top level directory contains the same channel_name
+subdirectory, this is considered the same channel. An error is raised
+if their sample rates differ, or if their time periods overlap.
+
+Upon start, this block sends 'properties' messages on its output
+message port that contains a dictionaries with one key, the channel's
+name, and a value which is a dictionary of properties found in the
+channel's 'drf_properties.h5' file.
+
+This block emits the following stream tags at the appropriate sample
+for each of the channel's accompanying Digital Metadata samples:
+
+    rx_time : (int secs, float frac) tuple
+        Time since epoch of the sample.
+
+    rx_rate : float
+        Sample rate in Hz.
+
+    rx_freq : float | 1-D array of floats
+        Center frequency or frequencies of the subchannels based on
+        the 'center_frequencies' metadata field.
+
+    metadata : dict
+        Any additional Digital Metadata fields are added to this
+        dictionary tag of metadata.
+
     </doc>
 </block>
 """

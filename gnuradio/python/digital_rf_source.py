@@ -7,20 +7,16 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Module defining a Digital RF Source block."""
-import ast
-import datetime
 import os
 
-import dateutil.parser
 import gnuradio.blocks
 import h5py
 import pmt
 import numpy as np
-import pytz
 import six
 from gnuradio import gr
 
-from digital_rf import DigitalRFReader
+from digital_rf import DigitalRFReader, util
 
 H5T_LOOKUP = {
     # (class, itemsize, is_complex): {name, dtype}
@@ -56,18 +52,23 @@ def get_h5type(cls, size, is_complex):
 
 
 class digital_rf_channel_source(gr.sync_block):
-    """
-    docstring for block digital_rf_channel_source
-    """
+    """Source block for reading a channel of Digital RF data."""
     def __init__(
         self, channel_dir, start=None, end=None, repeat=False,
     ):
-        """Initialize source to directory containing Digital RF channels.
+        """Read a channel of data from a Digital RF directory.
+
+        In addition to outputting samples from Digital RF format data, this
+        block also emits a 'properties' message containing inherent channel
+        properties and adds stream tags using the channel's accompanying
+        Digital Metadata. See the Notes section for details on what the
+        messages and stream tags contain.
+
 
         Parameters
         ----------
 
-        channel_dir : string
+        channel_dir : string | list of strings
             Either a single channel directory containing 'drf_properties.h5'
             and timestamped subdirectories with Digital RF files, or a list of
             such. A directory can be a file system path or a url, where the url
@@ -106,10 +107,32 @@ class digital_rf_channel_source(gr.sync_block):
         -----
 
         A channel directory must contain subdirectories/files in the format:
-            <YYYY-MM-DDTHH-MM-SS/rf@<seconds>.<%03i milliseconds>.h5
+            [YYYY-MM-DDTHH-MM-SS]/rf@[seconds].[%03i milliseconds].h5
 
         Each directory provided is considered the same channel. An error is
         raised if their sample rates differ, or if their time periods overlap.
+
+        Upon start, this block sends a 'properties' message on its output
+        message port that contains a dictionary with one key, the channel's
+        name, and a value which is a dictionary of properties found in the
+        channel's 'drf_properties.h5' file.
+
+        This block emits the following stream tags at the appropriate sample
+        for each of the channel's accompanying Digital Metadata samples:
+
+            rx_time : (int secs, float frac) tuple
+                Time since epoch of the sample.
+
+            rx_rate : float
+                Sample rate in Hz.
+
+            rx_freq : float | 1-D array of floats
+                Center frequency or frequencies of the subchannels based on
+                the 'center_frequencies' metadata field.
+
+            metadata : dict
+                Any additional Digital Metadata fields are added to this
+                dictionary tag of metadata.
 
         """
         if isinstance(channel_dir, six.string_types):
@@ -159,7 +182,7 @@ class digital_rf_channel_source(gr.sync_block):
             out_sig=out_sig,
         )
 
-        self.message_port_register_out(pmt.intern('metadata'))
+        self.message_port_register_out(pmt.intern('properties'))
         self._id = pmt.intern(self._ch)
         self._tag_queue = {}
 
@@ -175,77 +198,6 @@ class digital_rf_channel_source(gr.sync_block):
         # FIXME: should not be necessary, sets a large output buffer so that
         # we don't underrun on frequent calls to work
         self.set_output_multiple(int(sr))
-
-    @staticmethod
-    def _parse_sample_identifier(iden, sample_rate=None, ref_index=None):
-        """Get a sample index from different forms of identifiers.
-
-        Parameters
-        ----------
-
-        iden : None | int/long | float | string
-            If None or '', None is returned to indicate that the index should
-            be automatically determined.
-            If an integer, it is returned as the sample index.
-            If a float, it is interpreted as a timestamp (seconds since epoch)
-            and the corresponding sample index is returned.
-            If a string, three forms are permitted:
-                1) a string which can be evaluated to an integer/float and
-                    interpreted as above,
-                2) a string beginning with '+' and followed by an integer
-                    (float) expression, interpreted as samples (seconds) from
-                    `ref_index`, and
-                3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
-
-        sample_rate : numpy.longdouble, required for float and time `iden`
-            Sample rate in Hz used to convert a time to a sample index.
-
-        ref_index : int/long, required for '+' string form of `iden`
-            Reference index from which string `iden` beginning with '+' are
-            offset.
-
-
-        Returns
-        -------
-
-        sample_index : long | None
-            Index to the identified sample given in the number of samples since
-            the epoch (time_since_epoch*sample_rate).
-
-        """
-        is_relative = False
-        if iden is None or iden == '':
-            return None
-        elif isinstance(iden, six.string_types):
-            if iden.startswith('+'):
-                is_relative = True
-                iden = iden.lstrip('+')
-            try:
-                # int/long or float
-                iden = ast.literal_eval(iden)
-            except (ValueError, SyntaxError):
-                # convert datetime to float
-                dt = dateutil.parser.parse(iden)
-                epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
-                iden = (dt - epoch).total_seconds()
-
-        if isinstance(iden, float):
-            if sample_rate is None:
-                raise ValueError(
-                    'sample_rate required when time identifier is used.'
-                )
-            idx = long(np.uint64(iden*sample_rate))
-        else:
-            idx = long(iden)
-
-        if is_relative:
-            if ref_index is None:
-                raise ValueError(
-                    'ref_index required when relative "+" identifier is used.'
-                )
-            return idx + ref_index
-        else:
-            return idx
 
     def _queue_tags(self, sample, tags):
         """Queue stream tags to be attached to data in the work function.
@@ -283,10 +235,10 @@ class digital_rf_channel_source(gr.sync_block):
 
     def start(self):
         self._bounds = self._Reader.get_bounds(self._ch)
-        self._start_sample = self._parse_sample_identifier(
+        self._start_sample = util.parse_sample_identifier(
             self._start, self._sample_rate, self._bounds[0],
         )
-        self._end_sample = self._parse_sample_identifier(
+        self._end_sample = util.parse_sample_identifier(
             self._end, self._sample_rate, self._bounds[0],
         )
         if self._start_sample is None:
@@ -296,11 +248,12 @@ class digital_rf_channel_source(gr.sync_block):
         # add default tags to first sample
         self._queue_tags(self._global_index, {})
         # replace longdouble samples_per_second with float for pmt conversion
-        message_metadata = self._properties.copy()
-        message_metadata['samples_per_second'] = \
-            float(message_metadata['samples_per_second'])
+        properties_message = self._properties.copy()
+        properties_message['samples_per_second'] = \
+            float(properties_message['samples_per_second'])
         self.message_port_pub(
-            pmt.intern('metadata'), pmt.to_pmt({self._ch: message_metadata}),
+            pmt.intern('properties'),
+            pmt.to_pmt({self._ch: properties_message}),
         )
         return super(digital_rf_channel_source, self).start()
 
@@ -343,10 +296,20 @@ class digital_rf_channel_source(gr.sync_block):
                         start_sample, end_sample,
                     )
                     for sample, meta in meta_dict.items():
-                        # add center frequency tag from metadata
+                        # add tags from Digital Metadata
                         # (in addition to default time and rate tags)
+                        # eliminate sample_rate_* tags with duplicate info
+                        meta.pop('sample_rate_denominator', None)
+                        meta.pop('sample_rate_numerator', None)
+                        # get center frequencies for rx_freq tag, squeeze()[()]
+                        # to get single value if possible else pass as an array
+                        cf = meta.pop('center_frequencies', None)
+                        if cf is not None:
+                            cf = cf.ravel().squeeze()[()]
                         tags = dict(
-                            rx_freq=meta['center_frequencies'].ravel()[0]
+                            rx_freq=cf,
+                            # all other metadata goes in metadata tag
+                            metadata=meta,
                         )
                         self._queue_tags(sample, tags)
                 # add queued tags to stream
@@ -382,20 +345,25 @@ class digital_rf_channel_source(gr.sync_block):
 
 
 class digital_rf_source(gr.hier_block2):
-    """
-    docstring for block digital_rf_source
-    """
+    """Source block for reading Digital RF data."""
     def __init__(
         self, top_level_dir, channels=None, start=None, end=None,
         repeat=False, throttle=False,
     ):
-        """Initialize source to directory containing Digital RF channels.
+        """Read data from a directory containing Digital RF channels.
+
+        In addition to outputting samples from Digital RF format data, this
+        block also emits a 'properties' message containing inherent channel
+        properties and adds stream tags using the channel's accompanying
+        Digital Metadata. See the Notes section for details on what the
+        messages and stream tags contain.
+
 
         Parameters
         ----------
 
         top_level_dir : string
-            Either a single top level directory containing Digital RF channel
+            Either a single top-level directory containing Digital RF channel
             directories, or a list of such. A directory can be a file system
             path or a url, where the url points to a top level directory. Each
             must be a local path, or start with 'http://'', 'file://'', or
@@ -445,12 +413,34 @@ class digital_rf_source(gr.hier_block2):
         Notes
         -----
 
-        A top level directory must contain files in the format:
-            <channel>/<YYYY-MM-DDTHH-MM-SS/rf@<seconds>.<%03i milliseconds>.h5
+        A top-level directory must contain files in the format:
+            [channel]/[YYYY-MM-DDTHH-MM-SS]/rf@[seconds].[%03i milliseconds].h5
 
         If more than one top level directory contains the same channel_name
         subdirectory, this is considered the same channel. An error is raised
         if their sample rates differ, or if their time periods overlap.
+
+        Upon start, this block sends 'properties' messages on its output
+        message port that contains a dictionaries with one key, the channel's
+        name, and a value which is a dictionary of properties found in the
+        channel's 'drf_properties.h5' file.
+
+        This block emits the following stream tags at the appropriate sample
+        for each of the channel's accompanying Digital Metadata samples:
+
+            rx_time : (int secs, float frac) tuple
+                Time since epoch of the sample.
+
+            rx_rate : float
+                Sample rate in Hz.
+
+            rx_freq : float | 1-D array of floats
+                Center frequency or frequencies of the subchannels based on
+                the 'center_frequencies' metadata field.
+
+            metadata : dict
+                Any additional Digital Metadata fields are added to this
+                dictionary tag of metadata.
 
         """
         Reader = DigitalRFReader(top_level_dir)
@@ -459,14 +449,14 @@ class digital_rf_source(gr.hier_block2):
             channels, available_channel_names,
         )
 
-        if start is None:
-            start = [None]*len(self._channel_names)
+        if start is None or isinstance(start, six.string_types):
+            start = [start]*len(self._channel_names)
         try:
             s_iter = iter(start)
         except TypeError:
             s_iter = iter([start])
-        if end is None:
-            end = [None]*len(self._channel_names)
+        if end is None or isinstance(end, six.string_types):
+            end = [end]*len(self._channel_names)
         try:
             e_iter = iter(end)
         except TypeError:
@@ -494,8 +484,8 @@ class digital_rf_source(gr.hier_block2):
             output_signature=out_sig,
         )
 
-        msg_port_name = pmt.intern('metadata')
-        self.message_port_register_hier_out('metadata')
+        msg_port_name = pmt.intern('properties')
+        self.message_port_register_hier_out('properties')
 
         for k, src in enumerate(self._channels):
             if throttle:

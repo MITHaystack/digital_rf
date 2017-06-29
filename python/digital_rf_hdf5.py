@@ -280,9 +280,11 @@ class DigitalRFWriter:
         elif dtype.names == ('r', 'i'):
             self.is_complex = True
             self.realdtype = dtype['r']
-        else:
+        elif not dtype.names:
             self.is_complex = bool(is_complex)
             self.realdtype = dtype
+        else:
+            raise ValueError("Structured dtype must have fields ('r', 'i').")
         # set self.dtype and self.structdtype
         if self.is_complex:
             self.structdtype = numpy.dtype(
@@ -734,7 +736,7 @@ class DigitalRFReader:
         -----
 
         A top level directory must contain files in the format:
-            <channel>/<YYYY-MM-DDTHH-MM-SS/rf@<seconds>.<%03i milliseconds>.h5
+            [channel]/[YYYY-MM-DDTHH-MM-SS]/rf@[seconds].[%03i milliseconds].h5
 
         If more than one top level directory contains the same channel_name
         subdirectory, this is considered the same channel. An error is raised

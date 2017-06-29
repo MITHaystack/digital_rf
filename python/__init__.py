@@ -4,6 +4,7 @@ from .digital_metadata import *
 from .digital_rf_hdf5 import *
 from . import list_drf
 from .list_drf import lsdrf
+from . import util
 try:
     from . import mirror
     from . import ringbuffer
