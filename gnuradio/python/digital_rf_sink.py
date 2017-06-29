@@ -7,16 +7,17 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Module defining a Digital RF Source block."""
-from collections import OrderedDict
 import os
 import warnings
+from collections import OrderedDict
 
 import numpy as np
-from gnuradio import gr
 import pmt
+from gnuradio import gr
 import six
 
-from digital_rf import DigitalRFWriter, DigitalMetadataWriter, util
+from digital_rf import (DigitalMetadataWriter, DigitalRFWriter,
+                        _py_rf_write_hdf5, util)
 
 
 def parse_time_pmt(val, samples_per_second):
@@ -458,9 +459,11 @@ class digital_rf_channel_sink(gr.sync_block):
         if self._stop_on_skipped and len(self._blocks) > 1:
             rel_sample_indices = self._blocks.values()[:2]
             block_indices = self._blocks.keys()[:2]
-            self._Writer.rf_write_blocks(
-                in_data, global_sample_arr=rel_sample_indices[:1],
-                block_sample_arr=block_indices[:1],
+            _py_rf_write_hdf5.rf_block_write(
+                self._Writer._channelObj,
+                in_data,
+                np.ascontiguousarray(rel_sample_indices[:1], dtype=np.uint64),
+                np.ascontiguousarray(block_indices[:1], dtype=np.uint64),
             )
             last_rel_sample = (rel_sample_indices[0] +
                                (block_indices[1] - block_indices[0]))
@@ -484,9 +487,11 @@ class digital_rf_channel_sink(gr.sync_block):
 
         # write data using block writer
         if self._blocks:
-            next_continuous_sample = self._Writer.rf_write_blocks(
-                in_data, global_sample_arr=self._blocks.values(),
-                block_sample_arr=self._blocks.keys(),
+            next_continuous_sample = _py_rf_write_hdf5.rf_block_write(
+                self._Writer._channelObj,
+                in_data,
+                np.ascontiguousarray(self._blocks.values(), dtype=np.uint64),
+                np.ascontiguousarray(self._blocks.keys(), dtype=np.uint64),
             )
             self._blocks.clear()
             # set up next write call assuming it will be continuous unless
