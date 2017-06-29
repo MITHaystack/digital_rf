@@ -247,8 +247,8 @@ class DigitalMetadataWriter:
                 - another dictionary with keys that are valid Group name
                     strings and leaf values that are one of the above
 
-            This dictionary must always have the same keys each time the write
-            method is called.
+            This dictionary should always have the same keys each time the
+            write method is called.
 
         sample_list : iterable
             Iterable of sample indices, given in the number of samples since
@@ -336,22 +336,22 @@ class DigitalMetadataWriter:
             raise ValueError(errstr % str(this_dict)[0:500])
         self._dict_list.append(this_dict)
 
-        for key in this_dict.keys():
-            if isinstance(this_dict[key], types.DictType):
+        for key, val in this_dict.items():
+            if isinstance(val, types.DictType):
                 new_grp = grp.create_group(str(key))
                 self._write_dict(
-                    new_grp, this_dict[key], sample_index, sample_len,
+                    new_grp, val, sample_index, sample_len,
                 )
                 data = None
-            elif isinstance(this_dict[key], (types.ListType, types.TupleType)):
-                data = this_dict[key][sample_index]
-            elif hasattr(this_dict[key], 'shape'):
-                if this_dict[key].shape == (sample_len,):
-                    data = this_dict[key][sample_index]  # value from array
+            elif isinstance(val, (types.ListType, types.TupleType)):
+                data = val[sample_index]
+            elif hasattr(val, 'shape'):
+                if val.shape == (sample_len,):
+                    data = val[sample_index]  # value from array
                 else:
-                    data = this_dict[key]  # whole array
+                    data = val  # whole array
             else:
-                data = this_dict[key]  # single numpy value
+                data = val  # single numpy value
             if data is not None:
                 grp.create_dataset(key, data=data)
 
