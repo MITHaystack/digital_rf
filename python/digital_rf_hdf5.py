@@ -25,6 +25,7 @@ import os
 import re
 import sys
 import types
+import uuid
 import warnings
 
 import h5py
@@ -182,9 +183,9 @@ class DigitalRFWriter:
     def __init__(
         self, directory, dtype, subdir_cadence_secs,
         file_cadence_millisecs, start_global_index, sample_rate_numerator,
-        sample_rate_denominator, uuid_str, compression_level=0, checksum=False,
-        is_complex=True, num_subchannels=1, is_continuous=True,
-        marching_periods=True
+        sample_rate_denominator, uuid_str=None, compression_level=0,
+        checksum=False, is_complex=True, num_subchannels=1, is_continuous=True,
+        marching_periods=True,
     ):
         """Initialize writer to channel directory with given parameters.
 
@@ -228,13 +229,14 @@ class DigitalRFWriter:
         sample_rate_denominator : long | int
             Denominator of sample rate in Hz.
 
-        uuid_str : string
-            UUID string that will act as a unique identifier for the data and
-            can be used to tie the data files to metadata.
-
 
         Other Parameters
         ----------------
+
+        uuid_str : None | string, optional
+            UUID string that will act as a unique identifier for the data and
+            can be used to tie the data files to metadata. If None, a random
+            UUID will be generated.
 
         compression_level : int, optional
             0 for no compression (default), 1-9 for varying levels of gzip
@@ -255,9 +257,9 @@ class DigitalRFWriter:
 
         is_continuous : bool, optional
             If True, data will be written in continuous blocks. If False data
-            will be written with gapped blocks. Fastest read speed is achieved
-            with is_continuous True, checksum False, and compression_level 0
-            (all defaults).
+            will be written with gapped blocks. Fastest write/read speed is
+            achieved with `is_continuous` True, `checksum` False, and
+            `compression_level` 0 (all defaults).
 
         marching_periods : bool, optional
             If True, write a period to stdout for every subdirectory when
@@ -270,17 +272,37 @@ class DigitalRFWriter:
         self.directory = directory
 
         # use numpy to get all needed info about this datatype
+        # set self.realdtype
         dtype = numpy.dtype(dtype)
         if numpy.issubdtype(dtype, numpy.complexfloating):
             self.is_complex = True
-            self.itemdtype = numpy.dtype('f{0}'.format(dtype.itemsize/2))
-        elif dtype.names == ('r', 'i') or dtype.names == ('i', 'r'):
+            self.realdtype = numpy.dtype('f{0}'.format(dtype.itemsize/2))
+        elif dtype.names == ('r', 'i'):
             self.is_complex = True
-            self.itemdtype = dtype['r']
+            self.realdtype = dtype['r']
         else:
             self.is_complex = bool(is_complex)
-            self.itemdtype = dtype
-        self.byteorder = self.itemdtype.byteorder
+            self.realdtype = dtype
+        # set self.dtype and self.structdtype
+        if self.is_complex:
+            self.structdtype = numpy.dtype(
+                [('r', self.realdtype), ('i', self.realdtype)]
+            )
+            if numpy.issubdtype(self.realdtype, numpy.floating):
+                # if floats, try to get equivalent complex type
+                try:
+                    self.dtype = numpy.dtype(
+                        'c{0}'.format(self.realdtype.itemsize*2)
+                    )
+                except TypeError:
+                    self.dtype = None
+            else:
+                self.dtype = None
+        else:
+            self.structdtype = None
+            self.dtype = self.realdtype
+        # set byteorder
+        self.byteorder = self.realdtype.byteorder
         if self.byteorder == '=':
             # simplify C code by conversion here
             if sys.byteorder == 'big':
@@ -327,7 +349,10 @@ class DigitalRFWriter:
             raise ValueError(errstr % str(sample_rate_denominator))
         self.sample_rate_denominator = long(sample_rate_denominator)
 
-        if not isinstance(uuid_str, types.StringTypes):
+        if uuid_str is None:
+            # generate random UUID
+            uuid_str = uuid.uuid4().hex
+        elif not isinstance(uuid_str, types.StringTypes):
             errstr = 'uuid_str must be StringType, not %s'
             raise ValueError(errstr % str(type(uuid_str)))
         self.uuid = str(uuid_str)
@@ -353,8 +378,8 @@ class DigitalRFWriter:
 
         # call the underlying C extension, which will call the C init method
         self._channelObj = _py_rf_write_hdf5.init(
-            directory, self.byteorder, self.itemdtype.char,
-            self.itemdtype.itemsize,
+            directory, self.byteorder, self.realdtype.char,
+            self.realdtype.itemsize,
             self.subdir_cadence_secs, self.file_cadence_millisecs,
             self.start_global_index, self.sample_rate_numerator,
             self.sample_rate_denominator, uuid_str, compression_level,
@@ -376,7 +401,7 @@ class DigitalRFWriter:
         Parameters
         ----------
 
-        arr : array
+        arr : array_like
             Array of data to write. The array must have the same number of
             subchannels and type as declared when initializing the writer
             object, or an error will be raised. For single valued data, number
@@ -389,10 +414,11 @@ class DigitalRFWriter:
                     (N, 2*num_subchannels). I/Q are assumed to be interleaved.
 
         next_sample : long, optional
-            Global index of next sample to write to. If None (default), the
-            array will be written to the next available sample after previous
-            writes, self._next_avail_sample. An error is raised if next_sample
-            is less than self._next_avail_sample.
+            Index of next sample to write relative to `start_global_index` of
+            the first sample. If None (default), the array will be written to
+            the next available sample after previous writes,
+            `self._next_avail_sample`. A ValueError is raised if `next_sample`
+            is less than `self._next_avail_sample`.
 
 
         Returns
@@ -432,10 +458,8 @@ class DigitalRFWriter:
             )
 
         """
-        arr = numpy.ascontiguousarray(arr)
-
         # verify input arr argument
-        self._verify_input(arr)
+        arr = self._cast_input_array(arr)
 
         if next_sample is None:
             next_sample = self._next_avail_sample
@@ -447,38 +471,38 @@ class DigitalRFWriter:
             )
             raise ValueError(errstr % (next_sample, self._next_avail_sample))
 
-        vector_length = int(arr.shape[0])
-
-        _py_rf_write_hdf5.rf_write(self._channelObj, arr, next_sample)
+        next_avail_sample = _py_rf_write_hdf5.rf_write(
+            self._channelObj, arr, next_sample,
+        )
 
         # update index attributes
-        self._total_gap_samples += next_sample - self._next_avail_sample
-        self._total_samples_written += vector_length
-        self._next_avail_sample += (next_sample -
-                                    self._next_avail_sample) + vector_length
+        nwritten = arr.shape[0]
+        self._total_samples_written += nwritten
+        gap_size = next_sample - self._next_avail_sample
+        self._total_gap_samples += gap_size
+        self._next_avail_sample = next_avail_sample
+
+        return next_avail_sample
 
     def rf_write_blocks(self, arr, global_sample_arr, block_sample_arr):
         """Write blocks of data with interleaved gaps.
 
-        If is_continuous set in init, then the length of `global_sample_arr`
-        and `block_sample_arr` must be 1 or an error is raised.
-
-
         Parameters
         ----------
 
-        arr : array
+        arr : array_like
             Array of data to write. See `rf_write` for a complete description
             of allowed forms.
 
-        global_sample_arr : array of shape (N,) and type uint64
-            An array that sets the global sample index for each continuous
+        global_sample_arr : array_like of shape (N,) and type uint64
+            An array that sets the global sample index (relative to
+            `start_global_index` of the first sample) for each continuous
             block of data in arr. The values must be increasing, and the first
             value must be >= self._next_avail_sample or a ValueError raised.
 
-        block_sample_arr : array of shape (N,) and type uint64
+        block_sample_arr : array_like of shape (N,) and type uint64
             An array that gives the index into arr for the start of each
-            continuous block. The first value must be zero, and all values
+            continuous block. The first value must be 0, and all values
             must be < len(arr). Increments between values must be > 0 and less
             than the corresponding increment in `global_sample_arr`.
 
@@ -497,58 +521,44 @@ class DigitalRFWriter:
         rf_write
 
         """
-        arr = numpy.ascontiguousarray(arr)
-
         # verify input arr argument
-        self._verify_input(arr)
+        arr = self._cast_input_array(arr)
 
+        # cast global_sample_arr and block_sample_arr
+        global_sample_arr = self._cast_sample_array(global_sample_arr)
+        block_sample_arr = self._cast_sample_array(block_sample_arr)
+
+        # check global_sample_arr and block_sample_arr values
         if global_sample_arr[0] < self._next_avail_sample:
             errstr = (
-                'first value in global_sample_arr must be at least %i, not %i'
-            )
-            raise ValueError(
-                errstr % (self._next_avail_sample, global_sample_arr[0])
-            )
-
-        if block_sample_arr.dtype != numpy.uint64:
-            errstr = (
-                'block_sample_arr has dtype %s, but needs to have numpy.uint64'
-            )
-            raise ValueError(errstr % str(block_sample_arr.dtype))
-
+                'global_sample_arr[0] must be at least {0}, not {1}'
+            ).format(self._next_avail_sample, global_sample_arr[0])
+            raise ValueError(errstr)
         if block_sample_arr[0] != 0:
-            errstr = 'first value in block_sample_arr must be 0, not %i'
-            raise ValueError(errstr % (block_sample_arr[0]))
-
+            errstr = (
+                'block_sample_arr[0] must be 0, not {0}.'
+            ).format(block_sample_arr[0])
+            raise ValueError(errstr)
         if len(global_sample_arr) != len(block_sample_arr):
             errstr = (
-                'len of global_sample_arr (%i) must equal len of'
-                ' block_sample_arr (%i)'
-            )
-            raise ValueError(
-                errstr % (len(global_sample_arr), len(block_sample_arr))
-            )
-
-        if self.is_continuous and len(global_sample_arr) > 1:
-            raise IOError(
-                'Cannot write gapped data after setting is_continuous True.'
-            )
+                'Must have the same lengths: global_sample_arr ({0}) and'
+                ' block_sample_arr ({1}).'
+            ).format(len(global_sample_arr), len(block_sample_arr))
+            raise ValueError(errstr)
 
         # data passed initial tests, try to write
-        _py_rf_write_hdf5.rf_block_write(
-            self._channelObj, arr, global_sample_arr, block_sample_arr
+        next_avail_sample = _py_rf_write_hdf5.rf_block_write(
+            self._channelObj, arr, global_sample_arr, block_sample_arr,
         )
 
         # update index attributes
-        # potential gap between writes
-        self._total_gap_samples += (global_sample_arr[0] -
-                                    self._next_avail_sample)
-        self._total_gap_samples += ((global_sample_arr[-1] -
-                                     global_sample_arr[0]) -
-                                    block_sample_arr[-1])  # gaps within write
-        self._total_samples_written += len(arr)
-        self._next_avail_sample = (global_sample_arr[-1] +
-                                   (len(arr) - block_sample_arr[-1]))
+        nwritten = arr.shape[0]
+        self._total_samples_written += nwritten
+        gap_size = (next_avail_sample - self._next_avail_sample) - nwritten
+        self._total_gap_samples += gap_size
+        self._next_avail_sample = next_avail_sample
+
+        return next_avail_sample
 
     def get_total_samples_written(self):
         """Return the total number of samples written in per channel.
@@ -564,7 +574,7 @@ class DigitalRFWriter:
         This is equal to (total_samples_written + total_gap_samples).
 
         """
-        return(self.next_available_sample)
+        return(self._next_avail_sample)
 
     def get_total_gap_samples(self):
         """Return the total number of samples contained in data gaps."""
@@ -591,89 +601,112 @@ class DigitalRFWriter:
         """
         _py_rf_write_hdf5.free(self._channelObj)
 
-    def _verify_input(self, arr):
-        """Check for valid and consistent arrays for writing.
-
-        Throws a ValueError if the array is invalid.
+    def _cast_input_array(self, arr):
+        """Cast input array to correct type and check for the correct shape.
 
         Parameters
         ----------
 
-        arr : array
+        arr : array_like
             See `rf_write` method for a complete description of allowed values.
 
-        """
-        if self.is_complex:
-            # there are three allowed ways to pass in complex data - see which
-            # one used
-            if arr.dtype.names is not None:
-                # this must be be r/i format:
-                for name in ('r', 'i'):
-                    if name not in arr.dtype.names:
-                        errstr = 'column names must be r and i, not %s'
-                        raise ValueError(errstr % str(arr.dtype.names))
-                    if not numpy.issubdtype(arr.dtype[name], self.itemdtype):
-                        errstr = 'column %s must have dtype %s, not %s'
-                        raise ValueError(errstr % (
-                            name, str(self.itemdtype), str(arr.dtype[name]),
-                        ))
-                if len(arr.dtype.names) != 2:
-                    errstr = 'column names must be only r and i, not %s'
-                    raise ValueError(errstr % str(arr.dtype.names))
-                if arr.shape[1] != self.num_subchannels:
-                    errstr = (
-                        'complex array in r/i form must have shape N x'
-                        ' num_subchannels, not %s'
-                    )
-                    raise ValueError(errstr % str(arr.shape))
-            elif numpy.issubdtype(arr.dtype, numpy.complexfloating):
-                itemdtype = numpy.dtype('f{0}'.format(arr.dtype.itemsize/2))
-                if not numpy.issubdtype(itemdtype, self.itemdtype):
-                    errstr = (
-                        'complex arr has item dtype %s, but dtype set in init'
-                        ' was %s'
-                    )
-                    raise ValueError(
-                        errstr % (str(itemdtype), str(self.itemdtype))
-                    )
-                if arr.shape[1] != self.num_subchannels:
-                    errstr = (
-                        'complex array in complex form must have shape N x'
-                        ' num_subchannels, not %s'
-                    )
-                    raise ValueError(errstr % str(arr.shape))
-            else:
-                if not numpy.issubdtype(arr.dtype, self.itemdtype):
-                    errstr = 'arr has dtype %s, but dtype set in init was %s'
-                    raise ValueError(
-                        errstr % (str(arr.dtype), str(self.itemdtype))
-                    )
-                if arr.shape[1] != 2 * self.num_subchannels:
-                    errstr = (
-                        'complex array in flat form must have shape N x'
-                        ' 2*num_subchannels, not %s'
-                    )
-                    raise ValueError(errstr % str(arr.shape))
 
-        else:  # single value checks
-            if not numpy.issubdtype(arr.dtype, self.itemdtype):
-                estr = 'arr has dtype %s, but dtype set in init was %s'
-                raise ValueError(estr % (str(arr.dtype), str(self.itemdtype)))
-            if len(arr.shape) == 1 and self.num_subchannels > 1:
-                errstr = (
-                    'single valued array must just have one subchannel, not'
-                    ' shape %s num subchannels %i'
+        Returns
+        -------
+
+        arr : ndarray of type self.dtype or self.structdtype
+
+
+        Raises
+        ------
+
+        TypeError
+            If the array type cannot be cast to the writer type.
+
+        ValueError
+            If the array shape does not match the specified number of
+            subchannels.
+
+        """
+        # make sure arr is a contiguous array (as required by libidigital_rf)
+        arr = numpy.ascontiguousarray(arr)
+        # cast array to the correct type (if possible)
+        if (
+            numpy.issubdtype(arr.dtype, numpy.complexfloating) or  # complex
+            not self.is_complex  # real input (failing above)->real output
+        ):
+            # input dtype and storage format are the same
+            # one of real->real, complex->complex
+            arr = arr.astype(self.dtype, casting='safe', copy=False)
+        elif arr.dtype.names is not None and arr.dtype.names == ('r', 'i'):
+            # input as structured complex, stored as structure complex
+            arr = arr.astype(self.structdtype, casting='safe', copy=False)
+        else:
+            # input as real, stored as structured complex
+            # first make sure the real type is compatible
+            arr = arr.astype(self.realdtype, casting='safe', copy=False)
+            # then get a complex view
+            arr = arr.view(dtype=self.structdtype)
+        # check array shape
+        if arr.ndim == 1:
+            if self.num_subchannels > 1:
+                errstr = '1 subchannel provided, {0} required.'.format(
+                    self.num_subchannels,
                 )
-                raise ValueError(
-                    errstr % (str(arr.shape), self.num_subchannels)
+                raise ValueError(errstr)
+            else:
+                # make arr 2-D
+                arr = arr.reshape((-1, 1))
+        elif arr.ndim == 2:
+            if arr.shape[1] != self.num_subchannels:
+                errstr = '{0} subchannels provided, {1} required.'.format(
+                    arr.shape[1], self.num_subchannels,
                 )
-            if len(arr.shape) > 1:
-                if arr.shape[1] != self.num_subchannels:
-                    raise ValueError(
-                        'input shape[1] %i must equal num subchannels %i' %
-                        (arr.shape[1], self.num_subchannels))
-            if len(arr.shape) > 2:
-                raise ValueError('Illegal shape %s' % (str(arr.shape)))
+                raise ValueError(errstr)
+        else:
+            errstr = 'Illegal shape, must be (N, {0}) not {1}.'.format(
+                self.num_subchannels, arr.shape,
+            )
+            raise ValueError(errstr)
+        return arr
+
+    def _cast_sample_array(self, sample_arr):
+        """Cast sample array to equivalent values of uint64.
+
+        Parameters
+        ----------
+
+        sample_arr : array_like
+            Array of (global, block) sample indices.
+
+
+        Returns
+        -------
+
+        sample_arr : ndarray of type uint64
+
+
+        Raises
+        ------
+
+        TypeError
+            If the array type cannot be cast to equivalent values of uint64.
+
+        ValueError
+            If the array is not 1-D.
+
+        """
+        # make sure arr is a contiguous array (as required by libidigital_rf)
+        sample_arr = numpy.ascontiguousarray(sample_arr)
+        # cast array to the correct type (if possible)
+        sample_arr_uint64 = sample_arr.astype(
+            numpy.uint64, casting='unsafe', copy=False,
+        )
+        if not numpy.allclose(sample_arr_uint64, sample_arr):
+            raise TypeError('Cannot cast sample_arr to uint64.')
+        if sample_arr_uint64.ndim > 1:
+            raise ValueError('sample_arr must be 1-D')
+        return sample_arr_uint64
 
 
 class DigitalRFReader:
@@ -838,7 +871,6 @@ class DigitalRFReader:
 
         """
         file_properties = self.get_properties(channel_name)
-        is_continuous = file_properties['is_continuous']
         if end_sample < start_sample:
             errstr = 'start_sample %i greater than end sample %i'
             raise ValueError(errstr % (start_sample, end_sample))
@@ -867,7 +899,7 @@ class DigitalRFReader:
         ):
             top_level_obj._read(
                 start_sample, end_sample, filepaths, cont_data_dict,
-                False, sub_channel, is_continuous,
+                len_only=False, sub_channel=sub_channel,
             )
 
         # merge contiguous blocks
@@ -1813,7 +1845,7 @@ class _top_level_dir_properties:
 
     def _read(
         self, start_sample, end_sample, filepaths, cont_data_dict,
-        len_only=False, channel=None, is_continuous=0,
+        len_only=False, sub_channel=None,
     ):
         """Add continous data entries to `cont_data_dict`.
 
@@ -1844,9 +1876,6 @@ class _top_level_dir_properties:
         sub_channel : None | int, optional
             If None, include all subchannels. Otherwise, include only the
             subchannel given by that integer index.
-
-        is_continuous : 0 | 1, optional
-            1 if continuous data, 0 if not. Used to speed up read.
 
         """
         if self.access_mode == 'local':
@@ -1903,12 +1932,12 @@ class _top_level_dir_properties:
                     if read_start_index > read_end_index:
                         continue
                     if not len_only:
-                        if channel is None:
+                        if sub_channel is None:
                             data = self._cachedFile['rf_data'][
                                 read_start_index:long(read_end_index + 1)
                             ]
                         else:
-                            data = self._cachedFile['rf_data'][:, channel][
+                            data = self._cachedFile['rf_data'][:, sub_channel][
                                 read_start_index:long(read_end_index + 1)
                             ]
                         cont_data_dict[read_start_sample] = data

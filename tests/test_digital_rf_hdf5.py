@@ -100,6 +100,14 @@ result = data_object.rf_write(arr_data_single)
 data_object.close()
 print("done test 0.11")
 
+print("Test 0.111 - gapped write with is_continuous==True with one subchannel to multiple files using r/i struct layout, no compress, no checksum - channel 0.1")
+os.system("rm -rf /tmp/hdf5/junk0.111 ; mkdir /tmp/hdf5/junk0.111")
+data_object = digital_rf.DigitalRFWriter("/tmp/hdf5/junk0.111", 'i2', subdir_cadence_secs, file_cadence_millisecs, start_global_index,
+                                                 sample_rate_numerator, sample_rate_denominator, "FAKE_UUID_0.111", 0, False, True, num_subchannels=1)
+result = data_object.rf_write_blocks(arr_data_single, [1, 5], [0, 2])
+data_object.close()
+print("done test 0.111")
+
 print("Test 0.2 - read data from test 0.1 and write as channel 0.2")
 os.system("rm -rf /tmp/hdf5/junk0.2 ; mkdir /tmp/hdf5/junk0.2")
 data_object = digital_rf.DigitalRFWriter("/tmp/hdf5/junk0.2", 'i2', subdir_cadence_secs, file_cadence_millisecs, start_global_index,

@@ -60,11 +60,24 @@ seconds = time.time() - t
 speedMB = (N_WRITES * 4 * WRITE_BLOCK_SIZE) / (1.0E6 * seconds)
 print('Total time %i seconds, speed %1.2f MB/s' % (int(seconds), speedMB))
 
-
-print("Test 1 - simple single write to multiple files, no compress, with checksum - channel 1")
+print("Test 1 - simple single write to multiple files, no compress, no checksum, chunked - channel 1")
 os.system("rm -rf /tmp/benchmark/junk1 ; mkdir /tmp/benchmark/junk1")
 print("Start writing")
 channelObj = digital_rf.DigitalRFWriter('/tmp/benchmark/junk1', 'i2', subdir_cadence_secs, file_cadence_millisecs,
+                                        start_global_index, SAMPLE_RATE_NUMERATOR, SAMPLE_RATE_DENOMINATOR, 'Fake_uuid', 0, False, is_continuous=False)
+t = time.time()
+for i in range(N_WRITES):
+    channelObj.rf_write(data_int16)
+channelObj.close()
+seconds = time.time() - t
+speedMB = (N_WRITES * 4 * WRITE_BLOCK_SIZE) / (1.0E6 * seconds)
+print('Total time %i seconds, speed %1.2f MB/s' % (int(seconds), speedMB))
+
+
+print("Test 2 - simple single write to multiple files, no compress, with checksum - channel 2")
+os.system("rm -rf /tmp/benchmark/junk2 ; mkdir /tmp/benchmark/junk2")
+print("Start writing")
+channelObj = digital_rf.DigitalRFWriter('/tmp/benchmark/junk2', 'i2', subdir_cadence_secs, file_cadence_millisecs,
                                         start_global_index, SAMPLE_RATE_NUMERATOR, SAMPLE_RATE_DENOMINATOR, 'Fake_uuid', 0, True)
 t = time.time()
 for i in range(N_WRITES):
@@ -75,10 +88,10 @@ speedMB = (N_WRITES * 4 * WRITE_BLOCK_SIZE) / (1.0E6 * seconds)
 print('Total time %i seconds, speed %1.2f MB/s' % (int(seconds), speedMB))
 
 
-print("Test 2 - simple single write to multiple files, compress to level 9, with checksum - channel 2")
-os.system("rm -rf /tmp/benchmark/junk2 ; mkdir /tmp/benchmark/junk2")
+print("Test 3 - simple single write to multiple files, compress to level 9, with checksum - channel 3")
+os.system("rm -rf /tmp/benchmark/junk3 ; mkdir /tmp/benchmark/junk3")
 print("Start writing")
-channelObj = digital_rf.DigitalRFWriter('/tmp/benchmark/junk2', 'i2', subdir_cadence_secs, file_cadence_millisecs,
+channelObj = digital_rf.DigitalRFWriter('/tmp/benchmark/junk3', 'i2', subdir_cadence_secs, file_cadence_millisecs,
                                         start_global_index, SAMPLE_RATE_NUMERATOR, SAMPLE_RATE_DENOMINATOR, 'Fake_uuid', 9, True)
 t = time.time()
 for i in range(N_WRITES):

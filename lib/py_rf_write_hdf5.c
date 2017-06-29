@@ -46,7 +46,7 @@ static PyObject * _py_rf_write_hdf5_init(PyObject * self, PyObject * args)
  * 	12. checksum - 1 if checksums set, 0 if no checksum
  * 	13. is_complex - 1 if complex (I and Q) samples, 0 if single valued
  * 	14. num_subchannels - number of subchannels in data.  Must be at least 1 (int)
- * 	15. is_continuous - 1 is continuous data (allows faster read if no compression or checksum), 0 id with gaps
+ * 	15. is_continuous - 1 is continuous data (allows faster write/read if no compression or checksum), 0 is with gaps
  * 	16. marching_periods - 1 for marching periods, 0 for none
  *
  *  Returns PyObject representing pointer to malloced struct if success, NULL pointer if not
@@ -135,7 +135,7 @@ static PyObject * _py_rf_write_hdf5_rf_write(PyObject * self, PyObject * args)
  * 	2. numpy array of data to write
  * 	3. next_sample - long long containing where sample id to be written (globally)
  *
- * 	Returns 1 if success, 0 if not
+ * 	Returns next available global sample if success, 0 if not
  *
  */
 {
@@ -175,7 +175,7 @@ static PyObject * _py_rf_write_hdf5_rf_write(PyObject * self, PyObject * args)
 	}
 
 	/* success */
-	retObj = Py_BuildValue("i", 1);
+	retObj = Py_BuildValue("k", hdf5_write_data_object->global_index);
 	return(retObj);
 
 }
@@ -186,13 +186,16 @@ static PyObject * _py_rf_write_hdf5_rf_block_write(PyObject * self, PyObject * a
  *
  * Inputs: python list with
  * 	1. PyCObject containing pointer to data structure
- * 	2. numpy array of data to write - may not be continuous
- * 	3. numpy array of global sample count - must be of type numpy.uint64
+ * 	2. numpy array of data to write - must be 2-D with shape
+ *  	(length, num_subchannels) and a dtype giving the size of the complete
+ *  	sample, whether complex or real
+ * 	3. numpy array of global sample count - must by array of type numpy.uint64
  * 	4. numpy array of block sample count - gives the position in each data arr of the
  * 		global sample given in the global sample count array above.  Len of this
- * 		array must be the same as the one before, and it must also be of type numpy.uint64
+ * 		array must be the same as the one before, and it must also be an array
+ *  	of type numpy.uint64
  *
- * 	 Returns 1 if success, 0 if not
+ * 	 Returns next available global sample if success, 0 if not
  */
 {
 	// input arguments
@@ -204,10 +207,14 @@ static PyObject * _py_rf_write_hdf5_rf_block_write(PyObject * self, PyObject * a
 	// local variables
 	Digital_rf_write_object * hdf5_write_data_object;
 	void * data; /* will point to numpy array's data block */
-	void * global_arr; /* will point to numpy pyGlobalArr's data block */
-	void * block_arr; /* will point to numpy pyGlobalArr's data block */
+	uint64_t * global_arr; /* will point to numpy pyGlobalArr's data block */
+	uint64_t * block_arr; /* will point to numpy pyGlobalArr's data block */
 	uint64_t vector_length;
 	uint64_t index_length;
+	int i;
+	uint64_t block_length;
+	uint64_t block_index;
+	uint64_t next_block_index;
 	int result;
 	PyObject *retObj;
 
@@ -224,30 +231,53 @@ static PyObject * _py_rf_write_hdf5_rf_block_write(PyObject * self, PyObject * a
 	/* get C pointer to Digital_rf_write_object */
 	hdf5_write_data_object = (Digital_rf_write_object *)PyCObject_AsVoidPtr(pyCObject);
 
-	/* get C pointers to numpy arrays */
-	data = PyArray_DATA(pyNumArr);
-	global_arr = PyArray_DATA(pyGlobalArr);
-	block_arr = PyArray_DATA(pyBlockArr);
-
 	/* get lengths */
 	vector_length = (uint64_t)(PyArray_DIMS(pyNumArr)[0]);
 	index_length = (uint64_t)(PyArray_DIMS(pyGlobalArr)[0]);
-	/* verify consistant shape */
-	if (index_length != PyArray_DIMS(pyBlockArr)[0])
-	{
-		PyErr_SetString(PyExc_RuntimeError, "Differing lengths of global and block arrays\n");
-		return(NULL);
-	}
 
-	result = digital_rf_write_blocks_hdf5(hdf5_write_data_object, global_arr, block_arr, index_length, data, vector_length);
-	if (result)
+	if (hdf5_write_data_object->is_continuous && index_length > 1)
 	{
-		PyErr_SetString(PyExc_RuntimeError, "Failed to write data\n");
-		return(NULL);
+		/* write each block in separate calls since digital_rf_write_blocks_hdf5
+		 * requires a single continuous block per call with is_continuous */
+		for (i=0; i<index_length; i++)
+		{
+			block_index = *((uint64_t *)PyArray_GETPTR1(pyBlockArr, i));
+			if (i + 1 == index_length)
+				next_block_index = vector_length;
+			else
+				next_block_index = *((uint64_t *)PyArray_GETPTR1(pyBlockArr, i+1));
+			block_length = next_block_index - block_index;
+
+			data = PyArray_GETPTR2(pyNumArr, block_index, 0);
+			global_arr = PyArray_GETPTR1(pyGlobalArr, i);
+			/* always points to 0, which is what we want since we adjusted the data pointer */
+			block_arr = PyArray_GETPTR1(pyBlockArr, 0);
+
+			result = digital_rf_write_blocks_hdf5(hdf5_write_data_object, global_arr, block_arr, 1, data, block_length);
+			if (result)
+			{
+				PyErr_SetString(PyExc_RuntimeError, "Failed to write data\n");
+				return(NULL);
+			}
+		}
+	}
+	else
+	{
+		/* get C pointers to numpy arrays */
+		data = PyArray_DATA(pyNumArr);
+		global_arr = PyArray_DATA(pyGlobalArr);
+		block_arr = PyArray_DATA(pyBlockArr);
+
+		result = digital_rf_write_blocks_hdf5(hdf5_write_data_object, global_arr, block_arr, index_length, data, vector_length);
+		if (result)
+		{
+			PyErr_SetString(PyExc_RuntimeError, "Failed to write data\n");
+			return(NULL);
+		}
 	}
 
 	/* success */
-	retObj = Py_BuildValue("i", 1);
+	retObj = Py_BuildValue("k", hdf5_write_data_object->global_index);
 	return(retObj);
 
 }
