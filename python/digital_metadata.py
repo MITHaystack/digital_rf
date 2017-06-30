@@ -278,14 +278,14 @@ class DigitalMetadataWriter:
         this_file = os.path.join(subdir, filename)
 
         with h5py.File(this_file, 'a') as f:
-            existing_samples = f.keys()
             for index, sample in enumerate(sample_list):
-                if str(sample) in existing_samples:
+                try:
+                    grp = f.create_group(str(sample))
+                except ValueError:
                     errstr = (
                         'sample %i already in data - no overwriting allowed'
                     )
                     raise IOError(errstr % sample)
-                grp = f.create_group(str(sample))
                 # reset list of data_dict called already
                 self._dict_list = []
                 self._write_dict(grp, data_dict, index_list[index], sample_len)
