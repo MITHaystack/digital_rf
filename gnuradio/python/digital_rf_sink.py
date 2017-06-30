@@ -9,12 +9,12 @@
 """Module defining a Digital RF Source block."""
 import os
 import warnings
-from collections import OrderedDict
+from itertools import chain, izip, tee
 
 import numpy as np
 import pmt
-from gnuradio import gr
 import six
+from gnuradio import gr
 
 from digital_rf import (DigitalMetadataWriter, DigitalRFWriter,
                         _py_rf_write_hdf5, util)
@@ -68,6 +68,13 @@ def recursive_dict_update(d, u):
             recursive_dict_update(d.setdefault(k, {}), v)
         else:
             d[k] = v
+
+
+def pairwise(iterable):
+    """Return iterable elements in pairs, e.g. range(3) -> (0, 1), (1, 2)"""
+    a, b = tee(iterable)
+    next(b, None)
+    return izip(a, b)
 
 
 class digital_rf_channel_sink(gr.sync_block):
@@ -282,6 +289,16 @@ class digital_rf_channel_sink(gr.sync_block):
         self._start_sample = util.parse_sample_identifier(
             start, self._samples_per_second, None,
         )
+        if self._start_sample is None:
+            if self._ignore_tags:
+                raise ValueError('Must specify start if ignore_tags is True.')
+            # data without a time tag will be written starting at global index
+            # of 0, i.e. the Unix epoch
+            # we don't want to guess the start time because the user would
+            # know better and it could obscure bugs by setting approximately
+            # the correct time (samples in 1970 are immediately obvious)
+            self._start_sample = 0
+        self._next_rel_sample = 0
 
         # create metadata dictionary that will be updated and written whenever
         # new metadata is received in stream tags
@@ -305,32 +322,16 @@ class digital_rf_channel_sink(gr.sync_block):
         if not os.path.exists(self._metadata_dir):
             os.makedirs(self._metadata_dir)
 
-        # dict of blocks to be written
-        # keys: block index into data
-        # values: relative sample index from start_sample
-        self._blocks = OrderedDict()
-        if self._start_sample is not None:
-            # first sample in block ([0]) will be 0 relative to start_sample
-            self._blocks[0] = 0
-
-        if self._start_sample is None:
-            if self._ignore_tags:
-                raise ValueError('Must specify start if ignore_tags is True.')
-            else:
-                # need to wait to create DigitalRFWriter until we know the
-                # start sample from an 'rx_time' tag
-                self._Writer = None
-        else:
-            self._create_writer()
+        # sets self._Writer, self._DMDWriter, and adds to self._metadata
+        self._create_writer()
 
         # dict of metadata samples to be written
         # keys: block index into data (even though we don't need it for
         #   writing, used to not write metadata when there is no data)
         # values: (relative sample index, metadata dictionary) tuple
-        self._mdsamples = OrderedDict()
-        if self._start_sample is not None:
-            # missing values filled from self._metadata when writing
-            self._mdsamples[0] = (0, {})
+        self._mdsamples = {}
+        # missing values filled from self._metadata when writing
+        self._mdsamples[0] = (0, {})
 
     def _create_writer(self):
         # Digital RF writer
@@ -356,9 +357,25 @@ class digital_rf_channel_sink(gr.sync_block):
             file_name='metadata',
         )
 
-    def _add_blocks_from_time_tags(self, time_tags, in_data):
-        """Add to self._blocks based on time tags, return updated `in_data`."""
+    def _read_tags(
+        self, nsamples, block_indices, rel_sample_indices, mdsamples,
+    ):
+        """Read stream tags and set data blocks and metadata to write.
+
+        `block_indices` and `rel_sample_indices` should have length 1 with
+        ``block_indices[0] == 0`` from default assumed continuous write.
+
+        Modifies `mdsamples` dictionary in place and returns updated
+        (block_indices, rel_sample_indices).
+
+        """
         nread = self.nitems_read(0)
+
+        # read time tags
+        time_tags = self.get_tags_in_window(
+            0, 0, nsamples, pmt.intern('rx_time'),
+        )
+        # separate data into blocks to be written
         for tag in time_tags:
             offset = tag.offset
             tsec, tfrac, tidx = parse_time_pmt(
@@ -373,92 +390,86 @@ class digital_rf_channel_sink(gr.sync_block):
             # index into data block for this tag
             bidx = offset - nread
 
-            if self._start_sample is None:
-                # first time tag, set start_sample and create Writer
-                self._start_sample = tidx
-                self._create_writer()
-                # drop beginning of data before first time tag so we can
-                # have bidx equal 0 as required for rf_write_blocks
-                in_data = in_data[bidx:]
-                # change nread so any subsequent tags have the correct
-                # block index for the truncated in_data
-                nread = offset
-                # add to _blocks and _mdsamples so we know to start writing now
-                # (they are empty if we are here)
-                self._blocks[0] = 0
-                self._mdsamples[0] = (0, {})
+            # get sample index relative to start
+            sidx = tidx - self._start_sample
+
+            # add new data block if valid and it indicates a gap
+            prev_bidx = block_indices[-1]
+            prev_sidx = rel_sample_indices[-1]
+            next_continuous_sample = prev_sidx + (bidx - prev_bidx)
+            if sidx < next_continuous_sample:
+                if self._debug:
+                    errstr = (
+                        "Time tag is invalid: time cannot go backwards"
+                        " from index {0}. Skipping."
+                    ).format(self._start_sample + next_continuous_sample)
+                    print(errstr)
+                continue
+            elif sidx == next_continuous_sample:
+                # don't create a new block because it's continuous
+                continue
             else:
-                # get sample index relative to start
-                sidx = tidx - self._start_sample
-
-                # add new data block if valid and it indicates a gap
-                prev_bidx, prev_sidx = (
-                    reversed(self._blocks.items()).next()
-                )
-                next_continuous_sample = prev_sidx + (bidx - prev_bidx)
-                if sidx < next_continuous_sample:
-                    if self._debug:
-                        errstr = (
-                            "Time tag is invalid: time cannot go backwards"
-                            " from index {0}. Skipping."
-                        ).format(self._start_sample + next_continuous_sample)
-                        print(errstr)
-                    continue
-                elif sidx == next_continuous_sample:
-                    # don't create a new block because it's continuous
-                    continue
+                # add new block to write based on time tag
+                if bidx == 0:
+                    # override assumed continuous write
+                    # block_indices[0] is already 0
+                    rel_sample_indices[0] = sidx
                 else:
-                    # add new block to write based on time tag (possibly
-                    # overriding assumed continuous write at bidx==0)
-                    self._blocks[bidx] = sidx
-        return in_data, nread
+                    block_indices.append(bidx)
+                    rel_sample_indices.append(sidx)
+                # new metadata sample to help flag data skip
+                mdsamples[bidx] = (sidx, {})
 
-    def _add_metadata_from_tags(self, tags, nread):
-        """Add to self._mdsamples based on tags collected by offset."""
-        block_indices = np.asarray(self._blocks.keys())
-        rel_sample_indices = self._blocks.values()
-        for offset, tag_dict in sorted(tags.items()):
-            block_index = offset - nread
-            # find index of the block the metadata sample is located in
-            idx = np.searchsorted(block_indices, block_index, side='right') - 1
-            # get the relative sample index for the metadata sample
-            rel_sample = (rel_sample_indices[idx] +
-                          (block_index - block_indices[idx]))
-            self._mdsamples[block_index] = (rel_sample, tag_dict)
+        # read other tags by data block (so we know the sample index)
+        for (bidx, bend), sidx in izip(
+                pairwise(chain(block_indices, (nsamples,))),
+                rel_sample_indices,
+        ):
+            tags_by_offset = {}
+            # read frequency tags
+            freq_tags = self.get_tags_in_window(
+                0, bidx, bend, pmt.intern('rx_freq'),
+            )
+            collect_tags_in_dict(
+                freq_tags, translate_rx_freq, tags_by_offset,
+            )
+            # read metadata tags
+            meta_tags = self.get_tags_in_window(
+                0, bidx, bend, pmt.intern('metadata'),
+            )
+            collect_tags_in_dict(
+                meta_tags, translate_metadata, tags_by_offset,
+            )
+            # add tags to metadata sample dictionary
+            for offset, tag_dict in tags_by_offset.items():
+                mbidx = offset - nread
+                # get the relative sample index for the metadata sample
+                msidx = (sidx + (mbidx - bidx))
+                mdsamples[mbidx] = (msidx, tag_dict)
+
+        return block_indices, rel_sample_indices
 
     def work(self, input_items, output_items):
         in_data = input_items[0]
         nsamples = len(in_data)
 
+        # continue writing at next continuous sample with start of block
+        # unless overridden by a time tag
+        block_indices = [0]
+        rel_sample_indices = [self._next_rel_sample]
+        # dict of metadata samples to be written
+        # keys: block index into data (even though we don't need it for
+        #   writing, used to not write metadata when there is no data)
+        # values: (relative sample index, metadata dictionary) tuple
+        mdsamples = self._mdsamples
+
         if not self._ignore_tags:
-            # read time tags
-            time_tags = self.get_tags_in_window(
-                0, 0, nsamples, pmt.intern('rx_time'),
+            block_indices, rel_sample_indices = self._read_tags(
+                nsamples, block_indices, rel_sample_indices, mdsamples,
             )
-            # separate data into blocks to be written
-            in_data, nread = self._add_blocks_from_time_tags(
-                time_tags, in_data,
-            )
-
-            tags_by_offset = {}
-            # read frequency tags
-            freq_tags = self.get_tags_in_window(
-                0, 0, nsamples, pmt.intern('rx_freq'),
-            )
-            collect_tags_in_dict(freq_tags, translate_rx_freq, tags_by_offset)
-            # read metadata tags
-            meta_tags = self.get_tags_in_window(
-                0, 0, nsamples, pmt.intern('metadata'),
-            )
-            collect_tags_in_dict(meta_tags, translate_metadata, tags_by_offset)
-
-            # separate tags into metadata samples to be written
-            self._add_metadata_from_tags(tags_by_offset, nread)
 
         # check if skip occurs and break if so after writing continuous data
-        if self._stop_on_skipped and len(self._blocks) > 1:
-            rel_sample_indices = self._blocks.values()[:2]
-            block_indices = self._blocks.keys()[:2]
+        if self._stop_on_skipped and len(block_indices) > 1:
             _py_rf_write_hdf5.rf_block_write(
                 self._Writer._channelObj,
                 in_data,
@@ -467,7 +478,9 @@ class digital_rf_channel_sink(gr.sync_block):
             )
             last_rel_sample = (rel_sample_indices[0] +
                                (block_indices[1] - block_indices[0]))
-            for bidx, (rel_sample, md) in self._mdsamples.items():
+            for bidx, (rel_sample, md) in sorted(
+                mdsamples.items(), key=lambda x: x[0],
+            ):
                 if rel_sample <= last_rel_sample:
                     sample = rel_sample + self._start_sample
                     # update self._metadata with new values and then write that
@@ -478,25 +491,22 @@ class digital_rf_channel_sink(gr.sync_block):
             return -1
 
         # write metadata
-        for bidx, (rel_sample, md) in self._mdsamples.items():
+        for bidx, (rel_sample, md) in sorted(
+            mdsamples.items(), key=lambda x: x[0],
+        ):
             sample = rel_sample + self._start_sample
             # update self._metadata with new values and then write that
             recursive_dict_update(self._metadata, md)
             self._DMDWriter.write(sample, self._metadata)
-        self._mdsamples.clear()
+        mdsamples.clear()  # clears self._mdsamples since it's a reference
 
         # write data using block writer
-        if self._blocks:
-            next_continuous_sample = _py_rf_write_hdf5.rf_block_write(
-                self._Writer._channelObj,
-                in_data,
-                np.ascontiguousarray(self._blocks.values(), dtype=np.uint64),
-                np.ascontiguousarray(self._blocks.keys(), dtype=np.uint64),
-            )
-            self._blocks.clear()
-            # set up next write call assuming it will be continuous unless
-            # overridden by a time tag
-            self._blocks[0] = next_continuous_sample
+        self._next_rel_sample = _py_rf_write_hdf5.rf_block_write(
+            self._Writer._channelObj,
+            in_data,
+            np.ascontiguousarray(rel_sample_indices, dtype=np.uint64),
+            np.ascontiguousarray(block_indices, dtype=np.uint64),
+        )
 
         return nsamples
 
