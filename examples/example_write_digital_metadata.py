@@ -44,6 +44,13 @@ idx_arr = numpy.arange(70, dtype=numpy.int64) + start_idx
 
 int_data = numpy.arange(70, dtype=numpy.int32)
 data_dict['int_data'] = int_data
+# To save an array of data where one of the axes is time read that into a list
+# thats the same size as the time array.
+int_mat = numpy.arange(70*3*2,dtype=numpy.int32).reshape(70,3,2)
+int_mat = [i for i in int_mat]
+data_dict['int_mat'] = int_mat
+# These single dimensional arrays will save each individual elements to each
+# time.
 float_data = numpy.arange(70, dtype=numpy.float32)
 data_dict['float_data'] = float_data
 complex_data = numpy.arange(70, dtype=numpy.complex64)
