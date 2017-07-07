@@ -9,12 +9,14 @@
 """Module defining a Digital RF Source block."""
 import os
 import warnings
-from itertools import chain, izip, tee
+from collections import defaultdict
+from itertools import chain, tee
 
 import numpy as np
 import pmt
 import six
 from gnuradio import gr
+from six.moves import zip
 
 from digital_rf import (DigitalMetadataWriter, DigitalRFWriter,
                         _py_rf_write_hdf5, util)
@@ -66,15 +68,23 @@ def recursive_dict_update(d, u):
     for k, v in u.items():
         if isinstance(v, dict):
             recursive_dict_update(d.setdefault(k, {}), v)
+            try:
+                # copy because we don't want to modify the sub-dictionary
+                # just use its values to create an updated sub-dictionary
+                subdict = d[k].copy()
+            except KeyError:
+                subdict = {}
+            d[k] = recursive_dict_update(subdict, v)
         else:
             d[k] = v
+    return d
 
 
 def pairwise(iterable):
     """Return iterable elements in pairs, e.g. range(3) -> (0, 1), (1, 2)"""
     a, b = tee(iterable)
     next(b, None)
-    return izip(a, b)
+    return zip(a, b)
 
 
 class digital_rf_channel_sink(gr.sync_block):
@@ -325,13 +335,11 @@ class digital_rf_channel_sink(gr.sync_block):
         # sets self._Writer, self._DMDWriter, and adds to self._metadata
         self._create_writer()
 
-        # dict of metadata samples to be written
-        # keys: block index into data (even though we don't need it for
-        #   writing, used to not write metadata when there is no data)
-        # values: (relative sample index, metadata dictionary) tuple
-        self._mdsamples = {}
-        # missing values filled from self._metadata when writing
-        self._mdsamples[0] = (0, {})
+        # dict of metadata samples to be written, add for first sample
+        # keys: absolute sample index for metadata
+        # values: metadata dictionary to update self._metadata and then write
+        self._md_queue = defaultdict(dict)
+        self._md_queue[self._start_sample] = {}
 
     def _create_writer(self):
         # Digital RF writer
@@ -357,19 +365,19 @@ class digital_rf_channel_sink(gr.sync_block):
             file_name='metadata',
         )
 
-    def _read_tags(
-        self, nsamples, block_indices, rel_sample_indices, mdsamples,
-    ):
+    def _read_tags(self, nsamples):
         """Read stream tags and set data blocks and metadata to write.
 
-        `block_indices` and `rel_sample_indices` should have length 1 with
-        ``block_indices[0] == 0`` from default assumed continuous write.
-
-        Modifies `mdsamples` dictionary in place and returns updated
-        (block_indices, rel_sample_indices).
+        Metadata from tags is added to the queue at ``self._md_queue``.
 
         """
         nread = self.nitems_read(0)
+        md_queue = self._md_queue
+
+        # continue writing at next continuous sample with start of block
+        # unless overridden by a time tag
+        data_blk_idxs = [0]
+        data_rel_samples = [self._next_rel_sample]
 
         # read time tags
         time_tags = self.get_tags_in_window(
@@ -394,8 +402,8 @@ class digital_rf_channel_sink(gr.sync_block):
             sidx = tidx - self._start_sample
 
             # add new data block if valid and it indicates a gap
-            prev_bidx = block_indices[-1]
-            prev_sidx = rel_sample_indices[-1]
+            prev_bidx = data_blk_idxs[-1]
+            prev_sidx = data_rel_samples[-1]
             next_continuous_sample = prev_sidx + (bidx - prev_bidx)
             if sidx < next_continuous_sample:
                 if self._debug:
@@ -412,18 +420,23 @@ class digital_rf_channel_sink(gr.sync_block):
                 # add new block to write based on time tag
                 if bidx == 0:
                     # override assumed continuous write
-                    # block_indices[0] is already 0
-                    rel_sample_indices[0] = sidx
+                    # data_blk_idxs[0] is already 0
+                    data_rel_samples[0] = sidx
                 else:
-                    block_indices.append(bidx)
-                    rel_sample_indices.append(sidx)
+                    data_blk_idxs.append(bidx)
+                    data_rel_samples.append(sidx)
+                # reset metadata queue with only valid values
+                for md_idx in md_queue.keys():
+                    md_sidx = md_idx - self._start_sample
+                    if next_continuous_sample <= md_sidx and md_sidx < sidx:
+                        del md_queue[md_idx]
                 # new metadata sample to help flag data skip
-                mdsamples[bidx] = (sidx, {})
+                md_queue.setdefault(sidx + self._start_sample, {})
 
         # read other tags by data block (so we know the sample index)
-        for (bidx, bend), sidx in izip(
-                pairwise(chain(block_indices, (nsamples,))),
-                rel_sample_indices,
+        for (bidx, bend), sidx in zip(
+                pairwise(chain(data_blk_idxs, (nsamples,))),
+                data_rel_samples,
         ):
             tags_by_offset = {}
             # read frequency tags
@@ -443,69 +456,75 @@ class digital_rf_channel_sink(gr.sync_block):
             # add tags to metadata sample dictionary
             for offset, tag_dict in tags_by_offset.items():
                 mbidx = offset - nread
-                # get the relative sample index for the metadata sample
-                msidx = (sidx + (mbidx - bidx))
-                mdsamples[mbidx] = (msidx, tag_dict)
+                # get the absolute sample index for the metadata sample
+                msidx = (sidx + (mbidx - bidx)) + self._start_sample
+                md_queue[msidx].update(tag_dict)
 
-        return block_indices, rel_sample_indices
+        return data_blk_idxs, data_rel_samples
 
     def work(self, input_items, output_items):
         in_data = input_items[0]
         nsamples = len(in_data)
 
-        # continue writing at next continuous sample with start of block
-        # unless overridden by a time tag
-        block_indices = [0]
-        rel_sample_indices = [self._next_rel_sample]
-        # dict of metadata samples to be written
-        # keys: block index into data (even though we don't need it for
-        #   writing, used to not write metadata when there is no data)
-        # values: (relative sample index, metadata dictionary) tuple
-        mdsamples = self._mdsamples
-
         if not self._ignore_tags:
-            block_indices, rel_sample_indices = self._read_tags(
-                nsamples, block_indices, rel_sample_indices, mdsamples,
-            )
+            # break data into blocks from time tags
+            # get metadata from other tags and add to self._md_queue
+            data_blk_idxs, data_rel_samples = self._read_tags(nsamples)
+        else:
+            # continue writing at next continuous sample with start of block
+            data_blk_idxs = [0]
+            data_rel_samples = [self._next_rel_sample]
+
+        # make index lists into uint64 arrays
+        data_rel_samples = np.array(data_rel_samples, dtype=np.uint64, ndmin=1)
+        data_blk_idxs = np.array(data_blk_idxs, dtype=np.uint64, ndmin=1)
+
+        # get any metadata samples to be written from queue
+        if self._md_queue:
+            md_samples, md_dict_updates = zip(*sorted(
+                self._md_queue.items(), key=lambda x: x[0],
+            ))
+            md_samples = np.array(md_samples, dtype=np.uint64, ndmin=1)
+            # fill out metadata to be written using stored metadata
+            md_dicts = [
+                # function updates self._metadata in-place, want copy for list
+                # to preserve the updated values at that particular state
+                recursive_dict_update(self._metadata, md_update).copy()
+                for md_update in md_dict_updates
+            ]
+        else:
+            md_samples = []
+            md_dicts = []
+        self._md_queue.clear()
 
         # check if skip occurs and break if so after writing continuous data
-        if self._stop_on_skipped and len(block_indices) > 1:
+        if self._stop_on_skipped and len(data_blk_idxs) > 1:
             _py_rf_write_hdf5.rf_block_write(
                 self._Writer._channelObj,
                 in_data,
-                np.ascontiguousarray(rel_sample_indices[:1], dtype=np.uint64),
-                np.ascontiguousarray(block_indices[:1], dtype=np.uint64),
+                data_rel_samples[:1],
+                data_blk_idxs[:1],
             )
-            last_rel_sample = (rel_sample_indices[0] +
-                               (block_indices[1] - block_indices[0]))
-            for bidx, (rel_sample, md) in sorted(
-                mdsamples.items(), key=lambda x: x[0],
-            ):
-                if rel_sample <= last_rel_sample:
-                    sample = rel_sample + self._start_sample
-                    # update self._metadata with new values and then write that
-                    recursive_dict_update(self._metadata, md)
-                    self._DMDWriter.write(sample, self._metadata)
+            last_rel_sample = (data_rel_samples[0] +
+                               (data_blk_idxs[1] - data_blk_idxs[0]))
+            last_sample = last_rel_sample + self._start_sample
+            idx = np.searchsorted(md_samples, last_sample, 'right')
+            for md_sample, md_dict in zip(md_samples[:idx], md_dicts[:idx]):
+                self._DMDWriter.write(md_sample, md_dict)
             print("Stopping at skipped sample as requested.")
             # return WORK_DONE
             return -1
 
         # write metadata
-        for bidx, (rel_sample, md) in sorted(
-            mdsamples.items(), key=lambda x: x[0],
-        ):
-            sample = rel_sample + self._start_sample
-            # update self._metadata with new values and then write that
-            recursive_dict_update(self._metadata, md)
-            self._DMDWriter.write(sample, self._metadata)
-        mdsamples.clear()  # clears self._mdsamples since it's a reference
+        if md_dicts:
+            self._DMDWriter.write(md_samples, md_dicts)
 
         # write data using block writer
         self._next_rel_sample = _py_rf_write_hdf5.rf_block_write(
             self._Writer._channelObj,
             in_data,
-            np.ascontiguousarray(rel_sample_indices, dtype=np.uint64),
-            np.ascontiguousarray(block_indices, dtype=np.uint64),
+            data_rel_samples,
+            data_blk_idxs,
         )
 
         return nsamples
