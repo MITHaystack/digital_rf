@@ -40,14 +40,14 @@ print('first create okay')
 
 data_dict = {}
 start_idx = long(numpy.uint64(stime * obj.get_samples_per_second()))
+# To save an array of data, make sure the first axis has the same length
+# as the samples index
 idx_arr = numpy.arange(70, dtype=numpy.int64) + start_idx
 
 int_data = numpy.arange(70, dtype=numpy.int32)
 data_dict['int_data'] = int_data
-# To save an array of data where one of the axes is time read that into a list
-# thats the same size as the time array.
-int_mat = numpy.arange(70*3*2,dtype=numpy.int32).reshape(70,3,2)
-int_mat = [i for i in int_mat]
+# can even do multi-dimensional arrays!
+int_mat = numpy.arange(70*3*2, dtype=numpy.int32).reshape(70, 3, 2)
 data_dict['int_mat'] = int_mat
 # These single dimensional arrays will save each individual elements to each
 # time.

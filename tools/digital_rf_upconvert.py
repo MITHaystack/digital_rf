@@ -159,7 +159,7 @@ if __name__ == '__main__':
                     t = np.longdouble(fname.split('@', 1)[1][:-3])
                     s = int((t * sample_rate_numerator)
                             / sample_rate_denominator)
-                    mdo.write(samples=s, data_dict=md)
+                    mdo.write(samples=s, data=md)
 
         # create a drf 2 writer
         writer = digital_rf.DigitalRFWriter(

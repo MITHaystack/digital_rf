@@ -472,7 +472,7 @@ class Thor(object):
             )
             mdo.write(
                 samples=int(lt * samplerate_out),
-                data_dict=md,
+                data=md,
             )
 
         # wait until end time or until flowgraph stops
