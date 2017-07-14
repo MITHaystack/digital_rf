@@ -1,3 +1,9 @@
+2.5.1 - July 14, 2017
+---------------------
+
+The main new feature is a GNU Radio Digital RF Sink written entirely in Python that writes receiver and recorder metadata previously handled only in the thor recording script.
+
+
 2.5 - June 16, 2017
 -------------------
 
