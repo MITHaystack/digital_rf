@@ -66,9 +66,13 @@ print("\nTest 0 - read Hdf5 files with no compress, no checksum - channel name =
 test_read('junk0', test_read_obj)
 
 
-print("\nTest 1 -read Hdf5 files with no compress, but with level 9 checksum - channel name = junk1")
+print("\nTest 1 - read Hdf5 files with no compress, no checksum, chunked - channel name = junk1")
 test_read('junk1', test_read_obj)
 
 
-print("\nTest 2 - read Hdf5 files with compress, and with level 9 checksum - channel name = junk2")
+print("\nTest 2 -read Hdf5 files with no compress, but with level 9 checksum - channel name = junk2")
 test_read('junk2', test_read_obj)
+
+
+print("\nTest 3 - read Hdf5 files with compress, and with level 9 checksum - channel name = junk3")
+test_read('junk3', test_read_obj)

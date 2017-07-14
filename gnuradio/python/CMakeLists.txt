@@ -31,6 +31,7 @@ endif()
 GR_PYTHON_INSTALL(
     FILES
     __init__.py
+    digital_rf_sink.py
     digital_rf_source.py
     DESTINATION ${GR_PYTHON_DIR}/gr_drf
 )

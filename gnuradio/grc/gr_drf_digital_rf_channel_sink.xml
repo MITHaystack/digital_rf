@@ -1,0 +1,433 @@
+<?xml version="1.0"?>
+<!--
+  Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+  All rights reserved.
+
+  Distributed under the terms of the BSD 3-clause license.
+
+  The full license is in the LICENSE file, distributed with this software.
+-->
+<block>
+    <name>Digital RF Channel Sink</name>
+    <key>gr_drf_digital_rf_channel_sink</key>
+    <category>Digital RF</category>
+    <import>import numpy as np; import gr_drf</import>
+    <make>\
+    gr_drf.digital_rf_channel_sink(
+        channel_dir=$dir, dtype=$input.dtype,
+        subdir_cadence_secs=$subdir_cadence_s,
+        file_cadence_millisecs=$file_cadence_ms,
+        sample_rate_numerator=$sample_rate_numerator,
+        sample_rate_denominator=$sample_rate_denominator,
+        start=$start, ignore_tags=$ignore_tags,
+        is_complex=$input.complex, num_subchannels=$vlen,
+        uuid_str=None if $uuid=='' else $uuid,
+        center_frequencies=None if $center_freqs=='' else $center_freqs,
+        metadata=$metadata,
+        is_continuous=$is_continuous, compression_level=$compression_level,
+        checksum=$checksum, marching_periods=$marching_periods,
+        stop_on_skipped=$stop_on_skipped, debug=$debug,
+    )
+    </make>
+
+    <callback>set_debug($debug)</callback>
+    <callback>set_ignore_tags($ignore_tags)</callback>
+    <callback>set_stop_on_skipped($stop_on_skipped)</callback>
+
+    <param>
+        <name>Directory</name>
+        <key>dir</key>
+        <type>string</type>
+    </param>
+    <param>
+        <name>Input Type</name>
+        <key>input</key>
+        <value>sc16</value>
+        <type>enum</type>
+        <hide>part</hide>
+        <option>
+            <name>Complex int8</name>
+            <key>sc8</key>
+            <opt>type:sc8</opt>
+            <opt>dtype:np.int8</opt>
+            <opt>complex:True</opt>
+        </option>
+        <option>
+            <name>Complex int16</name>
+            <key>sc16</key>
+            <opt>type:sc16</opt>
+            <opt>dtype:np.int16</opt>
+            <opt>complex:True</opt>
+        </option>
+        <option>
+            <name>Complex float32</name>
+            <key>fc32</key>
+            <opt>type:fc32</opt>
+            <opt>dtype:np.complex64</opt>
+            <opt>complex:True</opt>
+        </option>
+        <option>
+            <name>Complex float64</name>
+            <key>fc64</key>
+            <opt>type:fc64</opt>
+            <opt>dtype:np.complex128</opt>
+            <opt>complex:True</opt>
+        </option>
+        <option>
+            <name>int8</name>
+            <key>s8</key>
+            <opt>type:s8</opt>
+            <opt>dtype:np.int8</opt>
+            <opt>complex:False</opt>
+        </option>
+        <option>
+            <name>int16</name>
+            <key>s16</key>
+            <opt>type:s16</opt>
+            <opt>dtype:np.int16</opt>
+            <opt>complex:False</opt>
+        </option>
+        <option>
+            <name>float32</name>
+            <key>f32</key>
+            <opt>type:f32</opt>
+            <opt>dtype:np.float32</opt>
+            <opt>complex:False</opt>
+        </option>
+        <option>
+            <name>float64</name>
+            <key>f64</key>
+            <opt>type:f64</opt>
+            <opt>dtype:np.float64</opt>
+            <opt>complex:False</opt>
+        </option>
+    </param>
+    <param>
+        <name>Vector Length</name>
+        <key>vlen</key>
+        <value>1</value>
+        <type>int</type>
+        <hide>part</hide>
+    </param>
+    <param>
+        <name>Subdir Cadence (s)</name>
+        <key>subdir_cadence_s</key>
+        <value>3600</value>
+        <type>int</type>
+        <hide>part</hide>
+    </param>
+    <param>
+        <name>File Cadence (ms)</name>
+        <key>file_cadence_ms</key>
+        <value>1000</value>
+        <type>int</type>
+        <hide>part</hide>
+    </param>
+    <param>
+        <name>Sample Rate (num)</name>
+        <key>sample_rate_numerator</key>
+        <value>int(samp_rate)</value>
+        <type>int</type>
+    </param>
+    <param>
+        <name>Sample Rate (den)</name>
+        <key>sample_rate_denominator</key>
+        <value>1</value>
+        <type>int</type>
+    </param>
+    <param>
+        <name>Start</name>
+        <key>start</key>
+        <value></value>
+        <type>string</type>
+        <hide>#if $start() then 'none' else 'part'#</hide>
+    </param>
+    <param>
+        <name>UUID</name>
+        <key>uuid</key>
+        <value></value>
+        <type>string</type>
+        <hide>#if $uuid() then 'none' else 'part'#</hide>
+    </param>
+    <param>
+        <name>Ignore Tags</name>
+        <key>ignore_tags</key>
+        <value>False</value>
+        <type>bool</type>
+        <hide>#if $ignore_tags() then 'none' else 'part'#</hide>
+        <option>
+            <name>Yes</name>
+            <key>True</key>
+        </option>
+        <option>
+            <name>No</name>
+            <key>False</key>
+        </option>
+    </param>
+    <param>
+        <name>Center Frequencies</name>
+        <key>center_freqs</key>
+        <value></value>
+        <type>real_vector</type>
+        <hide>part</hide>
+        <tab>Metadata</tab>
+    </param>
+    <param>
+        <name>Additional Metadata</name>
+        <key>metadata</key>
+        <value>{}</value>
+        <type>raw</type>
+        <hide>part</hide>
+        <tab>Metadata</tab>
+    </param>
+    <param>
+        <name>Debug Printing</name>
+        <key>debug</key>
+        <value>False</value>
+        <type>bool</type>
+        <hide>part</hide>
+        <option>
+            <name>Yes</name>
+            <key>True</key>
+        </option>
+        <option>
+            <name>No</name>
+            <key>False</key>
+        </option>
+        <tab>Advanced</tab>
+    </param>
+    <param>
+        <name>Continuous Blocks</name>
+        <key>is_continuous</key>
+        <value>True</value>
+        <type>bool</type>
+        <hide>part</hide>
+        <option>
+            <name>Yes</name>
+            <key>True</key>
+        </option>
+        <option>
+            <name>No</name>
+            <key>False</key>
+        </option>
+        <tab>Advanced</tab>
+    </param>
+    <param>
+        <name>HDF5 Compression</name>
+        <key>compression_level</key>
+        <value>0</value>
+        <type>int</type>
+        <hide>part</hide>
+        <tab>Advanced</tab>
+    </param>
+    <param>
+        <name>HDF5 Checksum</name>
+        <key>checksum</key>
+        <value>False</value>
+        <type>bool</type>
+        <hide>part</hide>
+        <option>
+            <name>Yes</name>
+            <key>True</key>
+        </option>
+        <option>
+            <name>No</name>
+            <key>False</key>
+        </option>
+        <tab>Advanced</tab>
+    </param>
+    <param>
+        <name>Marching Periods</name>
+        <key>marching_periods</key>
+        <value>True</value>
+        <type>bool</type>
+        <hide>part</hide>
+        <option>
+            <name>Yes</name>
+            <key>True</key>
+        </option>
+        <option>
+            <name>No</name>
+            <key>False</key>
+        </option>
+        <tab>Advanced</tab>
+    </param>
+    <param>
+        <name>Stop on Skip</name>
+        <key>stop_on_skipped</key>
+        <value>False</value>
+        <type>bool</type>
+        <hide>part</hide>
+        <option>
+            <name>Yes</name>
+            <key>True</key>
+        </option>
+        <option>
+            <name>No</name>
+            <key>False</key>
+        </option>
+        <tab>Advanced</tab>
+    </param>
+
+    <check>$vlen > 0</check>
+    <check>$subdir_cadence_s > 0</check>
+    <check>$file_cadence_ms > 0</check>
+    <check>$subdir_cadence_s*1000 % $file_cadence_ms == 0</check>
+    <check>$sample_rate_numerator > 0</check>
+    <check>$sample_rate_denominator > 0</check>
+    <check>$compression_level >= 0 and 9 >= $compression_level</check>
+
+    <sink>
+        <name>in</name>
+        <type>$input.type</type>
+        <vlen>$vlen</vlen>
+    </sink>
+
+    <doc>
+Write a channel of data in Digital RF format.
+
+In addition to storing the input samples in Digital RF format, this
+block also populates the channel's accompanying Digital Metadata
+at the sample indices when the metadata changes or a data skip occurs.
+See the Notes section for details on what metadata is stored.
+
+
+Parameters
+----------
+
+Directory : string
+    The directory where this channel is to be written. It will be
+    created if it does not exist. The basename (last component) of the
+    path is considered the channel's name for reading purposes.
+
+Input Type : enum
+    Size and type of the input samples.
+
+Vector Length : int
+    Vector length of the input. Each sample of the vector will be written
+    to a different subchannel.
+
+Subdir Cadence (s) : int
+    The number of seconds of data to store in one subdirectory. The
+    timestamp of any subdirectory will be an integer multiple of this
+    value.
+
+File Cadence (s) : int
+    The number of milliseconds of data to store in each file. Note that
+    an integer number of files must exactly span a subdirectory,
+    implying::
+
+        (subdir_cadence_secs*1000 % file_cadence_millisecs) == 0
+
+Sample Rate (num) : long | int
+    Numerator of sample rate in Hz.
+
+Sample Rate (den) : long | int
+    Denominator of sample rate in Hz.
+
+Start : int/long | float | string, optional
+    A value giving the time/index of the channel's first sample. An
+    'rx_time' tag on the first sample will override this value when
+    `ignore_tags` is False.
+    If empty and `ignore_tags` is False, drop data until an
+    'rx_time' tag arrives and sets the start time (a ValueError is
+    raised if `ignore_tags` is True).
+    If an integer, it is interpreted as a sample index given in the
+    number of samples since the epoch (time_since_epoch*sample_rate).
+    If a float, it is interpreted as a timestamp (seconds since epoch).
+    If a string, two forms are permitted:
+        1) a string which can be evaluated to an integer/float and
+            interpreted as above,
+        2) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
+
+UUID : string, optional
+    UUID string that will act as a unique identifier for the data and
+    can be used to tie the data files to metadata. If empty, a random
+    UUID will be generated.
+
+Ignore Tags : bool, optional
+    If True, do not use 'rx_time' tags to set the sample index and do
+    not write other tags as Digital Metadata.
+
+
+Other Parameters
+----------------
+
+Center Frequencies : None | array_like of floats, optional
+    List of subchannel center frequencies to include in initial
+    metadata. If empty, ``[0.0]*num_subchannels`` will be used.
+    Subsequent center frequency metadata samples can be written using
+    'rx_freq' stream tags.
+
+Additional Metadata : dict, optional
+    Dictionary of additional metadata to include in initial Digital
+    Metadata sample. Subsequent metadata samples can be written
+    using 'metadata' stream tags, but all keys intended to be included
+    should be set here first even if their values are empty.
+
+Continuous Blocks : bool, optional
+    If True, data will be written in continuous blocks. If False data
+    will be written with gapped blocks. Fastest read speed is achieved
+    with is_continuous True, checksum False, and compression_level 0
+    (all defaults).
+
+HDF5 Compression : int, optional
+    0 for no compression (default), 1-9 for varying levels of gzip
+    compression (1 == least compression, least CPU; 9 == most
+    compression, most CPU).
+
+HDF5 Checksum : bool, optional
+    If True, use HDF5 checksum capability. If False (default), no
+    checksum.
+
+Marching Periods : bool, optional
+    If True, write a period to stdout for every subdirectory when
+    writing.
+
+Stop on Skip : bool, optional
+    If True, stop writing when a sample would be skipped (such as from
+    a dropped packet).
+
+
+Notes
+-----
+
+By convention, this block sets the following Digital Metadata fields:
+
+    uuid_str : string
+        Value provided by the `uuid_str` argument.
+
+    sample_rate_numerator : int
+        Value provided by the `sample_rate_numerator` argument.
+
+    sample_rate_denominator : int
+        Value provided by the `sample_rate_denominator` argument.
+
+    center_frequencies : list of floats with length `num_subchannels`
+        Subchannel center frequencies as specified by
+        `center_frequencies` argument and 'rx_freq' stream tags.
+
+Additional metadata fields can be set using the `metadata` argument and
+stream tags. Nested dictionaries are permitted and are helpful for
+grouping properties. For example, receiver-specific metadata is
+typically specified with a sub-dictionary using the 'receiver' field.
+
+
+This block acts on the following stream tags when `ignore_tags` is
+False:
+
+    rx_time : (int secs, float frac) tuple
+        Used to set the sample index from the given time since epoch.
+
+    rx_freq : float
+        Used to set the 'center_frequencies' value in the channel's
+        Digital Metadata as described above.
+
+    metadata : dict
+        Used to populate additional (key, value) pairs in the channel's
+        Digital Metadata. Any keys passed in 'metadata' tags should be
+        included in the `metadata` argument at initialization to ensure
+        that they always exist in the Digital Metadata.
+
+    </doc>
+</block>

@@ -328,7 +328,7 @@ class archive:
         # constants
         self._sub_directory_glob = '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
         self._rf_file_glob = 'rf@[0-9]*.[0-9][0-9][0-9].h5'
-        self._metadata_glob = 'metadata*.h5'
+        self._properties_glob = '*_properties.h5'
         self._metadata_file_glob = '*@[0-9]*.h5'
         self._metadata_dir = 'metadata'
         self._rf_dir = 'rf_data'
@@ -449,12 +449,12 @@ class archive:
                                     channel)
         os.mkdir(channel_dest)
 
-        # first copy all the metadata
-        for metadata_file in subdir_list[1]:
+        # first copy all the properties
+        for properties_file in subdir_list[1]:
             if self.verbose:
-                print('archiving metadata file %s' % (metadata_file))
-            shutil.copyfile(os.path.join(self.source, channel, metadata_file),
-                            os.path.join(channel_dest, os.path.basename(metadata_file)))
+                print('archiving properties file %s' % (properties_file))
+            shutil.copyfile(os.path.join(self.source, channel, properties_file),
+                            os.path.join(channel_dest, os.path.basename(properties_file)))
 
         # build iterable of arguments
         args_list = []
@@ -507,16 +507,16 @@ class archive:
         except:
             pass
 
-        # first copy all the metadata
-        for metadata_file in subdir_list[1]:
+        # first copy all the properties
+        for properties_file in subdir_list[1]:
             if self.verbose:
-                print('archiving metadata file %s' % (metadata_file))
+                print('archiving properties file %s' % (properties_file))
             cmd = 'scp -q %s %s' % (os.path.join(self.source,
-                                                 channel, metadata_file), channel_dest)
+                                                 channel, properties_file), channel_dest)
             try:
                 subprocess.check_call(cmd.split())
             except subprocess.CalledProcessError:
-                raise IOError, 'Failed to copy metadata file with cmd <%s>' % (
+                raise IOError, 'Failed to copy properties file with cmd <%s>' % (
                     cmd)
 
         # build iterable of arguments
@@ -616,10 +616,10 @@ class archive:
         for channel in self.channels:
             subdir_list = self._chan_dict[channel]
 
-            # metadata
-            for metadata_file in subdir_list[1]:
+            # properties
+            for properties_file in subdir_list[1]:
                 needed_GB += os.path.getsize(os.path.join(
-                    self.source, channel, metadata_file))
+                    self.source, channel, properties_file))
 
             # rf data
             for i, items in enumerate(subdir_list[0]):
@@ -680,7 +680,7 @@ class archive:
     def get_chan_dict_local(self):
         """get_chan_dict_local returns a dictionary with keys = channels found,
             values = list of two lists - 1: list of
-            subdirectory basenames, 2: list of metadata files in channel directory
+            subdirectory basenames, 2: list of properties files in channel directory
         """
         ret_dict = {}
         subdirectories = glob.glob(os.path.join(
@@ -695,12 +695,12 @@ class archive:
                 ret_dict[channel] = [[], []]
             ret_dict[channel][0].append((basename, dt))
 
-        # now get metadata files
-        metadata_files = glob.glob(os.path.join(
-            self.source, '*', self._metadata_glob))
-        for metadata_file in metadata_files:
-            basename = os.path.basename(metadata_file)
-            channel_path = os.path.dirname(metadata_file)
+        # now get properties files
+        properties_files = glob.glob(os.path.join(
+            self.source, '*', self._properties_glob))
+        for properties_file in properties_files:
+            basename = os.path.basename(properties_file)
+            channel_path = os.path.dirname(properties_file)
             channel = os.path.basename(channel_path)
             if ret_dict.has_key(channel):
                 ret_dict[channel][1].append(basename)

@@ -1,0 +1,161 @@
+<?xml version="1.0"?>
+<!--
+  Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+  All rights reserved.
+
+  Distributed under the terms of the BSD 3-clause license.
+
+  The full license is in the LICENSE file, distributed with this software.
+-->
+<block>
+    <name>Digital RF Channel Source</name>
+    <key>gr_drf_digital_rf_channel_source</key>
+    <category>Digital RF</category>
+    <import>import gr_drf</import>
+    <make>\
+    gr_drf.digital_rf_channel_source(
+        $dir,
+        start=$start,
+        end=$end,
+        repeat=$repeat,
+    )
+    </make>
+
+    <param>
+        <name>Directory</name>
+        <key>dir</key>
+        <type>string</type>
+    </param>
+    <param>
+        <name>Start</name>
+        <key>start</key>
+        <value></value>
+        <type>string</type>
+        <hide>part</hide>
+    </param>
+    <param>
+        <name>End</name>
+        <key>end</key>
+        <value></value>
+        <type>string</type>
+        <hide>part</hide>
+    </param>
+    <param>
+        <name>Repeat</name>
+        <key>repeat</key>
+        <value>False</value>
+        <type>bool</type>
+        <hide>#if $repeat() then 'none' else 'part'#</hide>
+        <option>
+            <name>Yes</name>
+            <key>True</key>
+        </option>
+        <option>
+            <name>No</name>
+            <key>False</key>
+        </option>
+    </param>
+    <param>
+        <name>Show Message Port</name>
+        <key>hide_msg_port</key>
+        <value>True</value>
+        <type>enum</type>
+        <hide>part</hide>
+        <option>
+            <name>Yes</name>
+            <key>False</key>
+        </option>
+        <option>
+            <name>No</name>
+            <key>True</key>
+        </option>
+        <tab>Advanced</tab>
+    </param>
+
+    <source>
+        <name>out</name>
+        <type></type>
+        <vlen></vlen>
+    </source>
+    <source>
+        <name>properties</name>
+        <type>message</type>
+        <optional>True</optional>
+        <hide>\$hide_msg_port</hide>
+    </source>
+
+    <doc>
+Read a channel of data from a Digital RF directory.
+
+In addition to outputting samples from Digital RF format data, this
+block also emits a 'properties' message containing inherent channel
+properties and adds stream tags using the channel's accompanying
+Digital Metadata. See the Notes section for details on what the
+messages and stream tags contain.
+
+
+Parameters
+---------------
+
+Directory : string
+    Path to the channel directory containing 'drf_properties.h5' and
+    timestamped subdirectories with Digital RF files. The basename (last
+    component) of the path is considered the channel's name.
+
+Start : string
+    A value giving the start of the channel's playback.
+    If None or '', the start of the channel's available data is used.
+    If an integer, it is interpreted as a sample index giving the
+    number of samples since the epoch (t_since_epoch*sample_rate).
+    If a float, it is interpreted as a timestamp (seconds since epoch).
+    If a string, three forms are permitted:
+        1) a string which can be evaluated to an integer/float and
+            interpreted as above,
+        2) a string beginning with '+' and followed by an integer
+            (float) expression, interpreted as samples (seconds) from
+            the start of the data, and
+        3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
+
+End : string
+    A value giving the end of the channel's playback.
+    If None or '', the end of the channel's available data is used.
+    Otherwise, this is interpreted in the same way as the start value.
+
+Repeat : bool
+    If True, loop the data continuously from the start after the end
+    is reached. If False, stop after the data is read once.
+
+
+Notes
+-----
+
+A channel directory must contain subdirectories/files in the format:
+    [YYYY-MM-DDTHH-MM-SS]/rf@[seconds].[%03i milliseconds].h5
+
+Each directory provided is considered the same channel. An error is
+raised if their sample rates differ, or if their time periods overlap.
+
+Upon start, this block sends a 'properties' message on its output
+message port that contains a dictionary with one key, the channel's
+name, and a value which is a dictionary of properties found in the
+channel's 'drf_properties.h5' file.
+
+This block emits the following stream tags at the appropriate sample
+for each of the channel's accompanying Digital Metadata samples:
+
+    rx_time : (int secs, float frac) tuple
+        Time since epoch of the sample.
+
+    rx_rate : float
+        Sample rate in Hz.
+
+    rx_freq : float | 1-D array of floats
+        Center frequency or frequencies of the subchannels based on
+        the 'center_frequencies' metadata field.
+
+    metadata : dict
+        Any additional Digital Metadata fields are added to this
+        dictionary tag of metadata.
+
+    </doc>
+</block>

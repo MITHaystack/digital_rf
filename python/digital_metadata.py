@@ -20,6 +20,7 @@ import copy
 import datetime
 import fractions
 import glob
+import itertools
 import os
 import re
 import time
@@ -31,6 +32,8 @@ from distutils.version import StrictVersion
 # third party imports
 import h5py
 import numpy
+import six
+from six.moves import zip
 
 # local imports
 from . import list_drf
@@ -39,6 +42,51 @@ from ._version import __version__
 __all__ = (
     'DigitalMetadataReader', 'DigitalMetadataWriter',
 )
+
+
+def _recursive_items(d, prefix='', visited=None):
+    """Generator of (key, value) pairs for a dict, recursing into sub-dicts.
+
+    Sub-dictionary (key, value) pairs will have '[parent_key]/' prepended
+    to their key name.
+
+
+    Parameters
+    ----------
+
+    d : dict
+        The dictionary to iterate over.
+
+    prefix : string
+        The starting prefix to be added to keys to produce the returned name.
+
+    visited : set | None
+        Set of already visited dictionary ids, to flag infinite recursion.
+        If None, the empty set is used.
+
+
+    Yields
+    ------
+
+    (key, val) : tuple
+        Key name (with prefix and parent dictionary key added) and value pairs
+        for an entry in the dictionary or a sub-dictionary.
+
+    """
+    if visited is None:
+        visited = set()
+    visited.add(id(d))
+    for k, v in six.iteritems(d):
+        name = prefix + k
+        if isinstance(v, dict):
+            if id(v) not in visited:
+                for subk, subv in _recursive_items(v, name + '/', visited):
+                    yield subk, subv
+            else:
+                errstr = 'Infinite loop in data - dict <%s> passed in twice.'
+                raise ValueError(errstr % str(v)[0:500])
+        else:
+            yield name, v
 
 
 class DigitalMetadataWriter:
@@ -169,7 +217,7 @@ class DigitalMetadataWriter:
         """Return the sample rate in Hz as a numpy.longdouble."""
         return(self._samples_per_second)
 
-    def write(self, samples, data_dict):
+    def write(self, samples, data):
         """Write new metadata to the Digital Metadata channel.
 
         Parameters
@@ -180,22 +228,28 @@ class DigitalMetadataWriter:
             the number of samples since the epoch (t_since_epoch*sample_rate),
             for the data to be written.
 
-        data_dict : dict
-            A dictionary representing the metadata to write with keys giving
-            the field names and values giving the metadata itself. Each value
-            must be either:
+        data : list of dicts | dict
+            If a list of dicts, each dictionary provides the metadata to be
+            written for each corresponding sample (`data` must have the same
+            length as `samples`). The dictionary keys give the field names,
+            while the values must be HDF5-compatible (numpy) objects or sub-
+            dictionaries meeting the same requirement.
+
+            If a dict, the keys give the field names and each value must be
+            one of the following:
 
                 - a 1-D numpy array or list/tuple of numpy objects with length
                     equal to ``len(samples)`` giving the metadata corresponding
                     to each sample index in `samples`
                 - a single value or numpy array of shape different than
-                    ``(len(samples),)``, giving the metadata for all of the
+                    ``(len(samples),)``, giving the metadata for *all* of the
                     samples indices in `samples`
                 - another dictionary with keys that are valid Group name
                     strings and leaf values that are one of the above
 
-            This dictionary should always have the same keys each time the
-            write method is called.
+            The fields should always be the same each time the write method is
+            called to ensure that the fields are consistently present when
+            reading.
 
         """
         try:
@@ -206,198 +260,91 @@ class DigitalMetadataWriter:
             raise ValueError(
                 'Values in `samples` must be convertible to uint64'
             )
-        if len(samples) == 0:
+
+        N = len(samples)
+        if N == 0:
             raise ValueError('`samples` must not be empty')
 
-        if self._fields is None:
-            self._set_fields(data_dict.keys())
+        if isinstance(data, dict):
+            if self._fields is None:
+                self._set_fields(data.keys())
 
-        # get mapping of sample ranges to subdir/filenames
-        file_info_list = self._get_subdir_filename_info(samples)
+            keyval_iterators = []
+            for key, val in _recursive_items(data):
+                if not isinstance(val, six.string_types):
+                    try:
+                        if len(val) == N:
+                            it = zip(itertools.repeat(key, N), val)
+                            keyval_iterators.append(it)
+                            continue
+                    except TypeError:
+                        pass
+                # val is a string, doesn't have a length, or len(val) != N
+                it = itertools.repeat((key, val), N)
+                keyval_iterators.append(it)
+            keyvals = zip(*keyval_iterators)
+        elif len(data) == N:
+            if self._fields is None:
+                self._set_fields(data[0].keys())
 
-        for sample_list, index_list, subdir, file_basename in file_info_list:
-            self._write_metadata_range(
-                data_dict, sample_list, index_list, len(samples), subdir,
-                file_basename,
+            keyvals = (_recursive_items(d) for d in data)
+        else:
+            errstr = (
+                '`data` must be a dict or list of dicts with length equal to'
+                ' the length of `samples`.'
             )
+            raise ValueError(errstr)
 
-    def _write_metadata_range(
-        self, data_dict, sample_list, index_list, sample_len, subdir, filename,
-    ):
-        """Write metadata to a single file.
+        return self._write(samples, keyvals)
 
-        This private method is called by `write` to carry out the writing of a
-        list of samples.
+    def _write(self, samples, keyvals):
+        """Write new metadata to the Digital Metadata channel.
+
+        This function does no input checking, see `write` for that.
 
 
         Parameters
         ----------
 
-        data_dict : dict
-            A dictionary representing the metadata to write with keys giving
-            the field names and values giving the metadata itself. Each value
-            must be either:
+        samples : 1-D numpy array of type uint64 sorted in ascending order
+            An array of sample indices, given in the number of samples since
+            the epoch (time_since_epoch*sample_rate).
 
-                - a 1-D numpy array or list/tuple of numpy objects of length
-                    `sample_len`, with data at index ``index_list[k]``
-                    corresponding to the kth sample index in `sample_list`
-                - a single value or numpy array of shape different than
-                    ``(sample_len,)``, in which case `index_list` will be
-                    ignored
-                - another dictionary with keys that are valid Group name
-                    strings and leaf values that are one of the above
-
-            This dictionary must always have the same keys each time the write
-            method is called.
-
-        sample_list : iterable
-            Iterable of sample indices, given in the number of samples since
-            the epoch (t_since_epoch*sample_rate), for the data to be written.
-
-        index_list : list
-            List of the same length as `sample_list` that gives the index into
-            arrays/lists in `data_dict` for the corresponding sample in
-            `sample_list`.
-
-        sample_len : int
-            Total number of samples to be written from this `data_dict`,
-            possibly over multiple calls to this method. Used to determine if
-            writing numpy arrays item by item or as a whole.
-
-        subdir : string
-            Full path to the subdirectory to write to. The directory will be
-            created if it does not exist.
-
-        filename : string
-            Full name of file to write to. The file will be created if it does
-            not exist.
+        keyvals : iterable of iterables same length as `samples`
+            Each element of this iterable corresponds to a sample in `samples`
+            and should be another iterable that produces (key, value) pairs to
+            write for that sample.
 
         """
-        if not os.access(subdir, os.W_OK):
-            os.mkdir(subdir)
-        this_file = os.path.join(subdir, filename)
+        grp_iter = self._sample_group_generator(samples)
+        for grp, keyval in zip(grp_iter, keyvals):
+            for key, val in keyval:
+                if val is not None:
+                    grp.create_dataset(key, data=val)
 
-        with h5py.File(this_file, 'a') as f:
-            existing_samples = f.keys()
-            for index, sample in enumerate(sample_list):
-                if str(sample) in existing_samples:
-                    errstr = (
-                        'sample %i already in data - no overwriting allowed'
-                    )
-                    raise IOError(errstr % sample)
-                grp = f.create_group(str(sample))
-                # reset list of data_dict called already
-                self._dict_list = []
-                self._write_dict(grp, data_dict, index_list[index], sample_len)
-
-    def _write_dict(self, grp, this_dict, sample_index, sample_len):
-        """Write metadata for a single sample index from a dictionary.
-
-        If the dictionary contains other dictionaries as keys, this method
-        will be recursively called on those dictionaries to write their
-        entries.
-
+    def _sample_group_generator(self, samples):
+        """Generator that yields HDF5 group for each sample in `samples`.
 
         Parameters
         ----------
 
-        grp : h5py.Group object
-            HDF5 group in which to write all non-dict values in `this_dict`.
-
-        this_dict : dict
-            A dictionary representing the metadata to write with keys giving
-            the field names and values giving the metadata itself. Each value
-            must be either:
-
-                - a 1-D numpy array or list/tuple of numpy objects of length
-                    `sample_len`, with data to be written during this call at
-                    index `sample_index`
-                - a single value or numpy array of shape different than
-                    ``(sample_len,)``, in which case `sample_index` is ignored
-                - another dictionary with keys that are valid Group name
-                    strings and leaf values that are one of the above
-
-            This dictionary must always have the same keys each time the write
-            method is called.
-
-        sample_index : int
-            Index into arrays/lists in `data_dict` for the value that will be
-            written.
-
-        sample_len : int
-            Total number of samples to be written from this `data_dict`,
-            possibly over multiple calls to this method. Used to determine if
-            writing numpy arrays item by item or as a whole.
-
-        """
-        # prevent loops by checking that this is a unique dict
-        if this_dict in self._dict_list:
-            errstr = 'Infinite loop in data - dict <%s> passed in twice'
-            raise ValueError(errstr % str(this_dict)[0:500])
-        self._dict_list.append(this_dict)
-
-        for key in this_dict.keys():
-            if isinstance(this_dict[key], types.DictType):
-                new_grp = grp.create_group(str(key))
-                self._write_dict(
-                    new_grp, this_dict[key], sample_index, sample_len,
-                )
-                data = None
-            elif isinstance(this_dict[key], (types.ListType, types.TupleType)):
-                data = this_dict[key][sample_index]
-            elif hasattr(this_dict[key], 'shape'):
-                if this_dict[key].shape == (sample_len,):
-                    data = this_dict[key][sample_index]  # value from array
-                else:
-                    data = this_dict[key]  # whole array
-            else:
-                data = this_dict[key]  # single numpy value
-            if data is not None:
-                grp.create_dataset(key, data=data)
-
-    def _get_subdir_filename_info(self, samples):
-        """Group sample indices into their appropriate files.
-
-        This takes a list of samples and breaks it into groups belonging in
-        single files. Those groups are returned along with the path and name
-        of the corresponding file.
-
-
-        Parameters
-        ----------
-
-        samples : 1-D numpy array of type uint64
+        samples : 1-D numpy array of type uint64 sorted in ascending order
             An array of sample indices, given in the number of samples since
             the epoch (time_since_epoch*sample_rate).
 
 
-        Returns
-        -------
+        Yields
+        ------
 
-        list of tuples
-            A list of tuples, where each tuple corresponds to one file and has
-            the following components:
-
-            sample_list : list
-                List of sample indices from `samples` included in the file.
-            index_list : list
-                List corresponding to `sample_list` that gives the indices into
-                `samples` so that ``samples[index_list] == sample_list``.
-            subdir : string
-                Full path to the subdirectory containing the file.
-            filename : string
-                Full name of file.
+        grp : h5py.Group
+            HDF5 group for the sample. The group is located in the appropriate
+            Digital Metadata file and takes its name from the sample index.
 
         """
         samples_per_file = self._file_cadence_secs * self._samples_per_second
-        # floor using uint64
-        file_indices = numpy.uint64(samples / samples_per_file)
-        ret_list = []
-        for file_idx in numpy.unique(file_indices):
-            idxs = (file_indices == file_idx)
-            index_list = list(idxs.nonzero()[0])
-            sample_list = list(samples[idxs])
-
+        for file_idx, sample_group in itertools.groupby(
+            samples, lambda s: numpy.uint64(s / samples_per_file),
+        ):
             file_ts = file_idx * self._file_cadence_secs
             file_basename = '%s@%i.h5' % (self._file_name, file_ts)
 
@@ -409,11 +356,20 @@ class DigitalMetadataWriter:
                 self._metadata_dir, sub_dt.strftime('%Y-%m-%dT%H-%M-%S'),
             )
 
-            ret_list.append(
-                (sample_list, index_list, subdir, file_basename)
-            )
+            if not os.path.exists(subdir):
+                os.makedirs(subdir)
+            this_file = os.path.join(subdir, file_basename)
 
-        return(ret_list)
+            with h5py.File(this_file, 'a') as f:
+                for sample in sample_group:
+                    try:
+                        grp = f.create_group(str(sample))
+                    except ValueError:
+                        errstr = (
+                            'Sample %i already in data: no overwriting allowed'
+                        )
+                        raise IOError(errstr % sample)
+                    yield grp
 
     def _set_fields(self, field_names):
         """Set the field names used in this metadata channel.

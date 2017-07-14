@@ -60,8 +60,10 @@ Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t d
  * 		int is_complex - 1 if complex (IQ) data, 0 if single-valued
  * 		int num_subchannels - the number of subchannels of complex or single valued data recorded at once.
  * 			Must be 1 or greater. Note: A single stream of complex values is one subchannel, not two.
- * 		int is_continuous - 1 if all data to be written will be gap free, 0 if there might be gaps.  If 1,
- * 			then any attempt to write gapped data will raise an error
+ * 		int is_continuous - 1 if data will be stored in a continuous format (rf_data_index has length 1 for each file, files contain all
+ *			possible samples, gaps are filled with a fill value except when entire file can be omitted)
+ *			0 if data will be stored in a gapped format (rf_data_index identifies continuous chunks in solid rf_data dataset, no fill values
+ *			are used, files can be smaller than maximum size)
  * 		int marching_dots - non-zero if marching dots desired when writing; 0 if not
  *
  * 	Hdf5 format
@@ -303,7 +305,7 @@ int digital_rf_write_blocks_hdf5(Digital_rf_write_object *hdf5_data_object, uint
  * 			should NOT be added by the user.  Error is raised if any value is before its expected value (meaning repeated data).
  * 		uint64_t * data_index_arr - an array of len = len(global_index_arr), where the indices are related to which
  * 			sample in the vector being passed in is being referred to in global_index_arr.  First value must be 0
- * 			or error raised.  Values must be increasing, and cannot be equal or greater than index_len or error raised.
+ * 			or error raised.  Values must be increasing, and cannot be equal or greater than vector_length or error raised.
  * 		uint_64 index_len - the len of both global_index_arr and data_index_arr.  Must be greater than 0.
  * 		void * vector - pointer into data vector to write
  * 		uint64_t vector_length - number of samples to write to Hdf5
@@ -318,7 +320,7 @@ int digital_rf_write_blocks_hdf5(Digital_rf_write_object *hdf5_data_object, uint
 	char error_str[SMALL_HDF5_STR] = "";
 	uint64_t samples_written = 0; /* total samples written so far to all Hdf5 files during this write call */
 	uint64_t dataset_samples_written = 0; /* number of samples written to the present file */
-	hsize_t      chunk_dims[2] = {0, hdf5_data_object->num_subchannels};
+	hsize_t chunk_dims[2] = {0, hdf5_data_object->num_subchannels};
 	int chunk_size = 0;
 
 	if (hdf5_data_object->has_failure)
@@ -778,10 +780,19 @@ uint64_t digital_rf_write_samples_to_file(Digital_rf_write_object *hdf5_data_obj
 	}
 	else
 	{
-		/* we need to expand this file to hold the new data if needs_chunking */
-		assert(hdf5_data_object->dataset_index + samples_to_write <= max_samples_this_file);
 		if (hdf5_data_object->needs_chunking)
+		{
+			/* expand this file's dataset to hold the new data */
 			digital_rf_extend_dataset(hdf5_data_object, samples_to_write);
+		}
+		else
+		{
+			/* set global and dataset indices in case we skipped samples since
+			 * previous write, samples_left calculated earlier based on next_global_index */
+			hdf5_data_object->global_index = next_global_index;
+			hdf5_data_object->dataset_index = max_samples_this_file - samples_left;
+		}
+		assert(hdf5_data_object->dataset_index + samples_to_write <= max_samples_this_file);
 	}
 
 	/* create dataspace hyperslab to write to */
@@ -1465,8 +1476,8 @@ uint64_t * digital_rf_create_rf_data_index(Digital_rf_write_object *hdf5_data_ob
 	uint64_t last_global_sample;  /* last possible global sample that be written to this file */
 	int64_t top_index = -1, bottom_index = -1; /* temp indecies used to calc samples_to write */
 	int row_count = 0;
-	uint64_t last_index = 0; /* make sure indices are increasing at least as much as global_index_arr */
-	uint64_t last_sample = 0;
+	uint64_t prev_index = 0; /* make sure indices are increasing at least as much as global_index_arr */
+	uint64_t prev_sample = 0;
 	char error_str[BIG_HDF5_STR] = "";
 	uint64_t * ret_arr; /* will hold malloced data to be returned */
 	int rows_written = 0; /* keeps tracks of rows written */
@@ -1500,14 +1511,14 @@ uint64_t * digital_rf_create_rf_data_index(Digital_rf_write_object *hdf5_data_ob
 		this_sample = global_index_arr[i];
 
 		/* more input data sanity checks */
-		if (i>0 && last_index >= this_index)
+		if (i>0 && prev_index >= this_index)
 		{
 			sprintf(error_str, "indices in data_index_arr out of order - index %i and %i\n", i-1,i);
 			fprintf(stderr, "%s", error_str);
 			*rows_to_write = -1;
 			return(NULL);
 		}
-		if (i>0 && ((this_index - last_index) > (global_index_arr[i] - global_index_arr[i-1])))
+		if (i>0 && ((this_index - prev_index) > (global_index_arr[i] - global_index_arr[i-1])))
 		{
 			sprintf(error_str, "error - indices advancing faster than global index at index %i, illegal\n", i);
 			fprintf(stderr, "%s", error_str);
@@ -1515,62 +1526,70 @@ uint64_t * digital_rf_create_rf_data_index(Digital_rf_write_object *hdf5_data_ob
 			return(NULL);
 		}
 
-		if (this_sample > next_global_sample && bottom_index == -1)
-		{
-			/* calculate bottom index */
-			if (i>0)
-			{
-				if (last_sample + (this_index-last_index) < next_global_sample)
-				{
-					/* next_global_sample falls in a gap */
-					bottom_index = this_index;
-				}
-				else
-					bottom_index = last_index + (next_global_sample - last_sample);
-			}
-			else
-				bottom_index = 0;
-		}
-
-		if (this_sample > last_global_sample && top_index == -1)
-		{
-			/* calculate top index */
-			if (last_global_sample > last_sample + (this_index - last_index))
-			{
-				/* last sample falls in a gap */
-				top_index = this_index;
-			}
-			else
-				top_index = last_index + (last_global_sample - last_sample);
-		}
-
-		/* these indices okay - see if they are needed for this file */
+		/* see if these indices are needed for this file */
 		if (i > 0)
 		{
-			if (next_global_sample < last_sample + (this_index - last_index) && last_global_sample >= this_sample)
+			if (next_global_sample < prev_sample + (this_index - prev_index) && last_global_sample >= this_sample)
 				row_count++;
 		}
 		else if (!file_exists || hdf5_data_object->needs_chunking)
 			row_count++;
 
-		last_index = this_index;
-		last_sample = this_sample;
+		/* determine range of data [bottom_index, top_index] that will be written to this file */
+		/* set bottom_index if unset and the global sample for this block is past the next sample to be written */
+		if (this_sample > next_global_sample && bottom_index == -1)
+		{
+			/* calculate bottom index */
+			if (i>0)
+			{
+				if (prev_sample + (this_index-prev_index) < next_global_sample)
+				{
+					/* next_global_sample falls in a gap */
+					bottom_index = this_index;
+				}
+				else
+					bottom_index = prev_index + (next_global_sample - prev_sample);
+			}
+			else
+				bottom_index = 0;
+		}
+		/* set top_index if unset and the global sample for this block is past the last sample to be in the file */
+		if (this_sample > last_global_sample && top_index == -1)
+		{
+			/* calculate top index */
+			if (last_global_sample > prev_sample + (this_index - prev_index))
+			{
+				/* last sample falls in a gap */
+				top_index = this_index;
+			}
+			else
+				top_index = prev_index + (last_global_sample - prev_sample);
+		}
+
+		prev_index = this_index;
+		prev_sample = this_sample;
 	}
 
 	/* now handle write data beyond last gap */
 	this_index = vector_len;
-	this_sample = last_sample + (vector_len-last_index);
+	this_sample = prev_sample + (this_index-prev_index);
 
+	/* set bottom_index according to last data block if unset */
 	if (bottom_index == -1)
-		bottom_index = last_index + (next_global_sample-last_sample);
+		bottom_index = prev_index + (next_global_sample-prev_sample);
 
+	/* set top_index according to last data block if unset */
 	if (top_index == -1)
 	{
-		if (last_global_sample <= this_sample)
-			top_index = last_index + (last_global_sample - last_sample);
+		if (last_global_sample < this_sample)
+			/* file ends before last sample in data block */
+			top_index = prev_index + (last_global_sample - prev_sample);
 		else
-			top_index = last_index + (this_sample - last_sample);
+			/* write includes last sample in data block */
+			/* works out to top_index == vector_len */
+			top_index = prev_index + (this_sample - prev_sample);
 	}
+	/* now we know how many samples to write from the data to this file */
 	*samples_to_write = top_index - bottom_index;
 
 	/* if no indices need to be malloced, return now */
@@ -1589,33 +1608,42 @@ uint64_t * digital_rf_create_rf_data_index(Digital_rf_write_object *hdf5_data_ob
 	}
 
 	/* next pass is to fill out ret_arr */
+	/* ret_arr is [global_sampleN, data_indexN, ...] for blocks in file */
 	for (i=0; i<index_len; i++)
 	{
 		this_index = data_index_arr[i];
 		this_sample = global_index_arr[i];
 
+		/* only thing we do on the first pass is add to ret_arr for start of
+		 * data if it's a new file or the data is written in chunked format */
 		if (i == 0 && (!file_exists || hdf5_data_object->needs_chunking))
 		{
 			ret_arr[0] = next_global_sample + hdf5_data_object->global_start_sample;
 			/* handle the case of the first sample written where it may not be the first sample in the file */
+			/* and we're writing the data in continuous format */
 			if (hdf5_data_object->is_continuous && !hdf5_data_object->needs_chunking)
 				ret_arr[0] -= max_samples_this_file - samples_left;
 			    /* since ret_arr is referenced to first global sample, may actually be negative */
+			/* ret_arr[1] will have hdf5_data_object->dataset_index added later
+			 * upon expansion to account for existing data in file */
 			ret_arr[1] = 0;
 			rows_written++;
 		}
+		/* on subsequent passes, add the block to ret_arr when it falls in the file */
 		if (i > 0)
 		{
-			if (next_global_sample < last_sample + (this_index - last_index) && last_global_sample >= this_sample)
+			if (next_global_sample < prev_sample + (this_index - prev_index) && last_global_sample >= this_sample)
 			{
 				ret_arr[2*rows_written] = this_sample + hdf5_data_object->global_start_sample;
+				/* data index for data in file is different from data index of the data in the write call */
+				/* by the number of samples previously written from the data (to previous files) */
 				ret_arr[2*rows_written + 1] = this_index - samples_written;
 				rows_written++;
 			}
 		}
 
-		last_index = this_index;
-		last_sample = this_sample;
+		prev_index = this_index;
+		prev_sample = this_sample;
 	}
 	assert(rows_written==row_count);  /* or else there's a bug in my logic */
 	*rows_to_write = rows_written;
@@ -1666,11 +1694,11 @@ int digital_rf_write_rf_data_index(Digital_rf_write_object * hdf5_data_object, u
 	else
 	{
 		/* expand dataset */
-		/* adjust data index in rf_data_index_arr to account for samples already written */
+		/* adjust data index in rf_data_index_arr to account for samples already in file */
 		for (i=0; i<block_index_len; i++)
 		{
 			/* data index are odd terms in rf_data_index_arr,
-			 * dataset_index adds number of samples already written */
+			 * dataset_index adds number of samples already in file */
 			rf_data_index_arr[2*i + 1] += hdf5_data_object->dataset_index;
 		}
 		/* write to existing index */

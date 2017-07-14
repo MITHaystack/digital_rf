@@ -16,6 +16,7 @@ import os
 import re
 import sys
 import time
+import uuid
 from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
 from ast import literal_eval
 from fractions import Fraction
@@ -23,7 +24,9 @@ from itertools import chain, cycle, islice, repeat
 from subprocess import call
 from textwrap import TextWrapper, dedent, fill
 
+import dateutil.parser
 import numpy as np
+import pytz
 from gnuradio import filter, gr, uhd
 from gnuradio.filter import firdes
 
@@ -62,6 +65,10 @@ class Thor(object):
     def _parse_options(**kwargs):
         """Put all keyword options in a namespace and normalize them."""
         op = Namespace(**kwargs)
+
+        if op.uuid is None:
+            # generate random UUID
+            op.uuid = uuid.uuid4().hex
 
         op.nmboards = len(op.mboards) if len(op.mboards) > 0 else 1
         op.nchs = len(op.chs)
@@ -262,10 +269,13 @@ class Thor(object):
             call(('timedatectl', 'status'))
 
         # parse time arguments
-        st = drf.util.parse_sample_identifier(
-            starttime, samples_per_second=op.samplerate,
-        )
-        if st is not None:
+        if starttime is None:
+            st = None
+        else:
+            dtst = dateutil.parser.parse(starttime)
+            epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+            st = int((dtst - epoch).total_seconds())
+
             # find next suitable start time by cycle repeat period
             soon = int(math.ceil(time.time())) + 5
             periods_until_next = (max(soon - st, 0) - 1) // period + 1
@@ -276,15 +286,18 @@ class Thor(object):
                 dtststr = dtst.strftime('%a %b %d %H:%M:%S %Y')
                 print('Start time: {0} ({1})'.format(dtststr, st))
 
-        et = drf.util.parse_sample_identifier(
-            endtime, samples_per_second=op.samplerate, ref_index=st,
-        )
-        if et is not None:
+        if endtime is None:
+            et = None
+        else:
+            dtet = dateutil.parser.parse(endtime)
+            epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+            et = int((dtet - epoch).total_seconds())
+
             if op.verbose:
-                dtet = datetime.datetime.utcfromtimestamp(et)
                 dtetstr = dtet.strftime('%a %b %d %H:%M:%S %Y')
                 print('End time: {0} ({1})'.format(dtetstr, et))
 
+        if et is not None:
             if (et < time.time() + 5) or (st is not None and et <= st):
                 raise ValueError('End time is before launch time!')
 
@@ -344,7 +357,8 @@ class Thor(object):
         samplerate_num_out = op.samplerate_num
         samplerate_den_out = op.samplerate_den * op.dec
         if op.dec > 1:
-            sample_dtype = '<c8'
+            sample_size = gr.sizeof_gr_complex
+            sample_dtype = '<f4'
 
             taps = firdes.low_pass_2(
                 1.0, float(op.samplerate), float(samplerate_out / 2.0),
@@ -352,7 +366,8 @@ class Thor(object):
                 window=firdes.WIN_BLACKMAN_hARRIS
             )
         else:
-            sample_dtype = np.dtype([('r', '<i2'), ('i', '<i2')])
+            sample_size = 2 * gr.sizeof_short
+            sample_dtype = '<i2'
 
         # set launch time
         # (at least 1 second out so USRP time is set, time to set up flowgraph)
@@ -379,47 +394,18 @@ class Thor(object):
         # populate flowgraph one channel at a time
         fg = gr.top_block()
         for k in range(op.nchs):
-            mbnum = op.mboardnum_bychan[k]
             # create digital RF sink
-            dst = gr_drf.digital_rf_channel_sink(
-                channel_dir=os.path.join(op.datadir, op.chs[k]),
-                dtype=sample_dtype,
-                subdir_cadence_secs=op.subdir_cadence_s,
-                file_cadence_millisecs=op.file_cadence_ms,
+            chdir = os.path.join(op.datadir, op.chs[k])
+            dst = gr_drf.digital_rf_sink_c(
+                dir=chdir, sample_size=sample_size,
+                subdir_cadence_s=op.subdir_cadence_s,
+                file_cadence_ms=op.file_cadence_ms,
                 sample_rate_numerator=samplerate_num_out,
                 sample_rate_denominator=samplerate_den_out,
-                start=int(lt * samplerate_out),
+                uuid=op.uuid, is_complex=True, num_subchannels=1,
+                stop_on_dropped_packet=op.stop_on_dropped,
+                start_sample_index=int(lt * samplerate_out),
                 ignore_tags=False,
-                is_complex=True,
-                num_subchannels=1,
-                uuid_str=op.uuid,
-                center_frequencies=op.centerfreqs[k],
-                metadata=dict(
-                    # receiver metadata for USRP
-                    receiver=dict(
-                        description='UHD USRP source using GNU Radio',
-                        info=dict(u.get_usrp_info(chan=k)),
-                        antenna=op.antennas[k],
-                        bandwidth=op.bandwidths[k],
-                        center_freq=op.centerfreqs[k],
-                        clock_rate=u.get_clock_rate(mboard=mbnum),
-                        clock_source=u.get_clock_source(mboard=mbnum),
-                        gain=op.gains[k],
-                        id=op.mboards_bychan[k],
-                        lo_offset=op.lo_offsets[k],
-                        otw_format=op.otw_format,
-                        samp_rate=u.get_samp_rate(),
-                        stream_args=','.join(op.stream_args),
-                        subdev=op.subdevs_bychan[k],
-                        time_source=u.get_time_source(mboard=mbnum),
-                    ),
-                ),
-                is_continuous=True,
-                compression_level=0,
-                checksum=False,
-                marching_periods=True,
-                stop_on_skipped=op.stop_on_dropped,
-                debug=op.verbose,
             )
 
             if op.dec > 1:
@@ -439,6 +425,55 @@ class Thor(object):
 
         # start to receive data
         fg.start()
+
+        # write metadata one channel at a time
+        for k in range(op.nchs):
+            mbnum = op.mboardnum_bychan[k]
+            # create metadata dir, dmd object, and write channel metadata
+            mddir = os.path.join(op.datadir, op.chs[k], 'metadata')
+            if not os.path.exists(mddir):
+                os.makedirs(mddir)
+            mdo = drf.DigitalMetadataWriter(
+                metadata_dir=mddir,
+                subdir_cadence_secs=op.subdir_cadence_s,
+                file_cadence_secs=1,
+                sample_rate_numerator=samplerate_num_out,
+                sample_rate_denominator=samplerate_den_out,
+                file_name='metadata',
+            )
+            md = op.metadata.copy()
+            md.update(
+                # standard metadata by convention
+                uuid_str=op.uuid,
+                sample_rate_numerator=samplerate_num_out,
+                sample_rate_denominator=samplerate_den_out,
+                # put in a list because we want the data to be a 1-D array
+                # and it would be a single value if we didn't
+                center_frequencies=[np.array([op.centerfreqs[k]])],
+
+                # additional receiver metadata for USRP
+                receiver=dict(
+                    description='UHD USRP source using GNU Radio',
+                    info=dict(u.get_usrp_info(chan=k)),
+                    antenna=op.antennas[k],
+                    bandwidth=op.bandwidths[k],
+                    center_freq=op.centerfreqs[k],
+                    clock_rate=u.get_clock_rate(mboard=mbnum),
+                    clock_source=u.get_clock_source(mboard=mbnum),
+                    gain=op.gains[k],
+                    id=op.mboards_bychan[k],
+                    lo_offset=op.lo_offsets[k],
+                    otw_format=op.otw_format,
+                    samp_rate=u.get_samp_rate(),
+                    stream_args=','.join(op.stream_args),
+                    subdev=op.subdevs_bychan[k],
+                    time_source=u.get_time_source(mboard=mbnum),
+                ),
+            )
+            mdo.write(
+                samples=int(lt * samplerate_out),
+                data=md,
+            )
 
         # wait until end time or until flowgraph stops
         if et is None and duration is not None:
@@ -520,7 +555,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--version', action='version',
         version=(
-            'THOR version 3.1 (The Haystack Observatory Recorder)\n'
+            'THOR version 3.0 (The Haystack Observatory Recorder)\n'
             '\n'
             'Copyright (c) 2017 Massachusetts Institute of Technology'
         )
@@ -628,14 +663,12 @@ if __name__ == '__main__':
     timegroup = parser.add_argument_group(title='time')
     timegroup.add_argument(
         '-s', '--starttime', dest='starttime',
-        help='''Start time of the experiment as sample index (if int), Unix
-                time (if float), or datetime (if in ISO8601 format:
-                2016-01-01T15:24:00Z) (default: %(default)s)''',
+        help='''Start time of the experiment in ISO8601 format:
+                2016-01-01T15:24:00Z (default: %(default)s)''',
     )
     timegroup.add_argument(
         '-e', '--endtime', dest='endtime',
-        help='''End time of the experiment as sample index (if int), Unix
-                time (if float), or datetime (if in ISO8601 format:
+        help='''End time of the experiment in ISO8601 format:
                 2016-01-01T16:24:00Z (default: %(default)s)''',
     )
     timegroup.add_argument(

@@ -7,12 +7,12 @@
   The full license is in the LICENSE file, distributed with this software.
 -->
 <block>
-  <name>Digital RF Sink</name>
+  <name>Digital RF Sink (C)</name>
   <key>drf_digital_rf_sink</key>
   <category>Digital RF</category>
   <import>import gr_drf</import>
   <make>\
-  gr_drf.digital_rf_sink(
+  gr_drf.digital_rf_sink_c(
       dir=$dir, sample_size=$input.size,
       subdir_cadence_s=$subdir_cadence_s, file_cadence_ms=$file_cadence_ms,
       sample_rate_numerator=$sample_rate_numerator,
