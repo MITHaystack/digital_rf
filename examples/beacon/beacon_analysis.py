@@ -840,8 +840,8 @@ def analyzebeacons(input_args):
         os.mkdir(figspath)
     if input_args.savename is None:
         savename = os.path.join(figspath, 'BeaconPlots.png')
-    rfexist, tleoff = corr_tle_rf(maindir, e)
-    if input_args.justplots:
+    rfexist, tleoff = corr_tle_rf(mainpath)
+    if input_args.justplots or ~rfexist:
         print('Analysis will not be run, only plots will be made.')
         plotsti_vel(mainpath, savename=os.path.join(figspath, 'chancomp.png'),
                     timewin=[input_args.begoff, input_args.endoff],
