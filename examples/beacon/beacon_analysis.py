@@ -182,30 +182,133 @@ def open_file(maindir):
         chandict[ichan] = curdict
 
     return (drfObj, chandict, start_indx, end_indx)
+def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100):
+    """
+        Coorelates the tle derived frequency and the rf frequency. A flag is output
+        that specifies if the two frequencies correlate. A time offset between
+        the two is also calculated if there is a correlation.
+
+    """
+    if e is None:
+        e = ephem_doponly(maindir, 0)
+
+    bw_search0 = 8e3
+    bw_search1 = 20e3
+    drfObj, chandict, start_indx, end_indx = open_file(maindir)
+
+    chans = chandict.keys()
+    sps = chandict[chans[0]]['sps']
+    mid_indx = (end_indx+start_indx)/2
+    start_vec = sp.linspace(-150*sps, 150*sps, n_measure)+mid_indx
+    tvec = start_vec/sps
+    del_f = sps/window
+    fvec = sp.arange(-window/2.0, window/2.0)*del_f
+    bw_indx0 = int(bw_search0/del_f)
+    bw_indx1 = int(bw_search1/del_f)
+
+    fidx0 = sp.arange(-bw_indx0/2, bw_indx0/2, dtype=int) + window/2
+    fidx1 = sp.arange(-bw_indx1/2, bw_indx1/2, dtype=int) + window/2
+
+    res0 = sp.zeros([n_measure, window], dtype=float)
+    res1 = sp.zeros([n_measure, window], dtype=float)
+
+    freqm0 = sp.zeros([n_measure])
+    snr0 = sp.zeros([n_measure])
+    freqm1 = sp.zeros([n_measure])
+    snr1 = sp.zeros([n_measure])
+
+    wfun = sig.get_window('hann', window)
+
+    subchan = 0
+    for i_t, c_st in enumerate(start_vec):
+        #pull out data
+        z00 = drfObj.read_vector(c_st, window, chans[0])[:, subchan]
+        z01 = drfObj.read_vector(c_st+window, window, chans[0])[:, subchan]
+        z10 = drfObj.read_vector(c_st, window, chans[1])[:, subchan]
+        z11 = drfObj.read_vector(c_st+window, window, chans[1])[:, subchan]
+
+        F0 = scfft.fftshift(scfft.fft(z00*wfun))
+        F1 = scfft.fftshift(scfft.fft(z01*wfun))
+
+        res_temp = F0*F1.conj()
+        res_noise = sp.median(res_temp.real**2 + res_temp.imag**2)/sp.log(2.)
+        res0[i_t, :] = res_temp.real**2 + res_temp.imag**2
+        freqm0[i_t] = fvec[fidx0[sp.argmax(res0[i_t, fidx0])]]
+        snr0[i_t] = res0[i_t, fidx0].max()/res_noise
+        # Cross correlation for second channel and get residual frequency
+        F0 = scfft.fftshift(scfft.fft(z10*wfun))
+        F1 = scfft.fftshift(scfft.fft(z11*wfun))
+
+        res_temp = F0*F1.conj()
+        res_noise = sp.median(res_temp.real**2 + res_temp.imag**2)/sp.log(2.)
+        res1[i_t, :] = res_temp.real**2 + res_temp.imag**2
+        # find max frequency over restricted sub-band
+        freqm1[i_t] = fvec[fidx1[sp.argmax(res1[i_t, fidx1])]]
+        snr1[i_t] = res1[i_t, fidx1].max()/res_noise
+
+    thresh = 15
+    #outlier removal
+    keep0 = 10*sp.log10(snr0) > thresh
+    if keep0.sum()==0:
+        return False, 0
+    dopfit0 = sp.interpolate.interp1d(tvec[keep0], freqm0[keep0], fill_value='extrapolate')(tvec)
+    dfmean0 = sp.mean(dopfit0)
+    dfstd0 = sp.std(dopfit0)
+
+    keep1 = 10*sp.log10(snr1) > thresh
+    if keep1.sum()==0:
+        return False, 0
+    dopfit1 = sp.interpolate.interp1d(tvec[keep1], freqm1[keep1], fill_value='extrapolate')(tvec)
+    dfmean1 = sp.mean(dopfit1)
+    dfstd1 = sp.std(dopfit1)
+
+    toff = window/sps
+    doppler0 = e["dop1"](tvec+toff)
+    dmean0 = sp.mean(doppler0)
+    dstd0 = sp.std(doppler0)
+
+    doppler1 = e["dop2"](tvec+toff)
+    dmean1 = sp.mean(doppler1)
+    dstd1 = sp.std(doppler1)
+
+    # cross correlation
+    xcor0 = sig.correlate(dopfit0-dfmean0, doppler0-dmean0)/(dfstd0*dstd0*n_measure)
+    xcor1 = sig.correlate(dopfit1-dfmean1, doppler1-dmean1)/(dfstd1*dstd1*n_measure)
+
+    if xcor0.max() < .5 or xcor1.max() < .5:
+        rfexist = False
+        tshift = 0
+    else:
+        rfexist = True
+        corboth = xcor0.max() + xcor1.max()
+        lagmean = (xcor0.max()*sp.argmax(xcor0)+xcor1.max()*sp.argmax(xcor1))/corboth
+        dt = tvec[1]-tvec[0]
+        tshift = dt*(n_measure-lagmean)
+    return rfexist, tshift
 
 def calc_resid(maindir,e,window=2**13,n_measure=500):
     """
-    Calculate the residual difference between the Doppler frequencies from the
-    TLEs and measured data.
+        Calculate the residual difference between the Doppler frequencies from the
+        TLEs and measured data.
 
-    Args:
-        maindir (:obj:'str'): The directory where the data is located.
-        e (:obj:'dict'): The dictionary with information on the output
-        window (:obj:'int'): Window length in samples.
-        n_window (:obj:'int'): Number of windows integrated.
-        bandwidth (:obj:'int'): Number of bins in lowest sub-band to find max frequency.
-    Returns:
-         outdict (dict[str, obj]): Output data dictionary::
+        Args:
+            maindir (:obj:'str'): The directory where the data is located.
+            e (:obj:'dict'): The dictionary with information on the output
+            window (:obj:'int'): Window length in samples.
+            n_window (:obj:'int'): Number of windows integrated.
+            bandwidth (:obj:'int'): Number of bins in lowest sub-band to find max frequency.
+        Returns:
+             outdict (dict[str, obj]): Output data dictionary::
 
-                {
-                        'cspec': Correlated phase residuals,
-                        'max_bin': Frequency bin with max return,
-                        'doppler_residual': Doppler residual,
-                        'tvec': Time vector for each measurment,
-                        'fvec': Frequency values array,
-                        'res1': Phase residual channel 1,
-                        'res0': Phase residual channel 0
-                }
+                    {
+                            'cspec': Correlated phase residuals,
+                            'max_bin': Frequency bin with max return,
+                            'doppler_residual': Doppler residual,
+                            'tvec': Time vector for each measurment,
+                            'fvec': Frequency values array,
+                            'res1': Phase residual channel 1,
+                            'res0': Phase residual channel 0
+                    }
     """
     # number of Hz to search over for max
     bw_search = 6e3
@@ -433,7 +536,7 @@ def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window
     subchan = 0
     dec_vec = [8, 5]
     flim = [-10, 10]
-    mindb=15.
+    mindb = 15.
     Nr = int(sp.prod(dec_vec)*(incoh_int+sfactor-1)*(window/sfactor))
 
     drfObj, chandict, start_indx, end_indx = open_file(maindir)
@@ -729,7 +832,7 @@ def analyzebeacons(input_args):
     mainpath = os.path.expanduser(os.path.dirname(os.path.join(input_args.path, '')))
     maindirmeta = input_args.newdir
     if maindirmeta is None:
-        maindirmeta = os.path.dirname(maindirmeta)+'_Processed'
+        maindirmeta = os.path.join(maindirmeta,'Processed')
     if not os.path.exists(maindirmeta):
         os.mkdir(maindirmeta)
     figspath = os.path.join(maindirmeta, 'Figures')
@@ -737,11 +840,12 @@ def analyzebeacons(input_args):
         os.mkdir(figspath)
     if input_args.savename is None:
         savename = os.path.join(figspath, 'BeaconPlots.png')
+    rfexist, tleoff = corr_tle_rf(maindir, e)
     if input_args.justplots:
         print('Analysis will not be run, only plots will be made.')
-        plotsti_vel(mainpath, savename=os.path.join(figspath,'chancomp.png'),
+        plotsti_vel(mainpath, savename=os.path.join(figspath, 'chancomp.png'),
                     timewin=[input_args.begoff, input_args.endoff],
-                    offset=input_args.tleoffset)
+                    offset=tleoff)
         outdict = readoutput(maindirmeta)
         if outdict is None:
             print('No ouptut data exists')
@@ -752,7 +856,7 @@ def analyzebeacons(input_args):
 
         outdict = calc_TEC(mainpath, window=input_args.window,
                            incoh_int=input_args.incoh, sfactor=input_args.overlap,
-                           offset=input_args.tleoffset, timewin=[input_args.begoff, input_args.endoff],
+                           offset=tleoff, timewin=[input_args.begoff, input_args.endoff],
                            snrmin=input_args.minsnr)
         print("Saving everything to digital metadata.")
         outdict['window'] = input_args.window

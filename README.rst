@@ -61,7 +61,7 @@ Installation
 Using source code package
 -------------------------
 
-First, ensure that you have the above-listed dependencies installed.
+First, ensure that you have the above-listed dependencies installed. On macOS the dependencies can be installed through macports.
 
 Clone the repository and enter the source directory::
 
