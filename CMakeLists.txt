@@ -3,7 +3,7 @@ cmake_policy(SET CMP0048 NEW)
 
 # this is the canonical place to set the version for digital_rf
 # (used to populate digital_rf_version.h and _version.py)
-project(digital_rf LANGUAGES C CXX VERSION 2.5.0)
+project(digital_rf LANGUAGES C CXX VERSION 2.5.1)
 # set the library version, which is only incremented for library changes
 set(libdigital_rf_VERSION_MAJOR 2)
 set(libdigital_rf_VERSION_MINOR 0)
