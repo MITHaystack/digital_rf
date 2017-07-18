@@ -25,6 +25,7 @@ import scipy as sp
 import scipy.fftpack as scfft
 import scipy.signal as sig
 import scipy.constants as s_const
+import pdb
 
 import matplotlib
 matplotlib.use('Agg')
@@ -108,7 +109,7 @@ def ephem_doponly(maindir,tleoff=10.):
             "dop1":sp.interpolate.interp1d(tdop, Dop_bw[:,0], kind="cubic"),
             "dop2":sp.interpolate.interp1d(tdop, Dop_bw[:,1], kind="cubic")})
 
-def outlier_removed_fit(m, n_iter=10, polyord=7):
+def outlier_removed_fit(m, w = None, n_iter=10, polyord=7):
     """
     Remove outliers using fited data.
 
@@ -120,22 +121,28 @@ def outlier_removed_fit(m, n_iter=10, polyord=7):
     Returns:
         fit (:obj:'numpy array'): Curve with outliers removed
     """
+    if w is None:
+        w = sp.ones_like(m)
+    W = sp.diag(sp.sqrt(w))
     m2 = sp.copy(m)
-    tv = sp.linspace(-1,1, num=len(m))
+    tv = sp.linspace(-1, 1, num=len(m))
     A = sp.zeros([len(m), polyord])
     for j in range(polyord):
-        A[:,j] = tv**(float(j))
-    A2 = sp.copy(A)
+        A[:, j] = tv**(float(j))
+    A2 = sp.dot(W,A)
+    m2w = sp.dot(m2,W)
     fit = None
     for i in range(n_iter):
-        xhat = sp.linalg.lstsq(A2,m2)[0]
-        fit = sp.dot(A,xhat)
-        resid = (fit - m2)
+        xhat = sp.linalg.lstsq(A2, m2w)[0]
+        fit = sp.dot(A, xhat)
+        # use gradient for central finite differences which keeps order
+        resid = sp.gradient(fit - m2)
         std = sp.std(resid)
         bidx = sp.where(sp.absolute(resid) > 2.0*std)[0]
         for bi in bidx:
             A2[bi,:]=0.0
             m2[bi]=0.0
+            m2w[bi]=0.0
     if debug_plot:
         plt.plot(m2,label="outlier removed")
         plt.plot(m,label="original")
@@ -182,7 +189,7 @@ def open_file(maindir):
         chandict[ichan] = curdict
 
     return (drfObj, chandict, start_indx, end_indx)
-def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100):
+def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100,timewin=[0,0]):
     """
         Coorelates the tle derived frequency and the rf frequency. A flag is output
         that specifies if the two frequencies correlate. A time offset between
@@ -198,6 +205,8 @@ def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100):
 
     chans = chandict.keys()
     sps = chandict[chans[0]]['sps']
+    start_indx = start_indx + timewin[0]*sps
+    end_indx = end_indx - timewin[1]*sps
     mid_indx = (end_indx+start_indx)/2
     start_vec = sp.linspace(-150*sps, 150*sps, n_measure)+mid_indx
     tvec = start_vec/sps
@@ -249,14 +258,14 @@ def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100):
     thresh = 15
     #outlier removal
     keep0 = 10*sp.log10(snr0) > thresh
-    if keep0.sum()==0:
+    if keep0.sum() == 0:
         return False, 0
     dopfit0 = sp.interpolate.interp1d(tvec[keep0], freqm0[keep0], fill_value='extrapolate')(tvec)
     dfmean0 = sp.mean(dopfit0)
     dfstd0 = sp.std(dopfit0)
 
     keep1 = 10*sp.log10(snr1) > thresh
-    if keep1.sum()==0:
+    if keep1.sum() == 0:
         return False, 0
     dopfit1 = sp.interpolate.interp1d(tvec[keep1], freqm1[keep1], fill_value='extrapolate')(tvec)
     dfmean1 = sp.mean(dopfit1)
@@ -282,11 +291,11 @@ def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100):
         rfexist = True
         corboth = xcor0.max() + xcor1.max()
         lagmean = (xcor0.max()*sp.argmax(xcor0)+xcor1.max()*sp.argmax(xcor1))/corboth
-        dt = tvec[1]-tvec[0]
-        tshift = dt*(n_measure-lagmean)
+        deltat = tvec[1]-tvec[0]
+        tshift = deltat*(n_measure-lagmean)
     return rfexist, tshift
 
-def calc_resid(maindir,e,window=2**13,n_measure=500):
+def calc_resid(maindir,e,window=2**13,n_measure=500,timewin=[0,0]):
     """
         Calculate the residual difference between the Doppler frequencies from the
         TLEs and measured data.
@@ -311,29 +320,37 @@ def calc_resid(maindir,e,window=2**13,n_measure=500):
                     }
     """
     # number of Hz to search over for max
-    bw_search = 6e3
+    bw_search0 = 1.5e3
+    bw_search1 = 4e3
+
 
     drfObj, chandict, start_indx, end_indx = open_file(maindir)
 
     chans = chandict.keys()
     sps = chandict[chans[0]]['sps']
+    start_indx = start_indx + timewin[0]*sps
+    end_indx = end_indx - timewin[1]*sps
     start_vec = sp.linspace(start_indx, end_indx-window*2, n_measure)
     tvec = start_vec/sps
     del_f = sps/window
     fvec = sp.arange(-window/2.0, window/2.0)*del_f
 
-    bw_indx = int(bw_search/del_f)
-    fidx = sp.arange(-bw_indx/2, bw_indx/2, dtype=int) + window/2
-
+    bw_indx0 = int(bw_search0/del_f)
+    bw_indx1 = int(bw_search1/del_f)
+    fidx0 = sp.arange(-bw_indx0/2, bw_indx0/2, dtype=int) + window/2
+    fidx1 = sp.arange(-bw_indx1/2, bw_indx1/2, dtype=int) + window/2
 
     res0 = sp.zeros([n_measure, window], dtype=float)
     res1 = sp.zeros([n_measure, window], dtype=float)
+    snr0 = sp.zeros(n_measure, dtype=float)
+    snr1 = sp.zeros(n_measure, dtype=float)
 
-    freqm = sp.zeros([n_measure])
-
+    freqm0 = sp.zeros([n_measure])
+    freqm1 = sp.zeros([n_measure])
     wfun = sig.get_window('hann', window)
     idx = sp.arange(window)
-
+    t_win = idx/sps
+    win_s = float(window)/sps
     toff = window/sps
     subchan = 0
     for i_t, c_st in enumerate(start_vec):
@@ -349,34 +366,42 @@ def calc_resid(maindir,e,window=2**13,n_measure=500):
         doppler0 = -e["dop1"](tphase)
         doppler1 = -e["dop2"](tphase)
         # Cross correlation for first channel and get residual frequency
-        osc00 = wfun*sp.exp(1.0j*2.0*sp.pi*doppler0*(idx/sps))
-        osc01 = wfun*sp.exp(1.0j*2.0*sp.pi*doppler0*(idx/sps+ float(window)/sps))
-        osc10 = wfun*sp.exp(1.0j*2.0*sp.pi*doppler1*(idx/sps))
-        osc11 = wfun*sp.exp(1.0j*2.0*sp.pi*doppler1*(idx/sps+ float(window)/sps))
+        osc00 = wfun*sp.exp(1.0j*2.0*sp.pi*doppler0*t_win)
+        osc01 = wfun*sp.exp(1.0j*2.0*sp.pi*doppler0*(t_win + win_s))
+        osc10 = wfun*sp.exp(1.0j*2.0*sp.pi*doppler1*t_win)
+        osc11 = wfun*sp.exp(1.0j*2.0*sp.pi*doppler1*(t_win + win_s))
         F0 = scfft.fftshift(scfft.fft(z00*osc00.astype(z00.dtype)))
         F1 = scfft.fftshift(scfft.fft(z01*osc01.astype(z01.dtype)))
         res_temp = F0*F1.conj()
         res0[i_t, :] = res_temp.real**2 + res_temp.imag**2
+        freqm0[i_t] = fvec[fidx0[sp.argmax(res0[i_t, fidx0])]]
+        nc0 = sp.median(res0[i_t,:])/sp.log(2.)
+        snr0[i_t] = res0[i_t, fidx0].max()/nc0
         # Cross correlation for second channel and get residual frequency
         F0 = scfft.fftshift(scfft.fft(z10*osc10.astype(z10.dtype)))
         F1 = scfft.fftshift(scfft.fft(z11*osc11.astype(z11.dtype)))
         res_temp = F0*F1.conj()
         res1[i_t, :] = res_temp.real**2 + res_temp.imag**2
         # find max frequency over restricted sub-band
-        freqm[i_t] = fvec[fidx[sp.argmax(res1[i_t, fidx])]]
+        freqm1[i_t] = fvec[fidx1[sp.argmax(res1[i_t, fidx1])]]
         #normalize residuals
-        res0[i_t, :] = res0[i_t, :]/sp.median(res0[i_t, :])
-        res1[i_t, :] = res1[i_t, :]/sp.median(res1[i_t, :])
+        nc1 = sp.median(res1[i_t,:])/sp.log(2.)
+        snr1[i_t] = res1[i_t, fidx1].max()/nc1
+
+        res0[i_t, :] = res0[i_t, :]/nc0
+        res1[i_t, :] = res1[i_t, :]/nc1
     tvec[0] = tvec[0] - 100
     tvec[len(tvec)-1] = tvec[len(tvec)-1] + 100
     #outlier removal
-    dopfit = outlier_removed_fit(freqm)
+    snrmean = .5*snr0+.5*snr1
+    dopfit = outlier_removed_fit(.5*(snr0*freqm0*400./150 + snr1*freqm1)/snrmean,snrmean)
     #interpolate residual
     doppler_residual = sp.interpolate.interp1d(tvec, dopfit)
     # correlate residuals together
     rescor = res0*res1.conj()
-    cspec = sp.mean(rescor.real**2+rescor.imag**2, axis=0).real
-    return({"cspec":cspec, "max_bin":sp.argmax(cspec),
+    #pdb.set_trace()
+    cspec = sp.mean(rescor, axis=0)
+    return({"cspec":cspec.real, "max_bin":sp.argmax(cspec),
             "doppler_residual":doppler_residual, 'dopfit':dopfit,
             "tvec":tvec, "fvec":fvec, "res1":res1, "res0":res0})
 
@@ -424,6 +449,7 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
     n_t1 = sp.arange(0, incoh_int)* soff
     IDX, N_t1 = sp.meshgrid(idx, n_t1)
     Msamp = IDX + N_t1
+    ls_samp = Msamp.flatten()[-1]
 
     wfun = sig.get_window('hann', window)
     wmat = sp.tile(wfun[sp.newaxis, :], (incoh_int, 1))
@@ -441,6 +467,8 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
     std1 = sp.zeros(len(start_vec))
     fi = window/2
     subchan = 0
+    outspec0 = sp.zeros((len(tvec), window))
+    outspec1 = sp.zeros((len(tvec), window))
     print("Start Beacon Processing")
     for i_t, c_st in enumerate(start_vec):
 
@@ -457,15 +485,15 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
         doppler1 = -1.0*resid["doppler_residual"](t_cur) - e["dop2"](tphase)
 
         osc00 = phase_00*wmat*sp.exp(1.0j*2.0*sp.pi*doppler0*(Msamp/sps))
-        osc01 = phase_00*wmat*sp.exp(1.0j*2.0*sp.pi*doppler0*(Msamp/sps+ float(window)/sps))
+        osc01 = phase_00*wmat*sp.exp(1.0j*2.0*sp.pi*doppler0*(Msamp/sps+ float(soff)/sps))
         osc10 = phase_10*wmat*sp.exp(1.0j*2.0*sp.pi*doppler1*(Msamp/sps))
-        osc11 = phase_10*wmat*sp.exp(1.0j*2.0*sp.pi*doppler1*(Msamp/sps+ float(window)/sps))
+        osc11 = phase_10*wmat*sp.exp(1.0j*2.0*sp.pi*doppler1*(Msamp/sps+ float(soff)/sps))
 
 
         F0 = scfft.fftshift(scfft.fft(z00*osc00.astype(z00.dtype), axis=-1), axes=-1)
         F = scfft.fftshift(scfft.fft(z01*osc01.astype(z01.dtype), axis=-1), axes=-1)
         F0spec = sp.power(F0.real, 2).sum(0)+ sp.power(F0.imag, 2).sum(0)
-
+        outspec0[i_t] = F0spec
         F0_cor = F0[:, fi]*sp.conj(F[:, fi])
         phase0[i_t] = F0_cor.sum()
 
@@ -476,15 +504,17 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
 
         F1_cor = F1[:, fi]*sp.conj(F[:, fi])
         phase1[i_t] = F1_cor.sum()
+        outspec1[i_t] = F1spec
 
         std0[i_t] = sp.std(sp.angle(F0_cor))
         std1[i_t] = sp.std(sp.angle(F1_cor))
         snr0[i_t] = F0spec.real[fi]/sp.median(F0spec.real)
         snr1[i_t] = F1spec.real[fi]/sp.median(F1spec.real)
 
-        phase_00 = phase_00*sp.exp(1.0j*2.0*sp.pi*doppler0*(IDX.flatten()[-1]/sps))
+        # Phases for next time through the loop
+        phase_00 = phase_00*sp.exp(1.0j*2.0*sp.pi*doppler0*(ls_samp/sps))
 
-        phase_10 = phase_10*sp.exp(1.0j*2.0*sp.pi*doppler1*(IDX.flatten()[-1]/sps))
+        phase_10 = phase_10*sp.exp(1.0j*2.0*sp.pi*doppler1*(ls_samp/sps))
 
     phasecurve = float(incoh_int)*sp.cumsum(sp.angle(phase1)*freq_ratio-sp.angle(phase0))
     stdcurve = sp.sqrt(sp.cumsum(float(sfactor)*incoh_int*(std0**2.0 + std1**2.0)))
@@ -497,7 +527,7 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
     snr1 = snr1[snrwin]
     tvec = tvec[snrwin]
 
-    dt=sp.diff(tvec).mean()
+    dt = sp.diff(tvec).mean()
     Nside = int(1./dt/2.)
     lvec = sp.arange(-Nside,Nside)
     Lmat, Tmat =sp.meshgrid(lvec, sp.arange(len(tvec)))
@@ -515,7 +545,8 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
 
 
     outdict = {'rTEC':rTEC, 'rTEC_sig':rTEC_sig, 'S4':S4, 'snr0':snr0,
-               'snr1':snr1, 'time':tvec,'resid':resid}
+               'snr1':snr1, 'time':tvec,'resid':resid,'phase':phasecurve,
+               'phasestd':stdcurve,'outspec0':outspec0,'outspec1':outspec1}
     return outdict
 #%% Plotting
 def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window=512, sfactor=2, incoh_int=10, Nt=512):
@@ -840,7 +871,7 @@ def analyzebeacons(input_args):
         os.mkdir(figspath)
     if input_args.savename is None:
         savename = os.path.join(figspath, 'BeaconPlots.png')
-    rfexist, tleoff = corr_tle_rf(mainpath)
+    rfexist, tleoff = corr_tle_rf(mainpath,timewin=[input_args.begoff, input_args.endoff])
     if input_args.justplots or not rfexist:
         print('Analysis will not be run, only plots will be made.')
         plotsti_vel(mainpath, savename=os.path.join(figspath, 'chancomp.png'),
@@ -862,7 +893,7 @@ def analyzebeacons(input_args):
         outdict['window'] = input_args.window
         outdict['incoherent_integrations'] = input_args.incoh
         outdict['Overlap'] = input_args.overlap
-        outdict['Time_Offset'] = input_args.tleoffset
+        outdict['Time_Offset'] = tleoff
         outdict['Beginning_Offset'] = input_args.begoff
         outdict['Ending_Offset'] = input_args.endoff
         outdict['Min_SNR'] = input_args.minsnr
@@ -870,6 +901,9 @@ def analyzebeacons(input_args):
 
         if input_args.drawplots:
             print("Plotting data.")
+            plotsti_vel(mainpath, savename=os.path.join(figspath, 'chancomp.png'),
+                        timewin=[input_args.begoff, input_args.endoff],
+                        offset=tleoff)
             plot_resid(outdict['resid'], os.path.join(figspath, 'resid.png'))
             plot_measurements(outdict, savename)
 
