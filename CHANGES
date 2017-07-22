@@ -1,3 +1,9 @@
+2.5.2 - July 22, 2017
+---------------------
+
+Fix build on OSX for C version of gr_drf Digital RF Sink.
+
+
 2.5.1 - July 14, 2017
 ---------------------
 
