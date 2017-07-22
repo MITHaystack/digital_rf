@@ -124,7 +124,7 @@ add_subdirectory(tests)
 
 # gr_drf gnuradio module
 option(ENABLE_GNURADIO "Build gr_drf GNU Radio module." ON)
-set(GR_REQUIRED_COMPONENTS RUNTIME)
+set(GR_REQUIRED_COMPONENTS RUNTIME PMT)
 find_package(Gnuradio)
 if(GNURADIO_RUNTIME_FOUND AND ENABLE_GNURADIO)
   message("| GNU Radio found, gr_drf module ENABLED.")
