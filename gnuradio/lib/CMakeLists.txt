@@ -8,6 +8,8 @@ else(TARGET digital_rf)
     set(DIGITAL_RF_TARGET digital_rf::digital_rf)
 endif(TARGET digital_rf)
 
+find_package(Log4cpp)
+
 ########################################################################
 # Setup library
 ########################################################################
@@ -24,7 +26,7 @@ if(NOT drf_sources)
 endif(NOT drf_sources)
 
 add_library(gnuradio-drf SHARED ${drf_sources})
-target_link_libraries(gnuradio-drf ${DIGITAL_RF_TARGET} ${Boost_LIBRARIES} ${GNURADIO_ALL_LIBRARIES} -lm)
+target_link_libraries(gnuradio-drf ${DIGITAL_RF_TARGET} ${Boost_LIBRARIES} ${GNURADIO_ALL_LIBRARIES} ${LOG4CPP_LIBRARIES} -lm)
 set_target_properties(gnuradio-drf PROPERTIES DEFINE_SYMBOL "gnuradio_drf_EXPORTS")
 
 if(APPLE)

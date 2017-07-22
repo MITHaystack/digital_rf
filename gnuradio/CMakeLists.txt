@@ -88,7 +88,7 @@ endif(APPLE)
 # API comptible version required.
 if(GNURADIO_RUNTIME_FOUND)
 else(GNURADIO_RUNTIME_FOUND)
-    set(GR_REQUIRED_COMPONENTS RUNTIME)
+    set(GR_REQUIRED_COMPONENTS RUNTIME PMT)
     find_package(Gnuradio "3.7.2" REQUIRED)
 endif(GNURADIO_RUNTIME_FOUND)
 
