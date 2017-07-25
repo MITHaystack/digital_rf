@@ -54,17 +54,17 @@ RE_DMDPROPFILE = r'(?P<name>dmd_properties|metadata)\.h5'
 RE_PROPFILE = r'(?P<name>(?:drf|dmd)_properties|metadata)\.h5'
 
 # Digital RF file in correct subdirectory structure
-RE_DRF = re.escape(os.sep).join((r'.*?', RE_SUBDIR, RE_DRFFILE))
+RE_DRF = re.escape(os.sep).join((r'(?P<chpath>.*?)', RE_SUBDIR, RE_DRFFILE))
 # Digital Metadata file in correct subdirectory structure
-RE_DMD = re.escape(os.sep).join((r'.*?', RE_SUBDIR, RE_DMDFILE))
+RE_DMD = re.escape(os.sep).join((r'(?P<chpath>.*?)', RE_SUBDIR, RE_DMDFILE))
 # either Digital RF or Digital Metadata in its correct subdirectory
-RE_DRFDMD = re.escape(os.sep).join((r'.*?', RE_SUBDIR, RE_FILE))
+RE_DRFDMD = re.escape(os.sep).join((r'(?P<chpath>.*?)', RE_SUBDIR, RE_FILE))
 # properties file associated with Digital RF directory
-RE_DRFPROP = re.escape(os.sep).join((r'.*?', RE_DRFPROPFILE))
+RE_DRFPROP = re.escape(os.sep).join((r'(?P<chpath>.*?)', RE_DRFPROPFILE))
 # properties file associated with Digital Metadata directory
-RE_DMDPROP = re.escape(os.sep).join((r'.*?', RE_DMDPROPFILE))
+RE_DMDPROP = re.escape(os.sep).join((r'(?P<chpath>.*?)', RE_DMDPROPFILE))
 # properties file associated with Digital RF or Digital Metadata directory
-RE_DRFDMDPROP = re.escape(os.sep).join((r'.*?', RE_PROPFILE))
+RE_DRFDMDPROP = re.escape(os.sep).join((r'(?P<chpath>.*?)', RE_PROPFILE))
 
 
 def sortkey_drf(filename, _r=re.compile(RE_FILE)):

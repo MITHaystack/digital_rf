@@ -13,7 +13,7 @@ import re
 import sys
 import time
 import uuid
-from collections import OrderedDict, deque, namedtuple
+from collections import OrderedDict, defaultdict, deque, namedtuple
 
 from watchdog.observers import Observer
 
@@ -34,23 +34,24 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
 
     """
 
-    FileRecord = namedtuple('FileRecord', ('key', 'size', 'path'))
+    FileRecord = namedtuple('FileRecord', ('key', 'size', 'path', 'group'))
 
     def __init__(
         self, size, verbose=False, dryrun=False,
-        include_drf=True, include_dmd=False, include_properties=False,
+        include_drf=True, include_dmd=True,
     ):
         """Create ringbuffer handler given a size in bytes."""
         self.size = size
         self.verbose = verbose
         self.dryrun = dryrun
-        self.queue = deque()
+        # separately track file groups (ch path, name) with different queues
+        self.queues = defaultdict(deque)
         self.record_ids = {}
         self.records = {}
         self.active_size = 0
         super(DigitalRFRingbufferHandler, self).__init__(
             include_drf=include_drf, include_dmd=include_dmd,
-            include_properties=include_properties,
+            include_properties=False,
         )
 
     def _get_file_record(self, path):
@@ -75,6 +76,9 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         if key is None:
             return
 
+        # ringbuffer by file groups, which are a channel path and name
+        group = (m.group('chpath'), m.group('name'))
+
         try:
             stat = os.stat(path)
         except OSError:
@@ -82,11 +86,11 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         else:
             size = stat.st_size
 
-        return self.FileRecord(key=key, size=size, path=path)
+        return self.FileRecord(key=key, size=size, path=path, group=group)
 
-    def _expire_oldest(self):
+    def _expire_oldest(self, group):
         # oldest file is at end of sorted records deque
-        key, rid = self.queue.pop()
+        key, rid = self.queues[group].pop()
         rec = self.records.pop(rid)
         del self.record_ids[rec.path]
         self.active_size -= rec.size
@@ -107,11 +111,12 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
             sys.stdout.write('-')
             sys.stdout.flush()
 
-    def _add_to_queue(self, key, rid):
+    def _add_to_queue(self, group, key, rid):
         # find insertion index for record (queue sorted in descending order)
         # we expect new records to go near the beginning (most recent)
+        queue = self.queues[group]
         k = 0  # in case files queue is empty
-        for k, (kkey, krid) in enumerate(self.queue):
+        for k, (kkey, krid) in enumerate(queue):
             if key > kkey:
                 # we've found the insertion point at index k
                 break
@@ -119,9 +124,9 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
                 # already in ringbuffer, so simply return
                 return
         # insert record at index k
-        self.queue.rotate(-k)
-        self.queue.appendleft((key, rid))
-        self.queue.rotate(k)
+        queue.rotate(-k)
+        queue.appendleft((key, rid))
+        queue.rotate(k)
 
     def _add_record(self, rec):
         # create unique id for record
@@ -131,7 +136,7 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         # add record to dict so record information can be looked up by id
         self.records[rid] = rec
         # add record to expiration queue
-        self._add_to_queue(rec.key, rid)
+        self._add_to_queue(rec.group, rec.key, rid)
         # account for size of added record
         self.active_size += rec.size
         if self.verbose:
@@ -143,7 +148,7 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
             sys.stdout.flush()
         # expire oldest files until size constraint is met
         while self.active_size > self.size:
-            self._expire_oldest()
+            self._expire_oldest(rec.group)
 
     def _remove_record(self, path):
         # get and remove record id if path is in the ringbuffer, return if not
@@ -153,7 +158,7 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
             return
         # remove record from ringbuffer, accounting for lost size
         rec = self.records.pop(rid)
-        self.queue.remove((rec.key, rid))
+        self.queues[rec.group].remove((rec.key, rid))
         self.active_size -= rec.size
         if self.verbose:
             print('{0}%: Removed {1} ({2} bytes).'.format(
@@ -271,7 +276,7 @@ class DigitalRFRingbuffer(object):
             statvfs = os.statvfs(self.path)
             bytes_available = statvfs.f_frsize*statvfs.f_bavail
             existing = lsdrf(
-                self.path, include_dmd=False, include_properties=False,
+                self.path, include_dmd=True, include_properties=False,
             )
             bytes_available += sum([os.stat(p).st_size for p in existing])
             self.size = max(bytes_available + self.size, 0)
@@ -289,7 +294,7 @@ class DigitalRFRingbuffer(object):
 
         # add existing files to ringbuffer handler
         existing = lsdrf(
-            self.path, include_dmd=False, include_properties=False,
+            self.path, include_dmd=True, include_properties=False,
         )
         existing.sort(key=sortkey_drf)
         self.event_handler.add_files(existing)
