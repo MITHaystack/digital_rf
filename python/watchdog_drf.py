@@ -99,6 +99,23 @@ def _build_watch_parser(Parser, *args):
                         help='''Data directory to monitor.
                                (default: %(default)s)''')
 
+    includegroup = parser.add_argument_group(title='include')
+    includegroup.add_argument(
+        '--nodrf', dest='include_drf', action='store_false',
+        help='''Do not list Digital RF HDF5 files.
+                (default: False)''',
+    )
+    includegroup.add_argument(
+        '--nodmd', dest='include_dmd', action='store_false',
+        help='''Do not list Digital Metadata HDF5 files.
+                (default: False)''',
+    )
+    includegroup.add_argument(
+        '--noproperties', dest='include_properties', action='store_false',
+        help='''Do not list (drf|dmd)_properties.h5 files.
+                (default: False)''',
+    )
+
     parser.set_defaults(func=_run_watch)
 
     return parser
@@ -122,7 +139,10 @@ def _run_watch(args):
         def on_modified(self, event):
             print('Modified {0}'.format(event.src_path))
 
-    event_handler = DigitalRFPrint()
+    event_handler = DigitalRFPrint(
+        include_drf=args.include_drf, include_dmd=args.include_dmd,
+        include_properties=args.include_properties,
+    )
     observer = Observer()
     observer.schedule(event_handler, args.dir, recursive=True)
     print('Monitoring {0}:'.format(args.dir))
@@ -132,6 +152,8 @@ def _run_watch(args):
             time.sleep(1)
     except KeyboardInterrupt:
         observer.stop()
+        sys.stdout.write('\n')
+        sys.stdout.flush()
     observer.join()
 
 

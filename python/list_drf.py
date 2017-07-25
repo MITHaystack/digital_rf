@@ -137,7 +137,7 @@ def _build_ls_parser(Parser, *args):
                 (default: False)''',
     )
     includegroup.add_argument(
-        '--nometadata', dest='include_properties', action='store_false',
+        '--noproperties', dest='include_properties', action='store_false',
         help='''Do not list (drf|dmd)_properties.h5 files.
                 (default: False)''',
     )
