@@ -17,6 +17,7 @@ import time
 from watchdog.observers import Observer
 
 from .list_drf import lsdrf
+from .ringbuffer import DigitalRFRingbufferHandler
 from .watchdog_drf import DigitalRFEventHandler
 
 __all__ = (
@@ -86,6 +87,7 @@ class DigitalRFMirror(object):
 
     def __init__(
         self, src, dest, method='move', ignore_existing=False, verbose=False,
+        include_drf=True, include_dmd=True,
     ):
         """Create Digital RF mirror object. Use start/run method to begin.
 
@@ -116,6 +118,14 @@ class DigitalRFMirror(object):
         verbose : bool
             If True, print the name of mirrored files.
 
+        include_drf : bool
+            If True, include Digital RF files. If False, ignore Digital RF
+            files.
+
+        include_dmd : bool
+            If True, include Digital Metadata files. If False, ignore Digital
+            Metadata files.
+
         """
         self.src = os.path.abspath(src)
         self.dest = os.path.abspath(dest)
@@ -125,43 +135,82 @@ class DigitalRFMirror(object):
             mirror_fun = shutil.copy2
         else:
             raise ValueError('Mirror method must be either "move" or "copy".')
+        self.method = method
         self.ignore_existing = ignore_existing
         self.verbose = verbose
-        self.drf_handler = DigitalRFMirrorHandler(
-            src, dest, verbose=verbose, mirror_fun=mirror_fun,
-            include_drf=True, include_dmd=False, include_properties=False,
-        )
-        self.md_handler = DigitalRFMirrorHandler(
-            src, dest, verbose=verbose, mirror_fun=shutil.copy2,
-            include_drf=False, include_dmd=True, include_properties=True,
-        )
+        self.include_drf = include_drf
+        self.include_dmd = include_dmd
+
+        if not self.include_drf and not self.include_dmd:
+            errstr = 'One of `include_drf` or `include_dmd` must be True.'
+            raise ValueError(errstr)
+
         self.observer = Observer()
-        self.observer.schedule(
-            self.drf_handler, self.src, recursive=True,
+
+        self.prop_handler = DigitalRFMirrorHandler(
+            src, dest, verbose=verbose, mirror_fun=shutil.copy2,
+            include_drf=self.include_drf, include_dmd=self.include_dmd,
+            include_properties=True,
         )
-        self.observer.schedule(
-            self.md_handler, self.src, recursive=True,
-        )
+        self.observer.schedule(self.prop_handler, self.src, recursive=True)
+
+        if self.include_drf:
+            self.drf_handler = DigitalRFMirrorHandler(
+                src, dest, verbose=verbose, mirror_fun=mirror_fun,
+                include_drf=True, include_dmd=False, include_properties=False,
+            )
+            self.observer.schedule(
+                self.drf_handler, self.src, recursive=True,
+            )
+
+        if self.include_dmd:
+            self.md_handler = DigitalRFMirrorHandler(
+                src, dest, verbose=verbose, mirror_fun=shutil.copy2,
+                include_drf=False, include_dmd=True, include_properties=False,
+            )
+            self.observer.schedule(
+                self.md_handler, self.src, recursive=True,
+            )
+            # set ringbuffer on Digital Metadata files so old ones are removed
+            # (can't move since multiple writes can happen to a single file)
+            if self.method == 'move':
+                self.md_ringbuffer_handler = DigitalRFRingbufferHandler(
+                    count=1, verbose=verbose, dryrun=False,
+                    include_drf=False, include_dmd=True,
+                )
+                self.observer.schedule(
+                    self.md_ringbuffer_handler, self.src, recursive=True,
+                )
 
     def start(self):
         """Start mirror process and return when existing files are handled."""
         # start observer to mirror new and modified files
         self.observer.start()
 
-        # mirror existing files, all if desired or metadata only
-        if self.ignore_existing:
-            mdpaths = lsdrf(self.src, include_drf=False, include_dmd=False)
-        else:
-            mdpaths = lsdrf(self.src, include_drf=False)
-        for p in mdpaths:
-            self.md_handler.mirror_to_dest(p)
+        # mirror existing files, all if desired or properties only
+        proppaths = lsdrf(
+            self.src, include_drf=self.include_drf,
+            include_dmd=self.include_dmd, include_properties=True,
+        )
+        for p in proppaths:
+            self.prop_handler.mirror_to_dest(p)
 
         if not self.ignore_existing:
             drfpaths = lsdrf(
-                self.src, include_dmd=False, include_properties=False,
+                self.src, include_drf=self.include_drf, include_dmd=False,
+                include_properties=False,
             )
             for p in drfpaths:
                 self.drf_handler.mirror_to_dest(p)
+
+            mdpaths = lsdrf(
+                self.src, include_drf=False, include_dmd=self.include_dmd,
+                include_properties=False,
+            )
+            for p in mdpaths:
+                self.md_handler.mirror_to_dest(p)
+            if self.method == 'move':
+                self.md_ringbuffer_handler.add_files(mdpaths)
 
     def join(self):
         """Wait until a KeyboardInterrupt is received to stop mirroring."""
@@ -170,6 +219,8 @@ class DigitalRFMirror(object):
                 time.sleep(1)
         except KeyboardInterrupt:
             self.observer.stop()
+            sys.stdout.write('\n')
+            sys.stdout.flush()
         self.observer.join()
 
     def run(self):
@@ -201,6 +252,18 @@ def _build_mirror_parser(Parser, *args):
         help='Ignore existing files in source directory.',
     )
 
+    includegroup = parser.add_argument_group(title='include')
+    includegroup.add_argument(
+        '--nodrf', dest='include_drf', action='store_false',
+        help='''Do not list Digital RF HDF5 files.
+                (default: False)''',
+    )
+    includegroup.add_argument(
+        '--nodmd', dest='include_dmd', action='store_false',
+        help='''Do not list Digital Metadata HDF5 files.
+                (default: False)''',
+    )
+
     parser.set_defaults(func=_run_mirror)
 
     return parser
@@ -208,12 +271,14 @@ def _build_mirror_parser(Parser, *args):
 
 def _run_mirror(args):
     methods = {'mv': 'move', 'cp': 'copy'}
-    method = methods[args.method]
+    args.method = methods[args.method]
 
-    mirror = DigitalRFMirror(
-        args.src, args.dest, method, args.ignore_existing, args.verbose,
-    )
-    print('Mirroring ({0}) {1} to {2}.'.format(method, args.src, args.dest))
+    dargs = vars(args)
+    del dargs['func']
+    mirror = DigitalRFMirror(**dargs)
+    print('Mirroring ({0}) {1} to {2}.'.format(
+        args.method, args.src, args.dest,
+    ))
     print('Type Ctrl-C to quit.')
     mirror.run()
 
