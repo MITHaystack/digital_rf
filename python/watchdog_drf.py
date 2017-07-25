@@ -9,6 +9,7 @@
 """Module for montoring creation/modification/deletion of Digital RF files."""
 
 import os
+import sys
 import time
 
 from watchdog.events import (FileCreatedEvent, FileDeletedEvent,
