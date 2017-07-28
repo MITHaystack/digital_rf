@@ -115,7 +115,7 @@ add_custom_command(OUTPUT ${PYBUILD_OUTPUT}
                    COMMAND ${CMAKE_COMMAND} -E touch ${PYBUILD_OUTPUT}
                    DEPENDS ${PYBUILD_DEPS})
 add_custom_target(python ALL DEPENDS ${PYBUILD_OUTPUT})
-install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} install --single-version-externally-managed --record ${CMAKE_CURRENT_BINARY_DIR}/install_python_manifest.txt)")
+install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} install --prefix ${CMAKE_INSTALL_PREFIX} --single-version-externally-managed --record ${CMAKE_CURRENT_BINARY_DIR}/install_python_manifest.txt)")
 
 # docs, examples, tests
 add_subdirectory(docs)
