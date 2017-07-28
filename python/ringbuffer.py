@@ -15,10 +15,8 @@ import time
 import uuid
 from collections import OrderedDict, defaultdict, deque, namedtuple
 
-from watchdog.observers import Observer
-
 from .list_drf import lsdrf, sortkey_drf
-from .watchdog_drf import DigitalRFEventHandler
+from .watchdog_drf import DigitalRFEventHandler, DirWatcher
 
 __all__ = (
     'DigitalRFRingbufferHandler', 'DigitalRFSizeRingbufferHandler',
@@ -51,7 +49,7 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         self.records = {}
         super(DigitalRFRingbufferHandler, self).__init__(
             include_drf=include_drf, include_dmd=include_dmd,
-            include_properties=False,
+            include_drf_properties=False, include_dmd_properties=False,
         )
 
     def _get_file_record(self, path):
@@ -92,7 +90,6 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         # find insertion index for record (queue sorted in ascending order)
         # we expect new records to go near the end (most recent)
         queue = self.queues[rec.group]
-        k = 0  # in case files queue is empty
         for k, (kkey, krid) in enumerate(reversed(queue)):
             if rec.key > kkey:
                 # we've found the insertion point at index k from end
@@ -100,10 +97,16 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
             elif rid == krid:
                 # already in ringbuffer, so simply return
                 return
-        # insert record at index k
-        queue.rotate(k)
-        queue.append((rec.key, rid))
-        queue.rotate(-k)
+        else:
+            # new key is oldest (or queue is empty),
+            # needs to be put at beginning
+            queue.appendleft((rec.key, rid))
+            k = None
+        if k is not None:
+            # insert record at index k
+            queue.rotate(k)
+            queue.append((rec.key, rid))
+            queue.rotate(-k)
         return len(queue)
 
     def _remove_from_queue(self, rec, rid):
@@ -120,6 +123,15 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         del self.record_ids[rec.path]
         active_amount = self._remove_from_queue(rec, rid)
 
+        if self.verbose:
+            print('{0}%: Expired {1} ({2} bytes).'.format(
+                int(float(active_amount)/self.threshold*100),
+                rec.path, rec.size,
+            ))
+        else:
+            sys.stdout.write('-')
+            sys.stdout.flush()
+
         # delete file
         if not self.dryrun:
             os.remove(rec.path)
@@ -130,15 +142,6 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         except OSError:
             # directory not empty, just move on
             pass
-
-        if self.verbose:
-            print('{0}%: Expired {1} ({2} bytes).'.format(
-                int(float(active_amount)/self.threshold*100),
-                rec.path, rec.size,
-            ))
-        else:
-            sys.stdout.write('-')
-            sys.stdout.flush()
 
         return active_amount
 
@@ -393,13 +396,21 @@ class DigitalRFRingbuffer(object):
             if self.size < 0:
                 # get available space and reduce it by the (negative) size
                 # value to get the actual size to use
-                statvfs = os.statvfs(self.path)
+                root = self.path
+                while not os.path.isdir(root):
+                    root = os.path.dirname(root)
+                statvfs = os.statvfs(root)
                 bytes_available = statvfs.f_frsize*statvfs.f_bavail
-                existing = lsdrf(
-                    self.path, include_drf=self.include_drf,
-                    include_dmd=self.include_dmd, include_properties=False,
-                )
-                bytes_available += sum([os.stat(p).st_size for p in existing])
+                if os.path.isdir(self.path):
+                    existing = lsdrf(
+                        self.path, include_drf=self.include_drf,
+                        include_dmd=self.include_dmd,
+                        include_drf_properties=False,
+                        include_dmd_properties=False,
+                    )
+                    bytes_available += sum(
+                        [os.stat(p).st_size for p in existing]
+                    )
                 self.size = max(bytes_available + self.size, 0)
 
             handler = DigitalRFSizeRingbufferHandler(
@@ -408,7 +419,7 @@ class DigitalRFRingbuffer(object):
             )
             self.event_handlers.append(handler)
 
-        self.observer = Observer()
+        self.observer = DirWatcher(self.path)
         for handler in self.event_handlers:
             self.observer.schedule(handler, self.path, recursive=True)
 
@@ -420,7 +431,8 @@ class DigitalRFRingbuffer(object):
         # add existing files to ringbuffer handler
         existing = lsdrf(
             self.path, include_drf=self.include_drf,
-            include_dmd=self.include_dmd, include_properties=False,
+            include_dmd=self.include_dmd, include_drf_properties=False,
+            include_dmd_properties=False,
         )
         existing.sort(key=sortkey_drf)
         for handler in self.event_handlers:
@@ -448,6 +460,20 @@ class DigitalRFRingbuffer(object):
     def stop(self):
         """Stop ringbuffer process."""
         self.observer.stop()
+
+    def __str__(self):
+        """String describing ringbuffer."""
+        amounts = []
+        if self.size is not None:
+            amounts.append('{0} bytes'.format(self.size))
+        if self.count is not None:
+            amounts.append('{0} files'.format(self.count))
+        if self.duration is not None:
+            amounts.append('{0} s'.format(self.duration/1e3))
+        s = 'DigitalRFRingbuffer of ({0}) in {1}'.format(
+            ', '.join(amounts), self.path,
+        )
+        return s
 
 
 def _build_ringbuffer_parser(Parser, *args):
@@ -489,12 +515,12 @@ def _build_ringbuffer_parser(Parser, *args):
     includegroup = parser.add_argument_group(title='include')
     includegroup.add_argument(
         '--nodrf', dest='include_drf', action='store_false',
-        help='''Do not list Digital RF HDF5 files.
+        help='''Do not ringbuffer Digital RF HDF5 files.
                 (default: False)''',
     )
     includegroup.add_argument(
         '--nodmd', dest='include_dmd', action='store_false',
-        help='''Do not list Digital Metadata HDF5 files.
+        help='''Do not ringbuffer Digital Metadata HDF5 files.
                 (default: False)''',
     )
 
@@ -541,17 +567,12 @@ def _run_ringbuffer(args):
     if args.duration is not None:
         args.duration = float(eval(args.duration))*1e3
 
-    dargs = vars(args)
-    del dargs['func']
-    ringbuffer = DigitalRFRingbuffer(**dargs)
+    kwargs = vars(args).copy()
+    del kwargs['func']
+    ringbuffer = DigitalRFRingbuffer(**kwargs)
     if args.dryrun:
         print('DRY RUN (files will not be deleted):')
-    print((
-        'Enforcing ringbuffer of ({0} bytes, {1} files, {2} s) in {3}.'
-    ).format(
-        ringbuffer.size, ringbuffer.count, ringbuffer.duration/1e3,
-        ringbuffer.path,
-    ))
+    print(ringbuffer)
     print('Type Ctrl-C to quit.')
     ringbuffer.run()
 

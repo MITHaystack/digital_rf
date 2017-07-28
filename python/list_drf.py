@@ -89,30 +89,42 @@ def sortkey_drf(filename, _r=re.compile(RE_FILE)):
     return key
 
 
-def lsdrf(path, include_drf=True, include_dmd=True, include_properties=True):
+def lsdrf(
+    path, include_drf=True, include_dmd=True, include_drf_properties=None,
+    include_dmd_properties=None,
+):
     """Get list of Digital RF files contained in a directory."""
+    if include_drf_properties is None:
+        include_drf_properties = include_drf
+    if include_dmd_properties is None:
+        include_dmd_properties = include_dmd
+
     regexes = []
     if include_drf and include_dmd:
-        regexes.append(re.compile(RE_DRFDMD))
-        if include_properties:
-            regexes.append(re.compile(RE_DRFDMDPROP))
+        regexes.append(RE_DRFDMD)
     elif include_drf:
-        regexes.append(re.compile(RE_DRF))
-        if include_properties:
-            regexes.append(re.compile(RE_DRFPROP))
+        regexes.append(RE_DRF)
     elif include_dmd:
-        regexes.append(re.compile(RE_DMD))
-        if include_properties:
-            regexes.append(re.compile(RE_DMDPROP))
-    elif include_properties:
-        regexes.append(re.compile(RE_DRFDMDPROP))
+        regexes.append(RE_DMD)
+    if include_drf_properties and include_dmd_properties:
+        regexes.append(RE_DRFDMDPROP)
+    elif include_drf_properties:
+        regexes.append(RE_DRFPROP)
+    elif include_dmd_properties:
+        regexes.append(RE_DMDPROP)
+
+    regexes = [re.compile(r) for r in regexes]
 
     drf_files = []
-    for root, dirs, files in os.walk(os.path.abspath(path)):
-        for filename in files:
-            p = os.path.join(root, filename)
-            if any(r.match(p) for r in regexes):
-                drf_files.append(p)
+    if os.path.isfile(path):
+        if any(r.match(path) for r in regexes):
+            drf_files.append(path)
+    else:
+        for root, dirs, files in os.walk(os.path.abspath(path)):
+            for filename in files:
+                p = os.path.join(root, filename)
+                if any(r.match(p) for r in regexes):
+                    drf_files.append(p)
 
     return drf_files
 
@@ -121,7 +133,7 @@ def _build_ls_parser(Parser, *args):
     desc = 'List Digital RF files in a directory.'
     parser = Parser(*args, description=desc)
 
-    parser.add_argument('dir', nargs='?', default='.',
+    parser.add_argument('dirs', nargs='*', default='.',
                         help='''Data directory to list.
                                (default: %(default)s)''')
 
@@ -137,9 +149,16 @@ def _build_ls_parser(Parser, *args):
                 (default: False)''',
     )
     includegroup.add_argument(
-        '--noproperties', dest='include_properties', action='store_false',
-        help='''Do not list (drf|dmd)_properties.h5 files.
-                (default: False)''',
+        '--nodrfprops', dest='include_drf_properties', nargs='?',
+        const=False, default=None,
+        help='''Do not list drf_properties.h5 files.
+                (default: Same as --nodrf)''',
+    )
+    includegroup.add_argument(
+        '--nodmdprops', dest='include_dmd_properties', nargs='?',
+        const=False, default=None,
+        help='''Do not list dmd_properties.h5 files.
+                (default: Same as --nodmd)''',
     )
 
     parser.set_defaults(func=_run_ls)
@@ -148,14 +167,18 @@ def _build_ls_parser(Parser, *args):
 
 
 def _run_ls(args):
-    args.dir = os.path.abspath(args.dir)
+    if args.include_drf_properties:
+        args.include_drf_properties = True
+    if args.include_dmd_properties:
+        args.include_dmd_properties = True
 
-    files = lsdrf(
-        args.dir,
-        include_drf=args.include_drf,
-        include_dmd=args.include_dmd,
-        include_properties=args.include_properties,
-    )
+    kwargs = vars(args).copy()
+    del kwargs['func']
+    del kwargs['dirs']
+
+    files = []
+    for d in args.dirs:
+        files.extend(lsdrf(d, **kwargs))
     files.sort(key=sortkey_drf)
     print('\n'.join(files))
 
