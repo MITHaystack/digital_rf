@@ -1,3 +1,9 @@
+2.5.3 - July 28, 2017
+---------------------
+
+Improvements to watchdog_drf, list_drf, mirror, and ringbuffer. Can now monitor directories that don't yet exist or get deleted and ringbuffer by file count and duration.
+
+
 2.5.2 - July 22, 2017
 ---------------------
 
