@@ -82,13 +82,13 @@ class Thor(object):
                 r'[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', mb
             ):
                 idtype = 'addr'
-            elif re.match(r'[0-9]{1,}', mb):
-                idtype = 'serial'
             elif (
                 re.match(r'usrp[123]', mb) or re.match(r'b2[01]0', mb)
                 or re.match(r'x3[01]0', mb)
             ):
                 idtype = 'type'
+            elif re.match(r'[0-9A-Fa-f]{1,}', mb):
+                idtype = 'serial'
             else:
                 idtype = 'name'
             if len(op.mboards) == 1:
