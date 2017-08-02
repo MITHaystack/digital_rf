@@ -10,11 +10,13 @@
 import os
 import re
 
+from six.moves import zip
+
 __all__ = (
     'GLOB_DMDFILE', 'GLOB_DMDPROPFILE', 'GLOB_DRFFILE', 'GLOB_DRFPROPFILE',
     'GLOB_SUBDIR', 'RE_DMD', 'RE_DMDPROP', 'RE_DRF', 'RE_DRFDMD',
     'RE_DRFDMDPROP', 'RE_DRFPROP',
-    'lsdrf', 'sortkey_drf'
+    'ilsdrf', 'lsdrf', 'sortkey_drf'
 )
 
 # timestamped subdirectory, e.g. 2016-09-21T20-00-00
@@ -67,9 +69,14 @@ RE_DMDPROP = re.escape(os.sep).join((r'(?P<chpath>.*?)', RE_DMDPROPFILE))
 RE_DRFDMDPROP = re.escape(os.sep).join((r'(?P<chpath>.*?)', RE_PROPFILE))
 
 
-def sortkey_drf(filename, _r=re.compile(RE_FILE)):
+def sortkey_drf(filename, regexes=[re.compile(RE_FILE)]):
     """Get key for a Digital RF filename to sort first by sample time."""
-    m = _r.match(filename)
+    matched = False
+    for r in regexes:
+        m = r.match(filename)
+        if m:
+            matched = True
+            break
     try:
         secs = int(m.group('secs'))
     except (AttributeError, IndexError, TypeError):
@@ -85,15 +92,47 @@ def sortkey_drf(filename, _r=re.compile(RE_FILE)):
     except (AttributeError, IndexError, TypeError):
         # no match, or regex matched but there is no 'name' in regex
         name = filename
-    key = (secs*1000 + frac, name)
+    key = (matched, secs*1000 + frac, name)
     return key
 
 
-def lsdrf(
+def ilsdrf(
     path, include_drf=True, include_dmd=True, include_drf_properties=None,
     include_dmd_properties=None,
 ):
-    """Get list of Digital RF files contained in a directory."""
+    """Generator of Digital RF files recursively contained in a directory.
+
+    Sub-directories will be traversed in alphabetical order and files from each
+    directory will be yielded in Digital RF (time) order.
+
+
+    Parameters
+    ----------
+
+    path : string
+        Parent directory to list.
+
+    include_drf : bool
+        If True, include Digital RF files in listing.
+
+    include_dmd : bool
+        If True, include Digital Metadata files in listing.
+
+    include_drf_properties : bool | None
+        If True, include the Digital RF properties file in listing.
+        If None, use `include_drf` value.
+
+    include_dmd_properties : bool | None
+        If True, include the Digital Metadata properties file in listing.
+        If None, use `include_dmd` value.
+
+
+    Yields
+    ------
+
+    Digital RF/Metadata files contained in `path`.
+
+    """
     if include_drf_properties is None:
         include_drf_properties = include_drf
     if include_dmd_properties is None:
@@ -115,18 +154,56 @@ def lsdrf(
 
     regexes = [re.compile(r) for r in regexes]
 
-    drf_files = []
     if os.path.isfile(path):
         if any(r.match(path) for r in regexes):
-            drf_files.append(path)
+            yield path
     else:
         for root, dirs, files in os.walk(os.path.abspath(path)):
-            for filename in files:
-                p = os.path.join(root, filename)
-                if any(r.match(p) for r in regexes):
-                    drf_files.append(p)
+            # walk through directories in sorted order
+            dirs.sort()
+            # yield files from this directory in sorted order and filter all at
+            # once so the regex only has to be evaluated once per file
+            filepaths = [os.path.join(root, f) for f in files]
+            keys = (sortkey_drf(f, regexes=regexes) for f in filepaths)
+            decorated_files = [
+                key[1:] + (f,) for key, f in zip(keys, filepaths) if key[0]
+            ]
+            decorated_files.sort()
+            for decorated_file in decorated_files:
+                yield decorated_file[-1]
 
-    return drf_files
+
+def lsdrf(*args, **kwargs):
+    """Get list of Digital RF files recursively contained in a directory.
+
+    Parameters
+    ----------
+
+    path : string
+        Parent directory to list.
+
+    include_drf : bool
+        If True, include Digital RF files in listing.
+
+    include_dmd : bool
+        If True, include Digital Metadata files in listing.
+
+    include_drf_properties : bool | None
+        If True, include the Digital RF properties file in listing.
+        If None, use `include_drf` value.
+
+    include_dmd_properties : bool | None
+        If True, include the Digital Metadata properties file in listing.
+        If None, use `include_dmd` value.
+
+
+    Returns
+    -------
+
+    List of Digital RF/Metadata files contained in `path`.
+
+    """
+    return list(ilsdrf(*args, **kwargs))
 
 
 def _build_ls_parser(Parser, *args):
