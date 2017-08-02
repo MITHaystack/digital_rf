@@ -114,6 +114,7 @@ Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t d
 
 	if (digital_rf_check_hdf5_directory(hdf5_data_object->directory))
 	{
+		fprintf(stderr, "%s does not exist or is not a directory\n", hdf5_data_object->directory);
 		digital_rf_close_write_hdf5(hdf5_data_object);
 		return(NULL);
 	}
@@ -669,21 +670,15 @@ int digital_rf_check_hdf5_directory(char * directory)
 {
 	/* local variable */
 	struct stat stat_obj = {0}; /* used to run stat to determine if directory exists */
-	char error_str[BIG_HDF5_STR] = "";
 
 	/* see if directory needs to be created */
 	if (stat(directory, &stat_obj))
 	{
-		strncat(error_str, directory, 200);
-		strcat(error_str, " does not exist.\n");
-		fprintf(stderr, "%s", error_str);
 		return(-1);
 	} else {
-		/* verify its a directory */
+		/* verify it's a directory */
 		if(!S_ISDIR(stat_obj.st_mode))
 		{
-			sprintf(error_str, "The following is not a directory: %s\n", directory);
-			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
 	}
@@ -939,7 +934,8 @@ int digital_rf_create_hdf5_file(Digital_rf_write_object *hdf5_data_object, char 
 	strcat(subdir_with_trailing_slash, "/"); /* allows us to compare subdir with sub_directory */
 
 	/* create new directory if needed */
-	if (hdf5_data_object->sub_directory == NULL || strcmp(hdf5_data_object->sub_directory, subdir_with_trailing_slash))
+	if (hdf5_data_object->sub_directory == NULL || digital_rf_check_hdf5_directory(subdir)
+			|| strcmp(hdf5_data_object->sub_directory, subdir_with_trailing_slash))
 	{
 		if (digital_rf_create_new_directory(hdf5_data_object, subdir))
 			return(-1);

@@ -82,6 +82,14 @@ class DigitalRFMirrorHandler(DigitalRFEventHandler):
                 # otherwise, print the error but don't stop mirroring
                 traceback.print_exc()
 
+        # try to clean up source directory in case it is empty
+        src_dir, src_name = os.path.split(src_path)
+        try:
+            os.rmdir(src_dir)
+        except OSError:
+            # directory not empty, just move on
+            pass
+
     def on_created(self, event):
         """Mirror newly-created file."""
         self.mirror_to_dest(event.src_path)
