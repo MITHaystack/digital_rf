@@ -1968,6 +1968,8 @@ class _top_level_dir_properties:
         """
         first_unix_sample = None
         last_unix_sample = None
+        this_first_sample = None
+        this_last_sample = None
         if self.access_mode == 'local':
             subdir_list = glob.glob(
                 os.path.join(

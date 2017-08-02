@@ -206,6 +206,9 @@ class DigitalMetadataWriter:
         if os.access(
             os.path.join(self._metadata_dir, 'dmd_properties.h5'),
             os.R_OK,
+        ) or os.access(
+            os.path.join(self._metadata_dir, 'metadata.h5'),
+            os.R_OK,
         ):
             self._parse_properties()
         else:
@@ -447,8 +450,8 @@ class DigitalMetadataWriter:
             pass
         else:
             errstr = (
-                'Digital Metadata files being read are version %s, which is'
-                'not in the range required (%s to %s).'
+                'Existing Digital Metadata files are version %s, which is'
+                ' not in the range required (%s to %s).'
             )
             raise IOError(errstr % (str(version),
                                     str(self._min_version),
@@ -542,9 +545,9 @@ class DigitalMetadataReader:
             self._local = True
             # list and match first properties file
             tmp_file = next(
-                (f for f in glob.glob(os.path.join(
+                (f for f in sorted(glob.glob(os.path.join(
                     metadata_dir, list_drf.GLOB_DMDPROPFILE,
-                )) if re.match(list_drf.RE_DMDPROP, f)),
+                ))) if re.match(list_drf.RE_DMDPROP, f)),
                 None,
             )
             if tmp_file is None:
@@ -1031,7 +1034,7 @@ class DigitalMetadataReader:
         else:
             errstr = (
                 'Digital Metadata files being read are version %s, which is'
-                'less than the required version (%s).'
+                ' less than the required version (%s).'
             )
             raise IOError(errstr % (str(version), str(self._min_version)))
 

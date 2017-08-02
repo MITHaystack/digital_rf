@@ -13,8 +13,12 @@ import os
 import shutil
 import sys
 import time
+import traceback
+from itertools import chain
 
-from .list_drf import lsdrf
+from watchdog.events import FileCreatedEvent
+
+from .list_drf import ilsdrf
 from .ringbuffer import DigitalRFRingbufferHandler
 from .watchdog_drf import DigitalRFEventHandler, DirWatcher
 
@@ -55,17 +59,36 @@ class DigitalRFMirrorHandler(DigitalRFEventHandler):
     def mirror_to_dest(self, src_path):
         """Mirror file to its location in the destination directory."""
         dest_path = self._get_dest_path(src_path)
-        dest_dir = os.path.dirname(dest_path)
-        if not os.path.exists(dest_dir):
-            os.makedirs(dest_dir)
-        if (not os.path.exists(dest_path)
-                or not filecmp.cmp(src_path, dest_path)):
-            if self.verbose:
-                print('Mirroring {0}'.format(src_path))
+        dest_dir, dest_name = os.path.split(dest_path)
+        tmp_dest_path = os.path.join(dest_dir, 'tmp.' + dest_name)
+        try:
+            if not os.path.exists(dest_dir):
+                os.makedirs(dest_dir)
+            if (not os.path.exists(dest_path)
+                    or not filecmp.cmp(src_path, dest_path)):
+                if self.verbose:
+                    print('Mirroring {0}'.format(src_path))
+                else:
+                    sys.stdout.write('.')
+                    sys.stdout.flush()
+                # mirror to temporary name, then rename to final destination
+                self.mirror_fun(src_path, tmp_dest_path)
+                shutil.move(tmp_dest_path, dest_path)
+        except OSError:
+            if not os.path.isfile(src_path):
+                # file doesn't exist anymore, no need to notify
+                pass
             else:
-                sys.stdout.write('.')
-                sys.stdout.flush()
-            self.mirror_fun(src_path, dest_path)
+                # otherwise, print the error but don't stop mirroring
+                traceback.print_exc()
+
+        # try to clean up source directory in case it is empty
+        src_dir, src_name = os.path.split(src_path)
+        try:
+            os.rmdir(src_dir)
+        except OSError:
+            # directory not empty, just move on
+            pass
 
     def on_created(self, event):
         """Mirror newly-created file."""
@@ -131,11 +154,7 @@ class DigitalRFMirror(object):
         """
         self.src = os.path.abspath(src)
         self.dest = os.path.abspath(dest)
-        if method == 'move':
-            mirror_fun = shutil.move
-        elif method == 'copy':
-            mirror_fun = shutil.copy2
-        else:
+        if method not in ('move', 'copy'):
             raise ValueError('Mirror method must be either "move" or "copy".')
         self.method = method
         self.ignore_existing = ignore_existing
@@ -147,45 +166,42 @@ class DigitalRFMirror(object):
             errstr = 'One of `include_drf` or `include_dmd` must be True.'
             raise ValueError(errstr)
 
-        self.observer = DirWatcher(self.src)
-
-        self.prop_handler = DigitalRFMirrorHandler(
+        self.event_handlers = []
+        # have to copy properties files because static,
+        # have to copy metadata because can be modified
+        copy_handler = DigitalRFMirrorHandler(
             self.src, self.dest, verbose=verbose, mirror_fun=shutil.copy2,
-            include_drf=False, include_dmd=False,
+            include_drf=(self.include_drf and self.method == 'copy'),
+            include_dmd=self.include_dmd,
             include_drf_properties=self.include_drf,
             include_dmd_properties=self.include_dmd,
         )
-        self.observer.schedule(self.prop_handler, self.src, recursive=True)
+        self.event_handlers.append(copy_handler)
 
-        if self.include_drf:
-            self.drf_handler = DigitalRFMirrorHandler(
-                self.src, self.dest, verbose=verbose, mirror_fun=mirror_fun,
+        if self.include_drf and self.method == 'move':
+            # move RF files with a separate handler
+            drf_handler = DigitalRFMirrorHandler(
+                self.src, self.dest, verbose=verbose, mirror_fun=shutil.move,
                 include_drf=True, include_dmd=False,
                 include_drf_properties=False, include_dmd_properties=False,
             )
-            self.observer.schedule(
-                self.drf_handler, self.src, recursive=True,
-            )
+            self.event_handlers.append(drf_handler)
 
-        if self.include_dmd:
-            self.md_handler = DigitalRFMirrorHandler(
-                self.src, self.dest, verbose=verbose, mirror_fun=shutil.copy2,
-                include_drf=False, include_dmd=True,
-                include_drf_properties=False, include_dmd_properties=False,
-            )
-            self.observer.schedule(
-                self.md_handler, self.src, recursive=True,
-            )
+        if self.include_dmd and self.method == 'move':
             # set ringbuffer on Digital Metadata files so old ones are removed
             # (can't move since multiple writes can happen to a single file)
-            if self.method == 'move':
-                self.md_ringbuffer_handler = DigitalRFRingbufferHandler(
-                    threshold=1, verbose=verbose, dryrun=False,
-                    include_drf=False, include_dmd=True,
-                )
-                self.observer.schedule(
-                    self.md_ringbuffer_handler, self.src, recursive=True,
-                )
+            md_ringbuffer_handler = DigitalRFRingbufferHandler(
+                threshold=1, verbose=verbose, dryrun=False,
+                include_drf=False, include_dmd=True,
+            )
+            self.event_handlers.append(md_ringbuffer_handler)
+
+        self._init_observer()
+
+    def _init_observer(self):
+        self.observer = DirWatcher(self.src)
+        for handler in self.event_handlers:
+            self.observer.schedule(handler, self.src, recursive=True)
 
     def start(self):
         """Start mirror process and return when existing files are handled."""
@@ -193,39 +209,49 @@ class DigitalRFMirror(object):
         self.observer.start()
 
         if os.path.isdir(self.src):
-            # mirror existing files, all if desired or properties only
-            proppaths = lsdrf(
+            # don't need to pause dispatching because mirror ordering is not
+            # critical and duplicate events are not harmful (we will either
+            # copy again or fail to move because the source doesn't exist)
+            # mirror properties at minimum
+            paths = ilsdrf(
                 self.src, include_drf=False, include_dmd=False,
                 include_drf_properties=self.include_drf,
                 include_dmd_properties=self.include_dmd,
             )
-            for p in proppaths:
-                self.prop_handler.mirror_to_dest(p)
 
             if not self.ignore_existing:
-                drfpaths = lsdrf(
-                    self.src, include_drf=self.include_drf, include_dmd=False,
-                    include_drf_properties=False, include_dmd_properties=False,
+                # mirror other files if desired
+                more_paths = ilsdrf(
+                    self.src, include_drf=self.include_drf,
+                    include_dmd=self.include_dmd,
+                    include_drf_properties=False,
+                    include_dmd_properties=False,
                 )
-                for p in drfpaths:
-                    self.drf_handler.mirror_to_dest(p)
+                paths = chain(paths, more_paths)
 
-                mdpaths = lsdrf(
-                    self.src, include_drf=False, include_dmd=self.include_dmd,
-                    include_drf_properties=False, include_dmd_properties=False,
-                )
-                for p in mdpaths:
-                    self.md_handler.mirror_to_dest(p)
-                if self.method == 'move':
-                    self.md_ringbuffer_handler.add_files(mdpaths)
+            # add events for existing files to queue
+            for p in paths:
+                event = FileCreatedEvent(p)
+                for emitter in self.observer.emitters:
+                    emitter.queue_event(event)
 
     def join(self):
         """Wait until a KeyboardInterrupt is received to stop mirroring."""
         try:
             while True:
+                if not self.observer.all_alive():
+                    # if not all threads of the observer are alive,
+                    # reinitialize and restart
+                    print(
+                        'Found stopped thread, reinitializing and restarting.'
+                    )
+                    # make a new observer and start it ASAP
+                    # (if we missed some events, can't help it)
+                    self._init_observer()
+                    self.observer.start()
                 time.sleep(1)
         except KeyboardInterrupt:
-            self.observer.stop()
+            self.stop()
             sys.stdout.write('\n')
             sys.stdout.flush()
         self.observer.join()

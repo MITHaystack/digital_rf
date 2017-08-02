@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import time
+from contextlib import contextmanager
 
 from watchdog.events import (DirCreatedEvent, FileCreatedEvent,
                              FileDeletedEvent, RegexMatchingEventHandler)
@@ -286,6 +287,25 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
             self._stop_watching_path()
         super(DirWatcher, self).start()
 
+    def all_alive(self):
+        """Check if all observer and emitter threads are running."""
+        # check if self thread is running
+        if not self.is_alive():
+            return False
+        # check if self emitters are running
+        if not all(emitter.is_alive() for emitter in self.emitters):
+            return False
+        # check if root observer thread is running
+        if not self.root_observer.is_alive():
+            return False
+        # check if all root observer emitters are running
+        if not all(
+            emitter.is_alive() for emitter in self.root_observer.emitters
+        ):
+            return False
+
+        return True
+
     def dispatch_events(self, event_queue, timeout):
         """Get events from queue and dispatch them to handlers."""
         # override this so that we can stop dispatching of events even while
@@ -294,6 +314,14 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
             super(DirWatcher, self).dispatch_events(event_queue, timeout)
         else:
             time.sleep(timeout)
+
+    @contextmanager
+    def paused_dispatching(self):
+        """Context manager that pauses event dispatching while held."""
+        self._stop_dispatching()
+        with self._lock:
+            yield
+        self._start_dispatching()
 
 
 def _build_watch_parser(Parser, *args):
