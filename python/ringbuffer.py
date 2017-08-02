@@ -12,10 +12,13 @@ import os
 import re
 import sys
 import time
+import traceback
 import uuid
 from collections import OrderedDict, defaultdict, deque, namedtuple
 
-from .list_drf import lsdrf, sortkey_drf
+from watchdog.events import FileCreatedEvent
+
+from .list_drf import ilsdrf
 from .watchdog_drf import DigitalRFEventHandler, DirWatcher
 
 __all__ = (
@@ -80,13 +83,15 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         try:
             stat = os.stat(path)
         except OSError:
-            size = None
+            traceback.print_exc()
+            return
         else:
             size = stat.st_size
 
         return self.FileRecord(key=key, size=size, path=path, group=group)
 
     def _add_to_queue(self, rec, rid):
+        """Add record to queue, return queue size to compare with threshold."""
         # find insertion index for record (queue sorted in ascending order)
         # we expect new records to go near the end (most recent)
         queue = self.queues[rec.group]
@@ -110,12 +115,14 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         return len(queue)
 
     def _remove_from_queue(self, rec, rid):
+        """Remove record, return queue size to compare with threshold."""
         queue = self.queues[rec.group]
         queue.remove((rec.key, rid))
         return len(queue)
 
     def _expire_oldest(self, group):
-        # oldest file is at end of sorted records deque
+        """Expire oldest record from group, return queue size afterward."""
+        # oldest file is at start of sorted records deque
         # (don't just popleft on the queue because we want to call
         #  _remove_from_queue, which is overridden by subclasses)
         key, rid = self.queues[group][0]
@@ -134,7 +141,11 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
 
         # delete file
         if not self.dryrun:
-            os.remove(rec.path)
+            try:
+                os.remove(rec.path)
+            except OSError:
+                # path doesn't exist like we thought it did, oh well
+                traceback.print_exc()
         # try to clean up directory in case it is empty
         head, tail = os.path.split(rec.path)
         try:
@@ -146,6 +157,15 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         return active_amount
 
     def _add_record(self, rec):
+        """Add a record to the ringbuffer and expire old ones if necesssary."""
+        # make sure record does not already exist, remove if it does
+        if rec.path in self.record_ids:
+            msg = (
+                'Replacing record for {0} since it already exists in'
+                ' ringbuffer.'
+            ).format(rec.path)
+            print(msg)
+            self._remove_record(rec.path)
         # create unique id for record
         rid = uuid.uuid4()
         # add id to dict so it can be looked up by path
@@ -168,10 +188,13 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
             active_amount = self._expire_oldest(rec.group)
 
     def _remove_record(self, path):
+        """Remove a record from the ringbuffer."""
         # get and remove record id if path is in the ringbuffer, return if not
         try:
             rid = self.record_ids.pop(path)
         except KeyError:
+            # we probably got here from a FileDeletedEvent after expiring
+            # an old record, but in any case, no harm to just ignore
             return
         # remove record from ringbuffer
         rec = self.records.pop(rid)
@@ -189,9 +212,9 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
     def add_files(self, paths):
         """Create file records from paths and add to ringbuffer."""
         # get records and add from oldest to newest by key (time)
-        record_list = [self._get_file_record(p) for p in paths]
-        # filter out invalid paths (can't extract a time from the regex)
-        record_list = [r for r in record_list if r is not None]
+        record_gen = (self._get_file_record(p) for p in paths)
+        # filter out invalid paths (can't extract a time, doesn't exist)
+        record_list = [r for r in record_gen if r is not None]
         for rec in sorted(record_list):
             self._add_record(rec)
 
@@ -223,8 +246,8 @@ class DigitalRFSizeRingbufferHandler(DigitalRFRingbufferHandler):
 
     This handler tracks the amount of space that new or modified files consume
     for all channels together. When the space threshold is exceeded, the oldest
-    files in the channel with the new file are deleted until the size
-    constraint is met.
+    file of any channel is deleted (unless it would empty the channel) until
+    the size constraint is met.
 
     """
 
@@ -236,6 +259,7 @@ class DigitalRFSizeRingbufferHandler(DigitalRFRingbufferHandler):
         )
 
     def _add_to_queue(self, rec, rid):
+        """Add record to queue, return queue size to compare with threshold."""
         super(DigitalRFSizeRingbufferHandler, self)._add_to_queue(
             rec, rid,
         )
@@ -243,11 +267,31 @@ class DigitalRFSizeRingbufferHandler(DigitalRFRingbufferHandler):
         return self.active_size
 
     def _remove_from_queue(self, rec, rid):
+        """Remove record, return queue size to compare with threshold."""
         super(DigitalRFSizeRingbufferHandler, self)._remove_from_queue(
             rec, rid,
         )
         self.active_size -= rec.size
         return self.active_size
+
+    def _expire_oldest(self, group):
+        """Expire oldest record overall, return queue size afterward."""
+        # remove oldest regardless of group unless it would empty group,
+        # but prefer `group` if tie
+        removal_group = group
+        # oldest file is at start of sorted records deque
+        oldest_key, oldest_rid = self.queues[group][0]
+        for grp in self.queues.keys():
+            if grp != group:
+                queue = self.queues[grp]
+                if len(queue) > 1:
+                    key, rid = queue[0]
+                    if key < oldest_key:
+                        oldest_key = key
+                        removal_group = group
+        super(DigitalRFSizeRingbufferHandler, self)._expire_oldest(
+            removal_group,
+        )
 
     def on_modified(self, event):
         """Update modified file in ringbuffer."""
@@ -281,6 +325,7 @@ class DigitalRFTimeRingbufferHandler(DigitalRFRingbufferHandler):
         )
 
     def _add_to_queue(self, rec, rid):
+        """Add record to queue, return queue size to compare with threshold."""
         super(DigitalRFTimeRingbufferHandler, self)._add_to_queue(
             rec, rid,
         )
@@ -290,6 +335,7 @@ class DigitalRFTimeRingbufferHandler(DigitalRFRingbufferHandler):
         return (newkey - oldkey)
 
     def _remove_from_queue(self, rec, rid):
+        """Remove record, return queue size to compare with threshold."""
         super(DigitalRFTimeRingbufferHandler, self)._remove_from_queue(
             rec, rid,
         )
@@ -402,14 +448,14 @@ class DigitalRFRingbuffer(object):
                 statvfs = os.statvfs(root)
                 bytes_available = statvfs.f_frsize*statvfs.f_bavail
                 if os.path.isdir(self.path):
-                    existing = lsdrf(
+                    existing = ilsdrf(
                         self.path, include_drf=self.include_drf,
                         include_dmd=self.include_dmd,
                         include_drf_properties=False,
                         include_dmd_properties=False,
                     )
                     bytes_available += sum(
-                        [os.stat(p).st_size for p in existing]
+                        os.stat(p).st_size for p in existing
                     )
                 self.size = max(bytes_available + self.size, 0)
 
@@ -419,6 +465,9 @@ class DigitalRFRingbuffer(object):
             )
             self.event_handlers.append(handler)
 
+        self._init_observer()
+
+    def _init_observer(self):
         self.observer = DirWatcher(self.path)
         for handler in self.event_handlers:
             self.observer.schedule(handler, self.path, recursive=True)
@@ -428,26 +477,40 @@ class DigitalRFRingbuffer(object):
         # start observer to add new files
         self.observer.start()
 
-        # add existing files to ringbuffer handler
-        existing = lsdrf(
-            self.path, include_drf=self.include_drf,
-            include_dmd=self.include_dmd, include_drf_properties=False,
-            include_dmd_properties=False,
-        )
-        existing.sort(key=sortkey_drf)
-        for handler in self.event_handlers:
-            handler.add_files(existing)
-            # since handler might delete some existing files, update existing
-            # file list using handler's list of files
-            existing = sorted(handler.record_ids.keys(), key=sortkey_drf)
+        # pause dispatching while we add existing files to catch duplicates
+        with self.observer.paused_dispatching():
+            # add existing files to ringbuffer handler
+            existing = ilsdrf(
+                self.path, include_drf=self.include_drf,
+                include_dmd=self.include_dmd, include_drf_properties=False,
+                include_dmd_properties=False,
+            )
+            for path in existing:
+                event = FileCreatedEvent(path)
+                for emitter in self.observer.emitters:
+                    emitter.queue_event(event)
 
     def join(self):
         """Wait until a KeyboardInterrupt is received to stop ringbuffer."""
         try:
             while True:
+                if not self.observer.all_alive():
+                    # if not all threads of the observer are alive,
+                    # reinitialize and restart
+                    print(
+                        'Found stopped thread, reinitializing and restarting.'
+                    )
+                    # have to completely redo init because handlers have state
+                    self.__init__(
+                        path=self.path, size=self.size, count=self.count,
+                        duration=self.duration, verbose=self.verbose,
+                        dryrun=self.dryrun, include_drf=self.include_drf,
+                        include_dmd=self.include_dmd,
+                    )
+                    self.start()
                 time.sleep(1)
         except KeyboardInterrupt:
-            self.observer.stop()
+            self.stop()
             sys.stdout.write('\n')
             sys.stdout.flush()
         self.observer.join()
