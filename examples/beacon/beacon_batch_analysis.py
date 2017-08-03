@@ -59,8 +59,7 @@ def parse_command_line(str_input=None):
 
     if str_input is None:
         return parser.parse_args()
-    else:
-        return parser.parse_args(str_input)
+    return parser.parse_args(str_input)
 
 
 def beacon_list(input_args):
@@ -71,7 +70,7 @@ def beacon_list(input_args):
 
     if input_args.justplots:
         figsdir = os.path.join(input_args.newdir, 'Figures')
-        if os.path.exist(figsdir):
+        if os.path.exists(figsdir):
             os.mkdir(figsdir)
 
     for iline in lines:
@@ -89,7 +88,8 @@ def beacon_list(input_args):
             shutil.copy(oldfig, newfile)
 if __name__ == '__main__':
     """
-        Main way run from command line
+        Run from command line
+        example: python -c
     """
     args_commd = parse_command_line()
 
