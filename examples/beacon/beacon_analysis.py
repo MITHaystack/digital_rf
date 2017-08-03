@@ -863,7 +863,7 @@ def analyzebeacons(input_args):
     mainpath = os.path.expanduser(os.path.dirname(os.path.join(input_args.path, '')))
     maindirmeta = input_args.newdir
     if maindirmeta is None:
-        maindirmeta = os.path.join(maindirmeta,'Processed')
+        maindirmeta = os.path.join(maindirmeta, 'Processed')
     if not os.path.exists(maindirmeta):
         os.mkdir(maindirmeta)
     figspath = os.path.join(maindirmeta, 'Figures')
