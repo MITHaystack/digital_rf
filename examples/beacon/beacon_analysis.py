@@ -189,7 +189,7 @@ def open_file(maindir):
         chandict[ichan] = curdict
 
     return (drfObj, chandict, start_indx, end_indx)
-def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100,timewin=[0,0]):
+def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100,timewin=[0,0],tleoff=0):
     """
         Coorelates the tle derived frequency and the rf frequency. A flag is output
         that specifies if the two frequencies correlate. A time offset between
@@ -197,7 +197,7 @@ def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100,timewin=[0,0]):
 
     """
     if e is None:
-        e = ephem_doponly(maindir, 0)
+        e = ephem_doponly(maindir, tleoff)
 
     bw_search0 = 8e3
     bw_search1 = 20e3
@@ -293,7 +293,7 @@ def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100,timewin=[0,0]):
         lagmean = (xcor0.max()*sp.argmax(xcor0)+xcor1.max()*sp.argmax(xcor1))/corboth
         deltat = tvec[1]-tvec[0]
         tshift = deltat*(n_measure-lagmean)
-    return rfexist, tshift
+    return rfexist, tshift, tvec, dopfit0, dopfit1, doppler0, doppler1
 
 def calc_resid(maindir,e,window=2**13,n_measure=500,timewin=[0,0]):
     """
