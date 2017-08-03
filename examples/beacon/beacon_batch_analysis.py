@@ -83,9 +83,11 @@ def beacon_list(input_args):
             cmd = cmd+' -j'
         subprocess.call(cmd, shell=True)
         if input_args.justplots:
+
             oldfig = os.path.join(newdir, 'Figures', 'chancomp.png')
             newfile = os.path.join(figsdir, curdir+'.png')
-            shutil.copy(oldfig, newfile)
+            if os.path.exists(oldfig):
+                shutil.copy(oldfig, newfile)
 if __name__ == '__main__':
     """
         Run from command line
