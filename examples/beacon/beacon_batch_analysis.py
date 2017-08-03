@@ -125,7 +125,7 @@ def beacon_list(input_args):
             oldfig = os.path.join(newdir, 'Figures', 'chancomp.png')
             newfile = os.path.join(figsdir, curdir+'.png')
             savename = os.path.join(figsdir, 'comp' + curdir+'.png')
-            plot_dops(rfdir, savename, curtleoff)
+            plot_dops(rfdir, savename, float(curtleoff))
             if os.path.exists(oldfig):
                 shutil.copy(oldfig, newfile)
 if __name__ == '__main__':
