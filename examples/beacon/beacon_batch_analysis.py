@@ -70,7 +70,7 @@ def beacon_list(input_args):
 
     if input_args.justplots:
         figsdir = os.path.join(input_args.newdir, 'Figures')
-        if os.path.exists(figsdir):
+        if not os.path.exists(figsdir):
             os.mkdir(figsdir)
 
     for iline in lines:
