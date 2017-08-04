@@ -293,14 +293,20 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
         if not self.is_alive():
             return False
         # check if self emitters are running
-        if not all(emitter.is_alive() for emitter in self.emitters):
+        if not all(
+            emitter.is_alive()
+            and (not emitter._inotify or emitter._inotify.is_alive())
+                for emitter in self.emitters
+        ):
             return False
         # check if root observer thread is running
         if not self.root_observer.is_alive():
             return False
         # check if all root observer emitters are running
         if not all(
-            emitter.is_alive() for emitter in self.root_observer.emitters
+            emitter.is_alive()
+            and (not emitter._inotify or emitter._inotify.is_alive())
+                for emitter in self.root_observer.emitters
         ):
             return False
 
@@ -308,8 +314,8 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
 
     def dispatch_events(self, event_queue, timeout):
         """Get events from queue and dispatch them to handlers."""
-        # override this so that we can stop dispatching of events even while
-        # thread is running
+        # override this so that we can schedule without dispatching events
+        # immediately even while thread is running
         if self._dispatching_enabled:
             super(DirWatcher, self).dispatch_events(event_queue, timeout)
         else:
