@@ -25,12 +25,14 @@ import scipy as sp
 import scipy.fftpack as scfft
 import scipy.signal as sig
 import scipy.constants as s_const
+import ephem
 import pdb
-
+#plotting
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
+from mpl_toolkits.basemap import Basemap
 # Millstone imports
 import digital_rf as drf
 
@@ -84,15 +86,42 @@ def ephem_doponly(maindir,tleoff=10.):
     # Assuming this will stay the same
     ut0 = 25567.5
     e2p = 3600.*24#ephem day to utc seconds
+
+    sitepath = os.path.expanduser(os.path.join(maindir, 'metadata/config/site'))
+    sitemeta = drf.DigitalMetadataReader(sitepath)
+    sdict = sitemeta.read_latest()
+    sdict1 = sdict[sdict.keys()[0]]
+
+    infopath = os.path.expanduser(os.path.join(maindir, 'metadata/info'))
+    infometa = drf.DigitalMetadataReader(infopath)
+    idict = infometa.read_latest()
+    idict1 = idict[idict.keys()[0]]
+
     passpath = os.path.expanduser(os.path.join(maindir, 'metadata/pass/'))
     passmeta = drf.DigitalMetadataReader(passpath)
     pdict = passmeta.read_latest()
     pdict1 = pdict[pdict.keys()[0]]
     rtime = (pdict1['rise_time']-ut0)*e2p
+    tsave = pdict.keys()[0]
 
     Dop_bw = pdict1['doppler_bandwidth']
     t = sp.arange(0,(Dop_bw.shape[0]+1)*10, 10.)+rtime
     t = t.astype(float)
+
+    obsLoc = ephem.Observer()
+    obsLoc.lat = sdict1['latitude']
+    obsLoc.long = sdict1['longitude']
+
+    satObj = ephem.readtle(idict1['name'], idict1['tle1'][1:-1], idict1['tle2'][1:-1])
+    tephem = (t-rtime)*ephem.second + pdict1['rise_time']
+
+    sublat = sp.zeros_like(tephem)
+    sublon = sp.zeros_like(tephem)
+    for i, itime in enumerate(tephem):
+        obsLoc.date = itime
+        satObj.compute(obsLoc)
+        sublat[i] = sp.rad2deg(satObj.sublat)
+        sublon[i] = sp.rad2deg(satObj.sublong)
 
     # XXX Extend t vector because for the most part the velocities at the edge
     # are not changing much so to avoid having the interpolation extrapolate.
@@ -105,9 +134,22 @@ def ephem_doponly(maindir,tleoff=10.):
     tdop[0] = tdop[0]-35.0
     # XXX Used this to line up inital TLE times
     tdop = tdop-tleoff
-    return({"t":t,
-            "dop1":sp.interpolate.interp1d(tdop, Dop_bw[:,0], kind="cubic"),
-            "dop2":sp.interpolate.interp1d(tdop, Dop_bw[:,1], kind="cubic")})
+
+    tephem = (tdop-rtime)*ephem.second + pdict1['rise_time']
+
+    sublat = sp.zeros_like(tephem)
+    sublon = sp.zeros_like(tephem)
+    for i, itime in enumerate(tephem):
+        obsLoc.date = itime
+        satObj.compute(obsLoc)
+        sublat[i] = sp.rad2deg(satObj.sublat)
+        sublon[i] = sp.rad2deg(satObj.sublong)
+    return({"t":t, 'tsave':tsave,
+            "dop1":sp.interpolate.interp1d(tdop, Dop_bw[:, 0], kind="cubic"),
+            "dop2":sp.interpolate.interp1d(tdop, Dop_bw[:, 1], kind="cubic"),
+            'sublat':sp.interpolate.interp1d(tdop, sublat, kind="cubic"),
+            'sublon':sp.interpolate.interp1d(tdop, sublon, kind="cubic"),
+            'site_latitude':float(sdict1['latitude']), 'site_longitude':float(sdict1['longitude'])})
 
 def outlier_removed_fit(m, w = None, n_iter=10, polyord=7):
     """
@@ -545,7 +587,7 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
 
 
     outdict = {'rTEC':rTEC, 'rTEC_sig':rTEC_sig, 'S4':S4, 'snr0':snr0,
-               'snr1':snr1, 'time':tvec,'resid':resid,'phase':phasecurve,
+               'snr1':snr1, 'time':tvec, 'resid':resid,'phase':phasecurve,
                'phasestd':stdcurve,'outspec0':outspec0,'outspec1':outspec1}
     return outdict
 #%% Plotting
@@ -787,9 +829,28 @@ def plot_measurements(outdict, savename='measured.png'):
     print('Saving measurement plots: ' + savename)
     fig1.savefig(savename)
     plt.close(fig1)
+def plot_map(outdict, e, savename):
+    """
+        This function will plot the output data in a scatter plot over a map of the
+        satellite path.
+    """
 
+    t = outdict['time']
+    fig1 = plt.figure()
+    slat = e['site_latitude']
+    slon = e['site_longitude']
+    m = Basemap(lat_0=slat, lon_0=slon, llcrnrlon=slon-15, llcrnrlat=slat-15,
+                urcrnrlon=slon+15, urcrnrlat=slat+15)
+    m.drawcoastlines(color="gray")
+
+    m.plot(slon, slat, "rx")
+    m.scatter(e["sublon"](t), e["sublat"](t), c=outdict['rTEC'], cmap='viridis',vmin=0,vmax=40)
+    plt.title('Map of TEC Over Satellite Path')
+    plt.colorbar(label='rTEC in TECu')
+    fig1.savefig(savename)
+    plt.close(fig1)
 #%% I/O for measurements
-def save_output(maindirmeta, outdict):
+def save_output(maindirmeta, outdict, e):
     """
         This function saves the output of the relative TEC measurement processing.
 
@@ -821,7 +882,7 @@ def save_output(maindirmeta, outdict):
     # get rid of doppler residual
     if 'doppler_residual' in outdict['resid'].keys():
         del outdict['resid']['doppler_residual']
-    mdo.write(outdict['time'][0], outdict)
+    mdo.write(e['tsave'], outdict)
 
 def readoutput(maindirmeta):
     """
@@ -899,7 +960,8 @@ def analyzebeacons(input_args):
         outdict['Beginning_Offset'] = input_args.begoff
         outdict['Ending_Offset'] = input_args.endoff
         outdict['Min_SNR'] = input_args.minsnr
-        save_output(maindirmeta, outdict)
+        e = ephem_doponly(mainpath)
+        save_output(maindirmeta, outdict, e)
 
         if input_args.drawplots:
             print("Plotting data.")
@@ -908,6 +970,7 @@ def analyzebeacons(input_args):
                         offset=tleoff)
             plot_resid(outdict['resid'], os.path.join(figspath, 'resid.png'))
             plot_measurements(outdict, savename)
+            plot_map(outdict, e, os.path.join(figspath,'mapdata.png'))
 
 def parse_command_line(str_input=None):
     """
