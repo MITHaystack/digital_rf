@@ -69,36 +69,48 @@ def parse_command_line(str_input=None):
 def plot_dops(maindir, savename,tleoff):
     sns.set_context("notebook")
     sns.set_style("whitegrid")
-
+    sns.set_context(rc={'lines.markeredgewidth': 1})
     _, _, tvec, dopfit0, dopfit1, doppler0, doppler1 = corr_tle_rf(maindir, tleoff=tleoff)
     tvec0 = tvec-tvec[0]
     tvec_c = tvec0-tvec0[-1]/2.
     tlim = [-150, 150]
-    flim = [-10, 10]
+    flim0 = [-5, 5]
+    flim1 = [-10, 10]
 
     fig1 = plt.figure(figsize=(6, 12))
-
+    dopfit0.astype(doppler0.dtype)
     plt.subplot(211)
-    dfith, tleh = plt.plot(tvec_c, dopfit0*1e-3, 'bx', tvec_c, doppler0*1e-3, 'ro')
+    ax = plt.gca()
+    dfith = plt.plot(tvec_c, dopfit0*1e-3, 'b+')[0]
+    tleh = plt.plot(tvec_c, doppler0*1e-3, 'ro', markerfacecolor='none')[0]
 
     plt.xlabel('Time in Seconds')
     plt.ylabel('Frequency in kHz')
     plt.title('TLE offset: {0} s. Chan:150 MHz'.format(tleoff))
     plt.legend([dfith, tleh], ['IQ', 'TLE'])
     plt.xlim(tlim)
-    plt.ylim(flim)
-    plt.grid(True)
+    plt.ylim(flim0)
+    ax.get_xaxis().set_minor_locator(matplotlib.ticker.AutoMinorLocator())
+    ax.get_yaxis().set_minor_locator(matplotlib.ticker.AutoMinorLocator())
+    ax.grid(True, which='major')
+    ax.grid(b=True, which='minor', color=[.85, .85, .85], linestyle='-.')
 
     plt.subplot(212)
-    dfith, tleh = plt.plot(tvec_c, dopfit1*1e-3, 'bx', tvec_c, doppler1*1e-3, 'ro')
+    ax = plt.gca()
+    dfith1 = plt.plot(tvec_c, dopfit1*1e-3, 'bx')[0]
+    tleh1 = plt.plot(tvec_c, doppler1*1e-3, 'ro', markerfacecolor='none')[0]
     plt.xlabel('Time in Seconds')
     plt.ylabel('Frequency in kHz')
     plt.title('TLE offset: {0} s. Chan: 400 MHz'.format(tleoff))
-    plt.legend([dfith, tleh], ['IQ', 'TLE'])
+    plt.legend([dfith1, tleh1], ['IQ', 'TLE'])
     plt.xlim(tlim)
-    plt.ylim(flim)
-    plt.grid(True)
-    fig1.savefig(savename)
+    plt.ylim(flim1)
+    ax.get_xaxis().set_minor_locator(matplotlib.ticker.AutoMinorLocator())
+    ax.get_yaxis().set_minor_locator(matplotlib.ticker.AutoMinorLocator())
+    ax.grid(True, which='major')
+    ax.grid(b=True, which='minor', color=[.85, .85, .85], linestyle='-.')
+    fig1.savefig(savename,dpi=300)
+    plt.close(fig1)
 
 def beacon_list(input_args):
     """ """
