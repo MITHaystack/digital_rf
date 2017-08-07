@@ -191,7 +191,7 @@ class DigitalRFMirror(object):
             # set ringbuffer on Digital Metadata files so old ones are removed
             # (can't move since multiple writes can happen to a single file)
             md_ringbuffer_handler = DigitalRFRingbufferHandler(
-                threshold=1, verbose=verbose, dryrun=False,
+                count=1, verbose=verbose, dryrun=False,
                 include_drf=False, include_dmd=True,
             )
             self.event_handlers.append(md_ringbuffer_handler)
