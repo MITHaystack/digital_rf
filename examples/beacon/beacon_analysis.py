@@ -128,7 +128,7 @@ def ephem_doponly(maindir,tleoff=10.):
     # If extrapolation used then error messages that the time was off
     t[-1] = t[-1]+600
     t[-2] = t[-2]+500
-    t[0] = t[0]-70
+    t[0] = t[0]-240
 
     tdop = (t[0:(len(t)-1)]+t[1:len(t)])/2.0
     tdop[0] = tdop[0]-35.0
@@ -546,7 +546,7 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
 
         F1_cor = F1[:, fi]*sp.conj(F[:, fi])
         phase1[i_t] = F1_cor.sum()
-        outspec1[i_t] = F1spec
+        outspec1[i_t] = F1spec.real
 
         std0[i_t] = sp.std(sp.angle(F0_cor))
         std1[i_t] = sp.std(sp.angle(F1_cor))
