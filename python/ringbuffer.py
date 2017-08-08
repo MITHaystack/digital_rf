@@ -573,6 +573,7 @@ class DigitalRFRingbuffer(object):
         self.include_drf = include_drf
         self.include_dmd = include_dmd
         self._start_time = None
+        self._task_threads = []
 
         if self.size is None and self.count is None and self.duration is None:
             errstr = 'One of `size`, `count`, or `duration` must not be None.'
@@ -618,16 +619,37 @@ class DigitalRFRingbuffer(object):
         self.observer = DirWatcher(self.path)
         self.observer.schedule(self.event_handler, self.path, recursive=True)
 
-    def _restart(self):
-        """Restart observer using existing event handlers."""
-        # get list of files currently in ringbuffer before we modify it
-        # so we can detect missed events from after crash until ondisk
-        # file list is complete
-        inbuffer = set(self.event_handler.record_ids.keys())
+    def _add_existing_files(self):
+        """Add existing files on disk to ringbuffer."""
+        # pause dispatching while we add existing files so files are added
+        # to the ringbuffer in the correct order
+        with self.observer.paused_dispatching():
+            # add existing files to ringbuffer handler
+            existing = ilsdrf(
+                self.path, include_drf=self.include_drf,
+                include_dmd=self.include_dmd, include_drf_properties=False,
+                include_dmd_properties=False,
+            )
+            # do not sort because existing will already be sorted and we
+            # don't want to convert to a list
+            self.event_handler.add_files(existing, sort=False)
 
-        # make a new observer and start it ASAP
-        self._init_observer()
+    def start(self):
+        """Start ringbuffer process."""
+        self._start_time = datetime.datetime.utcnow().replace(microsecond=0)
+
+        # start observer to add new files
         self.observer.start()
+
+        # add files that already existed before the observer started
+        # (do it in another thread so we can get to join())
+        thread = threading.Thread(target=self._add_existing_files())
+        thread.daemon = True
+        thread.start()
+        self._task_threads.append(thread)
+
+    def _verify_ringbuffer_files(self, inbuffer):
+        """Verify ringbuffer's `inbuffer` set of files with files on disk."""
         # get set of all files that should be in the ringbuffer right away
         # so we duplicate as few files from new events as possible
         # events that happen while we build this file set can be duplicated
@@ -653,25 +675,26 @@ class DigitalRFRingbuffer(object):
         possibly_modified = inbuffer & ondisk
         self.event_handler.modify_files(possibly_modified, sort=True)
 
-    def start(self):
-        """Start ringbuffer process."""
-        self._start_time = datetime.datetime.utcnow().replace(microsecond=0)
+    def _restart(self):
+        """Restart observer using existing event handlers."""
+        # get list of files currently in ringbuffer before we modify it
+        # so we can detect missed events from after crash until ondisk
+        # file list is complete
+        inbuffer = set(self.event_handler.record_ids.keys())
 
-        # start observer to add new files
+        # make a new observer and start it ASAP
+        self._init_observer()
         self.observer.start()
 
-        # pause dispatching while we add existing files so files are added
-        # to the ringbuffer in the correct order
-        with self.observer.paused_dispatching():
-            # add existing files to ringbuffer handler
-            existing = ilsdrf(
-                self.path, include_drf=self.include_drf,
-                include_dmd=self.include_dmd, include_drf_properties=False,
-                include_dmd_properties=False,
-            )
-            # do not sort because existing will already be sorted and we
-            # don't want to convert to a list
-            self.event_handler.add_files(existing, sort=False)
+        # verify existing state of ringbuffer
+        # (do it in another thread so we can get to join())
+        thread = threading.Thread(
+            target=self._verify_ringbuffer_files(),
+            kwargs=dict(inbuffer=inbuffer),
+        )
+        thread.daemon = True
+        thread.start()
+        self._task_threads.append(thread)
 
     def join(self):
         """Wait until a KeyboardInterrupt is received to stop ringbuffer."""
@@ -682,13 +705,21 @@ class DigitalRFRingbuffer(object):
                 if (interval % self.status_interval) == 0:
                     status = self.event_handler.status()
                     print('{0} | ({1})'.format(now, status))
+                    sys.stdout.flush()
+
                 if not self.observer.all_alive():
                     # if not all threads of the observer are alive,
                     # reinitialize and restart
                     print(
                         'Found stopped thread, reinitializing and restarting.'
                     )
+                    sys.stdout.flush()
+                    # first make sure all task threads have stopped
+                    for thread in self._task_threads:
+                        thread.join()
+                    del self._task_threads[:]
                     self._restart()
+
                 time.sleep(1)
         except KeyboardInterrupt:
             self.stop()
@@ -823,6 +854,7 @@ def _run_ringbuffer(args):
         print('DRY RUN (files will not be deleted):')
     print(ringbuffer)
     print('Type Ctrl-C to quit.')
+    sys.stdout.flush()
     ringbuffer.run()
 
 
