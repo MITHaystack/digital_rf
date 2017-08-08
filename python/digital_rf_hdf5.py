@@ -1968,59 +1968,41 @@ class _top_level_dir_properties:
         """
         first_unix_sample = None
         last_unix_sample = None
-        this_first_sample = None
-        this_last_sample = None
         if self.access_mode == 'local':
-            subdir_list = glob.glob(
-                os.path.join(
-                    self.top_level_dir,
-                    self.channel_name,
-                    list_drf.GLOB_SUBDIR,
-                ),
-            )
-            if len(subdir_list) == 0:
-                return((None, None))
-            subdir_list.sort()
-            rf_file_glob = list_drf.GLOB_DRFFILE.replace('*', 'rf', 1)
-            for i, subdir in enumerate((subdir_list[0], subdir_list[-1])):
-                rf_list = glob.glob(
-                    os.path.join(subdir, rf_file_glob)
-                )
-                if len(rf_list) == 0:
-                    continue
-                rf_list.sort(key=list_drf.sortkey_drf)
-                if i == 0:
-                    this_first_sample = self._get_first_sample(rf_list[0])
+            channel_dir = os.path.join(self.top_level_dir, self.channel_name)
+            # loop through files in order to get first sample
+            for path in list_drf.ilsdrf(
+                channel_dir, recursive=False, reverse=False,
+                include_drf=True, include_dmd=False,
+                include_drf_properties=False,
+            ):
+                try:
+                    first_unix_sample = self._get_first_sample(path)
+                except Exception:
+                    errstr = (
+                        'Warning: corrupt file %s found and ignored.'
+                        ' Deleting it will speed up get_bounds().'
+                    )
+                    print(errstr % path)
                 else:
-                    for fullname in reversed(rf_list):
-                        try:
-                            this_last_sample = self._get_last_sample(fullname)
-                            break
-                        except Exception:
-                            errstr = (
-                                'Warning corrupt h5 file %s found - ignored'
-                                ' - should be deleted'
-                            )
-                            print(errstr % fullname)
-                            this_last_sample = None
+                    break
 
-            # check for all bad files in last subdirectory
-            if this_last_sample is None:
-                rf_list = glob.glob(
-                    os.path.join(subdir_list[-2], rf_file_glob)
-                )
-                rf_list.sort(key=list_drf.sortkey_drf)
-                this_last_sample = self._get_last_sample(rf_list[-1])
-
-            if first_unix_sample is not None:
-                if this_first_sample < first_unix_sample:
-                    first_unix_sample = this_first_sample
-                if this_last_sample > last_unix_sample:
-                    last_unix_sample = this_last_sample
-            else:
-                first_unix_sample = this_first_sample
-                last_unix_sample = this_last_sample
-
+            # loop through files in reverse order to get last sample
+            for path in list_drf.ilsdrf(
+                channel_dir, recursive=False, reverse=True,
+                include_drf=True, include_dmd=False,
+                include_drf_properties=False,
+            ):
+                try:
+                    last_unix_sample = self._get_last_sample(path)
+                except Exception:
+                    errstr = (
+                        'Warning: corrupt file %s found and ignored.'
+                        ' Deleting it will speed up get_bounds().'
+                    )
+                    print(errstr % path)
+                else:
+                    break
         else:
             raise ValueError('mode %s not implemented' % (self.access_mode))
 
