@@ -162,7 +162,7 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
         """Add a record to the ringbuffer and expire old ones if necesssary."""
         with self._record_lock:
             # make sure record does not already exist, remove if it does
-            if rec.path in self.record_ids:
+            if rec.path in self.records:
                 if self.verbose:
                     msg = (
                         'Adding record for {0} but it already exists in'
@@ -666,7 +666,7 @@ class DigitalRFRingbuffer(object):
         # get list of files currently in ringbuffer before we modify it
         # so we can detect missed events from after crash until ondisk
         # file list is complete
-        inbuffer = set(self.event_handler.record_ids.keys())
+        inbuffer = set(self.event_handler.records.keys())
 
         # make a new observer and start it ASAP
         self._init_observer()
