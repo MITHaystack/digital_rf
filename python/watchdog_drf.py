@@ -421,7 +421,7 @@ def _run_watch(args):
     try:
         while True:
             time.sleep(1)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, SystemExit):
         observer.stop()
         sys.stdout.write('\n')
         sys.stdout.flush()

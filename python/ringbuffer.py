@@ -15,7 +15,6 @@ import sys
 import threading
 import time
 import traceback
-import uuid
 from collections import OrderedDict, defaultdict, deque, namedtuple
 
 from .list_drf import ilsdrf
@@ -46,7 +45,6 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
         self.dryrun = dryrun
         # separately track file groups (ch path, name) with different queues
         self.queues = defaultdict(deque)
-        self.record_ids = {}
         self.records = {}
         # acquire the record lock to modify the queue or record dicts
         self._record_lock = threading.RLock()
@@ -88,42 +86,43 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
         try:
             stat = os.stat(path)
         except OSError:
-            traceback.print_exc()
+            if self.verbose:
+                traceback.print_exc()
             return
         else:
             size = stat.st_size
 
         return self.FileRecord(key=key, size=size, path=path, group=group)
 
-    def _add_to_queue(self, rec, rid):
+    def _add_to_queue(self, rec):
         """Add record to queue."""
         # find insertion index for record (queue sorted in ascending order)
         # we expect new records to go near the end (most recent)
         queue = self.queues[rec.group]
         with self._record_lock:
-            for k, (kkey, krid) in enumerate(reversed(queue)):
+            for k, (kkey, kpath) in enumerate(reversed(queue)):
                 if rec.key > kkey:
                     # we've found the insertion point at index k from end
                     break
-                elif rid == krid:
+                elif rec.path == kpath:
                     # already in ringbuffer, so simply return
                     return
             else:
                 # new key is oldest (or queue is empty),
                 # needs to be put at beginning
-                queue.appendleft((rec.key, rid))
+                queue.appendleft((rec.key, rec.path))
                 k = None
             if k is not None:
                 # insert record at index k
                 queue.rotate(k)
-                queue.append((rec.key, rid))
+                queue.append((rec.key, rec.path))
                 queue.rotate(-k)
 
-    def _remove_from_queue(self, rec, rid):
+    def _remove_from_queue(self, rec):
         """Remove record from queue."""
         queue = self.queues[rec.group]
         with self._record_lock:
-            queue.remove((rec.key, rid))
+            queue.remove((rec.key, rec.path))
 
     def _expire_oldest_from_group(self, group):
         """Expire oldest record from group and delete corresponding file."""
@@ -131,10 +130,9 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
         # (don't just popleft on the queue because we want to call
         #  _remove_from_queue, which is overridden by subclasses)
         with self._record_lock:
-            key, rid = self.queues[group][0]
-            rec = self.records.pop(rid)
-            del self.record_ids[rec.path]
-            self._remove_from_queue(rec, rid)
+            key, path = self.queues[group][0]
+            rec = self.records.pop(path)
+            self._remove_from_queue(rec)
 
         if self.verbose:
             print('Expired {0}'.format(rec.path))
@@ -145,7 +143,8 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
                 os.remove(rec.path)
             except OSError:
                 # path doesn't exist like we thought it did, oh well
-                traceback.print_exc()
+                if self.verbose:
+                    traceback.print_exc()
         # try to clean up directory in case it is empty
         head, tail = os.path.split(rec.path)
         try:
@@ -171,14 +170,10 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
                     ).format(rec.path)
                     print(msg)
                 self._modify_record(rec)
-            # create unique id for record
-            rid = uuid.uuid4()
-            # add id to dict so it can be looked up by path
-            self.record_ids[rec.path] = rid
-            # add record to dict so record information can be looked up by id
-            self.records[rid] = rec
+            # add record to dict so record information can be looked up by path
+            self.records[rec.path] = rec
             # add record to expiration queue
-            self._add_to_queue(rec, rid)
+            self._add_to_queue(rec)
 
             if self.verbose:
                 print('Added {0}'.format(rec.path))
@@ -188,16 +183,7 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
     def _modify_record(self, rec):
         """Modify a record in the ringbuffer, return whether it was done."""
         with self._record_lock:
-            if rec is None:
-                # file doesn't exist anymore, so remove from ringbuffer instead
-                if self.verbose:
-                    msg = (
-                        'Modified file {0} no longer exists, removing instead.'
-                    ).format(rec.path)
-                    print(msg)
-                self._remove_record(rec.path)
-                return True
-            if rec.path not in self.record_ids:
+            if rec.path not in self.records:
                 # don't have record in ringbuffer when we should, add instead
                 if self.verbose:
                     msg = (
@@ -215,14 +201,13 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
         # get and remove record id if path is in the ringbuffer, return if not
         with self._record_lock:
             try:
-                rid = self.record_ids.pop(path)
+                rec = self.records.pop(path)
             except KeyError:
                 # we probably got here from a FileDeletedEvent after expiring
                 # an old record, but in any case, no harm to just ignore
                 return
             # remove record from ringbuffer
-            rec = self.records.pop(rid)
-            self._remove_from_queue(rec, rid)
+            self._remove_from_queue(rec)
 
         if self.verbose:
             print('Removed {0}'.format(rec.path))
@@ -242,6 +227,8 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
         """Create file records from paths and update in ringbuffer."""
         # get records and add from oldest to newest by key (time)
         records = (self._get_file_record(p) for p in paths)
+        # filter out invalid paths (can't extract a time, doesn't exist)
+        records = (r for r in records if r is not None)
         if sort:
             records = sorted(records)
         for rec in records:
@@ -324,16 +311,16 @@ class SizeExpirer(object):
         pct_full = int(float(self.active_size)/self.size*100)
         return ', '.join((status, '{0}% size'.format(pct_full)))
 
-    def _add_to_queue(self, rec, rid):
+    def _add_to_queue(self, rec):
         """Add record to queue, tracking file size."""
         with self._record_lock:
-            super(SizeExpirer, self)._add_to_queue(rec, rid)
+            super(SizeExpirer, self)._add_to_queue(rec)
             self.active_size += rec.size
 
-    def _remove_from_queue(self, rec, rid):
+    def _remove_from_queue(self, rec):
         """Remove record from queue, tracking file size."""
         with self._record_lock:
-            super(SizeExpirer, self)._remove_from_queue(rec, rid)
+            super(SizeExpirer, self)._remove_from_queue(rec)
             self.active_size -= rec.size
 
     def _expire_oldest(self, group):
@@ -344,14 +331,14 @@ class SizeExpirer(object):
             removal_group = group
             # oldest file is at start of sorted records deque
             try:
-                oldest_key, oldest_rid = self.queues[group][0]
+                oldest_key, oldest_path = self.queues[group][0]
             except IndexError:
                 oldest_key = float('inf')
             for grp in self.queues.keys():
                 if grp != group:
                     queue = self.queues[grp]
                     if len(queue) > 1:
-                        key, rid = queue[0]
+                        key, path = queue[0]
                         if key < oldest_key:
                             oldest_key = key
                             removal_group = grp
@@ -372,10 +359,9 @@ class SizeExpirer(object):
             if not handled:
                 # if we're here, we know that the record exists and needs to
                 # be modified (in this case, update the size)
-                rid = self.record_ids[rec.path]
-                oldrec = self.records.pop(rid)
+                oldrec = self.records[rec.path]
 
-                self.records[rid] = rec
+                self.records[rec.path] = rec
                 self.active_size -= oldrec.size
                 self.active_size += rec.size
 
@@ -716,12 +702,15 @@ class DigitalRFRingbuffer(object):
                     sys.stdout.flush()
                     # first make sure all task threads have stopped
                     for thread in self._task_threads:
-                        thread.join()
+                        while thread.is_alive():
+                            print('Waiting for task thread to finish.')
+                            sys.stdout.flush()
+                            thread.join(1)
                     del self._task_threads[:]
                     self._restart()
 
                 time.sleep(1)
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, SystemExit):
             self.stop()
             sys.stdout.write('\n')
             sys.stdout.flush()

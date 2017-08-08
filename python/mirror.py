@@ -250,7 +250,7 @@ class DigitalRFMirror(object):
                     self._init_observer()
                     self.observer.start()
                 time.sleep(1)
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, SystemExit):
             self.stop()
             sys.stdout.write('\n')
             sys.stdout.flush()
