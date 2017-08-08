@@ -339,27 +339,52 @@ def _build_watch_parser(Parser, *args):
                                (default: %(default)s)''')
 
     includegroup = parser.add_argument_group(title='include')
-    includegroup.add_argument(
+    drfgroup = includegroup.add_mutually_exclusive_group()
+    dmdgroup = includegroup.add_mutually_exclusive_group()
+    drfpropsgroup = includegroup.add_mutually_exclusive_group()
+    dmdpropsgroup = includegroup.add_mutually_exclusive_group()
+
+    drfgroup.add_argument(
+        '--drf', dest='include_drf', action='store_true', default=True,
+        help='''Watch Digital RF files.
+                (default: True)''',
+    )
+    drfpropsgroup.add_argument(
+        '--drfprops', dest='include_drf_properties', action='store_true',
+        default=None,
+        help='''Watch drf_properties.h5 files. If unset, use value of --drf.
+                (default: None)''',
+    )
+    drfgroup.add_argument(
         '--nodrf', dest='include_drf', action='store_false',
-        help='''Do not watch Digital RF HDF5 files.
+        help='''Do not watch Digital RF files.
                 (default: False)''',
     )
-    includegroup.add_argument(
-        '--nodmd', dest='include_dmd', action='store_false',
-        help='''Do not watch Digital Metadata HDF5 files.
-                (default: False)''',
-    )
-    includegroup.add_argument(
-        '--nodrfprops', dest='include_drf_properties', nargs='?',
-        const=False, default=None,
+    drfpropsgroup.add_argument(
+        '--nodrfprops', dest='include_drf_properties', action='store_false',
         help='''Do not watch drf_properties.h5 files.
-                (default: Same as --nodrf)''',
+                (default: False)''',
     )
-    includegroup.add_argument(
-        '--nodmdprops', dest='include_dmd_properties', nargs='?',
-        const=False, default=None,
+    dmdgroup.add_argument(
+        '--dmd', dest='include_dmd', action='store_true', default=True,
+        help='''Watch Digital Metadata files.
+                (default: True)''',
+    )
+    dmdpropsgroup.add_argument(
+        '--dmdprops', dest='include_dmd_properties', action='store_true',
+        default=None,
+        help='''Watch dmd_properties.h5 files. If unset, use value of --dmd.
+                (default: None)''',
+    )
+    dmdgroup.add_argument(
+        '--nodmd', dest='include_dmd', action='store_false',
+        help='''Do not watch Digital Metadata files.
+                (default: False)''',
+    )
+    dmdpropsgroup.add_argument(
+        '--nodmdprops', dest='include_dmd_properties', action='store_false',
         help='''Do not watch dmd_properties.h5 files.
-                (default: Same as --nodmd)''',
+                (default: False)''',
     )
 
     parser.set_defaults(func=_run_watch)
@@ -384,11 +409,6 @@ def _run_watch(args):
 
         def on_modified(self, event):
             print('Modified {0}'.format(event.src_path))
-
-    if args.include_drf_properties:
-        args.include_drf_properties = True
-    if args.include_dmd_properties:
-        args.include_dmd_properties = True
 
     kwargs = vars(args).copy()
     del kwargs['func']
