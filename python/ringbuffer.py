@@ -643,7 +643,7 @@ class DigitalRFRingbuffer(object):
 
         # add files that already existed before the observer started
         # (do it in another thread so we can get to join())
-        thread = threading.Thread(target=self._add_existing_files())
+        thread = threading.Thread(target=self._add_existing_files)
         thread.daemon = True
         thread.start()
         self._task_threads.append(thread)
@@ -689,7 +689,7 @@ class DigitalRFRingbuffer(object):
         # verify existing state of ringbuffer
         # (do it in another thread so we can get to join())
         thread = threading.Thread(
-            target=self._verify_ringbuffer_files(),
+            target=self._verify_ringbuffer_files,
             kwargs=dict(inbuffer=inbuffer),
         )
         thread.daemon = True
