@@ -325,8 +325,7 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
     def paused_dispatching(self):
         """Context manager that pauses event dispatching while held."""
         self._stop_dispatching()
-        with self._lock:
-            yield
+        yield
         self._start_dispatching()
 
 
