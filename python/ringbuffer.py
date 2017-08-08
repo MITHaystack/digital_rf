@@ -624,6 +624,8 @@ class DigitalRFRingbuffer(object):
         """Start ringbuffer process."""
         self._start_time = datetime.datetime.utcnow().replace(microsecond=0)
 
+        print('{0} | Starting observer.'.format(self._start_time))
+
         # start observer to add new files
         self.observer.start()
 
