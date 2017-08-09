@@ -218,7 +218,7 @@ class DigitalMetadataWriter:
 
     def get_samples_per_second(self):
         """Return the sample rate in Hz as a numpy.longdouble."""
-        return(self._samples_per_second)
+        return self._samples_per_second
 
     def write(self, samples, data):
         """Write new metadata to the Digital Metadata channel.
@@ -486,7 +486,7 @@ class DigitalMetadataWriter:
             ret_str += '_fields:\n'
             for key in self._fields:
                 ret_str += '\t%s\n' % (key)
-        return(ret_str)
+        return ret_str
 
 
 class DigitalMetadataReader:
@@ -686,36 +686,36 @@ class DigitalMetadataReader:
         if last_sample is None:
             raise IOError('All attempts to read last sample failed')
 
-        return((first_sample, last_sample))
+        return (first_sample, last_sample)
 
     def get_fields(self):
         """Return list of the field names in this metadata."""
         # _fields is an internal data structure, so make a copy for the user
-        return(copy.deepcopy(self._fields))
+        return copy.deepcopy(self._fields)
 
     def get_sample_rate_numerator(self):
         """Return the numerator of the sample rate in Hz."""
-        return(self._sample_rate_numerator)
+        return self._sample_rate_numerator
 
     def get_sample_rate_denominator(self):
         """Return the denominator of the sample rate in Hz."""
-        return(self._sample_rate_denominator)
+        return self._sample_rate_denominator
 
     def get_samples_per_second(self):
         """Return the sample rate in Hz as a numpy.longdouble."""
-        return(self._samples_per_second)
+        return self._samples_per_second
 
     def get_subdir_cadence_secs(self):
         """Return the number of seconds of data stored in each subdirectory."""
-        return(self._subdir_cadence_secs)
+        return self._subdir_cadence_secs
 
     def get_file_cadence_secs(self):
         """Return the number of seconds of data stored in each file."""
-        return(self._file_cadence_secs)
+        return self._file_cadence_secs
 
     def get_file_name_prefix(self):
         """Return the metadata file name prefix."""
-        return(self._file_name)
+        return self._file_name
 
     def read(self, start_sample, end_sample=None, columns=None, method=None):
         """Read metadata between start and end samples.
@@ -908,7 +908,7 @@ class DigitalMetadataReader:
                     continue
                 ret_list.append(full_file)
 
-        return(ret_list)
+        return ret_list
 
     def _add_metadata(
         self, ret_dict, this_file, columns, sample0, sample1, is_edge,
@@ -1036,4 +1036,4 @@ class DigitalMetadataReader:
             ret_str += '_fields:\n'
             for key in self._fields:
                 ret_str += '\t%s\n' % (key)
-        return(ret_str)
+        return ret_str

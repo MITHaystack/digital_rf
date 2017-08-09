@@ -174,7 +174,7 @@ def get_unix_time(
         year, month, day, hour, minute, second,
         microsecond=long(picosecond / 1e6),
     )
-    return((dt, picosecond))
+    return (dt, picosecond)
 
 
 class DigitalRFWriter:
@@ -568,7 +568,7 @@ class DigitalRFWriter:
         This does not include gaps.
 
         """
-        return(self._total_samples_written)
+        return self._total_samples_written
 
     def get_next_available_sample(self):
         """Return the index of the next sample available for writing.
@@ -576,23 +576,23 @@ class DigitalRFWriter:
         This is equal to (total_samples_written + total_gap_samples).
 
         """
-        return(self._next_avail_sample)
+        return self._next_avail_sample
 
     def get_total_gap_samples(self):
         """Return the total number of samples contained in data gaps."""
-        return(self._total_gap_samples)
+        return self._total_gap_samples
 
     def get_last_file_written(self):
         """Return the full path to the last file written."""
-        return(_py_rf_write_hdf5.get_last_file_written(self._channelObj))
+        return _py_rf_write_hdf5.get_last_file_written(self._channelObj)
 
     def get_last_dir_written(self):
         """Return the full path to the last directory written."""
-        return(_py_rf_write_hdf5.get_last_dir_written(self._channelObj))
+        return _py_rf_write_hdf5.get_last_dir_written(self._channelObj)
 
     def get_last_utc_timestamp(self):
         """Return UTC timestamp of the time of the last data written."""
-        return(_py_rf_write_hdf5.get_last_utc_timestamp(self._channelObj))
+        return _py_rf_write_hdf5.get_last_utc_timestamp(self._channelObj)
 
     def close(self):
         """Free memory of the underlying C object and close the last HDF5 file.
@@ -819,7 +819,7 @@ class DigitalRFReader:
     def get_channels(self):
         """Return an alphabetically sorted list of channels."""
         channels = sorted(self._channel_dict.keys())
-        return(channels)
+        return channels
 
     def read(self, start_sample, end_sample, channel_name, sub_channel=None):
         """Read continuous blocks of data between start and end samples.
@@ -905,7 +905,7 @@ class DigitalRFReader:
             )
 
         # merge contiguous blocks
-        return(self._combine_blocks(cont_data_dict))
+        return self._combine_blocks(cont_data_dict)
 
     def get_bounds(self, channel_name):
         """Get indices of first- and last-known sample for a given channel.
@@ -946,7 +946,7 @@ class DigitalRFReader:
                     first_unix_sample = this_first_sample
                     last_unix_sample = this_last_sample
 
-        return((first_unix_sample, last_unix_sample))
+        return (first_unix_sample, last_unix_sample)
 
     def get_properties(self, channel_name, sample=None):
         """Get dictionary of the properties particular to a Digital RF channel.
@@ -1019,7 +1019,7 @@ class DigitalRFReader:
         """
         global_properties = self._channel_dict[channel_name].properties
         if sample is None:
-            return(global_properties)
+            return global_properties
 
         subdir_cadence_secs = global_properties['subdir_cadence_secs']
         file_cadence_millisecs = global_properties['file_cadence_millisecs']
@@ -1045,7 +1045,7 @@ class DigitalRFReader:
                 with h5py.File(fullfile, 'r') as f:
                     md = {k: v.item() for k, v in f['rf_data'].attrs.items()}
                     sample_properties.update(md)
-                    return(sample_properties)
+                    return sample_properties
 
         errstr = 'No data file found in channel %s associated with sample %i'
         raise IOError(errstr % (channel_name, sample))
@@ -1244,7 +1244,7 @@ class DigitalRFReader:
             )
 
         # merge contiguous blocks
-        return(self._combine_blocks(cont_data_dict, len_only=True))
+        return self._combine_blocks(cont_data_dict, len_only=True)
 
     def get_last_write(self, channel_name):
         """Return tuple of time and path of the last file written to a channel.
@@ -1269,7 +1269,7 @@ class DigitalRFReader:
         """
         first_sample, last_sample = self.get_bounds(channel_name)
         if first_sample is None:
-            return((None, None))
+            return (None, None)
         file_properties = self.get_properties(channel_name)
         subdir_cadence_seconds = file_properties['subdir_cadence_secs']
         file_cadence_millisecs = file_properties['file_cadence_millisecs']
@@ -1283,10 +1283,10 @@ class DigitalRFReader:
             for last_file in file_list:
                 full_last_file = os.path.join(key, channel_name, last_file)
                 if os.access(full_last_file, os.R_OK):
-                    return((os.path.getmtime(full_last_file), full_last_file))
+                    return (os.path.getmtime(full_last_file), full_last_file)
 
         # not found
-        return((None, None))
+        return (None, None)
 
     def read_vector(
         self, start_sample, vector_length, channel_name, sub_channel=None,
@@ -1338,44 +1338,21 @@ class DigitalRFReader:
         read : Read continuous blocks of data between start and end samples.
 
         """
-        if vector_length < 1:
-            estr = 'Number of samples requested must be greater than 0, not %i'
-            raise IOError(estr % vector_length)
-
-        start_sample = long(start_sample)
-        end_sample = start_sample + (long(vector_length) - 1)
-        data_dict = self.read(
-            start_sample, end_sample, channel_name, sub_channel,
+        z = self.read_vector_raw(
+            start_sample, vector_length, channel_name, sub_channel,
         )
 
-        if len(data_dict.keys()) > 1:
-            errstr = (
-                'Data gaps found with start_sample %i and vector_length %i'
-                ' with channel %s'
-            )
-            raise IOError(errstr % (start_sample, vector_length, channel_name))
-        elif len(data_dict.keys()) == 0:
-            errstr = (
-                'No data found with start_sample %i and vector_length %i'
-                ' with channel %s'
-            )
-            raise IOError(errstr % (start_sample, vector_length, channel_name))
+        if z.dtype.names is not None:
+            y = numpy.empty(z.shape, dtype=numpy.complex64)
+            y.real = z['r']
+            y.imag = z['i']
+            return y
+        else:
+            return numpy.array(z, dtype=numpy.complex64, copy=False)
 
-        key = data_dict.keys()[0]
-        z = data_dict[key]
-
-        if len(z) != vector_length:
-            errstr = 'Requested %i samples, but got %i'
-            raise IOError(errstr % (vector_length, len(z)))
-
-        if not hasattr(z.dtype, 'names'):
-            return(numpy.array(z, dtype=numpy.complex64))
-        elif z.dtype.names is None:
-            return(numpy.array(z, dtype=numpy.complex64))
-        z = numpy.array(z['r'] + z['i'] * 1.0j, dtype=numpy.complex64)
-        return(z)
-
-    def read_vector_raw(self, start_sample, vector_length, channel_name):
+    def read_vector_raw(
+        self, start_sample, vector_length, channel_name, sub_channel=None,
+    ):
         """Read a vector of data beginning at the given sample index.
 
         This method returns the vector of the data beginning at `start_sample`
@@ -1401,6 +1378,11 @@ class DigitalRFReader:
         channel_name : string
             Name of channel to read from, one of ``get_channels()``.
 
+        sub_channel : None | int, optional
+            If None, the return array will be 2-d and contain all subchannels
+            of data. If an integer, the return array will be 1-d and contain
+            the data of the subchannel given by that integer index.
+
 
         Returns
         -------
@@ -1424,29 +1406,30 @@ class DigitalRFReader:
 
         start_sample = long(start_sample)
         end_sample = start_sample + (long(vector_length) - 1)
-        data_dict = self.read(start_sample, end_sample, channel_name)
+        data_dict = self.read(
+            start_sample, end_sample, channel_name, sub_channel,
+        )
 
-        if len(data_dict.keys()) > 1:
+        if len(data_dict) > 1:
             errstr = (
                 'Data gaps found with start_sample %i and vector_length %i'
                 ' with channel %s'
             )
             raise IOError(errstr % (start_sample, vector_length, channel_name))
-        elif len(data_dict.keys()) == 0:
+        elif len(data_dict) == 0:
             errstr = (
                 'No data found with start_sample %i and vector_length %i'
                 ' with channel %s'
             )
             raise IOError(errstr % (start_sample, vector_length, channel_name))
 
-        key = data_dict.keys()[0]
-        z = data_dict[key]
+        key, z = data_dict.popitem()
 
         if len(z) != vector_length:
             errstr = 'Requested %i samples, but got %i'
             raise IOError(errstr % (vector_length, len(z)))
 
-        return(z)
+        return z
 
     def read_vector_c81d(
         self, start_sample, vector_length, channel_name, sub_channel=0,
@@ -1589,7 +1572,7 @@ class DigitalRFReader:
                 full_file = os.path.join(subdir, file_basename)
                 ret_list.append(full_file)
 
-        return(ret_list)
+        return ret_list
 
     def _combine_blocks(self, cont_data_dict, len_only=False):
         """Order and combine data given as dictionary into continuous blocks.
@@ -1617,39 +1600,38 @@ class DigitalRFReader:
             data starting at the key's index.
 
         """
-        sample_keys = sorted(cont_data_dict.keys())
         ret_dict = collections.OrderedDict()
-        if len(sample_keys) == 0:
+        if len(cont_data_dict) == 0:
             # no data
-            return(ret_dict)
+            return ret_dict
 
         present_arr = None
         next_cont_sample = None
-        for i, key in enumerate(sample_keys):
+        for key, arr in sorted(cont_data_dict.items()):
             if present_arr is None:
                 present_key = key
-                present_arr = cont_data_dict[key]
+                present_arr = arr
             elif key == next_cont_sample:
                 if len_only:
-                    present_arr += cont_data_dict[key]
+                    present_arr += arr
                 else:
                     present_arr = numpy.concatenate(
-                        (present_arr, cont_data_dict[key])
+                        (present_arr, arr)
                     )
             else:
                 # non-continuous data found
                 ret_dict[present_key] = present_arr
                 present_key = key
-                present_arr = cont_data_dict[key]
+                present_arr = arr
 
             if len_only:
-                next_cont_sample = key + cont_data_dict[key]
+                next_cont_sample = key + arr
             else:
-                next_cont_sample = key + len(cont_data_dict[key])
+                next_cont_sample = key + len(arr)
 
         # add last block
         ret_dict[present_key] = present_arr
-        return(ret_dict)
+        return ret_dict
 
     def _get_channels_in_dir(self, top_level_dir):
         """Return a list of channel names found in a top-level directory.
@@ -1689,7 +1671,7 @@ class DigitalRFReader:
         else:
             raise ValueError('access_mode %s not implemented' % (access_mode))
 
-        return(retList)
+        return retList
 
 
 class _channel_properties:
@@ -1737,9 +1719,9 @@ class _channel_properties:
 
         for top_level_dir in self.top_level_dir_meta_list:
             if len(top_level_dir.properties.keys()) > 0:
-                return(top_level_dir.properties)
+                return top_level_dir.properties
 
-        return(ret_dict)
+        return ret_dict
 
 
 class _top_level_dir_properties:
@@ -1843,7 +1825,7 @@ class _top_level_dir_properties:
             ret_dict[u'samples_per_second'] = sps
 
         # success
-        return(ret_dict)
+        return ret_dict
 
     def _read(
         self, start_sample, end_sample, filepaths, cont_data_dict,
@@ -1896,56 +1878,62 @@ class _top_level_dir_properties:
                             pass
                     self._cachedFile = h5py.File(fullfile, 'r')
                     self._cachedFilename = fullfile
-                data_len = self._cachedFile['rf_data'].shape[0]
+                rf_data = self._cachedFile['rf_data']
+                rf_data_len = rf_data.shape[0]
 
-                rf_index = self._cachedFile['rf_data_index']
+                rf_index = self._cachedFile['rf_data_index'][...]
+                rf_index_len = rf_index.shape[0]
                 # loop through each row in rf_index
-                for row in range(rf_index.shape[0]):
-                    this_sample = long(rf_index[row][0])
-                    this_index = long(rf_index[row][1])
-                    if row + 1 == rf_index.shape[0]:
-                        last_index = long(data_len - 1)
+                for row in range(rf_index_len):
+                    block_start_sample = long(rf_index[row, 0])
+                    block_start_index = long(rf_index[row, 1])
+                    if row + 1 == rf_index_len:
+                        block_stop_index = rf_data_len
                     else:
-                        last_index = long(rf_index[row + 1][1] - 1)
-                    last_sample = long(
-                        this_sample + long(last_index - this_index)
+                        block_stop_index = long(rf_index[row + 1, 1])
+                    block_stop_sample = (
+                        block_start_sample
+                        + (block_stop_index - block_start_index)
                     )
-                    if start_sample <= this_sample:
-                        read_start_index = this_index
-                        read_start_sample = long(this_sample)
-                    elif start_sample <= last_sample:
-                        read_start_index = long(
-                            this_index + (start_sample - this_sample)
+
+                    if start_sample <= block_start_sample:
+                        read_start_index = block_start_index
+                        read_start_sample = block_start_sample
+                    elif start_sample < block_stop_sample:
+                        read_start_index = (
+                            block_start_index
+                            + (start_sample - block_start_sample)
                         )
-                        read_start_sample = long(
-                            this_sample + (start_sample - this_sample)
-                        )
+                        read_start_sample = start_sample
                     else:
                         # no data in this block to read
                         continue
-                    if end_sample >= last_sample:
-                        read_end_index = long(last_index)
+
+                    if end_sample + 1 >= block_stop_sample:
+                        read_stop_index = block_stop_index
                     else:
-                        read_end_index = long(
-                            last_index - (last_sample - end_sample)
+                        read_stop_index = (
+                            block_stop_index
+                            - (block_stop_sample - (end_sample + 1))
                         )
 
                     # skip if no data found
-                    if read_start_index > read_end_index:
+                    if read_start_index >= read_stop_index:
                         continue
                     if not len_only:
                         if sub_channel is None:
-                            data = self._cachedFile['rf_data'][
-                                read_start_index:long(read_end_index + 1)
+                            data = rf_data[
+                                read_start_index:read_stop_index
                             ]
                         else:
-                            data = self._cachedFile['rf_data'][:, sub_channel][
-                                read_start_index:long(read_end_index + 1)
+                            data = rf_data[
+                                read_start_index:read_stop_index,
+                                sub_channel,
                             ]
                         cont_data_dict[read_start_sample] = data
                     else:
-                        cont_data_dict[read_start_sample] = long(
-                            (read_end_index + 1) - read_start_index
+                        cont_data_dict[read_start_sample] = (
+                            read_stop_index - read_start_index
                         )
 
         else:
@@ -2006,12 +1994,12 @@ class _top_level_dir_properties:
         else:
             raise ValueError('mode %s not implemented' % (self.access_mode))
 
-        return((first_unix_sample, last_unix_sample))
+        return (first_unix_sample, last_unix_sample)
 
     def _get_first_sample(self, fullname):
         """Return the first sample in a given rf file."""
         with h5py.File(fullname) as f:
-            return(long(f['rf_data_index'][0][0]))
+            return long(f['rf_data_index'][0][0])
 
     def _get_last_sample(self, fullname):
         """Return the last sample in a given rf file."""
