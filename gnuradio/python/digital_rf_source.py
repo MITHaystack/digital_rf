@@ -84,7 +84,8 @@ class digital_rf_channel_source(gr.sync_block):
             If None or '', the start of the channel's available data is used.
             If an integer, it is interpreted as a sample index given in the
             number of samples since the epoch (time_since_epoch*sample_rate).
-            If a float, it is interpreted as a timestamp (seconds since epoch).
+            If a float, it is interpreted as a UTC timestamp (seconds since
+            epoch).
             If a string, three forms are permitted:
                 1) a string which can be evaluated to an integer/float and
                     interpreted as above,
@@ -235,10 +236,10 @@ class digital_rf_channel_source(gr.sync_block):
 
     def start(self):
         self._bounds = self._Reader.get_bounds(self._ch)
-        self._start_sample = util.parse_sample_identifier(
+        self._start_sample = util.parse_identifier_to_sample(
             self._start, self._sample_rate, self._bounds[0],
         )
-        self._end_sample = util.parse_sample_identifier(
+        self._end_sample = util.parse_identifier_to_sample(
             self._end, self._sample_rate, self._bounds[0],
         )
         if self._start_sample is None:
@@ -387,7 +388,8 @@ class digital_rf_source(gr.hier_block2):
             If None or '', the start of the channel's available data is used.
             If an integer, it is interpreted as a sample index given in the
             number of samples since the epoch (time_since_epoch*sample_rate).
-            If a float, it is interpreted as a timestamp (seconds since epoch).
+            If a float, it is interpreted as a UTC timestamp (seconds since
+            epoch).
             If a string, three forms are permitted:
                 1) a string which can be evaluated to an integer/float and
                     interpreted as above,
