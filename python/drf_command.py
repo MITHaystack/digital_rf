@@ -21,11 +21,16 @@ else:
 
 
 def main(args=None):
+    epi = 'Type "drf <command> -h" to display help for a particular command.'
+    if not _WATCHDOG:
+        s = (
+            '(Install watchdog package to enable mirror, ringbuffer, and watch'
+            ' commands.)'
+        )
+        epi = epi + ' ' + s
     parser = ArgumentParser(
         description='Digital RF command line tools.',
-        epilog=(
-            'Type "drf <command> -h" to display help for a particular command.'
-        )
+        epilog=epi,
     )
     subparsers = parser.add_subparsers(
         title='Available commands',
