@@ -247,14 +247,14 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
         """Remove file from ringbuffer if it was deleted externally."""
         self.remove_files([event.src_path])
 
-    def on_drf_moved(self, event):
-        """Track moved file in ringbuffer."""
-        self.remove_files([event.src_path])
-        self.add_files([event.dest_path])
-
     def on_modified(self, event):
         """Update modified file in ringbuffer."""
         self.modify_files([event.src_path])
+
+    def on_moved(self, event):
+        """Track moved file in ringbuffer."""
+        self.remove_files([event.src_path])
+        self.add_files([event.dest_path])
 
 
 class CountExpirer(object):
