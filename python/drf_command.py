@@ -8,7 +8,7 @@
 # ----------------------------------------------------------------------------
 from argparse import ArgumentParser
 
-from .list_drf import _build_ls_parser
+from .list_drf import _build_cp_parser, _build_ls_parser, _build_mv_parser
 try:
     from .mirror import _build_mirror_parser
     from .ringbuffer import _build_ringbuffer_parser
@@ -36,7 +36,9 @@ def main(args=None):
         title='Available commands',
     )
 
+    _build_cp_parser(subparsers.add_parser, 'cp')
     _build_ls_parser(subparsers.add_parser, 'ls')
+    _build_mv_parser(subparsers.add_parser, 'mv')
     if _WATCHDOG:
         _build_mirror_parser(subparsers.add_parser, 'mirror')
         _build_ringbuffer_parser(subparsers.add_parser, 'ringbuffer')

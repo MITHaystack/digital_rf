@@ -11,6 +11,7 @@ import bisect
 import datetime
 import os
 import re
+import shutil
 from collections import defaultdict
 
 import pytz
@@ -353,6 +354,79 @@ def lsdrf(*args, **kwargs):
     return list(ilsdrf(*args, **kwargs))
 
 
+def _add_time_group(parser):
+    timegroup = parser.add_argument_group(title='time')
+    timegroup.add_argument(
+        '-s', '--starttime', dest='starttime', default=None,
+        help='''Data covering this time or after will be included (no effect
+                on property files). The time can be given as a datetime string
+                (e.g. in ISO8601 format: 2016-01-01T15:24:00Z) or a float
+                giving a Unix timestamp in seconds. (default: %(default)s)''',
+    )
+    timegroup.add_argument(
+        '-e', '--endtime', dest='endtime', default=None,
+        help='''Data covering this time or before will be included (no effect
+                on property files). The time can be given as a datetime string
+                (e.g. in ISO8601 format: 2016-01-01T15:24:00Z), a float
+                giving a Unix timestamp in seconds, or a '+' followed by a time
+                in seconds that will be taken relative to `starttime`.
+                (default: %(default)s)''',
+    )
+    return parser
+
+
+def _add_include_group(parser):
+    includegroup = parser.add_argument_group(title='include')
+    drfgroup = includegroup.add_mutually_exclusive_group()
+    dmdgroup = includegroup.add_mutually_exclusive_group()
+    drfpropsgroup = includegroup.add_mutually_exclusive_group()
+    dmdpropsgroup = includegroup.add_mutually_exclusive_group()
+
+    drfgroup.add_argument(
+        '--drf', dest='include_drf', action='store_true', default=True,
+        help='''Include Digital RF files.
+                (default: True)''',
+    )
+    drfpropsgroup.add_argument(
+        '--drfprops', dest='include_drf_properties', action='store_true',
+        default=None,
+        help='''Include drf_properties.h5 files. If unset, use value of --drf.
+                (default: None)''',
+    )
+    drfgroup.add_argument(
+        '--nodrf', dest='include_drf', action='store_false',
+        help='''Do not include Digital RF files.
+                (default: False)''',
+    )
+    drfpropsgroup.add_argument(
+        '--nodrfprops', dest='include_drf_properties', action='store_false',
+        help='''Do not include drf_properties.h5 files.
+                (default: False)''',
+    )
+    dmdgroup.add_argument(
+        '--dmd', dest='include_dmd', action='store_true', default=True,
+        help='''Include Digital Metadata files.
+                (default: True)''',
+    )
+    dmdpropsgroup.add_argument(
+        '--dmdprops', dest='include_dmd_properties', action='store_true',
+        default=None,
+        help='''Include dmd_properties.h5 files. If unset, use value of --dmd.
+                (default: None)''',
+    )
+    dmdgroup.add_argument(
+        '--nodmd', dest='include_dmd', action='store_false',
+        help='''Do not include Digital Metadata files.
+                (default: False)''',
+    )
+    dmdpropsgroup.add_argument(
+        '--nodmdprops', dest='include_dmd_properties', action='store_false',
+        help='''Do not include dmd_properties.h5 files.
+                (default: False)''',
+    )
+    return parser
+
+
 def _build_ls_parser(Parser, *args):
     desc = 'List Digital RF/Metadata files in a (channel) directory.'
     parser = Parser(*args, description=desc)
@@ -382,72 +456,8 @@ def _build_ls_parser(Parser, *args):
                 within subdirectories). (default: %(default)s)''',
     )
 
-    timegroup = parser.add_argument_group(title='time')
-    timegroup.add_argument(
-        '-s', '--starttime', dest='starttime', default=None,
-        help='''Data covering this time or after will be included (no effect
-                on property files). The time can be given as a datetime string
-                (e.g. in ISO8601 format: 2016-01-01T15:24:00Z) or a float
-                giving a Unix timestamp in seconds. (default: %(default)s)''',
-    )
-    timegroup.add_argument(
-        '-e', '--endtime', dest='endtime', default=None,
-        help='''Data covering this time or before will be included (no effect
-                on property files). The time can be given as a datetime string
-                (e.g. in ISO8601 format: 2016-01-01T15:24:00Z), a float
-                giving a Unix timestamp in seconds, or a '+' followed by a time
-                in seconds that will be taken relative to `starttime`.
-                (default: %(default)s)''',
-    )
-
-    includegroup = parser.add_argument_group(title='include')
-    drfgroup = includegroup.add_mutually_exclusive_group()
-    dmdgroup = includegroup.add_mutually_exclusive_group()
-    drfpropsgroup = includegroup.add_mutually_exclusive_group()
-    dmdpropsgroup = includegroup.add_mutually_exclusive_group()
-
-    drfgroup.add_argument(
-        '--drf', dest='include_drf', action='store_true', default=True,
-        help='''List Digital RF files.
-                (default: True)''',
-    )
-    drfpropsgroup.add_argument(
-        '--drfprops', dest='include_drf_properties', action='store_true',
-        default=None,
-        help='''List drf_properties.h5 files. If unset, use value of --drf.
-                (default: None)''',
-    )
-    drfgroup.add_argument(
-        '--nodrf', dest='include_drf', action='store_false',
-        help='''Do not list Digital RF files.
-                (default: False)''',
-    )
-    drfpropsgroup.add_argument(
-        '--nodrfprops', dest='include_drf_properties', action='store_false',
-        help='''Do not list drf_properties.h5 files.
-                (default: False)''',
-    )
-    dmdgroup.add_argument(
-        '--dmd', dest='include_dmd', action='store_true', default=True,
-        help='''List Digital Metadata files.
-                (default: True)''',
-    )
-    dmdpropsgroup.add_argument(
-        '--dmdprops', dest='include_dmd_properties', action='store_true',
-        default=None,
-        help='''List dmd_properties.h5 files. If unset, use value of --dmd.
-                (default: None)''',
-    )
-    dmdgroup.add_argument(
-        '--nodmd', dest='include_dmd', action='store_false',
-        help='''Do not list Digital Metadata files.
-                (default: False)''',
-    )
-    dmdpropsgroup.add_argument(
-        '--nodmdprops', dest='include_dmd_properties', action='store_false',
-        help='''Do not list dmd_properties.h5 files.
-                (default: False)''',
-    )
+    parser = _add_time_group(parser)
+    parser = _add_include_group(parser)
 
     parser.set_defaults(func=_run_ls)
 
@@ -484,6 +494,99 @@ def _run_ls(args):
         for d in args.dirs:
             for f in ilsdrf(d, **kwargs):
                 print(fixpath(f, d))
+
+
+def _add_srcdest_arguments(parser):
+    parser.add_argument('src', help='Source directory.')
+    parser.add_argument('dest', help='Destination directory.')
+
+    parser.add_argument(
+        '-c', '--channel', dest='chs', action='append', default=[],
+        help='''Channel names to include from source directory.
+                (default: Treat `src` as a channel directory)''',
+    )
+    parser.add_argument(
+        '--only', dest='recursive', action='store_false', default=True,
+        help='''Only copy the specified channel directory (do not recurse from
+                `src` to find channel subdirectories).
+                (default: False)''',
+    )
+    parser.add_argument(
+        '-R', '--reverse', action='store_true',
+        help='''Traverse directories and include files in those directories in
+                reversed order. (default: %(default)s)''',
+    )
+
+    parser = _add_time_group(parser)
+    parser = _add_include_group(parser)
+    return parser
+
+
+def _parse_srcdest_args(args):
+    args.src = os.path.abspath(args.src)
+    args.dest = os.path.abspath(args.dest)
+
+    args.chs = [b.strip() for a in args.chs for b in a.strip().split(',')]
+    args.srcdests = [
+        (os.path.join(args.src, ch), os.path.join(args.dest, ch))
+        for ch in args.chs
+    ]
+    if not args.srcdests:
+        args.srcdests = [(args.src, args.dest)]
+
+    if args.starttime is not None:
+        args.starttime = util.parse_identifier_to_time(args.starttime)
+    if args.endtime is not None:
+        args.endtime = util.parse_identifier_to_time(
+            args.endtime, ref_datetime=args.starttime,
+        )
+
+    kwargs = vars(args).copy()
+    del kwargs['func']
+    del kwargs['src']
+    del kwargs['dest']
+    del kwargs['chs']
+    del kwargs['srcdests']
+
+    return args, kwargs
+
+
+def _build_cp_parser(Parser, *args):
+    desc = 'Copy Digital RF/Metadata files from source to destination.'
+    parser = Parser(*args, description=desc)
+    parser = _add_srcdest_arguments(parser)
+    parser.set_defaults(func=_run_cp)
+    return parser
+
+
+def _run_cp(args):
+    args, kwargs = _parse_srcdest_args(args)
+    for (src, dest) in args.srcdests:
+        for srcpath in ilsdrf(src, **kwargs):
+            destpath = os.path.join(dest, os.path.relpath(srcpath, src))
+            destdir = os.path.dirname(destpath)
+            if not os.path.exists(destdir):
+                os.makedirs(destdir)
+            shutil.copy2(srcpath, destpath)
+
+
+def _build_mv_parser(Parser, *args):
+    desc = 'Move Digital RF/Metadata files from source to destination.'
+    parser = Parser(*args, description=desc)
+    parser = _add_srcdest_arguments(parser)
+    parser.set_defaults(func=_run_mv)
+    return parser
+
+
+def _run_mv(args):
+    args, kwargs = _parse_srcdest_args(args)
+    for (src, dest) in args.srcdests:
+        for srcpath in ilsdrf(src, **kwargs):
+            destpath = os.path.join(dest, os.path.relpath(srcpath, src))
+            destdir = os.path.dirname(destpath)
+            if not os.path.exists(destdir):
+                os.makedirs(destdir)
+            shutil.move(srcpath, destpath)
 
 
 if __name__ == "__main__":
