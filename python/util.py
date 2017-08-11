@@ -112,8 +112,8 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
         be automatically determined.
         If a float, it is interpreted as a UTC timestamp (seconds since epoch)
         and the corresponding datetime is returned.
-        If an integer, it is interpreted as a sample index and
-        `samples_per_second` is used to return the corresponding datetime.
+        If an integer, it is interpreted as a sample index when
+        `samples_per_second` is not None and a UTC timestamp otherwise.
         If a string, three forms are permitted:
             1) a string which can be evaluated to an integer/float and
                 interpreted as above,
@@ -159,13 +159,9 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
                 dt = pytz.utc.localize(dt)
             return dt
 
-    if isinstance(iden, float):
+    if isinstance(iden, float) or samples_per_second is None:
         td = datetime.timedelta(seconds=iden)
     else:
-        if samples_per_second is None:
-            raise ValueError(
-                'samples_per_second required when integer identifier is used.'
-            )
         td = samples_to_timedelta(iden, samples_per_second)
 
     if is_relative:
