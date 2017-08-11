@@ -18,6 +18,7 @@ from itertools import chain
 
 from watchdog.events import FileCreatedEvent
 
+from . import list_drf, util
 from .list_drf import ilsdrf
 from .ringbuffer import DigitalRFRingbufferHandler
 from .watchdog_drf import DigitalRFEventHandler, DirWatcher
@@ -37,15 +38,43 @@ class DigitalRFMirrorHandler(DigitalRFEventHandler):
 
     def __init__(
         self, src, dest, verbose=False, mirror_fun=shutil.copy2,
-        include_drf=True, include_dmd=True, include_drf_properties=True,
-        include_dmd_properties=True,
+        starttime=None, endtime=None, include_drf=True, include_dmd=True,
+        include_drf_properties=True, include_dmd_properties=True,
     ):
-        """Create Digital RF mirror handler given source and destination."""
+        """Create Digital RF mirror handler given source and destination.
+
+        Other Parameters
+        ----------------
+
+        starttime : datetime.datetime
+            Data covering this time or after will be included. This has no
+            effect on property files.
+
+        endtime : datetime.datetime
+            Data covering this time or earlier will be included. This has no
+            effect on property files.
+
+        include_drf : bool
+            If True, include Digital RF files.
+
+        include_dmd : bool
+            If True, include Digital Metadata files.
+
+        include_drf_properties : bool | None
+            If True, include the Digital RF properties file.
+            If None, use `include_drf` value.
+
+        include_dmd_properties : bool | None
+            If True, include the Digital Metadata properties file.
+            If None, use `include_dmd` value.
+
+        """
         self.src = os.path.abspath(src)
         self.dest = os.path.abspath(dest)
         self.verbose = verbose
         self.mirror_fun = mirror_fun
         super(DigitalRFMirrorHandler, self).__init__(
+            starttime=starttime, endtime=endtime,
             include_drf=include_drf, include_dmd=include_dmd,
             include_drf_properties=include_drf_properties,
             include_dmd_properties=include_dmd_properties,
@@ -112,7 +141,7 @@ class DigitalRFMirror(object):
 
     def __init__(
         self, src, dest, method='move', ignore_existing=False, verbose=False,
-        include_drf=True, include_dmd=True,
+        starttime=None, endtime=None, include_drf=True, include_dmd=True,
     ):
         """Create Digital RF mirror object. Use start/run method to begin.
 
@@ -143,6 +172,14 @@ class DigitalRFMirror(object):
         verbose : bool
             If True, print the name of mirrored files.
 
+        starttime : datetime.datetime
+            Data covering this time or after will be included. This has no
+            effect on property files.
+
+        endtime : datetime.datetime
+            Data covering this time or earlier will be included. This has no
+            effect on property files.
+
         include_drf : bool
             If True, include Digital RF files. If False, ignore Digital RF
             files.
@@ -159,6 +196,8 @@ class DigitalRFMirror(object):
         self.method = method
         self.ignore_existing = ignore_existing
         self.verbose = verbose
+        self.starttime = starttime
+        self.endtime = endtime
         self.include_drf = include_drf
         self.include_dmd = include_dmd
 
@@ -171,6 +210,7 @@ class DigitalRFMirror(object):
         # have to copy metadata because can be modified
         copy_handler = DigitalRFMirrorHandler(
             self.src, self.dest, verbose=verbose, mirror_fun=shutil.copy2,
+            starttime=self.starttime, endtime=self.endtime,
             include_drf=(self.include_drf and self.method == 'copy'),
             include_dmd=self.include_dmd,
             include_drf_properties=self.include_drf,
@@ -182,6 +222,7 @@ class DigitalRFMirror(object):
             # move RF files with a separate handler
             drf_handler = DigitalRFMirrorHandler(
                 self.src, self.dest, verbose=verbose, mirror_fun=shutil.move,
+                starttime=self.starttime, endtime=self.endtime,
                 include_drf=True, include_dmd=False,
                 include_drf_properties=False, include_dmd_properties=False,
             )
@@ -192,6 +233,7 @@ class DigitalRFMirror(object):
             # (can't move since multiple writes can happen to a single file)
             md_ringbuffer_handler = DigitalRFRingbufferHandler(
                 count=1, verbose=verbose, dryrun=False,
+                starttime=self.starttime, endtime=self.endtime,
                 include_drf=False, include_dmd=True,
             )
             self.event_handlers.append(md_ringbuffer_handler)
@@ -222,7 +264,8 @@ class DigitalRFMirror(object):
             if not self.ignore_existing:
                 # mirror other files if desired
                 more_paths = ilsdrf(
-                    self.src, include_drf=self.include_drf,
+                    self.src, starttime=self.starttime, endtime=self.endtime,
+                    include_drf=self.include_drf,
                     include_dmd=self.include_dmd,
                     include_drf_properties=False,
                     include_dmd_properties=False,
@@ -285,6 +328,8 @@ def _build_mirror_parser(Parser, *args):
         help='Ignore existing files in source directory.',
     )
 
+    parser = list_drf._add_time_group(parser)
+
     includegroup = parser.add_argument_group(title='include')
     includegroup.add_argument(
         '--nodrf', dest='include_drf', action='store_false',
@@ -305,6 +350,13 @@ def _build_mirror_parser(Parser, *args):
 def _run_mirror(args):
     methods = {'mv': 'move', 'cp': 'copy'}
     args.method = methods[args.method]
+
+    if args.starttime is not None:
+        args.starttime = util.parse_identifier_to_time(args.starttime)
+    if args.endtime is not None:
+        args.endtime = util.parse_identifier_to_time(
+            args.endtime, ref_datetime=args.starttime,
+        )
 
     kwargs = vars(args).copy()
     del kwargs['func']

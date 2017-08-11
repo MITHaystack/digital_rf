@@ -17,6 +17,7 @@ import time
 import traceback
 from collections import OrderedDict, defaultdict, deque, namedtuple
 
+from . import list_drf, util
 from .list_drf import ilsdrf
 from .watchdog_drf import DigitalRFEventHandler, DirWatcher
 
@@ -37,10 +38,29 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
     FileRecord = namedtuple('FileRecord', ('key', 'size', 'path', 'group'))
 
     def __init__(
-        self, verbose=False, dryrun=False,
+        self, verbose=False, dryrun=False, starttime=None, endtime=None,
         include_drf=True, include_dmd=True,
     ):
-        """Create a ringbuffer handler."""
+        """Create a ringbuffer handler.
+
+        Other Parameters
+        ----------------
+
+        starttime : datetime.datetime
+            Data covering this time or after will be included. This has no
+            effect on property files.
+
+        endtime : datetime.datetime
+            Data covering this time or earlier will be included. This has no
+            effect on property files.
+
+        include_drf : bool
+            If True, include Digital RF files.
+
+        include_dmd : bool
+            If True, include Digital Metadata files.
+
+        """
         self.verbose = verbose
         self.dryrun = dryrun
         # separately track file groups (ch path, name) with different queues
@@ -49,6 +69,7 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
         # acquire the record lock to modify the queue or record dicts
         self._record_lock = threading.RLock()
         super(DigitalRFRingbufferHandlerBase, self).__init__(
+            starttime=starttime, endtime=endtime,
             include_drf=include_drf, include_dmd=include_dmd,
             include_drf_properties=False, include_dmd_properties=False,
         )
@@ -447,6 +468,14 @@ def DigitalRFRingbufferHandler(size=None, count=None, duration=None, **kwargs):
         If True, do not actually delete files when expiring them from the
         ringbuffer. Use for testing only!
 
+    starttime : datetime.datetime
+        Data covering this time or after will be included. This has no
+        effect on property files.
+
+    endtime : datetime.datetime
+        Data covering this time or earlier will be included. This has no
+        effect on property files.
+
     include_drf : bool
         If True, include Digital RF files. If False, ignore Digital RF
         files.
@@ -501,7 +530,7 @@ class DigitalRFRingbuffer(object):
     def __init__(
         self, path, size=-200e6, count=None, duration=None,
         verbose=False, status_interval=10, dryrun=False,
-        include_drf=True, include_dmd=True,
+        starttime=None, endtime=None, include_drf=True, include_dmd=True,
     ):
         """Create Digital RF ringbuffer object. Use start/run method to begin.
 
@@ -540,6 +569,14 @@ class DigitalRFRingbuffer(object):
             If True, do not actually delete files when expiring them from the
             ringbuffer. Use for testing only!
 
+        starttime : datetime.datetime
+            Data covering this time or after will be included. This has no
+            effect on property files.
+
+        endtime : datetime.datetime
+            Data covering this time or earlier will be included. This has no
+            effect on property files.
+
         include_drf : bool
             If True, include Digital RF files. If False, ignore Digital RF
             files.
@@ -556,6 +593,8 @@ class DigitalRFRingbuffer(object):
         self.verbose = verbose
         self.status_interval = status_interval
         self.dryrun = dryrun
+        self.starttime = starttime
+        self.endtime = endtime
         self.include_drf = include_drf
         self.include_dmd = include_dmd
         self._start_time = None
@@ -583,7 +622,9 @@ class DigitalRFRingbuffer(object):
                 bytes_available = statvfs.f_frsize*statvfs.f_bavail
                 if os.path.isdir(self.path):
                     existing = ilsdrf(
-                        self.path, include_drf=self.include_drf,
+                        self.path, starttime=self.starttime,
+                        endtime=self.endtime,
+                        include_drf=self.include_drf,
                         include_dmd=self.include_dmd,
                         include_drf_properties=False,
                         include_dmd_properties=False,
@@ -596,6 +637,7 @@ class DigitalRFRingbuffer(object):
         self.event_handler = DigitalRFRingbufferHandler(
             size=self.size, count=self.count, duration=self.duration,
             verbose=self.verbose, dryrun=self.dryrun,
+            starttime=self.starttime, endtime=self.endtime,
             include_drf=self.include_drf, include_dmd=self.include_dmd,
         )
 
@@ -612,9 +654,9 @@ class DigitalRFRingbuffer(object):
         with self.observer.paused_dispatching():
             # add existing files to ringbuffer handler
             existing = ilsdrf(
-                self.path, include_drf=self.include_drf,
-                include_dmd=self.include_dmd, include_drf_properties=False,
-                include_dmd_properties=False,
+                self.path, starttime=self.starttime, endtime=self.endtime,
+                include_drf=self.include_drf, include_dmd=self.include_dmd,
+                include_drf_properties=False, include_dmd_properties=False,
             )
             # do not sort because existing will already be sorted and we
             # don't want to convert to a list
@@ -644,9 +686,9 @@ class DigitalRFRingbuffer(object):
         # events that happen while we build this file set can be duplicated
         # when we verify the ringbuffer state below, but that's ok
         ondisk = set(ilsdrf(
-            self.path, include_drf=self.include_drf,
-            include_dmd=self.include_dmd, include_drf_properties=False,
-            include_dmd_properties=False,
+            self.path, starttime=self.starttime, endtime=self.endtime,
+            include_drf=self.include_drf, include_dmd=self.include_dmd,
+            include_drf_properties=False, include_dmd_properties=False,
         ))
 
         # now any file in inbuffer that is not in ondisk is a missed or
@@ -784,6 +826,8 @@ def _build_ringbuffer_parser(Parser, *args):
         help='Do not delete files when expiring them from the ringbuffer.',
     )
 
+    parser = list_drf._add_time_group(parser)
+
     includegroup = parser.add_argument_group(title='include')
     includegroup.add_argument(
         '--nodrf', dest='include_drf', action='store_false',
@@ -838,6 +882,13 @@ def _run_ringbuffer(args):
     # evaluate duration to float, from seconds to milliseconds
     if args.duration is not None:
         args.duration = float(eval(args.duration))*1e3
+
+    if args.starttime is not None:
+        args.starttime = util.parse_identifier_to_time(args.starttime)
+    if args.endtime is not None:
+        args.endtime = util.parse_identifier_to_time(
+            args.endtime, ref_datetime=args.starttime,
+        )
 
     kwargs = vars(args).copy()
     del kwargs['func']
