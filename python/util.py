@@ -15,7 +15,10 @@ import numpy as np
 import pytz
 import six
 
-__all__ = ('epoch', 'parse_identifier_to_sample', 'parse_identifier_to_time')
+__all__ = (
+    'epoch', 'parse_identifier_to_sample', 'parse_identifier_to_time',
+    'sample_to_datetime', 'samples_to_timedelta',
+)
 
 
 epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
@@ -156,13 +159,14 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
                 dt = pytz.utc.localize(dt)
             return dt
 
-    if not isinstance(iden, float):
+    if isinstance(iden, float):
+        td = datetime.timedelta(seconds=iden)
+    else:
         if samples_per_second is None:
             raise ValueError(
                 'samples_per_second required when integer identifier is used.'
             )
-        # convert to seconds float
-        iden = float(iden / samples_per_second)
+        td = samples_to_timedelta(iden, samples_per_second)
 
     if is_relative:
         if ref_datetime is None:
@@ -174,11 +178,9 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
             raise ValueError(
                 'ref_datetime must be a timezone-aware datetime.'
             )
-        td = datetime.timedelta(seconds=iden)
         return td + ref_datetime
     else:
-        dt = datetime.datetime.utcfromtimestamp(iden)
-        return dt.replace(tzinfo=pytz.utc)
+        return td + epoch
 
 
 def sample_to_datetime(sample, samples_per_second):
@@ -201,9 +203,32 @@ def sample_to_datetime(sample, samples_per_second):
         Datetime corresponding to the given sample index.
 
     """
+    return epoch + samples_to_timedelta(sample, samples_per_second)
+
+
+def samples_to_timedelta(samples, samples_per_second):
+    """Get timedelta for a duration in number of samples given a sample rate.
+
+    Parameters
+    ----------
+
+    samples : int/long
+        Duration in number of samples.
+
+    samples_per_second : numpy.longdouble
+        Sample rate in Hz.
+
+
+    Returns
+    -------
+
+    td : datetime.timedelta
+        Timedelta corresponding to the number of samples.
+
+    """
     # splitting into secs/frac lets us get a more accurate datetime
-    secs = int(sample // samples_per_second)
-    frac = (sample % samples_per_second) / samples_per_second
+    secs = int(samples // samples_per_second)
+    frac = (samples % samples_per_second) / samples_per_second
     microseconds = int(np.uint64(frac*1000000))
 
-    return epoch + datetime.timedelta(seconds=secs, microseconds=microseconds)
+    return datetime.timedelta(seconds=secs, microseconds=microseconds)
