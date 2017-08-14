@@ -218,7 +218,7 @@ class DigitalMetadataWriter:
 
     def get_samples_per_second(self):
         """Return the sample rate in Hz as a numpy.longdouble."""
-        return(self._samples_per_second)
+        return self._samples_per_second
 
     def write(self, samples, data):
         """Write new metadata to the Digital Metadata channel.
@@ -486,7 +486,7 @@ class DigitalMetadataWriter:
             ret_str += '_fields:\n'
             for key in self._fields:
                 ret_str += '\t%s\n' % (key)
-        return(ret_str)
+        return ret_str
 
 
 class DigitalMetadataReader:
@@ -642,97 +642,80 @@ class DigitalMetadataReader:
             If no data or first and last sample could not be determined.
 
         """
-        # get subdirectory list
-        subdir_path_glob = os.path.join(
-            self._metadata_dir, list_drf.GLOB_SUBDIR,
-        )
-        subdir_list = glob.glob(subdir_path_glob)
-        subdir_list.sort()
-        if len(subdir_list) == 0:
-            errstr = 'glob returned no directories for %s'
-            raise IOError(errstr % subdir_path_glob)
-
-        filename_glob = list_drf.GLOB_DMDFILE.replace('*', self._file_name, 1)
+        # loop through files in order to get first sample
         first_sample = None
-        # try first three subdirectories in case of subdirectory deletion
-        for subdir in subdir_list[:3]:
-            file_list = glob.glob(os.path.join(subdir, filename_glob))
-            file_list.sort(key=list_drf.sortkey_drf)
-            # try first three files in case of file deletion occuring
-            for filepath in file_list[:3]:
-                try:
-                    with h5py.File(filepath, 'r') as f:
-                        groups = f.keys()
-                        groups.sort()
-                        first_sample = long(groups[0])
-                except (IOError, IndexError):
-                    continue
-                else:
-                    break
-            if first_sample is not None:
+        for path in list_drf.ilsdrf(
+            self._metadata_dir, recursive=False, reverse=False,
+            include_dmd=True, include_drf=False, include_dmd_properties=False,
+        ):
+            try:
+                with h5py.File(path, 'r') as f:
+                    groups = f.keys()
+                    groups.sort()
+                    first_sample = long(groups[0])
+            except (IOError, IndexError):
+                errstr = (
+                    'Corrupt or empty file %s found and ignored.'
+                    ' Deleting it will speed up get_bounds().'
+                )
+                print(errstr % path)
+            else:
                 break
         if first_sample is None:
             raise IOError('All attempts to read first sample failed')
 
-        # now try to get last_file
-        last_file = None
-        for subdir in reversed(subdir_list[-20:]):
-            file_list = glob.glob(os.path.join(subdir, filename_glob))
-            file_list.sort(key=list_drf.sortkey_drf)
-            # try last files
-            for filepath in reversed(file_list[-20:]):
-                if os.path.getsize(filepath) == 0:
-                    continue
-                last_file = filepath
-                try:
-                    with h5py.File(last_file, 'r') as f:
-                        groups = f.keys()
-                        groups.sort()
-                        last_sample = long(groups[-1])
-                except (IOError, IndexError):
-                    # delete as corrupt if not too new
-                    if not (time.time() - os.path.getmtime(last_file) <
-                            self._file_cadence_secs):
-                        # probable corrupt file
-                        traceback.print_exc()
-                        errstr = 'WARNING: removing %s since may be corrupt'
-                        print(errstr % last_file)
-                        os.remove(last_file)
-                    last_file = None
-                else:
-                    return((first_sample, last_sample))
+        # loop through files in reverse order to get last sample
+        last_sample = None
+        for path in list_drf.ilsdrf(
+            self._metadata_dir, recursive=False, reverse=True,
+            include_dmd=True, include_drf=False, include_dmd_properties=False,
+        ):
+            try:
+                with h5py.File(path, 'r') as f:
+                    groups = f.keys()
+                    groups.sort()
+                    last_sample = long(groups[-1])
+            except (IOError, IndexError):
+                errstr = (
+                    'Corrupt or empty file %s found and ignored.'
+                    ' Deleting it will speed up get_bounds().'
+                )
+                print(errstr % path)
+            else:
+                break
+        if last_sample is None:
+            raise IOError('All attempts to read last sample failed')
 
-        if last_file is None:
-            raise IOError('All attempts to read last file failed')
+        return (first_sample, last_sample)
 
     def get_fields(self):
         """Return list of the field names in this metadata."""
         # _fields is an internal data structure, so make a copy for the user
-        return(copy.deepcopy(self._fields))
+        return copy.deepcopy(self._fields)
 
     def get_sample_rate_numerator(self):
         """Return the numerator of the sample rate in Hz."""
-        return(self._sample_rate_numerator)
+        return self._sample_rate_numerator
 
     def get_sample_rate_denominator(self):
         """Return the denominator of the sample rate in Hz."""
-        return(self._sample_rate_denominator)
+        return self._sample_rate_denominator
 
     def get_samples_per_second(self):
         """Return the sample rate in Hz as a numpy.longdouble."""
-        return(self._samples_per_second)
+        return self._samples_per_second
 
     def get_subdir_cadence_secs(self):
         """Return the number of seconds of data stored in each subdirectory."""
-        return(self._subdir_cadence_secs)
+        return self._subdir_cadence_secs
 
     def get_file_cadence_secs(self):
         """Return the number of seconds of data stored in each file."""
-        return(self._file_cadence_secs)
+        return self._file_cadence_secs
 
     def get_file_name_prefix(self):
         """Return the metadata file name prefix."""
-        return(self._file_name)
+        return self._file_name
 
     def read(self, start_sample, end_sample=None, columns=None, method=None):
         """Read metadata between start and end samples.
@@ -925,7 +908,7 @@ class DigitalMetadataReader:
                     continue
                 ret_list.append(full_file)
 
-        return(ret_list)
+        return ret_list
 
     def _add_metadata(
         self, ret_dict, this_file, columns, sample0, sample1, is_edge,
@@ -1053,4 +1036,4 @@ class DigitalMetadataReader:
             ret_str += '_fields:\n'
             for key in self._fields:
                 ret_str += '\t%s\n' % (key)
-        return(ret_str)
+        return ret_str

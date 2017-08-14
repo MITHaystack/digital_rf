@@ -10,7 +10,6 @@
 """Record data from synchronized USRPs in Digital RF format."""
 from __future__ import print_function
 
-import datetime
 import math
 import os
 import re
@@ -18,12 +17,14 @@ import sys
 import time
 from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
 from ast import literal_eval
+from datetime import datetime, timedelta
 from fractions import Fraction
 from itertools import chain, cycle, islice, repeat
 from subprocess import call
 from textwrap import TextWrapper, dedent, fill
 
 import numpy as np
+import pytz
 from gnuradio import filter, gr, uhd
 from gnuradio.filter import firdes
 
@@ -257,35 +258,44 @@ class Thor(object):
     def run(self, starttime=None, endtime=None, duration=None, period=10):
         op = self.op
 
+        # window in seconds that we allow for setup time so that we don't
+        # issue a start command that's in the past when the flowgraph starts
+        SETUP_TIME = 10
+
         # print current time and NTP status
         if op.verbose:
             call(('timedatectl', 'status'))
 
         # parse time arguments
-        st = drf.util.parse_sample_identifier(
+        st = drf.util.parse_identifier_to_time(
             starttime, samples_per_second=op.samplerate,
         )
         if st is not None:
             # find next suitable start time by cycle repeat period
-            soon = int(math.ceil(time.time())) + 5
-            periods_until_next = (max(soon - st, 0) - 1) // period + 1
-            st = st + periods_until_next * period
+            now = datetime.utcnow()
+            now = now.replace(tzinfo=pytz.utc)
+            soon = now + timedelta(seconds=SETUP_TIME)
+            diff = max(soon - st, timedelta(0)).total_seconds()
+            periods_until_next = (diff - 1) // period + 1
+            st = st + timedelta(seconds=periods_until_next * period)
 
             if op.verbose:
-                dtst = datetime.datetime.utcfromtimestamp(st)
-                dtststr = dtst.strftime('%a %b %d %H:%M:%S %Y')
-                print('Start time: {0} ({1})'.format(dtststr, st))
+                ststr = st.strftime('%a %b %d %H:%M:%S %Y')
+                stts = (st - drf.util.epoch).total_seconds()
+                print('Start time: {0} ({1})'.format(ststr, stts))
 
-        et = drf.util.parse_sample_identifier(
-            endtime, samples_per_second=op.samplerate, ref_index=st,
+        et = drf.util.parse_identifier_to_time(
+            endtime, samples_per_second=op.samplerate, ref_datetime=st,
         )
         if et is not None:
             if op.verbose:
-                dtet = datetime.datetime.utcfromtimestamp(et)
-                dtetstr = dtet.strftime('%a %b %d %H:%M:%S %Y')
-                print('End time: {0} ({1})'.format(dtetstr, et))
+                etstr = et.strftime('%a %b %d %H:%M:%S %Y')
+                etts = (et - drf.util.epoch).total_seconds()
+                print('End time: {0} ({1})'.format(etstr, etts))
 
-            if (et < time.time() + 5) or (st is not None and et <= st):
+            if ((et < (pytz.utc.localize(datetime.utcnow())
+                       + timedelta(seconds=SETUP_TIME)))
+               or (st is not None and et <= st)):
                 raise ValueError('End time is before launch time!')
 
         if op.realtime:
@@ -303,8 +313,13 @@ class Thor(object):
             os.makedirs(op.datadir)
 
         # wait for the start time if it is not past
-        while (st is not None) and (st - time.time()) > 10:
-            ttl = int(math.floor(st - time.time()))
+        while (st is not None) and (
+            (st - pytz.utc.localize(datetime.utcnow())) >
+                timedelta(seconds=SETUP_TIME)
+        ):
+            ttl = int((
+                st - pytz.utc.localize(datetime.utcnow())
+            ).total_seconds())
             if (ttl % 10) == 0:
                 print('Standby {0} s remaining...'.format(ttl))
                 sys.stdout.flush()
@@ -359,21 +374,22 @@ class Thor(object):
         if st is not None:
             lt = st
         else:
-            lt = int(math.ceil(time.time() + 1.0))
+            now = pytz.utc.localize(datetime.utcnow())
+            lt = now.replace(microsecond=0) + timedelta(seconds=2)
+        ltts = (lt - drf.util.epoch).total_seconds()
         # adjust launch time forward so it falls on an exact sample since epoch
-        lt_samples = np.ceil(lt * samplerate_out)
-        lt = lt_samples / samplerate_out
+        lt_samples = np.ceil(ltts * samplerate_out)
+        ltts = lt_samples / samplerate_out
+        lt = drf.util.sample_to_datetime(lt_samples, op.samplerate)
         if op.verbose:
-            dtlt = datetime.datetime.utcfromtimestamp(lt)
-            dtltstr = dtlt.strftime('%a %b %d %H:%M:%S.%f %Y')
-            print('Launch time: {0} ({1})'.format(dtltstr, repr(lt)))
-        # command time
-        ct_samples = lt_samples
-        # splitting ct into secs/frac lets us set a more accurate time_spec
-        ct_secs = ct_samples // samplerate_out
-        ct_frac = (ct_samples % samplerate_out) / samplerate_out
+            ltstr = lt.strftime('%a %b %d %H:%M:%S.%f %Y')
+            print('Launch time: {0} ({1})'.format(ltstr, repr(ltts)))
+        # command launch time
+        ct_td = lt - drf.util.epoch
+        ct_secs = ct_td.total_seconds() // 1.0
+        ct_frac = ct_td.microseconds / 1000000.0
         u.set_start_time(
-            uhd.time_spec(float(ct_secs)) + uhd.time_spec(float(ct_frac))
+            uhd.time_spec(ct_secs) + uhd.time_spec(ct_frac)
         )
 
         # populate flowgraph one channel at a time
@@ -388,7 +404,7 @@ class Thor(object):
                 file_cadence_millisecs=op.file_cadence_ms,
                 sample_rate_numerator=samplerate_num_out,
                 sample_rate_denominator=samplerate_den_out,
-                start=int(lt * samplerate_out),
+                start=lt_samples,
                 ignore_tags=False,
                 is_complex=True,
                 num_subchannels=1,
@@ -442,32 +458,35 @@ class Thor(object):
 
         # wait until end time or until flowgraph stops
         if et is None and duration is not None:
-            et = lt + duration
+            et = lt + timedelta(seconds=duration)
         try:
             if et is None:
                 fg.wait()
             else:
                 # sleep until end time nears
-                while(time.time() < et - 1):
+                while(pytz.utc.localize(datetime.utcnow()) <
+                        et - timedelta(seconds=2)):
                     time.sleep(1)
                 else:
                     # issue stream stop command at end time
-                    ct_secs = et // 1
-                    ct_frac = et % 1
+                    ct_td = et - drf.util.epoch
+                    ct_secs = ct_td.total_seconds() // 1.0
+                    ct_frac = ct_td.microseconds / 1000000.0
                     u.set_command_time(
-                        (uhd.time_spec(float(ct_secs)) +
-                            uhd.time_spec(float(ct_frac))),
+                        (uhd.time_spec(ct_secs) + uhd.time_spec(ct_frac)),
                         uhd.ALL_MBOARDS,
                     )
                     stop_enum = uhd.stream_cmd.STREAM_MODE_STOP_CONTINUOUS
                     u.issue_stream_cmd(uhd.stream_cmd(stop_enum))
                     u.clear_command_time(uhd.ALL_MBOARDS)
                     # sleep until after end time
-                    time.sleep(1)
+                    time.sleep(2)
         except KeyboardInterrupt:
             # catch keyboard interrupt and simply exit
             pass
         fg.stop()
+        # need to wait for the flowgraph to clean up, otherwise it won't exit
+        fg.wait()
         print('done')
         sys.stdout.flush()
 

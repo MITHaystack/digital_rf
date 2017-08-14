@@ -8,12 +8,14 @@
 # ----------------------------------------------------------------------------
 """Module for montoring creation/modification/deletion of Digital RF files."""
 
+import datetime
 import os
 import re
 import sys
 import time
 from contextlib import contextmanager
 
+import pytz
 from watchdog.events import (DirCreatedEvent, FileCreatedEvent,
                              FileDeletedEvent, RegexMatchingEventHandler)
 from watchdog.observers import Observer
@@ -21,6 +23,7 @@ from watchdog.observers.api import ObservedWatch
 from watchdog.utils import unicode_paths
 from watchdog.utils.bricks import OrderedSetQueue
 
+from . import list_drf, util
 from .list_drf import (RE_DMD, RE_DMDPROP, RE_DRF, RE_DRFDMD, RE_DRFDMDPROP,
                        RE_DRFPROP)
 
@@ -37,15 +40,58 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
     methods in a subclass to define their actions.
 
     The triggered methods are: `on_created`, `on_deleted`, `on_modified`, and
-    `on_drf_moved`.
+    `on_moved`.
 
     """
 
     def __init__(
-        self, include_drf=True, include_dmd=True, include_drf_properties=None,
-        include_dmd_properties=None, ignore_regexes=[],
+        self, starttime=None, endtime=None, include_drf=True, include_dmd=True,
+        include_drf_properties=None, include_dmd_properties=None,
+        ignore_regexes=[],
     ):
-        """Create event handler, optionally including different file types."""
+        """Create Digital RF event handler for given time range and file types.
+
+        Parameters
+        ----------
+
+        starttime : datetime.datetime
+            Data covering this time or after will be included. This has no
+            effect on property files.
+
+        endtime : datetime.datetime
+            Data covering this time or earlier will be included. This has no
+            effect on property files.
+
+        include_drf : bool
+            If True, include Digital RF files.
+
+        include_dmd : bool
+            If True, include Digital Metadata files.
+
+        include_drf_properties : bool | None
+            If True, include the Digital RF properties file.
+            If None, use `include_drf` value.
+
+        include_dmd_properties : bool | None
+            If True, include the Digital Metadata properties file.
+            If None, use `include_dmd` value.
+
+        ignore_regexes : list
+            List of regexes for ignoring matching event paths.
+
+        """
+        # convert starttime and endtime to timedeltas for comparison
+        if starttime is not None:
+            if starttime.tzinfo is None:
+                starttime = pytz.utc.localize(starttime)
+            starttime = starttime - util.epoch
+        self.starttime = starttime
+        if endtime is not None:
+            if endtime.tzinfo is None:
+                endtime = pytz.utc.localize(endtime)
+            endtime = endtime - util.epoch
+        self.endtime = endtime
+
         if include_drf_properties is None:
             include_drf_properties = include_drf
         if include_dmd_properties is None:
@@ -73,35 +119,73 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
             ignore_directories=True,
         )
 
-    def on_drf_moved(self, event):
-        """Called when a file or a directory is moved or renamed.
+    def dispatch(self, event):
+        """Dispatch events to the appropriate methods.
 
         :param event:
-            Event representing file/directory movement.
+            The event object representing the file system event.
         :type event:
-            :class:`DirMovedEvent` or :class:`FileMovedEvent`
+            :class:`FileSystemEvent`
         """
+        if self.ignore_directories and event.is_directory:
+            return
 
-    # override on_moved so
-    #  1) src and dest match regex -> on_drf_moved
-    #  2) src only matches regex -> on_deleted
-    #  3) dest only matches regex -> on_created
-    def on_moved(self, event):
-        """Translate filesystem move events. DO NOT OVERRIDE."""
-        src_path = unicode_paths.decode(event.src_path)
-        dest_path = unicode_paths.decode(event.dest_path)
+        src_match = False
+        if event.src_path:
+            src_path = unicode_paths.decode(event.src_path)
+            if not any(r.match(src_path) for r in self.ignore_regexes):
+                for r in self.regexes:
+                    m = r.match(src_path)
+                    if m:
+                        src_match = True
+                        match = m
 
-        src_match = any(r.match(src_path) for r in self.regexes)
-        dest_match = any(r.match(dest_path) for r in self.regexes)
+        dest_match = False
+        if getattr(event, 'dest_path', None) is not None:
+            dest_path = unicode_paths.decode(event.dest_path)
+            if not any(r.match(dest_path) for r in self.ignore_regexes):
+                for r in self.regexes:
+                    m = r.match(dest_path)
+                    if m:
+                        dest_match = True
+                        match = m
 
-        if src_match and dest_match:
-            self.on_drf_moved(event)
-        elif src_match:
-            new_event = FileDeletedEvent(event.src_path)
-            self.on_deleted(new_event)
+            # change move event to deleted/created if both regexes didn't match
+            if src_match and not dest_match:
+                event = FileDeletedEvent(event.src_path)
+            elif dest_match and not src_match:
+                event = FileCreatedEvent(event.dest_path)
+
+        if not src_match and not dest_match:
+            return
+
+        # regexes matched, now check the time
+        try:
+            secs = int(match.group('secs'))
+        except (IndexError, TypeError):
+            # no time, don't need to check it
+            pass
         else:
-            new_event = FileCreatedEvent(event.dest_path)
-            self.on_created(new_event)
+            try:
+                msecs = int(match.group('frac'))
+            except (IndexError, TypeError):
+                msecs = 0
+            time = datetime.timedelta(seconds=secs, milliseconds=msecs)
+            if time < self.starttime:
+                return
+            elif time > self.endtime:
+                return
+
+        # the event matched, including time if applicable, dispatch
+        self.on_any_event(event)
+        _method_map = {
+            'modified': self.on_modified,
+            'moved': self.on_moved,
+            'created': self.on_created,
+            'deleted': self.on_deleted,
+        }
+        event_type = event.event_type
+        _method_map[event_type](event)
 
 
 class DirWatcher(Observer, RegexMatchingEventHandler):
@@ -293,14 +377,20 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
         if not self.is_alive():
             return False
         # check if self emitters are running
-        if not all(emitter.is_alive() for emitter in self.emitters):
+        if not all(
+            emitter.is_alive()
+            and (not emitter._inotify or emitter._inotify.is_alive())
+                for emitter in self.emitters
+        ):
             return False
         # check if root observer thread is running
         if not self.root_observer.is_alive():
             return False
         # check if all root observer emitters are running
         if not all(
-            emitter.is_alive() for emitter in self.root_observer.emitters
+            emitter.is_alive()
+            and (not emitter._inotify or emitter._inotify.is_alive())
+                for emitter in self.root_observer.emitters
         ):
             return False
 
@@ -308,8 +398,8 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
 
     def dispatch_events(self, event_queue, timeout):
         """Get events from queue and dispatch them to handlers."""
-        # override this so that we can stop dispatching of events even while
-        # thread is running
+        # override this so that we can schedule without dispatching events
+        # immediately even while thread is running
         if self._dispatching_enabled:
             super(DirWatcher, self).dispatch_events(event_queue, timeout)
         else:
@@ -319,8 +409,7 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
     def paused_dispatching(self):
         """Context manager that pauses event dispatching while held."""
         self._stop_dispatching()
-        with self._lock:
-            yield
+        yield
         self._start_dispatching()
 
 
@@ -332,29 +421,8 @@ def _build_watch_parser(Parser, *args):
                         help='''Data directory to monitor.
                                (default: %(default)s)''')
 
-    includegroup = parser.add_argument_group(title='include')
-    includegroup.add_argument(
-        '--nodrf', dest='include_drf', action='store_false',
-        help='''Do not watch Digital RF HDF5 files.
-                (default: False)''',
-    )
-    includegroup.add_argument(
-        '--nodmd', dest='include_dmd', action='store_false',
-        help='''Do not watch Digital Metadata HDF5 files.
-                (default: False)''',
-    )
-    includegroup.add_argument(
-        '--nodrfprops', dest='include_drf_properties', nargs='?',
-        const=False, default=None,
-        help='''Do not watch drf_properties.h5 files.
-                (default: Same as --nodrf)''',
-    )
-    includegroup.add_argument(
-        '--nodmdprops', dest='include_dmd_properties', nargs='?',
-        const=False, default=None,
-        help='''Do not watch dmd_properties.h5 files.
-                (default: Same as --nodmd)''',
-    )
+    parser = list_drf._add_time_group(parser)
+    parser = list_drf._add_include_group(parser)
 
     parser.set_defaults(func=_run_watch)
 
@@ -364,11 +432,15 @@ def _build_watch_parser(Parser, *args):
 def _run_watch(args):
     args.dir = os.path.abspath(args.dir)
 
+    if args.starttime is not None:
+        args.starttime = util.parse_identifier_to_time(args.starttime)
+    if args.endtime is not None:
+        args.endtime = util.parse_identifier_to_time(
+            args.endtime, ref_datetime=args.starttime,
+        )
+
     # subclass DigitalRFEventHandler to just print events
     class DigitalRFPrint(DigitalRFEventHandler):
-
-        def on_drf_moved(self, event):
-            print('Moved {0} to {1}'.format(event.src_path, event.dest_path))
 
         def on_created(self, event):
             print('Created {0}'.format(event.src_path))
@@ -379,10 +451,8 @@ def _run_watch(args):
         def on_modified(self, event):
             print('Modified {0}'.format(event.src_path))
 
-    if args.include_drf_properties:
-        args.include_drf_properties = True
-    if args.include_dmd_properties:
-        args.include_dmd_properties = True
+        def on_moved(self, event):
+            print('Moved {0} to {1}'.format(event.src_path, event.dest_path))
 
     kwargs = vars(args).copy()
     del kwargs['func']
@@ -395,7 +465,7 @@ def _run_watch(args):
     try:
         while True:
             time.sleep(1)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, SystemExit):
         observer.stop()
         sys.stdout.write('\n')
         sys.stdout.flush()

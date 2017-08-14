@@ -7,10 +7,16 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Module for listing Digital RF/Metadata files in a directory."""
+import bisect
+import datetime
 import os
 import re
+import shutil
+from collections import defaultdict
 
-from six.moves import zip
+import pytz
+
+from . import util
 
 __all__ = (
     'GLOB_DMDFILE', 'GLOB_DMDPROPFILE', 'GLOB_DRFFILE', 'GLOB_DRFPROPFILE',
@@ -28,32 +34,41 @@ RE_SUBDIR = (
     r'(?P<ymd>[0-9]{4}-[0-9]{2}-[0-9]{2})'
     r'T(?P<hms>[0-9]{2}-[0-9]{2}-[0-9]{2})'
 )
+_RE_SUBDIR = re.compile('^' + RE_SUBDIR + '$')
 
 # Digital RF file, e.g. rf@1474491360.000.h5
 GLOB_DRFFILE = '*@[0-9]*.[0-9][0-9][0-9].h5'
-RE_DRFFILE = r'(?P<name>(?!tmp\.).+?)@(?P<secs>[0-9]+)\.(?P<frac>[0-9]{3})\.h5'
+RE_DRFFILE = (
+    r'(?P<name>(?!tmp\.).+?)@(?P<secs>[0-9]+)\.(?P<frac>[0-9]{3})\.h5$'
+)
+_RE_DRFFILE = re.compile('^' + RE_DRFFILE)
 
 # Digital Metadata file, e.g. metadata@1474491360.h5
 GLOB_DMDFILE = '*@[0-9]*.h5'
-RE_DMDFILE = r'(?P<name>(?!tmp\.).+?)@(?P<secs>[0-9]+)\.h5'
+RE_DMDFILE = r'(?P<name>(?!tmp\.).+?)@(?P<secs>[0-9]+)\.h5$'
+_RE_DMDFILE = re.compile('^' + RE_DMDFILE)
 
 # either Digital RF or Digital Metadata file
 RE_FILE = (
-    r'(?P<name>(?!tmp\.).+?)@(?P<secs>[0-9]+)(?:\.(?P<frac>[0-9]{3}))?\.h5'
+    r'(?P<name>(?!tmp\.).+?)@(?P<secs>[0-9]+)(?:\.(?P<frac>[0-9]{3}))?\.h5$'
 )
+_RE_FILE = re.compile('^' + RE_FILE)
 
 # Digital RF channel properties file, e.g. drf_properties.h5
 # include pre-2.5-style metadata.h5 for now
 GLOB_DRFPROPFILE = '*.h5'
-RE_DRFPROPFILE = r'(?P<name>drf_properties|metadata)\.h5'
+RE_DRFPROPFILE = r'(?P<name>drf_properties|metadata)\.h5$'
+_RE_DRFPROPFILE = re.compile('^' + RE_DRFPROPFILE)
 
 # Digital RF channel properties file, e.g. dmd_properties.h5
 # include pre-2.5-style metadata.h5 for now
 GLOB_DMDPROPFILE = '*.h5'
-RE_DMDPROPFILE = r'(?P<name>dmd_properties|metadata)\.h5'
+RE_DMDPROPFILE = r'(?P<name>dmd_properties|metadata)\.h5$'
+_RE_DMDPROPFILE = re.compile('^' + RE_DMDPROPFILE)
 
 # either Digital RF or Digital Metadata channel properties file
-RE_PROPFILE = r'(?P<name>(?:drf|dmd)_properties|metadata)\.h5'
+RE_PROPFILE = r'(?P<name>(?:drf|dmd)_properties|metadata)\.h5$'
+_RE_PROPFILE = re.compile('^' + RE_PROPFILE)
 
 # Digital RF file in correct subdirectory structure
 RE_DRF = re.escape(os.sep).join((r'(?P<chpath>.*?)', RE_SUBDIR, RE_DRFFILE))
@@ -71,36 +86,67 @@ RE_DRFDMDPROP = re.escape(os.sep).join((r'(?P<chpath>.*?)', RE_PROPFILE))
 
 def sortkey_drf(filename, regexes=[re.compile(RE_FILE)]):
     """Get key for a Digital RF filename to sort first by sample time."""
-    matched = False
     for r in regexes:
         m = r.match(filename)
         if m:
-            matched = True
-            break
-    try:
-        secs = int(m.group('secs'))
-    except (AttributeError, IndexError, TypeError):
-        # no match, or regex matched but there is no 'secs' in regex
-        secs = 0
-    try:
-        frac = int(m.group('frac'))
-    except (AttributeError, IndexError, TypeError):
-        # no match, or regex matched but there is no 'frac' in regex
-        frac = 0
-    try:
-        name = m.group('name')
-    except (AttributeError, IndexError, TypeError):
-        # no match, or regex matched but there is no 'name' in regex
-        name = filename
-    key = (matched, secs*1000 + frac, name)
-    return key
+            try:
+                secs = int(m.group('secs'))
+            except (IndexError, TypeError):
+                # regex matched but there is no 'secs' in regex
+                secs = 0
+            try:
+                frac = int(m.group('frac'))
+            except (IndexError, TypeError):
+                # regex matched but there is no 'frac' in regex
+                frac = 0
+            try:
+                name = m.group('name')
+            except (IndexError, TypeError):
+                # regex matched but there is no 'name' in regex
+                name = filename
+            return (secs*1000 + frac, name)
+    return None
+
+
+def _group_drf(root, filenames):
+    """Match Digital RF filenames and group by name into (time, f)."""
+    groups = defaultdict(list)
+    if not _RE_SUBDIR.match(os.path.basename(root)):
+        return groups
+    for filename in filenames:
+        m = _RE_DRFFILE.match(filename)
+        if m:
+            time = datetime.timedelta(
+                seconds=int(m.group('secs')),
+                milliseconds=int(m.group('frac')),
+            )
+            groups[m.group('name')].append(
+                (time, os.path.join(root, filename))
+            )
+    return groups
+
+
+def _group_dmd(root, filenames):
+    """Match Digital Metadata filenames and group by name into (time, f)."""
+    groups = defaultdict(list)
+    if not _RE_SUBDIR.match(os.path.basename(root)):
+        return groups
+    for filename in filenames:
+        m = _RE_DMDFILE.match(filename)
+        if m:
+            time = datetime.timedelta(seconds=int(m.group('secs')))
+            groups[m.group('name')].append(
+                (time, os.path.join(root, filename))
+            )
+    return groups
 
 
 def ilsdrf(
-    path, include_drf=True, include_dmd=True, include_drf_properties=None,
-    include_dmd_properties=None,
+    path, recursive=True, reverse=False, starttime=None, endtime=None,
+    include_drf=True, include_dmd=True,
+    include_drf_properties=None, include_dmd_properties=None,
 ):
-    """Generator of Digital RF files recursively contained in a directory.
+    """Generator of Digital RF/Metadata files contained in a channel directory.
 
     Sub-directories will be traversed in alphabetical order and files from each
     directory will be yielded in Digital RF (time) order.
@@ -111,6 +157,21 @@ def ilsdrf(
 
     path : string
         Parent directory to list.
+
+    recursive : bool
+        If True, also list files recursively in channel subdirectories.
+
+    reverse : bool
+        If True, traverse directories and list files in those directories in
+        reversed order.
+
+    starttime : datetime.datetime
+        Data covering this time or after will be included. This has no effect
+        on property files.
+
+    endtime : datetime.datetime
+        Data covering this time or earlier will be included. This has no effect
+        on property files.
 
     include_drf : bool
         If True, include Digital RF files in listing.
@@ -133,54 +194,141 @@ def ilsdrf(
     Digital RF/Metadata files contained in `path`.
 
     """
+    # convert starttime and endtime to timedeltas for comparison
+    if starttime is not None:
+        if starttime.tzinfo is None:
+            starttime = pytz.utc.localize(starttime)
+        starttime = starttime - util.epoch
+    if endtime is not None:
+        if endtime.tzinfo is None:
+            endtime = pytz.utc.localize(endtime)
+        endtime = endtime - util.epoch
+
     if include_drf_properties is None:
         include_drf_properties = include_drf
     if include_dmd_properties is None:
         include_dmd_properties = include_dmd
 
-    regexes = []
-    if include_drf and include_dmd:
-        regexes.append(RE_DRFDMD)
-    elif include_drf:
-        regexes.append(RE_DRF)
-    elif include_dmd:
-        regexes.append(RE_DMD)
+    if not include_drf:
+        # set empty groups so we can iterate over nothing
+        rf_groups = {}
+    if not include_dmd:
+        # set empty groups so we can iterate over nothing
+        md_groups = {}
+
+    include_properties = True
     if include_drf_properties and include_dmd_properties:
-        regexes.append(RE_DRFDMDPROP)
+        prop_regex = _RE_PROPFILE
     elif include_drf_properties:
-        regexes.append(RE_DRFPROP)
+        prop_regex = _RE_DRFPROPFILE
     elif include_dmd_properties:
-        regexes.append(RE_DMDPROP)
-
-    regexes = [re.compile(r) for r in regexes]
-
-    if os.path.isfile(path):
-        if any(r.match(path) for r in regexes):
-            yield path
+        prop_regex = _RE_DMDPROPFILE
     else:
-        for root, dirs, files in os.walk(os.path.abspath(path)):
+        include_properties = False
+        # set empty props so we can iterate over nothing
+        props = []
+
+    path = os.path.abspath(path)
+    for root, dirs, files in os.walk(path):
+        last_level = (not recursive and root != path)
+        if last_level:
+            # don't go further if we're not recursive and we're already
+            # on the first subdir level
+            del dirs[:]
+        else:
             # walk through directories in sorted order
-            dirs.sort()
-            # yield files from this directory in sorted order and filter all at
-            # once so the regex only has to be evaluated once per file
-            filepaths = [os.path.join(root, f) for f in files]
-            keys = (sortkey_drf(f, regexes=regexes) for f in filepaths)
-            decorated_files = [
-                key[1:] + (f,) for key, f in zip(keys, filepaths) if key[0]
+            dirs.sort(reverse=reverse)
+
+        # match files
+        if include_drf:
+            rf_groups = _group_drf(root, files)
+        if include_dmd:
+            md_groups = _group_dmd(root, files)
+        if not rf_groups and not md_groups and last_level:
+            # not in a matching subdir and we're not recursive, so don't
+            # match anything else and continue on same level
+            continue
+        if include_properties:
+            props = [
+                os.path.join(root, f) for f in files if prop_regex.match(f)
             ]
-            decorated_files.sort()
-            for decorated_file in decorated_files:
-                yield decorated_file[-1]
+
+        # sort within groups and yield files
+        # first properties
+        props.sort(reverse=reverse)
+        for prop in props:
+            yield prop
+        # then DMD groups
+        for name, dec_files in sorted(md_groups.items(), reverse=reverse):
+            dec_files.sort(reverse=reverse)
+            if starttime is not None:
+                # we want to include the first file *at or before* starttime
+                # since this is metadata and we assume previous metadata
+                # holds if there is no file at a particular time
+                # (because of tuple comparison, all bisects are left)
+                # dec_files[:k][0] < starttime <= dec_files[k:][0]
+                k = bisect.bisect_left(dec_files, (starttime,))
+                # make k the first index to include
+                if k == len(dec_files) or dec_files[k][0] != starttime:
+                    k = max(k - 1, 0)
+                del dec_files[:k]
+            if endtime is not None:
+                # (because of tuple comparison, all bisects are left)
+                # dec_files[:k][0] < endtime <= dec_files[k:][0]
+                k = bisect.bisect_left(dec_files, (endtime,))
+                # make k first index to exclude
+                if k < len(dec_files) and dec_files[k][0] == endtime:
+                    k = k + 1
+                del dec_files[k:]
+            for dec_file in dec_files:
+                yield dec_file[-1]
+        # finally DRF groups
+        for name, dec_files in sorted(rf_groups.items(), reverse=reverse):
+            dec_files.sort(reverse=reverse)
+            if starttime is not None:
+                # (because of tuple comparison, all bisects are left)
+                # dec_files[:k][0] < starttime <= dec_files[k:][0]
+                k = bisect.bisect_left(dec_files, (starttime,))
+                # k is the first index to include
+                del dec_files[:k]
+            if endtime is not None:
+                # (because of tuple comparison, all bisects are left)
+                # dec_files[:k][0] < endtime <= dec_files[k:][0]
+                k = bisect.bisect_left(dec_files, (endtime,))
+                # make k first index to exclude
+                if k < len(dec_files) and dec_files[k][0] == endtime:
+                    k = k + 1
+                del dec_files[k:]
+            for dec_file in dec_files:
+                yield dec_file[-1]
 
 
 def lsdrf(*args, **kwargs):
-    """Get list of Digital RF files recursively contained in a directory.
+    """Get list of Digital RF/Metadata files contained in a channel directory.
+
+    Sub-directories will be traversed in alphabetical order and files from each
+    directory will be yielded in Digital RF (time) order.
 
     Parameters
     ----------
 
     path : string
         Parent directory to list.
+
+    recursive : bool
+        If True, also list files recursively in channel subdirectories.
+
+    reverse : bool
+        If True, traverse directories and list files in those directories in
+        reversed order.
+
+    starttime : datetime.datetime
+        Data covering this time or after will be included. This has no effect
+        on property files.
+
+    endtime : datetime.datetime
+        Data covering this time or earlier will be included. This has no effect
+        on property files.
 
     include_drf : bool
         If True, include Digital RF files in listing.
@@ -206,37 +354,110 @@ def lsdrf(*args, **kwargs):
     return list(ilsdrf(*args, **kwargs))
 
 
+def _add_time_group(parser):
+    timegroup = parser.add_argument_group(title='time')
+    timegroup.add_argument(
+        '-s', '--starttime', dest='starttime', default=None,
+        help='''Data covering this time or after will be included (no effect
+                on property files). The time can be given as a datetime string
+                (e.g. in ISO8601 format: 2016-01-01T15:24:00Z) or a float
+                giving a Unix timestamp in seconds. (default: %(default)s)''',
+    )
+    timegroup.add_argument(
+        '-e', '--endtime', dest='endtime', default=None,
+        help='''Data covering this time or before will be included (no effect
+                on property files). The time can be given as a datetime string
+                (e.g. in ISO8601 format: 2016-01-01T15:24:00Z), a float
+                giving a Unix timestamp in seconds, or a '+' followed by a time
+                in seconds that will be taken relative to `starttime`.
+                (default: %(default)s)''',
+    )
+    return parser
+
+
+def _add_include_group(parser):
+    includegroup = parser.add_argument_group(title='include')
+    drfgroup = includegroup.add_mutually_exclusive_group()
+    dmdgroup = includegroup.add_mutually_exclusive_group()
+    drfpropsgroup = includegroup.add_mutually_exclusive_group()
+    dmdpropsgroup = includegroup.add_mutually_exclusive_group()
+
+    drfgroup.add_argument(
+        '--drf', dest='include_drf', action='store_true', default=True,
+        help='''Include Digital RF files.
+                (default: True)''',
+    )
+    drfpropsgroup.add_argument(
+        '--drfprops', dest='include_drf_properties', action='store_true',
+        default=None,
+        help='''Include drf_properties.h5 files. If unset, use value of --drf.
+                (default: None)''',
+    )
+    drfgroup.add_argument(
+        '--nodrf', dest='include_drf', action='store_false',
+        help='''Do not include Digital RF files.
+                (default: False)''',
+    )
+    drfpropsgroup.add_argument(
+        '--nodrfprops', dest='include_drf_properties', action='store_false',
+        help='''Do not include drf_properties.h5 files.
+                (default: False)''',
+    )
+    dmdgroup.add_argument(
+        '--dmd', dest='include_dmd', action='store_true', default=True,
+        help='''Include Digital Metadata files.
+                (default: True)''',
+    )
+    dmdpropsgroup.add_argument(
+        '--dmdprops', dest='include_dmd_properties', action='store_true',
+        default=None,
+        help='''Include dmd_properties.h5 files. If unset, use value of --dmd.
+                (default: None)''',
+    )
+    dmdgroup.add_argument(
+        '--nodmd', dest='include_dmd', action='store_false',
+        help='''Do not include Digital Metadata files.
+                (default: False)''',
+    )
+    dmdpropsgroup.add_argument(
+        '--nodmdprops', dest='include_dmd_properties', action='store_false',
+        help='''Do not include dmd_properties.h5 files.
+                (default: False)''',
+    )
+    return parser
+
+
 def _build_ls_parser(Parser, *args):
-    desc = 'List Digital RF files in a directory.'
+    desc = 'List Digital RF/Metadata files in a (channel) directory.'
     parser = Parser(*args, description=desc)
 
-    parser.add_argument('dirs', nargs='*', default='.',
-                        help='''Data directory to list.
-                               (default: %(default)s)''')
+    parser.add_argument(
+        'dirs', nargs='*', default='.',
+        help='''Data directory to list. (default: %(default)s)''',
+    )
+    parser.add_argument(
+        '-r', '--recursive', action='store_true',
+        help='''Also list files recursively in channel subdirectories.
+                (default: %(default)s)''',
+    )
+    parser.add_argument(
+        '-R', '--reverse', action='store_true',
+        help='''Traverse directories and list files in those directories in
+                reversed order. (default: %(default)s)''',
+    )
+    parser.add_argument(
+        '--abs', action='store_true',
+        help='''Return absolute paths instead of relative paths.
+                (default: %(default)s)''',
+    )
+    parser.add_argument(
+        '--sortall', action='store_true',
+        help='''Sort all files together before listing (normally only sorted
+                within subdirectories). (default: %(default)s)''',
+    )
 
-    includegroup = parser.add_argument_group(title='include')
-    includegroup.add_argument(
-        '--nodrf', dest='include_drf', action='store_false',
-        help='''Do not list Digital RF HDF5 files.
-                (default: False)''',
-    )
-    includegroup.add_argument(
-        '--nodmd', dest='include_dmd', action='store_false',
-        help='''Do not list Digital Metadata HDF5 files.
-                (default: False)''',
-    )
-    includegroup.add_argument(
-        '--nodrfprops', dest='include_drf_properties', nargs='?',
-        const=False, default=None,
-        help='''Do not list drf_properties.h5 files.
-                (default: Same as --nodrf)''',
-    )
-    includegroup.add_argument(
-        '--nodmdprops', dest='include_dmd_properties', nargs='?',
-        const=False, default=None,
-        help='''Do not list dmd_properties.h5 files.
-                (default: Same as --nodmd)''',
-    )
+    parser = _add_time_group(parser)
+    parser = _add_include_group(parser)
 
     parser.set_defaults(func=_run_ls)
 
@@ -244,20 +465,128 @@ def _build_ls_parser(Parser, *args):
 
 
 def _run_ls(args):
-    if args.include_drf_properties:
-        args.include_drf_properties = True
-    if args.include_dmd_properties:
-        args.include_dmd_properties = True
+    if args.starttime is not None:
+        args.starttime = util.parse_identifier_to_time(args.starttime)
+    if args.endtime is not None:
+        args.endtime = util.parse_identifier_to_time(
+            args.endtime, ref_datetime=args.starttime,
+        )
+
+    if args.abs:
+        def fixpath(path, start=None):
+            return path
+    else:
+        fixpath = os.path.relpath
 
     kwargs = vars(args).copy()
     del kwargs['func']
     del kwargs['dirs']
+    del kwargs['abs']
+    del kwargs['sortall']
 
-    files = []
-    for d in args.dirs:
-        files.extend(lsdrf(d, **kwargs))
-    files.sort(key=sortkey_drf)
-    print('\n'.join(files))
+    if args.sortall:
+        files = []
+        for d in args.dirs:
+            files.extend(lsdrf(d, **kwargs))
+        files.sort(key=sortkey_drf)
+        print('\n'.join([fixpath(f, d) for f in files]))
+    else:
+        for d in args.dirs:
+            for f in ilsdrf(d, **kwargs):
+                print(fixpath(f, d))
+
+
+def _add_srcdest_arguments(parser):
+    parser.add_argument('src', help='Source directory.')
+    parser.add_argument('dest', help='Destination directory.')
+
+    parser.add_argument(
+        '-c', '--channel', dest='chs', action='append', default=[],
+        help='''Channel names to include from source directory.
+                (default: Treat `src` as a channel directory)''',
+    )
+    parser.add_argument(
+        '--only', dest='recursive', action='store_false', default=True,
+        help='''Only copy the specified channel directory (do not recurse from
+                `src` to find channel subdirectories).
+                (default: False)''',
+    )
+    parser.add_argument(
+        '-R', '--reverse', action='store_true',
+        help='''Traverse directories and include files in those directories in
+                reversed order. (default: %(default)s)''',
+    )
+
+    parser = _add_time_group(parser)
+    parser = _add_include_group(parser)
+    return parser
+
+
+def _parse_srcdest_args(args):
+    args.src = os.path.abspath(args.src)
+    args.dest = os.path.abspath(args.dest)
+
+    args.chs = [b.strip() for a in args.chs for b in a.strip().split(',')]
+    args.srcdests = [
+        (os.path.join(args.src, ch), os.path.join(args.dest, ch))
+        for ch in args.chs
+    ]
+    if not args.srcdests:
+        args.srcdests = [(args.src, args.dest)]
+
+    if args.starttime is not None:
+        args.starttime = util.parse_identifier_to_time(args.starttime)
+    if args.endtime is not None:
+        args.endtime = util.parse_identifier_to_time(
+            args.endtime, ref_datetime=args.starttime,
+        )
+
+    kwargs = vars(args).copy()
+    del kwargs['func']
+    del kwargs['src']
+    del kwargs['dest']
+    del kwargs['chs']
+    del kwargs['srcdests']
+
+    return args, kwargs
+
+
+def _build_cp_parser(Parser, *args):
+    desc = 'Copy Digital RF/Metadata files from source to destination.'
+    parser = Parser(*args, description=desc)
+    parser = _add_srcdest_arguments(parser)
+    parser.set_defaults(func=_run_cp)
+    return parser
+
+
+def _run_cp(args):
+    args, kwargs = _parse_srcdest_args(args)
+    for (src, dest) in args.srcdests:
+        for srcpath in ilsdrf(src, **kwargs):
+            destpath = os.path.join(dest, os.path.relpath(srcpath, src))
+            destdir = os.path.dirname(destpath)
+            if not os.path.exists(destdir):
+                os.makedirs(destdir)
+            shutil.copy2(srcpath, destpath)
+
+
+def _build_mv_parser(Parser, *args):
+    desc = 'Move Digital RF/Metadata files from source to destination.'
+    parser = Parser(*args, description=desc)
+    parser = _add_srcdest_arguments(parser)
+    parser.set_defaults(func=_run_mv)
+    return parser
+
+
+def _run_mv(args):
+    args, kwargs = _parse_srcdest_args(args)
+    for (src, dest) in args.srcdests:
+        for srcpath in ilsdrf(src, **kwargs):
+            destpath = os.path.join(dest, os.path.relpath(srcpath, src))
+            destdir = os.path.dirname(destpath)
+            if not os.path.exists(destdir):
+                os.makedirs(destdir)
+            shutil.move(srcpath, destpath)
 
 
 if __name__ == "__main__":

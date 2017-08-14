@@ -81,7 +81,7 @@ def recursive_dict_update(d, u):
 
 
 def pairwise(iterable):
-    """Return iterable elements in pairs, e.g. range(3) -> (0, 1), (1, 2)"""
+    """Return iterable elements in pairs, e.g. range(3) -> (0, 1), (1, 2)."""
     a, b = tee(iterable)
     next(b, None)
     return zip(a, b)
@@ -89,6 +89,7 @@ def pairwise(iterable):
 
 class digital_rf_channel_sink(gr.sync_block):
     """Sink block for writing a channel of Digital RF data."""
+
     def __init__(
         self, channel_dir, dtype, subdir_cadence_secs,
         file_cadence_millisecs, sample_rate_numerator, sample_rate_denominator,
@@ -152,7 +153,8 @@ class digital_rf_channel_sink(gr.sync_block):
             raised if `ignore_tags` is True).
             If an integer, it is interpreted as a sample index given in the
             number of samples since the epoch (time_since_epoch*sample_rate).
-            If a float, it is interpreted as a timestamp (seconds since epoch).
+            If a float, it is interpreted as a UTC timestamp (seconds since
+            epoch).
             If a string, two forms are permitted:
                 1) a string which can be evaluated to an integer/float and
                     interpreted as above,
@@ -296,7 +298,7 @@ class digital_rf_channel_sink(gr.sync_block):
             np.longdouble(np.uint64(sample_rate_denominator))
         )
         # will be None if start is None or ''
-        self._start_sample = util.parse_sample_identifier(
+        self._start_sample = util.parse_identifier_to_sample(
             start, self._samples_per_second, None,
         )
         if self._start_sample is None:
@@ -555,6 +557,7 @@ class digital_rf_channel_sink(gr.sync_block):
 
 class digital_rf_sink(gr.hier_block2):
     """Sink block for writing Digital RF data."""
+
     def __init__(
         self, top_level_dir, channels, dtype, subdir_cadence_secs,
         file_cadence_millisecs, sample_rate_numerator, sample_rate_denominator,
@@ -628,7 +631,8 @@ class digital_rf_sink(gr.hier_block2):
             raised if `ignore_tags` is True).
             If an integer, it is interpreted as a sample index given in the
             number of samples since the epoch (time_since_epoch*sample_rate).
-            If a float, it is interpreted as a timestamp (seconds since epoch).
+            If a float, it is interpreted as a UTC timestamp (seconds since
+            epoch).
             If a string, two forms are permitted:
                 1) a string which can be evaluated to an integer/float and
                     interpreted as above,

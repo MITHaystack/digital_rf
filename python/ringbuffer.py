@@ -8,52 +8,76 @@
 # ----------------------------------------------------------------------------
 """Module for watching a directory and deleting the oldest Digital RF files."""
 
+import datetime
 import os
 import re
 import sys
+import threading
 import time
 import traceback
-import uuid
 from collections import OrderedDict, defaultdict, deque, namedtuple
 
-from watchdog.events import FileCreatedEvent
-
+from . import list_drf, util
 from .list_drf import ilsdrf
 from .watchdog_drf import DigitalRFEventHandler, DirWatcher
 
 __all__ = (
-    'DigitalRFRingbufferHandler', 'DigitalRFSizeRingbufferHandler',
-    'DigitalRFTimeRingbufferHandler', 'DigitalRFRingbuffer',
+    'DigitalRFRingbufferHandler', 'DigitalRFRingbuffer',
 )
 
 
-class DigitalRFRingbufferHandler(DigitalRFEventHandler):
-    """Event handler for implementing a ringbuffer of Digital RF files.
+class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
+    """Base event handler for implementing a ringbuffer of Digital RF files.
 
-    This handler tracks the number of files in each channel. When the count
-    threshold of a channel is exceeded, the oldest files in that channel are
-    deleted until the count constraint is met.
+    This handler tracks files but does nothing to expire them. At least one
+    expirer mixin must be used with this class in order to create a complete
+    ringbuffer.
 
     """
 
     FileRecord = namedtuple('FileRecord', ('key', 'size', 'path', 'group'))
 
     def __init__(
-        self, threshold, verbose=False, dryrun=False,
+        self, verbose=False, dryrun=False, starttime=None, endtime=None,
         include_drf=True, include_dmd=True,
     ):
-        """Create ringbuffer handler given a max file count for each group."""
-        self.threshold = threshold
+        """Create a ringbuffer handler.
+
+        Other Parameters
+        ----------------
+
+        starttime : datetime.datetime
+            Data covering this time or after will be included. This has no
+            effect on property files.
+
+        endtime : datetime.datetime
+            Data covering this time or earlier will be included. This has no
+            effect on property files.
+
+        include_drf : bool
+            If True, include Digital RF files.
+
+        include_dmd : bool
+            If True, include Digital Metadata files.
+
+        """
         self.verbose = verbose
         self.dryrun = dryrun
         # separately track file groups (ch path, name) with different queues
         self.queues = defaultdict(deque)
-        self.record_ids = {}
         self.records = {}
-        super(DigitalRFRingbufferHandler, self).__init__(
+        # acquire the record lock to modify the queue or record dicts
+        self._record_lock = threading.RLock()
+        super(DigitalRFRingbufferHandlerBase, self).__init__(
+            starttime=starttime, endtime=endtime,
             include_drf=include_drf, include_dmd=include_dmd,
             include_drf_properties=False, include_dmd_properties=False,
         )
+
+    def status(self):
+        """Return status string about state of the ringbuffer."""
+        nfiles = sum(len(q) for q in self.queues.values())
+        return '{0} files'.format(nfiles)
 
     def _get_file_record(self, path):
         """Return self.FileRecord tuple for file at path."""
@@ -83,61 +107,56 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         try:
             stat = os.stat(path)
         except OSError:
-            traceback.print_exc()
+            if self.verbose:
+                traceback.print_exc()
             return
         else:
             size = stat.st_size
 
         return self.FileRecord(key=key, size=size, path=path, group=group)
 
-    def _add_to_queue(self, rec, rid):
-        """Add record to queue, return queue size to compare with threshold."""
+    def _add_to_queue(self, rec):
+        """Add record to queue."""
         # find insertion index for record (queue sorted in ascending order)
         # we expect new records to go near the end (most recent)
         queue = self.queues[rec.group]
-        for k, (kkey, krid) in enumerate(reversed(queue)):
-            if rec.key > kkey:
-                # we've found the insertion point at index k from end
-                break
-            elif rid == krid:
-                # already in ringbuffer, so simply return
-                return
-        else:
-            # new key is oldest (or queue is empty),
-            # needs to be put at beginning
-            queue.appendleft((rec.key, rid))
-            k = None
-        if k is not None:
-            # insert record at index k
-            queue.rotate(k)
-            queue.append((rec.key, rid))
-            queue.rotate(-k)
-        return len(queue)
+        with self._record_lock:
+            for k, (kkey, kpath) in enumerate(reversed(queue)):
+                if rec.key > kkey:
+                    # we've found the insertion point at index k from end
+                    break
+                elif rec.path == kpath:
+                    # already in ringbuffer, so simply return
+                    return
+            else:
+                # new key is oldest (or queue is empty),
+                # needs to be put at beginning
+                queue.appendleft((rec.key, rec.path))
+                k = None
+            if k is not None:
+                # insert record at index k
+                queue.rotate(k)
+                queue.append((rec.key, rec.path))
+                queue.rotate(-k)
 
-    def _remove_from_queue(self, rec, rid):
-        """Remove record, return queue size to compare with threshold."""
+    def _remove_from_queue(self, rec):
+        """Remove record from queue."""
         queue = self.queues[rec.group]
-        queue.remove((rec.key, rid))
-        return len(queue)
+        with self._record_lock:
+            queue.remove((rec.key, rec.path))
 
-    def _expire_oldest(self, group):
-        """Expire oldest record from group, return queue size afterward."""
+    def _expire_oldest_from_group(self, group):
+        """Expire oldest record from group and delete corresponding file."""
         # oldest file is at start of sorted records deque
         # (don't just popleft on the queue because we want to call
         #  _remove_from_queue, which is overridden by subclasses)
-        key, rid = self.queues[group][0]
-        rec = self.records.pop(rid)
-        del self.record_ids[rec.path]
-        active_amount = self._remove_from_queue(rec, rid)
+        with self._record_lock:
+            key, path = self.queues[group][0]
+            rec = self.records.pop(path)
+            self._remove_from_queue(rec)
 
         if self.verbose:
-            print('{0}%: Expired {1} ({2} bytes).'.format(
-                int(float(active_amount)/self.threshold*100),
-                rec.path, rec.size,
-            ))
-        else:
-            sys.stdout.write('-')
-            sys.stdout.flush()
+            print('Expired {0}'.format(rec.path))
 
         # delete file
         if not self.dryrun:
@@ -145,7 +164,8 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
                 os.remove(rec.path)
             except OSError:
                 # path doesn't exist like we thought it did, oh well
-                traceback.print_exc()
+                if self.verbose:
+                    traceback.print_exc()
         # try to clean up directory in case it is empty
         head, tail = os.path.split(rec.path)
         try:
@@ -154,69 +174,86 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
             # directory not empty, just move on
             pass
 
-        return active_amount
+    def _expire(self, group):
+        """Expire records until ringbuffer constraint is met."""
+        # must override with mixins for any expiration to occur
+        pass
 
     def _add_record(self, rec):
         """Add a record to the ringbuffer and expire old ones if necesssary."""
-        # make sure record does not already exist, remove if it does
-        if rec.path in self.record_ids:
-            msg = (
-                'Replacing record for {0} since it already exists in'
-                ' ringbuffer.'
-            ).format(rec.path)
-            print(msg)
-            self._remove_record(rec.path)
-        # create unique id for record
-        rid = uuid.uuid4()
-        # add id to dict so it can be looked up by path
-        self.record_ids[rec.path] = rid
-        # add record to dict so record information can be looked up by id
-        self.records[rid] = rec
-        # add record to expiration queue
-        active_amount = self._add_to_queue(rec, rid)
+        with self._record_lock:
+            # make sure record does not already exist, remove if it does
+            if rec.path in self.records:
+                if self.verbose:
+                    msg = (
+                        'Adding record for {0} but it already exists in'
+                        ' ringbuffer, modify instead.'
+                    ).format(rec.path)
+                    print(msg)
+                self._modify_record(rec)
+            # add record to dict so record information can be looked up by path
+            self.records[rec.path] = rec
+            # add record to expiration queue
+            self._add_to_queue(rec)
 
-        if self.verbose:
-            print('{0}%: Added {1} ({2} bytes).'.format(
-                int(float(active_amount)/self.threshold*100),
-                rec.path, rec.size,
-            ))
-        else:
-            sys.stdout.write('+')
-            sys.stdout.flush()
-        # expire oldest files until size constraint is met
-        while active_amount > self.threshold:
-            active_amount = self._expire_oldest(rec.group)
+            if self.verbose:
+                print('Added {0}'.format(rec.path))
+            # expire oldest files until size constraint is met
+            self._expire(rec.group)
+
+    def _modify_record(self, rec):
+        """Modify a record in the ringbuffer, return whether it was done."""
+        with self._record_lock:
+            if rec.path not in self.records:
+                # don't have record in ringbuffer when we should, add instead
+                if self.verbose:
+                    msg = (
+                        'Missing modified file {0} from ringbuffer, adding'
+                        ' instead.'
+                    ).format(rec.path)
+                    print(msg)
+                self._add_record(rec)
+                return True
+            # nothing to do otherwise
+            return False
 
     def _remove_record(self, path):
         """Remove a record from the ringbuffer."""
         # get and remove record id if path is in the ringbuffer, return if not
-        try:
-            rid = self.record_ids.pop(path)
-        except KeyError:
-            # we probably got here from a FileDeletedEvent after expiring
-            # an old record, but in any case, no harm to just ignore
-            return
-        # remove record from ringbuffer
-        rec = self.records.pop(rid)
-        active_amount = self._remove_from_queue(rec, rid)
+        with self._record_lock:
+            try:
+                rec = self.records.pop(path)
+            except KeyError:
+                # we probably got here from a FileDeletedEvent after expiring
+                # an old record, but in any case, no harm to just ignore
+                return
+            # remove record from ringbuffer
+            self._remove_from_queue(rec)
 
         if self.verbose:
-            print('{0}%: Removed {1} ({2} bytes).'.format(
-                int(float(active_amount)/self.threshold*100),
-                rec.path, rec.size,
-            ))
-        else:
-            sys.stdout.write('-')
-            sys.stdout.flush()
+            print('Removed {0}'.format(rec.path))
 
-    def add_files(self, paths):
+    def add_files(self, paths, sort=True):
         """Create file records from paths and add to ringbuffer."""
         # get records and add from oldest to newest by key (time)
-        record_gen = (self._get_file_record(p) for p in paths)
+        records = (self._get_file_record(p) for p in paths)
         # filter out invalid paths (can't extract a time, doesn't exist)
-        record_list = [r for r in record_gen if r is not None]
-        for rec in sorted(record_list):
+        records = (r for r in records if r is not None)
+        if sort:
+            records = sorted(records)
+        for rec in records:
             self._add_record(rec)
+
+    def modify_files(self, paths, sort=True):
+        """Create file records from paths and update in ringbuffer."""
+        # get records and add from oldest to newest by key (time)
+        records = (self._get_file_record(p) for p in paths)
+        # filter out invalid paths (can't extract a time, doesn't exist)
+        records = (r for r in records if r is not None)
+        if sort:
+            records = sorted(records)
+        for rec in records:
+            self._modify_record(rec)
 
     def remove_files(self, paths):
         """Retrieve file records from paths and remove from ringbuffer."""
@@ -231,85 +268,130 @@ class DigitalRFRingbufferHandler(DigitalRFEventHandler):
         """Remove file from ringbuffer if it was deleted externally."""
         self.remove_files([event.src_path])
 
-    def on_drf_moved(self, event):
+    def on_modified(self, event):
+        """Update modified file in ringbuffer."""
+        self.modify_files([event.src_path])
+
+    def on_moved(self, event):
         """Track moved file in ringbuffer."""
         self.remove_files([event.src_path])
         self.add_files([event.dest_path])
 
-    def on_modified(self, event):
-        """Update modified file in ringbuffer."""
-        pass
+
+class CountExpirer(object):
+    """Ringbuffer handler mixin to track the number of files in each channel.
+
+    When the count threshold of a channel is exceeded, the oldest files in that
+    channel are deleted until the count constraint is met.
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        """Create a ringbuffer handler."""
+        self.count = kwargs.pop('count')
+        super(CountExpirer, self).__init__(*args, **kwargs)
+
+    def status(self):
+        """Return status string about state of the ringbuffer."""
+        status = super(CountExpirer, self).status()
+        try:
+            max_count = max(len(q) for q in self.queues.values())
+        except ValueError:
+            max_count = 0
+        pct_full = int(float(max_count)/self.count*100)
+        return ', '.join((status, '{0}% count'.format(pct_full)))
+
+    def _expire(self, group):
+        """Expire records until file count constraint is met."""
+        with self._record_lock:
+            queue = self.queues[group]
+            while (len(queue) > self.count):
+                self._expire_oldest_from_group(group)
+        super(CountExpirer, self)._expire(group)
 
 
-class DigitalRFSizeRingbufferHandler(DigitalRFRingbufferHandler):
-    """Event handler for implementing a ringbuffer of Digital RF files.
+class SizeExpirer(object):
+    """Ringbuffer handler mixin to track the space used by all channels.
 
-    This handler tracks the amount of space that new or modified files consume
+    This expirer tracks the amount of space that new or modified files consume
     for all channels together. When the space threshold is exceeded, the oldest
     file of any channel is deleted (unless it would empty the channel) until
     the size constraint is met.
 
     """
 
-    def __init__(self, size, **kwargs):
-        """Create ringbuffer handler given a size in bytes."""
+    def __init__(self, *args, **kwargs):
+        """Create a ringbuffer handler."""
+        self.size = kwargs.pop('size')
         self.active_size = 0
-        super(DigitalRFSizeRingbufferHandler, self).__init__(
-            threshold=size, **kwargs
-        )
+        super(SizeExpirer, self).__init__(*args, **kwargs)
 
-    def _add_to_queue(self, rec, rid):
-        """Add record to queue, return queue size to compare with threshold."""
-        super(DigitalRFSizeRingbufferHandler, self)._add_to_queue(
-            rec, rid,
-        )
-        self.active_size += rec.size
-        return self.active_size
+    def status(self):
+        """Return status string about state of the ringbuffer."""
+        status = super(SizeExpirer, self).status()
+        pct_full = int(float(self.active_size)/self.size*100)
+        return ', '.join((status, '{0}% size'.format(pct_full)))
 
-    def _remove_from_queue(self, rec, rid):
-        """Remove record, return queue size to compare with threshold."""
-        super(DigitalRFSizeRingbufferHandler, self)._remove_from_queue(
-            rec, rid,
-        )
-        self.active_size -= rec.size
-        return self.active_size
+    def _add_to_queue(self, rec):
+        """Add record to queue, tracking file size."""
+        with self._record_lock:
+            super(SizeExpirer, self)._add_to_queue(rec)
+            self.active_size += rec.size
+
+    def _remove_from_queue(self, rec):
+        """Remove record from queue, tracking file size."""
+        with self._record_lock:
+            super(SizeExpirer, self)._remove_from_queue(rec)
+            self.active_size -= rec.size
 
     def _expire_oldest(self, group):
-        """Expire oldest record overall, return queue size afterward."""
-        # remove oldest regardless of group unless it would empty group,
-        # but prefer `group` if tie
-        removal_group = group
-        # oldest file is at start of sorted records deque
-        oldest_key, oldest_rid = self.queues[group][0]
-        for grp in self.queues.keys():
-            if grp != group:
-                queue = self.queues[grp]
-                if len(queue) > 1:
-                    key, rid = queue[0]
-                    if key < oldest_key:
-                        oldest_key = key
-                        removal_group = group
-        super(DigitalRFSizeRingbufferHandler, self)._expire_oldest(
-            removal_group,
-        )
+        """Expire oldest record overall, preferring group if tied."""
+        with self._record_lock:
+            # remove oldest regardless of group unless it would empty group,
+            # but prefer `group` if tie
+            removal_group = group
+            # oldest file is at start of sorted records deque
+            try:
+                oldest_key, oldest_path = self.queues[group][0]
+            except IndexError:
+                oldest_key = float('inf')
+            for grp in self.queues.keys():
+                if grp != group:
+                    queue = self.queues[grp]
+                    if len(queue) > 1:
+                        key, path = queue[0]
+                        if key < oldest_key:
+                            oldest_key = key
+                            removal_group = grp
+            self._expire_oldest_from_group(removal_group)
 
-    def on_modified(self, event):
-        """Update modified file in ringbuffer."""
-        rid = self.record_ids[event.src_path]
-        rec = self.records.pop(rid)
-        newrec = self._get_file_record(event.src_path)
-        self.records[rid] = newrec
-        self.active_size -= rec.size
-        self.active_size += newrec.size
-        if self.verbose:
-            print('{0}%: Updated {1} ({2} to {3} bytes).'.format(
-                int(float(self.active_size)/self.threshold*100),
-                rec.path, rec.size, newrec.size,
-            ))
+    def _expire(self, group):
+        """Expire records until overall file size constraint is met."""
+        with self._record_lock:
+            while (self.active_size > self.size):
+                self._expire_oldest(group)
+        super(SizeExpirer, self)._expire(group)
+
+    def _modify_record(self, rec):
+        """Modify a record in the ringbuffer."""
+        with self._record_lock:
+            # have parent handle cases where we actually need to add or delete
+            handled = super(SizeExpirer, self)._modify_record(rec)
+            if not handled:
+                # if we're here, we know that the record exists and needs to
+                # be modified (in this case, update the size)
+                oldrec = self.records[rec.path]
+
+                self.records[rec.path] = rec
+                self.active_size -= oldrec.size
+                self.active_size += rec.size
+
+                if self.verbose:
+                    print('Updated {0}'.format(rec.path))
 
 
-class DigitalRFTimeRingbufferHandler(DigitalRFRingbufferHandler):
-    """Event handler for implementing a ringbuffer of Digital RF files.
+class TimeExpirer(object):
+    """Ringbuffer handler mixin to track the time span of each channel.
 
     This handler tracks the sample timestamp of files in each channel. When the
     duration threshold of a channel is exceeded (newest timestamp minus
@@ -318,34 +400,121 @@ class DigitalRFTimeRingbufferHandler(DigitalRFRingbufferHandler):
 
     """
 
-    def __init__(self, duration, **kwargs):
-        """Create ringbuffer handler given a duration in milliseconds."""
-        super(DigitalRFTimeRingbufferHandler, self).__init__(
-            threshold=duration, **kwargs
-        )
+    def __init__(self, *args, **kwargs):
+        """Create a ringbuffer handler."""
+        # duration is time span in milliseconds
+        self.duration = kwargs.pop('duration')
+        super(TimeExpirer, self).__init__(*args, **kwargs)
 
-    def _add_to_queue(self, rec, rid):
-        """Add record to queue, return queue size to compare with threshold."""
-        super(DigitalRFTimeRingbufferHandler, self)._add_to_queue(
-            rec, rid,
-        )
-        queue = self.queues[rec.group]
-        oldkey, _ = queue[0]
-        newkey, _ = queue[-1]
-        return (newkey - oldkey)
-
-    def _remove_from_queue(self, rec, rid):
-        """Remove record, return queue size to compare with threshold."""
-        super(DigitalRFTimeRingbufferHandler, self)._remove_from_queue(
-            rec, rid,
-        )
-        queue = self.queues[rec.group]
+    @staticmethod
+    def _queue_duration(queue):
+        """Get time span in milliseconds of files in a queue."""
         try:
             oldkey, _ = queue[0]
             newkey, _ = queue[-1]
         except IndexError:
-            return -1
+            return 0
         return (newkey - oldkey)
+
+    def status(self):
+        """Return status string about state of the ringbuffer."""
+        status = super(TimeExpirer, self).status()
+        try:
+            max_duration = max(
+                self._queue_duration(q) for q in self.queues.values()
+            )
+        except ValueError:
+            max_duration = 0
+        pct_full = int(float(max_duration)/self.duration*100)
+        return ', '.join((status, '{0}% duration'.format(pct_full)))
+
+    def _expire(self, group):
+        """Expire records until time span constraint is met."""
+        with self._record_lock:
+            queue = self.queues[group]
+            while (self._queue_duration(queue) > self.duration):
+                self._expire_oldest_from_group(group)
+        super(TimeExpirer, self)._expire(group)
+
+
+def DigitalRFRingbufferHandler(size=None, count=None, duration=None, **kwargs):
+    """Create ringbuffer handler given constraints.
+
+    Parameters
+    ----------
+
+    size : float | int | None
+        Size of the ringbuffer in bytes. Negative values are used to
+        indicate all available space except the given amount. If None, no
+        size constraint is used.
+
+    count : int | None
+        Maximum number of files *for each channel*. If None, no count
+        constraint is used.
+
+    duration : int | float | None
+        Maximum time span *for each channel* in milliseconds. If None, no
+        duration constraint is used.
+
+
+    Other Parameters
+    ----------------
+
+    verbose : bool
+        If True, print debugging info about the files that are created and
+        deleted and how much space they consume.
+
+    dryrun : bool
+        If True, do not actually delete files when expiring them from the
+        ringbuffer. Use for testing only!
+
+    starttime : datetime.datetime
+        Data covering this time or after will be included. This has no
+        effect on property files.
+
+    endtime : datetime.datetime
+        Data covering this time or earlier will be included. This has no
+        effect on property files.
+
+    include_drf : bool
+        If True, include Digital RF files. If False, ignore Digital RF
+        files.
+
+    include_dmd : bool
+        If True, include Digital Metadata files. If False, ignore Digital
+        Metadata files.
+
+    """
+    if size is None and count is None and duration is None:
+        errstr = 'One of `size`, `count`, or `duration` must not be None.'
+        raise ValueError(errstr)
+
+    bases = (DigitalRFRingbufferHandlerBase, )
+    # add mixins in this particular order for expected results
+    if size is not None:
+        bases = (SizeExpirer, ) + bases
+        kwargs['size'] = size
+    if duration is not None:
+        bases = (TimeExpirer, ) + bases
+        kwargs['duration'] = duration
+    if count is not None:
+        bases = (CountExpirer, ) + bases
+        kwargs['count'] = count
+
+    # now create the class with the desired mixins
+    docstring = (
+        """Event handler for implementing a ringbuffer of Digital RF files.
+
+        This class inherits from a base class (DigitalRFRingbufferHandlerBase)
+        and some expirer mixins determined from the class factor arguments.
+        The expirers determine when a file needs to be expired from the
+        ringbuffer based on size, count, or duration constraints.
+
+        """
+    )
+    cls = type('DigitalRFRingbufferHandler', bases, {'__doc__': docstring})
+
+    return cls(**kwargs)
 
 
 class DigitalRFRingbuffer(object):
@@ -360,7 +529,8 @@ class DigitalRFRingbuffer(object):
 
     def __init__(
         self, path, size=-200e6, count=None, duration=None,
-        verbose=False, dryrun=False, include_drf=True, include_dmd=True,
+        verbose=False, status_interval=10, dryrun=False,
+        starttime=None, endtime=None, include_drf=True, include_dmd=True,
     ):
         """Create Digital RF ringbuffer object. Use start/run method to begin.
 
@@ -391,9 +561,21 @@ class DigitalRFRingbuffer(object):
             If True, print debugging info about the files that are created and
             deleted and how much space they consume.
 
+        status_interval : None | int
+            Interval in seconds between printing of status updates. If None,
+            do not print status updates.
+
         dryrun : bool
             If True, do not actually delete files when expiring them from the
             ringbuffer. Use for testing only!
+
+        starttime : datetime.datetime
+            Data covering this time or after will be included. This has no
+            effect on property files.
+
+        endtime : datetime.datetime
+            Data covering this time or earlier will be included. This has no
+            effect on property files.
 
         include_drf : bool
             If True, include Digital RF files. If False, ignore Digital RF
@@ -409,9 +591,14 @@ class DigitalRFRingbuffer(object):
         self.count = count
         self.duration = duration
         self.verbose = verbose
+        self.status_interval = status_interval
         self.dryrun = dryrun
+        self.starttime = starttime
+        self.endtime = endtime
         self.include_drf = include_drf
         self.include_dmd = include_dmd
+        self._start_time = None
+        self._task_threads = []
 
         if self.size is None and self.count is None and self.duration is None:
             errstr = 'One of `size`, `count`, or `duration` must not be None.'
@@ -421,22 +608,8 @@ class DigitalRFRingbuffer(object):
             errstr = 'One of `include_drf` or `include_dmd` must be True.'
             raise ValueError(errstr)
 
-        self.event_handlers = []
-
-        if self.count is not None:
-            handler = DigitalRFRingbufferHandler(
-                threshold=self.count, verbose=self.verbose, dryrun=self.dryrun,
-                include_drf=self.include_drf, include_dmd=self.include_dmd,
-            )
-            self.event_handlers.append(handler)
-
-        if self.duration is not None:
-            handler = DigitalRFTimeRingbufferHandler(
-                duration=self.duration, verbose=self.verbose,
-                dryrun=self.dryrun,
-                include_drf=self.include_drf, include_dmd=self.include_dmd,
-            )
-            self.event_handlers.append(handler)
+        if self.status_interval is None:
+            self.status_interval = float('inf')
 
         if self.size is not None:
             if self.size < 0:
@@ -449,7 +622,9 @@ class DigitalRFRingbuffer(object):
                 bytes_available = statvfs.f_frsize*statvfs.f_bavail
                 if os.path.isdir(self.path):
                     existing = ilsdrf(
-                        self.path, include_drf=self.include_drf,
+                        self.path, starttime=self.starttime,
+                        endtime=self.endtime,
+                        include_drf=self.include_drf,
                         include_dmd=self.include_dmd,
                         include_drf_properties=False,
                         include_dmd_properties=False,
@@ -459,57 +634,128 @@ class DigitalRFRingbuffer(object):
                     )
                 self.size = max(bytes_available + self.size, 0)
 
-            handler = DigitalRFSizeRingbufferHandler(
-                size=self.size, verbose=self.verbose, dryrun=self.dryrun,
-                include_drf=self.include_drf, include_dmd=self.include_dmd,
-            )
-            self.event_handlers.append(handler)
+        self.event_handler = DigitalRFRingbufferHandler(
+            size=self.size, count=self.count, duration=self.duration,
+            verbose=self.verbose, dryrun=self.dryrun,
+            starttime=self.starttime, endtime=self.endtime,
+            include_drf=self.include_drf, include_dmd=self.include_dmd,
+        )
 
         self._init_observer()
 
     def _init_observer(self):
         self.observer = DirWatcher(self.path)
-        for handler in self.event_handlers:
-            self.observer.schedule(handler, self.path, recursive=True)
+        self.observer.schedule(self.event_handler, self.path, recursive=True)
 
-    def start(self):
-        """Start ringbuffer process."""
-        # start observer to add new files
-        self.observer.start()
-
-        # pause dispatching while we add existing files to catch duplicates
+    def _add_existing_files(self):
+        """Add existing files on disk to ringbuffer."""
+        # pause dispatching while we add existing files so files are added
+        # to the ringbuffer in the correct order
         with self.observer.paused_dispatching():
             # add existing files to ringbuffer handler
             existing = ilsdrf(
-                self.path, include_drf=self.include_drf,
-                include_dmd=self.include_dmd, include_drf_properties=False,
-                include_dmd_properties=False,
+                self.path, starttime=self.starttime, endtime=self.endtime,
+                include_drf=self.include_drf, include_dmd=self.include_dmd,
+                include_drf_properties=False, include_dmd_properties=False,
             )
-            for path in existing:
-                event = FileCreatedEvent(path)
-                for emitter in self.observer.emitters:
-                    emitter.queue_event(event)
+            # do not sort because existing will already be sorted and we
+            # don't want to convert to a list
+            self.event_handler.add_files(existing, sort=False)
+
+    def start(self):
+        """Start ringbuffer process."""
+        self._start_time = datetime.datetime.utcnow().replace(microsecond=0)
+
+        print('{0} | Starting observer.'.format(self._start_time))
+        sys.stdout.flush()
+
+        # start observer to add new files
+        self.observer.start()
+
+        # add files that already existed before the observer started
+        # (do it in another thread so we can get to join())
+        thread = threading.Thread(target=self._add_existing_files)
+        thread.daemon = True
+        thread.start()
+        self._task_threads.append(thread)
+
+    def _verify_ringbuffer_files(self, inbuffer):
+        """Verify ringbuffer's `inbuffer` set of files with files on disk."""
+        # get set of all files that should be in the ringbuffer right away
+        # so we duplicate as few files from new events as possible
+        # events that happen while we build this file set can be duplicated
+        # when we verify the ringbuffer state below, but that's ok
+        ondisk = set(ilsdrf(
+            self.path, starttime=self.starttime, endtime=self.endtime,
+            include_drf=self.include_drf, include_dmd=self.include_dmd,
+            include_drf_properties=False, include_dmd_properties=False,
+        ))
+
+        # now any file in inbuffer that is not in ondisk is a missed or
+        # duplicate deletion event, so remove those files
+        deletions = inbuffer - ondisk
+        self.event_handler.remove_files(deletions)
+
+        # any file in ondisk that is not in inbuffer is a missed or duplicate
+        # creation event, so add those files
+        creations = ondisk - deletions
+        self.event_handler.add_files(creations, sort=True)
+
+        # any file in both ondisk and inbuffer could have a missed modify
+        # event, so trigger a modify event for those files
+        possibly_modified = inbuffer & ondisk
+        self.event_handler.modify_files(possibly_modified, sort=True)
+
+    def _restart(self):
+        """Restart observer using existing event handlers."""
+        # get list of files currently in ringbuffer before we modify it
+        # so we can detect missed events from after crash until ondisk
+        # file list is complete
+        inbuffer = set(self.event_handler.records.keys())
+
+        # make a new observer and start it ASAP
+        self._init_observer()
+        self.observer.start()
+
+        # verify existing state of ringbuffer
+        # (do it in another thread so we can get to join())
+        thread = threading.Thread(
+            target=self._verify_ringbuffer_files,
+            kwargs=dict(inbuffer=inbuffer),
+        )
+        thread.daemon = True
+        thread.start()
+        self._task_threads.append(thread)
 
     def join(self):
         """Wait until a KeyboardInterrupt is received to stop ringbuffer."""
         try:
             while True:
+                now = datetime.datetime.utcnow().replace(microsecond=0)
+                interval = int((now - self._start_time).total_seconds())
+                if (interval % self.status_interval) == 0:
+                    status = self.event_handler.status()
+                    print('{0} | ({1})'.format(now, status))
+                    sys.stdout.flush()
+
                 if not self.observer.all_alive():
                     # if not all threads of the observer are alive,
                     # reinitialize and restart
                     print(
                         'Found stopped thread, reinitializing and restarting.'
                     )
-                    # have to completely redo init because handlers have state
-                    self.__init__(
-                        path=self.path, size=self.size, count=self.count,
-                        duration=self.duration, verbose=self.verbose,
-                        dryrun=self.dryrun, include_drf=self.include_drf,
-                        include_dmd=self.include_dmd,
-                    )
-                    self.start()
+                    sys.stdout.flush()
+                    # first make sure all task threads have stopped
+                    for thread in self._task_threads:
+                        while thread.is_alive():
+                            print('Waiting for task thread to finish.')
+                            sys.stdout.flush()
+                            thread.join(1)
+                    del self._task_threads[:]
+                    self._restart()
+
                 time.sleep(1)
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, SystemExit):
             self.stop()
             sys.stdout.write('\n')
             sys.stdout.flush()
@@ -571,9 +817,16 @@ def _build_ringbuffer_parser(Parser, *args):
         help='Print the name new/deleted files and the space consumed.',
     )
     parser.add_argument(
+        '-p', '--status_interval', type=int, default=10,
+        help='''Interval in seconds between printing of status updates.
+                (default: %(default)s)''',
+    )
+    parser.add_argument(
         '-n', '--dryrun', action='store_true',
         help='Do not delete files when expiring them from the ringbuffer.',
     )
+
+    parser = list_drf._add_time_group(parser)
 
     includegroup = parser.add_argument_group(title='include')
     includegroup.add_argument(
@@ -630,6 +883,13 @@ def _run_ringbuffer(args):
     if args.duration is not None:
         args.duration = float(eval(args.duration))*1e3
 
+    if args.starttime is not None:
+        args.starttime = util.parse_identifier_to_time(args.starttime)
+    if args.endtime is not None:
+        args.endtime = util.parse_identifier_to_time(
+            args.endtime, ref_datetime=args.starttime,
+        )
+
     kwargs = vars(args).copy()
     del kwargs['func']
     ringbuffer = DigitalRFRingbuffer(**kwargs)
@@ -637,6 +897,7 @@ def _run_ringbuffer(args):
         print('DRY RUN (files will not be deleted):')
     print(ringbuffer)
     print('Type Ctrl-C to quit.')
+    sys.stdout.flush()
     ringbuffer.run()
 
 

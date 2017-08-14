@@ -8,7 +8,7 @@
 # ----------------------------------------------------------------------------
 from argparse import ArgumentParser
 
-from .list_drf import _build_ls_parser
+from .list_drf import _build_cp_parser, _build_ls_parser, _build_mv_parser
 try:
     from .mirror import _build_mirror_parser
     from .ringbuffer import _build_ringbuffer_parser
@@ -21,17 +21,24 @@ else:
 
 
 def main(args=None):
+    epi = 'Type "drf <command> -h" to display help for a particular command.'
+    if not _WATCHDOG:
+        s = (
+            '(Install watchdog package to enable mirror, ringbuffer, and watch'
+            ' commands.)'
+        )
+        epi = epi + ' ' + s
     parser = ArgumentParser(
         description='Digital RF command line tools.',
-        epilog=(
-            'Type "drf <command> -h" to display help for a particular command.'
-        )
+        epilog=epi,
     )
     subparsers = parser.add_subparsers(
         title='Available commands',
     )
 
+    _build_cp_parser(subparsers.add_parser, 'cp')
     _build_ls_parser(subparsers.add_parser, 'ls')
+    _build_mv_parser(subparsers.add_parser, 'mv')
     if _WATCHDOG:
         _build_mirror_parser(subparsers.add_parser, 'mirror')
         _build_ringbuffer_parser(subparsers.add_parser, 'ringbuffer')
