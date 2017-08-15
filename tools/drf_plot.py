@@ -963,16 +963,16 @@ if __name__ == "__main__":
             sp = string.split(val, ':')
 
             if len(sp) > 0:
-                start_sample = long(sp[0])
+                start_sample = int(sp[0])
 
             if len(sp) > 1:
-                stop_sample = long(sp[1])
+                stop_sample = int(sp[1])
 
             if len(sp) > 2:
-                modulus = long(sp[2])
+                modulus = int(sp[2])
 
             if len(sp) > 3:
-                integration = long(sp[3])
+                integration = int(sp[3])
 
             if len(sp) > 4:
                 print("Unknown range format.")
@@ -1025,9 +1025,9 @@ if __name__ == "__main__":
             if atime == 0:
                 atime = ustart
             else:
-                atime = long(numpy.uint64(atime * sfreq_ld))
+                atime = int(numpy.uint64(atime * sfreq_ld))
 
-            sstart = atime + long(toffset)
+            sstart = atime + int(toffset)
             dlen = stop_sample - start_sample + 1
 
             print sstart, dlen

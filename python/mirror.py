@@ -272,11 +272,14 @@ class DigitalRFMirror(object):
                 )
                 paths = chain(paths, more_paths)
 
-            # add events for existing files to queue
+            # add events for existing files, skipping observer and event queue
+            # and dispatching directly so we can dispatch from this thread
+            # and ignore file time (which ilsdrf has already checked, correctly
+            # matching most recent DMD file at or before starttime)
             for p in paths:
                 event = FileCreatedEvent(p)
-                for emitter in self.observer.emitters:
-                    emitter.queue_event(event)
+                for handler in self.event_handlers:
+                    handler.dispatch(event, match_time=False)
 
     def join(self):
         """Wait until a KeyboardInterrupt is received to stop mirroring."""

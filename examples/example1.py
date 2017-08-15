@@ -55,11 +55,11 @@ print(data_ri.shape)
 
 # constants
 save_dir_data = '/tmp/test/chb'
-sample_rate_numerator = long(1.0E6)
+sample_rate_numerator = int(1.0E6)
 sample_rate_denominator = 1
 sample_rate = numpy.longdouble(sample_rate_numerator) / sample_rate_denominator
 start_time = datetime.datetime(2017, 1, 1)
-t = long(numpy.uint64(time.mktime(start_time.timetuple()) * sample_rate))
+t = int(numpy.uint64(time.mktime(start_time.timetuple()) * sample_rate))
 
 
 drf_out2 = digital_rf.DigitalRFWriter(save_dir_data, 'f', 3600, 1000, t, sample_rate_numerator, sample_rate_denominator,

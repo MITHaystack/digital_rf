@@ -180,8 +180,8 @@ class read_hdf5:
         """get_bounds returns a tuple of (first_unix_sample, last_unix_sample) for a given channel name
         """
         channel_metadata = self._channel_dict[channel_name]
-        return((long(channel_metadata.unix_start_sample),
-                long(channel_metadata.unix_start_sample + channel_metadata.sample_extent)))
+        return((int(channel_metadata.unix_start_sample),
+                int(channel_metadata.unix_start_sample + channel_metadata.sample_extent)))
 
 
 
@@ -235,7 +235,7 @@ class read_hdf5:
             rightFile = None
             for metadata_file in metadata_file_list:
                 basename = os.path.basename(metadata_file)
-                this_timestamp = long(basename[len('metadata@'):basename.find('.')])
+                this_timestamp = int(basename[len('metadata@'):basename.find('.')])
                 if this_timestamp <= timestamp:
                     rightFile = metadata_file
                 else:
@@ -329,8 +329,8 @@ class read_hdf5:
             raise IOError, 'Number of samples requested must be greater than 0, not %i' % (vector_length)
 
         # make sure everything is a long
-        unix_sample = long(unix_sample)
-        vector_length = long(vector_length)
+        unix_sample = int(unix_sample)
+        vector_length = int(vector_length)
 
         channel_metadata = self._channel_dict[channel_name]
 
@@ -543,8 +543,8 @@ class _channel_metadata:
 
         """
         self.channel_name = channel_name
-        self.unix_start_sample = long(unix_start_sample)
-        self.sample_extent = long(sample_extent)
+        self.unix_start_sample = int(unix_start_sample)
+        self.sample_extent = int(sample_extent)
         self.top_level_dir_meta_list = top_level_dir_meta_list
         self.top_level_dir_meta_list.sort()
         self.metadata_dict = {} # stores all metadata for this _channel_metadata
@@ -603,13 +603,13 @@ class _channel_metadata:
         """
         if len(self.top_level_dir_meta_list) == 0:
             # set to unknown
-            self.unix_start_sample = long(0)
-            self.sample_extent = long(0)
+            self.unix_start_sample = int(0)
+            self.sample_extent = int(0)
             return
 
         self._verify_non_overlapping_data()
-        self.unix_start_sample = long(self.top_level_dir_meta_list[0].unix_start_sample)
-        self.sample_extent = long(self.top_level_dir_meta_list[-1].unix_start_sample + self.top_level_dir_meta_list[-1].sample_extent - self.unix_start_sample)
+        self.unix_start_sample = int(self.top_level_dir_meta_list[0].unix_start_sample)
+        self.sample_extent = int(self.top_level_dir_meta_list[-1].unix_start_sample + self.top_level_dir_meta_list[-1].sample_extent - self.unix_start_sample)
 
 
     def _verify_non_overlapping_data(self):
@@ -670,9 +670,9 @@ class _top_level_dir_metadata:
         self.top_level_dir = top_level_dir
         self.channel_name = channel_name
         self.access_mode = access_mode
-        self.unix_start_sample = long(unix_start_sample)
-        self.sample_extent = long(sample_extent)
-        self.samples_per_file = long(samples_per_file)
+        self.unix_start_sample = int(unix_start_sample)
+        self.sample_extent = int(sample_extent)
+        self.samples_per_file = int(samples_per_file)
         self.sub_directory_recarray = sub_directory_recarray
         self.sub_directory_dict = sub_directory_dict
         self.metadata_dict = {} # to be populated by rf file metadata
@@ -731,12 +731,12 @@ class _top_level_dir_metadata:
             first_index -= 1
         ret_array = numpy.array([], dtype=numpy.uint64)
         for i in range(first_index, len(self.sub_directory_recarray)):
-            this_start_sample = long(self.sub_directory_recarray['unix_start_sample'][i])
+            this_start_sample = int(self.sub_directory_recarray['unix_start_sample'][i])
             if this_start_sample > stop_unix_sample:
                 break
             if stop_unix_sample < this_start_sample:
                 continue
-            this_extent = long(self.sub_directory_recarray['sample_extent'][i])
+            this_extent = int(self.sub_directory_recarray['sample_extent'][i])
             if this_extent == 0:
                 raise _MissingMetadata, 'this_extent == 0'
 
@@ -778,12 +778,12 @@ class _top_level_dir_metadata:
             ret_array = None
             first_unix_sample = None
             for i in range(first_index, len(self.sub_directory_recarray)):
-                this_start_sample = long(self.sub_directory_recarray['unix_start_sample'][i])
+                this_start_sample = int(self.sub_directory_recarray['unix_start_sample'][i])
                 if this_start_sample >= stop_unix_sample:
                     break
                 if stop_unix_sample < this_start_sample:
                     continue
-                this_extent = long(self.sub_directory_recarray['sample_extent'][i])
+                this_extent = int(self.sub_directory_recarray['sample_extent'][i])
                 if this_extent == 0:
                     raise IOError, 'Metadata not found in recarray'
                 if this_start_sample + this_extent <= start_unix_sample:
@@ -886,9 +886,9 @@ class _top_level_dir_metadata:
         if len(base_subdirectory_list) > 1:
             self.sub_directory_dict[base_subdirectory_list[-1]].update()
 
-        self.unix_start_sample = long(self.sub_directory_dict[base_subdirectory_list[0]].get_first_sample())
-        last_sample = long(self.sub_directory_dict[base_subdirectory_list[-1]].get_last_sample())
-        self.sample_extent = long(last_sample - self.unix_start_sample)
+        self.unix_start_sample = int(self.sub_directory_dict[base_subdirectory_list[0]].get_first_sample())
+        last_sample = int(self.sub_directory_dict[base_subdirectory_list[-1]].get_last_sample())
+        self.sample_extent = int(last_sample - self.unix_start_sample)
 
 
 
@@ -940,8 +940,8 @@ class _top_level_dir_metadata:
 
                 # handle samples_per_file
                 if self.samples_per_file == 0:
-                    self.samples_per_file = long(samples_per_file)
-                elif self.samples_per_file != long(samples_per_file):
+                    self.samples_per_file = int(samples_per_file)
+                elif self.samples_per_file != int(samples_per_file):
                     raise IOError, 'Samples per file changed from %i to %i with subdirectory %s' % \
                         (self.samples_per_file, samples_per_file, base_subdirectory)
                 continue
@@ -951,10 +951,10 @@ class _top_level_dir_metadata:
         if update_needed:
             self._verify_non_overlapping_data()
             # update summary metadata
-            self.unix_start_sample = long(self.sub_directory_recarray['unix_start_sample'][0])
-            last_sample = long(self.sub_directory_recarray['unix_start_sample'][-1]) + \
-                long(self.sub_directory_recarray['sample_extent'][-1])
-            self.sample_extent = long(last_sample - self.unix_start_sample)
+            self.unix_start_sample = int(self.sub_directory_recarray['unix_start_sample'][0])
+            last_sample = int(self.sub_directory_recarray['unix_start_sample'][-1]) + \
+                int(self.sub_directory_recarray['sample_extent'][-1])
+            self.sample_extent = int(last_sample - self.unix_start_sample)
 
 
 
@@ -1071,8 +1071,8 @@ class _top_level_dir_metadata:
                 (excludes stop_unix_sample) will be returned, so only return files that might contain that range
         """
         seconds_per_file =  1 + int(self.metadata_dict['samples_per_file'][0] / self.metadata_dict['sample_rate'][0])
-        start_integer_sec = long(start_unix_sample/self.metadata_dict['sample_rate'][0])
-        stop_integer_sec = long(stop_unix_sample/self.metadata_dict['sample_rate'][0])
+        start_integer_sec = int(start_unix_sample/self.metadata_dict['sample_rate'][0])
+        stop_integer_sec = int(stop_unix_sample/self.metadata_dict['sample_rate'][0])
         seconds_list = range(start_integer_sec - seconds_per_file, stop_integer_sec + 1)
 
         # now glob for these files in all directories until no more found
@@ -1082,12 +1082,12 @@ class _top_level_dir_metadata:
         first_index = first_index[0]
         if first_index == len(self.sub_directory_recarray['unix_start_sample']):
             first_index -= 1
-        first_index_sec = long(self.sub_directory_recarray['unix_start_sample'][first_index]/self.metadata_dict['sample_rate'][0])
+        first_index_sec = int(self.sub_directory_recarray['unix_start_sample'][first_index]/self.metadata_dict['sample_rate'][0])
         if first_index > 0 and start_integer_sec - seconds_per_file < first_index_sec:
             first_index -= 1
         for i in range(first_index, len(self.sub_directory_recarray)):
             files_this_subdir = 0 # one method to determine when to break
-            this_dir_start_sec = long(self.sub_directory_recarray['unix_start_sample'][i]/self.metadata_dict['sample_rate'][0])
+            this_dir_start_sec = int(self.sub_directory_recarray['unix_start_sample'][i]/self.metadata_dict['sample_rate'][0])
             if this_dir_start_sec > stop_integer_sec + seconds_per_file:
                 # another break test
                 break
@@ -1117,7 +1117,7 @@ class _top_level_dir_metadata:
             self._last_file = None
             self._last_start_sample = None
 
-        samples_per_file = long(self.metadata_dict['samples_per_file'][0])
+        samples_per_file = int(self.metadata_dict['samples_per_file'][0])
         f = h5py.File(file_to_search, 'r')
         rf_data_index = f['/rf_data_index']
 
@@ -1126,18 +1126,18 @@ class _top_level_dir_metadata:
             file_start_index = None
             # walk through rf_data_index until right index found (if any)
             for i in range(len(rf_data_index)):
-                this_file_index = long(rf_data_index[i,1])
-                this_sample_index = long(rf_data_index[i,0])
+                this_file_index = int(rf_data_index[i,1])
+                this_sample_index = int(rf_data_index[i,0])
                 if i < len(rf_data_index)-1:
-                    samples_left = long(rf_data_index[i+1,1]) - this_file_index
+                    samples_left = int(rf_data_index[i+1,1]) - this_file_index
                 else:
-                    samples_left = long(samples_per_file - this_file_index)
+                    samples_left = int(samples_per_file - this_file_index)
                 if this_sample_index + samples_left > start_unix_sample:
                     # the starting read point for the first file was found
-                    file_start_index = long(this_file_index + (start_unix_sample-this_sample_index))
+                    file_start_index = int(this_file_index + (start_unix_sample-this_sample_index))
                     # make sure there are no gaps in this file to be read
                     if i < len(rf_data_index)-1:
-                        samples_left_to_read = min(long(rf_data_index[i+1,1]) - file_start_index,
+                        samples_left_to_read = min(int(rf_data_index[i+1,1]) - file_start_index,
                                                    stop_unix_sample - start_unix_sample)
                         if samples_left_to_read < stop_unix_sample - start_unix_sample:
                             f.close()
@@ -1324,8 +1324,8 @@ class _sub_directory_metadata:
         if len(self.metadata) == 0:
             raise IOError, 'Must call update before calling get_summary_metadata, or subdirectory %s empty' % (self.subdirectory)
 
-        first_unix_sample = long(self.metadata['unix_sample_index'][0])
-        last_unix_sample = long(self.metadata['unix_sample_index'][-1]) + ((self.samples_per_file - long(self.metadata['file_index'][-1])) - 1)
+        first_unix_sample = int(self.metadata['unix_sample_index'][0])
+        last_unix_sample = int(self.metadata['unix_sample_index'][-1]) + ((self.samples_per_file - int(self.metadata['file_index'][-1])) - 1)
         return((first_unix_sample, 1+(last_unix_sample-first_unix_sample), self.file_count, self.samples_per_file,
                 self.last_timestamp))
 
@@ -1511,7 +1511,7 @@ class _sub_directory_metadata:
         # to improve speed, do searchsorted to get first index to look into
         first_index = numpy.searchsorted(self.metadata['unix_sample_index'],
                                          numpy.array([start_unix_sample]))
-        first_index = long(first_index[0])
+        first_index = int(first_index[0])
         if first_index == len(self.metadata):
             first_index -= 1
         elif self.metadata['unix_sample_index'][first_index] > start_unix_sample:
@@ -1531,19 +1531,19 @@ class _sub_directory_metadata:
             # get max possible length of this read as block_len
             if i == len(self.metadata) - 1:
                 # last index
-                block_len = self.samples_per_file - long(self.metadata['file_index'][i])
+                block_len = self.samples_per_file - int(self.metadata['file_index'][i])
             elif self.metadata['rf_basename'][i+1] == this_hdf5_file:
-                block_len = long(self.metadata['file_index'][i+1]) - long(self.metadata['file_index'][i])
+                block_len = int(self.metadata['file_index'][i+1]) - int(self.metadata['file_index'][i])
             else:
-                block_len = self.samples_per_file - long(self.metadata['file_index'][i])
+                block_len = self.samples_per_file - int(self.metadata['file_index'][i])
 
             # next get file start index
             if i == first_index:
-                offset = long(start_unix_sample) - long(self.metadata['unix_sample_index'][first_index])
+                offset = int(start_unix_sample) - int(self.metadata['unix_sample_index'][first_index])
                 block_len -= offset # we will not get the full read predicted above
-                start_file_index = long(self.metadata['file_index'][i]) + offset
+                start_file_index = int(self.metadata['file_index'][i]) + offset
             else:
-                start_file_index = long(self.metadata['file_index'][i])
+                start_file_index = int(self.metadata['file_index'][i])
 
             # next get read len
             if samples_read + block_len > samples_to_read:
@@ -1563,7 +1563,7 @@ class _sub_directory_metadata:
             if samples_read == samples_to_read:
                 # check whether we can cache it
                 if i == first_index and len(f['/rf_data_index']) == 1:
-                    self._last_start_sample = long(self.metadata['unix_sample_index'][i])
+                    self._last_start_sample = int(self.metadata['unix_sample_index'][i])
                     if not self._last_file is None:
                         try:
                             self._last_file.close()
@@ -1721,7 +1721,7 @@ class _sub_directory_metadata:
             first_index -= 1
         elif self.cont_metadata['unix_sample_index'][first_index] > start_unix_sample:
             first_index -= 1
-        offset = start_unix_sample - long(self.cont_metadata['unix_sample_index'][first_index])
+        offset = start_unix_sample - int(self.cont_metadata['unix_sample_index'][first_index])
         if self.cont_metadata['sample_extent'][first_index] - offset < stop_unix_sample - start_unix_sample:
             raise IOError, 'gap found between samples %i and %i' % (start_unix_sample, stop_unix_sample)
 

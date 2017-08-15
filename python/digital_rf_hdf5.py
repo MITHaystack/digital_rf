@@ -15,6 +15,7 @@ Reading/writing functionality is available from two classes: DigitalRFReader
 and DigitalRFWriter.
 
 """
+from __future__ import print_function
 
 import collections
 import datetime
@@ -24,12 +25,12 @@ import glob
 import os
 import re
 import sys
-import types
 import uuid
 import warnings
 
 import h5py
 import numpy
+import six
 
 # local imports
 from . import _py_rf_write_hdf5, digital_metadata, list_drf
@@ -66,15 +67,15 @@ def recreate_properties_file(channel_dir):
     The following properties are read from a data file and stored as attributes
     in a new drf_properties.h5 file:
 
-        H5Tget_class : long
+        H5Tget_class : int
             Result of H5Tget_class(hdf5_data_object->hdf5_data_object)
-        H5Tget_offset : long
+        H5Tget_offset : int
             Result of H5Tget_offset(hdf5_data_object->hdf5_data_object)
-        H5Tget_order : long
+        H5Tget_order : int
             Result of H5Tget_order(hdf5_data_object->hdf5_data_object)
-        H5Tget_precision : long
+        H5Tget_precision : int
             Result of H5Tget_precision(hdf5_data_object->hdf5_data_object)
-        H5Tget_size : long
+        H5Tget_size : int
             Result of H5Tget_size(hdf5_data_object->hdf5_data_object)
         digital_rf_time_description : string
             Text description of Digital RF time conventions.
@@ -82,13 +83,13 @@ def recreate_properties_file(channel_dir):
             Version string of Digital RF writer.
         epoch : string
             Start time at sample 0 (always 1970-01-01 UT midnight)
-        file_cadence_millisecs : long
+        file_cadence_millisecs : int
         is_complex : int
         is_continuous : int
         num_subchannels : int
-        sample_rate_numerator : long
-        sample_rate_denominator : long
-        subdir_cadence_secs : long
+        sample_rate_numerator : int
+        sample_rate_denominator : int
+        subdir_cadence_secs : int
 
     """
     properties_file = os.path.join(channel_dir, 'drf_properties.h5')
@@ -144,13 +145,13 @@ def get_unix_time(
     Parameters
     ----------
 
-    unix_sample_index : int | long
+    unix_sample_index : int
         Number of samples at given sample rate since UT midnight 1970-01-01
 
-    sample_rate_numerator : long
+    sample_rate_numerator : int
         Numerator of sample rate in Hz.
 
-    sample_rate_denominator : long
+    sample_rate_denominator : int
         Denominator of sample rate in Hz.
 
 
@@ -161,7 +162,7 @@ def get_unix_time(
         Time corresponding to the sample, with microsecond precision. This will
         give a Unix second of ``(unix_sample_index // sample_rate)``.
 
-    picosecond : long
+    picosecond : int
         Number of picoseconds since the last second in the returned datetime
         for the time corresponding to the sample.
 
@@ -172,7 +173,7 @@ def get_unix_time(
         )
     dt = datetime.datetime(
         year, month, day, hour, minute, second,
-        microsecond=long(picosecond / 1e6),
+        microsecond=int(picosecond / 1e6),
     )
     return (dt, picosecond)
 
@@ -215,7 +216,7 @@ class DigitalRFWriter:
 
                 (subdir_cadence_secs*1000 % file_cadence_millisecs) == 0
 
-        start_global_index : long
+        start_global_index : int
             The index of the first sample given in number of samples since the
             epoch. For a given ``start_time`` in seconds since the epoch, this
             can be calculated as::
@@ -223,10 +224,10 @@ class DigitalRFWriter:
                 floor(start_time * (numpy.longdouble(sample_rate_numerator) /
                                     numpy.longdouble(sample_rate_denominator)))
 
-        sample_rate_numerator : long | int
+        sample_rate_numerator : int
             Numerator of sample rate in Hz.
 
-        sample_rate_denominator : long | int
+        sample_rate_denominator : int
             Denominator of sample rate in Hz.
 
 
@@ -312,15 +313,21 @@ class DigitalRFWriter:
             else:
                 self.byteorder = '<'
 
-        if subdir_cadence_secs < 1:
-            errstr = 'subdir_cadence_secs must be positive, not %s'
+        if (subdir_cadence_secs != int(subdir_cadence_secs)
+                or subdir_cadence_secs < 1):
+            errstr = (
+                'subdir_cadence_secs must be positive integer, not %s'
+            )
             raise ValueError(errstr % str(subdir_cadence_secs))
-        self.subdir_cadence_secs = long(subdir_cadence_secs)
+        self.subdir_cadence_secs = int(subdir_cadence_secs)
 
-        if file_cadence_millisecs < 1:
-            errstr = 'file_cadence_millisecs must be positive, not %s'
+        if (file_cadence_millisecs != int(file_cadence_millisecs)
+                or file_cadence_millisecs < 1):
+            errstr = (
+                'file_cadence_millisecs must be positive integer, not %s'
+            )
             raise ValueError(errstr % str(file_cadence_millisecs))
-        self.file_cadence_millisecs = long(file_cadence_millisecs)
+        self.file_cadence_millisecs = int(file_cadence_millisecs)
 
         if self.subdir_cadence_secs * 1000 % self.file_cadence_millisecs != 0:
             raise ValueError(
@@ -331,31 +338,29 @@ class DigitalRFWriter:
         if start_global_index < 0:
             errstr = 'start_global_index cannot be negative (%s)'
             raise ValueError(errstr % str(start_global_index))
-        self.start_global_index = long(start_global_index)
+        self.start_global_index = int(start_global_index)
 
-        intTypes = (types.IntType, types.LongType, numpy.integer)
-        if not isinstance(sample_rate_numerator, intTypes):
-            errstr = 'sample_rate_numerator illegal type %s'
-            raise ValueError(errstr % str(type(sample_rate_numerator)))
-        if not isinstance(sample_rate_denominator, intTypes):
-            errstr = 'sample_rate_denominator illegal type %s'
-            raise ValueError(errstr % str(type(sample_rate_denominator)))
-
-        if sample_rate_numerator <= 0:
-            errstr = 'sample_rate_numerator must be positive, not %s'
+        if (sample_rate_numerator != int(sample_rate_numerator)
+                or sample_rate_numerator < 1):
+            errstr = (
+                'sample_rate_numerator must be positive integer, not %s'
+            )
             raise ValueError(errstr % str(sample_rate_numerator))
-        self.sample_rate_numerator = long(sample_rate_numerator)
+        self.sample_rate_numerator = int(sample_rate_numerator)
 
-        if sample_rate_denominator <= 0:
-            errstr = 'sample_rate_denominator must be positive, not %s'
+        if (sample_rate_denominator != int(sample_rate_denominator)
+                or sample_rate_denominator < 1):
+            errstr = (
+                'sample_rate_denominator must be positive integer, not %s'
+            )
             raise ValueError(errstr % str(sample_rate_denominator))
-        self.sample_rate_denominator = long(sample_rate_denominator)
+        self.sample_rate_denominator = int(sample_rate_denominator)
 
         if uuid_str is None:
             # generate random UUID
             uuid_str = uuid.uuid4().hex
-        elif not isinstance(uuid_str, types.StringTypes):
-            errstr = 'uuid_str must be StringType, not %s'
+        elif not isinstance(uuid_str, six.string_types):
+            errstr = 'uuid_str must be a string, not %s type'
             raise ValueError(errstr % str(type(uuid_str)))
         self.uuid = str(uuid_str)
 
@@ -393,9 +398,9 @@ class DigitalRFWriter:
             raise ValueError('Failed to create DigitalRFWriter')
 
         # set the next available sample to write at
-        self._next_avail_sample = long(0)
-        self._total_samples_written = long(0)
-        self._total_gap_samples = long(0)
+        self._next_avail_sample = int(0)
+        self._total_samples_written = int(0)
+        self._total_gap_samples = int(0)
 
     def rf_write(self, arr, next_sample=None):
         """Write the next in-sequence samples from a given array.
@@ -426,7 +431,7 @@ class DigitalRFWriter:
         Returns
         -------
 
-        next_avail_sample : long
+        next_avail_sample : int
             Index of the next available sample after the array has been
             written.
 
@@ -466,7 +471,7 @@ class DigitalRFWriter:
         if next_sample is None:
             next_sample = self._next_avail_sample
         else:
-            next_sample = long(next_sample)
+            next_sample = int(next_sample)
         if next_sample < self._next_avail_sample:
             errstr = (
                 'Trying to write at sample %i, but next available sample is %i'
@@ -512,7 +517,7 @@ class DigitalRFWriter:
         Returns
         -------
 
-        next_avail_sample : long
+        next_avail_sample : int
             Index of the next available sample after the array has been
             written.
 
@@ -752,7 +757,7 @@ class DigitalRFReader:
         #   and value is a _channel_properties object.
 
         # first, make top_level_directory_arg a list if a string
-        if isinstance(top_level_directory_arg, types.StringType):
+        if isinstance(top_level_directory_arg, six.string_types):
             top_level_arg = [top_level_directory_arg]
         else:
             top_level_arg = top_level_directory_arg
@@ -834,11 +839,11 @@ class DigitalRFReader:
         Parameters
         ----------
 
-        start_sample : long
+        start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
-        end_sample : long
+        end_sample : int
             Sample index for end of read (inclusive), given in the number of
             samples since the epoch (time_since_epoch*sample_rate).
 
@@ -920,11 +925,11 @@ class DigitalRFReader:
         Returns
         -------
 
-        first_sample_index : long | None
+        first_sample_index : int | None
             Index of the first sample, given in the number of samples since the
             epoch (time_since_epoch*sample_rate).
 
-        last_sample_index : long | None
+        last_sample_index : int | None
             Index of the last sample, given in the number of samples since the
             epoch (time_since_epoch*sample_rate).
 
@@ -957,7 +962,7 @@ class DigitalRFReader:
         channel_name : string
             Name of channel, one of ``get_channels()``.
 
-        sample : None | long
+        sample : None | int
             If None, return the properties of the top-level drf_properties.h5
             file in the channel directory which applies to all samples. If a
             sample index is given, then return the properties particular to the
@@ -979,15 +984,15 @@ class DigitalRFReader:
 
         The top-level properties, always returned, are:
 
-            H5Tget_class : long
+            H5Tget_class : int
                 Result of H5Tget_class(hdf5_data_object->hdf5_data_object)
-            H5Tget_offset : long
+            H5Tget_offset : int
                 Result of H5Tget_offset(hdf5_data_object->hdf5_data_object)
-            H5Tget_order : long
+            H5Tget_order : int
                 Result of H5Tget_order(hdf5_data_object->hdf5_data_object)
-            H5Tget_precision : long
+            H5Tget_precision : int
                 Result of H5Tget_precision(hdf5_data_object->hdf5_data_object)
-            H5Tget_size : long
+            H5Tget_size : int
                 Result of H5Tget_size(hdf5_data_object->hdf5_data_object)
             digital_rf_time_description : string
                 Text description of Digital RF time conventions.
@@ -995,20 +1000,20 @@ class DigitalRFReader:
                 Version string of Digital RF writer.
             epoch : string
                 Start time at sample 0 (always 1970-01-01 UT midnight)
-            file_cadence_millisecs : long
+            file_cadence_millisecs : int
             is_complex : int
             is_continuous : int
             num_subchannels : int
-            sample_rate_numerator : long
-            sample_rate_denominator : long
+            sample_rate_numerator : int
+            sample_rate_denominator : int
             samples_per_second : numpy.longdouble
-            subdir_cadence_secs : long
+            subdir_cadence_secs : int
 
         The additional properties particular to each file are:
 
-            computer_time : long
+            computer_time : int
                 Unix time of initial file creation.
-            init_utc_timestamp : long
+            init_utc_timestamp : int
                 Changes at each restart of the recorder - needed if leap
                 seconds correction applied.
             sequence_num : int
@@ -1115,11 +1120,11 @@ class DigitalRFReader:
         Parameters
         ----------
 
-        start_sample : long
+        start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
-        end_sample : None | long
+        end_sample : None | int
             Sample index for end of read (inclusive), given in the number of
             samples since the epoch (time_since_epoch*sample_rate). If None,
             use `end_sample` equal to `start_sample`.
@@ -1156,8 +1161,8 @@ class DigitalRFReader:
         For convenience, some pertinent metadata inherent to the Digital RF
         channel is added to the Digital Metadata, including:
 
-            sample_rate_numerator : long
-            sample_rate_denominator : long
+            sample_rate_numerator : int
+            sample_rate_denominator : int
             samples_per_second : numpy.longdouble
 
         """
@@ -1195,11 +1200,11 @@ class DigitalRFReader:
         Parameters
         ----------
 
-        start_sample : long
+        start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
-        end_sample : long
+        end_sample : int
             Sample index for end of read (inclusive), given in the number of
             samples since the epoch (time_since_epoch*sample_rate).
 
@@ -1306,7 +1311,7 @@ class DigitalRFReader:
         Parameters
         ----------
 
-        start_sample : long
+        start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
@@ -1368,7 +1373,7 @@ class DigitalRFReader:
         Parameters
         ----------
 
-        start_sample : long
+        start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
@@ -1404,8 +1409,8 @@ class DigitalRFReader:
             estr = 'Number of samples requested must be greater than 0, not %i'
             raise IOError(estr % vector_length)
 
-        start_sample = long(start_sample)
-        end_sample = start_sample + (long(vector_length) - 1)
+        start_sample = int(start_sample)
+        end_sample = start_sample + (int(vector_length) - 1)
         data_dict = self.read(
             start_sample, end_sample, channel_name, sub_channel,
         )
@@ -1444,7 +1449,7 @@ class DigitalRFReader:
         Parameters
         ----------
 
-        start_sample : long
+        start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
@@ -1493,11 +1498,11 @@ class DigitalRFReader:
         Parameters
         ----------
 
-        sample0 : long
+        sample0 : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
-        sample1 : long
+        sample1 : int
             Sample index for end of read (inclusive), given in the number of
             samples since the epoch (time_since_epoch*sample_rate).
 
@@ -1524,19 +1529,19 @@ class DigitalRFReader:
         if (sample1 - sample0) > 1e12:
             warnstr = 'Requested read size, %i samples, is very large'
             warnings.warn(warnstr % (sample1 - sample0), RuntimeWarning)
-        sample0 = long(sample0)
-        sample1 = long(sample1)
+        sample0 = int(sample0)
+        sample1 = int(sample1)
         # need to go through numpy uint64 to prevent conversion to float
-        start_ts = long(numpy.uint64(sample0 / samples_per_second))
-        end_ts = long(numpy.uint64(sample1 / samples_per_second)) + 1
-        start_msts = long(numpy.uint64(sample0 / samples_per_second * 1000))
-        end_msts = long(numpy.uint64(sample1 / samples_per_second * 1000))
+        start_ts = int(numpy.uint64(sample0 / samples_per_second))
+        end_ts = int(numpy.uint64(sample1 / samples_per_second)) + 1
+        start_msts = int(numpy.uint64(sample0 / samples_per_second * 1000))
+        end_msts = int(numpy.uint64(sample1 / samples_per_second * 1000))
 
         # get subdirectory start and end ts
-        start_sub_ts = long(
+        start_sub_ts = int(
             (start_ts // subdir_cadence_seconds) * subdir_cadence_seconds
         )
-        end_sub_ts = long(
+        end_sub_ts = int(
             (end_ts // subdir_cadence_seconds) * subdir_cadence_seconds
         )
 
@@ -1544,7 +1549,7 @@ class DigitalRFReader:
 
         for sub_ts in range(
             start_sub_ts,
-            long(end_sub_ts + subdir_cadence_seconds),
+            int(end_sub_ts + subdir_cadence_seconds),
             subdir_cadence_seconds,
         ):
             sub_datetime = datetime.datetime.utcfromtimestamp(sub_ts)
@@ -1552,7 +1557,7 @@ class DigitalRFReader:
             # create numpy array of all file TS in subdir
             file_msts_in_subdir = numpy.arange(
                 sub_ts * 1000,
-                long(sub_ts + subdir_cadence_seconds) * 1000,
+                int(sub_ts + subdir_cadence_seconds) * 1000,
                 file_cadence_millisecs,
             )
             # file has valid samples if last time in file is after start time
@@ -1700,7 +1705,7 @@ class _channel_properties:
         self.properties = self._read_properties()
         file_cadence_millisecs = self.properties['file_cadence_millisecs']
         samples_per_second = self.properties['samples_per_second']
-        self.max_samples_per_file = long(numpy.uint64(numpy.ceil(
+        self.max_samples_per_file = int(numpy.uint64(numpy.ceil(
             file_cadence_millisecs * samples_per_second / 1000
         )))
 
@@ -1836,11 +1841,11 @@ class _top_level_dir_properties:
         Parameters
         ----------
 
-        start_sample : long
+        start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
-        end_sample : long
+        end_sample : int
             Sample index for end of read (inclusive), given in the number of
             samples since the epoch (time_since_epoch*sample_rate).
 
@@ -1885,12 +1890,12 @@ class _top_level_dir_properties:
                 rf_index_len = rf_index.shape[0]
                 # loop through each row in rf_index
                 for row in range(rf_index_len):
-                    block_start_sample = long(rf_index[row, 0])
-                    block_start_index = long(rf_index[row, 1])
+                    block_start_sample = int(rf_index[row, 0])
+                    block_start_index = int(rf_index[row, 1])
                     if row + 1 == rf_index_len:
                         block_stop_index = rf_data_len
                     else:
-                        block_stop_index = long(rf_index[row + 1, 1])
+                        block_stop_index = int(rf_index[row + 1, 1])
                     block_stop_sample = (
                         block_start_sample
                         + (block_stop_index - block_start_index)
@@ -1945,11 +1950,11 @@ class _top_level_dir_properties:
         Returns
         -------
 
-        first_sample_index : long | None
+        first_sample_index : int | None
             Index of the first sample, given in the number of samples since the
             epoch (time_since_epoch*sample_rate).
 
-        last_sample_index : long | None
+        last_sample_index : int | None
             Index of the last sample, given in the number of samples since the
             epoch (time_since_epoch*sample_rate).
 
@@ -1999,7 +2004,7 @@ class _top_level_dir_properties:
     def _get_first_sample(self, fullname):
         """Return the first sample in a given rf file."""
         with h5py.File(fullname) as f:
-            return long(f['rf_data_index'][0][0])
+            return int(f['rf_data_index'][0][0])
 
     def _get_last_sample(self, fullname):
         """Return the last sample in a given rf file."""
@@ -2009,7 +2014,7 @@ class _top_level_dir_properties:
             last_start_sample = rf_data_index[-1][0]
             last_index = rf_data_index[-1][1]
             return(
-                long(last_start_sample + (total_samples - (last_index + 1)))
+                int(last_start_sample + (total_samples - (last_index + 1)))
             )
 
     def __del__(self):

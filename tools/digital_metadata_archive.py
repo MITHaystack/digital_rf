@@ -77,10 +77,10 @@ class archive:
                 self.source = os.path.join(os.getcwd(), self.source)
 
         dmd = digital_rf.DigitalMetadataReader(self.source)
-        self._samples_per_second = long(dmd.get_samples_per_second())
-        self._subdirectory_cadence_seconds = long(
+        self._samples_per_second = int(dmd.get_samples_per_second())
+        self._subdirectory_cadence_seconds = int(
             dmd.get_subdirectory_cadence_seconds())
-        self._file_cadence_seconds = long(dmd.get_file_cadence_seconds())
+        self._file_cadence_seconds = int(dmd.get_file_cadence_seconds())
         self._file_name = dmd.get_file_name_prefix()
 
         self.metadata_dir = os.path.basename(self.source)
@@ -122,8 +122,8 @@ class archive:
     def _get_file_list(self, sample0, sample1):
         """_get_file_list returns an ordered list of full file names of metadata files that contain metadata.
         """
-        start_ts = long(sample0 / self._samples_per_second)
-        end_ts = long(sample1 / self._samples_per_second)
+        start_ts = int(sample0 / self._samples_per_second)
+        end_ts = int(sample1 / self._samples_per_second)
 
         # convert ts to be divisible by self._file_cadence_seconds
         start_ts = (start_ts // self._file_cadence_seconds) * \

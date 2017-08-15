@@ -119,13 +119,19 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
             ignore_directories=True,
         )
 
-    def dispatch(self, event):
+    def dispatch(self, event, match_time=True):
         """Dispatch events to the appropriate methods.
 
-        :param event:
-            The event object representing the file system event.
-        :type event:
-            :class:`FileSystemEvent`
+        Parameters
+        ----------
+
+        event : FileSystemEvent
+            Event object representing the file system event.
+
+        match_time : bool
+            If False, do not check the matched file's time against the
+            handler's starttime and endtime.
+
         """
         if self.ignore_directories and event.is_directory:
             return
@@ -160,21 +166,22 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
             return
 
         # regexes matched, now check the time
-        try:
-            secs = int(match.group('secs'))
-        except (IndexError, TypeError):
-            # no time, don't need to check it
-            pass
-        else:
+        if match_time:
             try:
-                msecs = int(match.group('frac'))
+                secs = int(match.group('secs'))
             except (IndexError, TypeError):
-                msecs = 0
-            time = datetime.timedelta(seconds=secs, milliseconds=msecs)
-            if time < self.starttime:
-                return
-            elif time > self.endtime:
-                return
+                # no time, don't need to check it
+                pass
+            else:
+                try:
+                    msecs = int(match.group('frac'))
+                except (IndexError, TypeError):
+                    msecs = 0
+                time = datetime.timedelta(seconds=secs, milliseconds=msecs)
+                if self.starttime is not None and time < self.starttime:
+                    return
+                elif self.endtime is not None and time > self.endtime:
+                    return
 
         # the event matched, including time if applicable, dispatch
         self.on_any_event(event)

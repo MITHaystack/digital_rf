@@ -14,6 +14,7 @@ Reading/writing functionality is available from two classes:
 DigitalMetadataReader and DigitalMetadataWriter.
 
 """
+from __future__ import print_function
 
 import collections
 import copy
@@ -25,7 +26,6 @@ import os
 import re
 import time
 import traceback
-import types
 import urllib2
 from distutils.version import StrictVersion
 
@@ -127,10 +127,10 @@ class DigitalMetadataWriter:
                       subdirectory_timestamp + subdir_cadence_secs,
                       file_cadence_secs)
 
-        sample_rate_numerator : long | int
+        sample_rate_numerator : int
             Numerator of sample rate in Hz.
 
-        sample_rate_denominator : long | int
+        sample_rate_denominator : int
             Denominator of sample rate in Hz.
 
         file_name : string
@@ -144,22 +144,16 @@ class DigitalMetadataWriter:
             raise IOError(errstr % metadata_dir)
         self._metadata_dir = metadata_dir
 
-        intTypes = (types.IntType, types.LongType, numpy.integer)
-
-        if not isinstance(subdir_cadence_secs, intTypes):
-            errstr = 'subdir_cadence_secs must be int type, not %s'
-            raise ValueError(errstr % str(type(subdir_cadence_secs)))
-        if subdir_cadence_secs < 1:
+        if (subdir_cadence_secs != int(subdir_cadence_secs)
+                or subdir_cadence_secs < 1):
             errstr = (
                 'subdir_cadence_secs must be positive integer, not %s'
             )
             raise ValueError(errstr % str(subdir_cadence_secs))
         self._subdir_cadence_secs = int(subdir_cadence_secs)
 
-        if not isinstance(file_cadence_secs, intTypes):
-            errstr = 'file_cadence_secs must be int type, not %s'
-            raise ValueError(errstr % str(type(file_cadence_secs)))
-        if file_cadence_secs < 1:
+        if (file_cadence_secs != int(file_cadence_secs)
+                or file_cadence_secs < 1):
             errstr = (
                 'file_cadence_secs must be positive integer, not %s'
             )
@@ -171,33 +165,29 @@ class DigitalMetadataWriter:
                 '(subdir_cadence_secs % file_cadence_secs) != 0'
             )
 
-        if not isinstance(file_name, types.StringTypes):
+        if not isinstance(file_name, six.string_types):
             errstr = 'file_name must be a string, not type %s'
             raise ValueError(errstr % str(type(file_name)))
         self._file_name = file_name
 
-        if not isinstance(sample_rate_numerator, intTypes):
-            errstr = 'sample_rate_numerator must be int type, not %s'
-            raise ValueError(errstr % str(type(sample_rate_numerator)))
-        if sample_rate_numerator < 1:
+        if (sample_rate_numerator != int(sample_rate_numerator)
+                or sample_rate_numerator < 1):
             errstr = (
                 'sample_rate_numerator must be positive integer, not %s'
             )
             raise ValueError(errstr % str(sample_rate_numerator))
-        self._sample_rate_numerator = long(sample_rate_numerator)
+        self._sample_rate_numerator = int(sample_rate_numerator)
 
-        if not isinstance(sample_rate_denominator, intTypes):
-            errstr = 'sample_rate_denominator must be int type, not %s'
-            raise ValueError(errstr % str(type(sample_rate_denominator)))
-        if sample_rate_denominator < 1:
+        if (sample_rate_denominator != int(sample_rate_denominator)
+                or sample_rate_denominator < 1):
             errstr = (
                 'sample_rate_denominator must be positive integer, not %s'
             )
             raise ValueError(errstr % str(sample_rate_denominator))
-        self._sample_rate_denominator = long(sample_rate_denominator)
+        self._sample_rate_denominator = int(sample_rate_denominator)
 
         # have to go to uint64 before longdouble to ensure correct conversion
-        # from long
+        # from int
         self._samples_per_second = (
             numpy.longdouble(numpy.uint64(self._sample_rate_numerator)) /
             numpy.longdouble(numpy.uint64(self._sample_rate_denominator))
@@ -226,7 +216,7 @@ class DigitalMetadataWriter:
         Parameters
         ----------
 
-        samples : list | 1-D array | long | int | float
+        samples : list | 1-D array | int | float
             A single sample index or an list of sample indices, given in
             the number of samples since the epoch (t_since_epoch*sample_rate),
             for the data to be written.
@@ -577,13 +567,13 @@ class DigitalMetadataReader:
                 sps = f.attrs['samples_per_second'].item()
                 spsfrac = fractions.Fraction(sps).limit_denominator()
                 self._samples_per_second = numpy.longdouble(sps)
-                self._sample_rate_numerator = long(spsfrac.numerator)
-                self._sample_rate_denominator = long(spsfrac.denominator)
+                self._sample_rate_numerator = int(spsfrac.numerator)
+                self._sample_rate_denominator = int(spsfrac.denominator)
             else:
                 self._sample_rate_numerator = spsn
                 self._sample_rate_denominator = spsd
                 # have to go to uint64 before longdouble to ensure correct
-                # conversion from long
+                # conversion from int
                 self._samples_per_second = (
                     numpy.longdouble(numpy.uint64(
                         self._sample_rate_numerator
@@ -626,11 +616,11 @@ class DigitalMetadataReader:
         Returns
         -------
 
-        first_sample_index : long
+        first_sample_index : int
             Index of the first sample, given in the number of samples since the
             epoch (time_since_epoch*sample_rate).
 
-        last_sample_index : long
+        last_sample_index : int
             Index of the last sample, given in the number of samples since the
             epoch (time_since_epoch*sample_rate).
 
@@ -652,7 +642,7 @@ class DigitalMetadataReader:
                 with h5py.File(path, 'r') as f:
                     groups = f.keys()
                     groups.sort()
-                    first_sample = long(groups[0])
+                    first_sample = int(groups[0])
             except (IOError, IndexError):
                 errstr = (
                     'Corrupt or empty file %s found and ignored.'
@@ -674,7 +664,7 @@ class DigitalMetadataReader:
                 with h5py.File(path, 'r') as f:
                     groups = f.keys()
                     groups.sort()
-                    last_sample = long(groups[-1])
+                    last_sample = int(groups[-1])
             except (IOError, IndexError):
                 errstr = (
                     'Corrupt or empty file %s found and ignored.'
@@ -723,11 +713,11 @@ class DigitalMetadataReader:
         Parameters
         ----------
 
-        start_sample : long
+        start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
-        end_sample : None | long
+        end_sample : None | int
             Sample index for end of read (inclusive), given in the number of
             samples since the epoch (time_since_epoch*sample_rate). If None,
             use `end_sample` equal to `start_sample`.
@@ -840,11 +830,11 @@ class DigitalMetadataReader:
         Parameters
         ----------
 
-        sample0 : long
+        sample0 : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
-        sample1 : long
+        sample1 : int
             Sample index for end of read (inclusive), given in the number of
             samples since the epoch (time_since_epoch*sample_rate).
 
@@ -859,8 +849,8 @@ class DigitalMetadataReader:
 
         """
         # need to go through numpy uint64 to prevent conversion to float
-        start_ts = long(numpy.uint64(sample0/self._samples_per_second))
-        end_ts = long(numpy.uint64(sample1/self._samples_per_second))
+        start_ts = int(numpy.uint64(sample0/self._samples_per_second))
+        end_ts = int(numpy.uint64(sample1/self._samples_per_second))
 
         # convert ts to be divisible by self._file_cadence_secs
         start_ts = \
@@ -928,11 +918,11 @@ class DigitalMetadataReader:
             A string or list of strings giving the field/column name of
             metadata to return. If None, all available columns will be read.
 
-        sample0 : long
+        sample0 : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
-        sample1 : long
+        sample1 : int
             Sample index for end of read (inclusive), given in the number of
             samples since the epoch (time_since_epoch*sample_rate).
 
@@ -957,7 +947,7 @@ class DigitalMetadataReader:
                     value = f[str(idx)]
                     if columns is None:
                         self._populate_data(ret_dict, value, idx)
-                    elif isinstance(columns, types.StringTypes):
+                    elif isinstance(columns, six.string_types):
                         self._populate_data(ret_dict, value[columns], idx)
                     else:
                         ret_dict[idx] = {}

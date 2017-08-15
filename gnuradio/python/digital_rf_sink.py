@@ -28,7 +28,7 @@ def parse_time_pmt(val, samples_per_second):
     tfrac = pmt.to_double(pmt.tuple_ref(val, 1))
     # calculate sample index of time and floor to uint64
     tidx = np.uint64(tsec*samples_per_second + tfrac*samples_per_second)
-    return long(tsec), tfrac, long(tidx)
+    return int(tsec), tfrac, int(tidx)
 
 
 def translate_rx_freq(tag):
@@ -97,7 +97,7 @@ class digital_rf_channel_sink(gr.sync_block):
         uuid_str=None, center_frequencies=None, metadata={},
         is_continuous=True, compression_level=0,
         checksum=False, marching_periods=True, stop_on_skipped=True,
-        debug=False,
+        debug=False, min_chunksize=None,
     ):
         """Write a channel of data in Digital RF format.
 
@@ -133,17 +133,17 @@ class digital_rf_channel_sink(gr.sync_block):
 
                 (subdir_cadence_secs*1000 % file_cadence_millisecs) == 0
 
-        sample_rate_numerator : long | int
+        sample_rate_numerator : int
             Numerator of sample rate in Hz.
 
-        sample_rate_denominator : long | int
+        sample_rate_denominator : int
             Denominator of sample rate in Hz.
 
 
         Other Parameters
         ----------------
 
-        start : None | int/long | float | string, optional
+        start : None | int | float | string, optional
             A value giving the time/index of the channel's first sample. When
             `ignore_tags` is False, 'rx_time' tags will be used to identify
             data gaps and skip the sample index forward appropriately (tags
@@ -214,6 +214,11 @@ class digital_rf_channel_sink(gr.sync_block):
 
         debug : bool, optional
             If True, print debugging information.
+
+        min_chunksize : None | int, optional
+            Minimum number of samples to consume at once. This value can be
+            used to adjust the sink's performance to reduce processing time.
+            If None, a sensible default will be used.
 
 
         Notes
@@ -297,6 +302,18 @@ class digital_rf_channel_sink(gr.sync_block):
             np.longdouble(np.uint64(sample_rate_numerator)) /
             np.longdouble(np.uint64(sample_rate_denominator))
         )
+
+        if min_chunksize is None:
+            self._min_chunksize = int(self._samples_per_second // 1000)
+        else:
+            self._min_chunksize = min_chunksize
+
+        # reduce CPU usage by setting a minimum number of samples to handle
+        # at once
+        # (really want to set_min_noutput_items, but no way to do that from
+        #  Python)
+        self.set_output_multiple(self._min_chunksize)
+
         # will be None if start is None or ''
         self._start_sample = util.parse_identifier_to_sample(
             start, self._samples_per_second, None,
@@ -565,7 +582,7 @@ class digital_rf_sink(gr.hier_block2):
         uuid_str=None, center_frequencies=None, metadata={},
         is_continuous=True, compression_level=0,
         checksum=False, marching_periods=True, stop_on_skipped=True,
-        debug=False,
+        debug=False, min_chunksize=None,
     ):
         """Write data in Digital RF format.
 
@@ -611,17 +628,17 @@ class digital_rf_sink(gr.hier_block2):
 
                 (subdir_cadence_secs*1000 % file_cadence_millisecs) == 0
 
-        sample_rate_numerator : long | int
+        sample_rate_numerator : int
             Numerator of sample rate in Hz.
 
-        sample_rate_denominator : long | int
+        sample_rate_denominator : int
             Denominator of sample rate in Hz.
 
 
         Other Parameters
         ----------------
 
-        start : None | int/long | float | string, optional
+        start : None | int | float | string, optional
             A value giving the time/index of the channel's first sample. When
             `ignore_tags` is False, 'rx_time' tags will be used to identify
             data gaps and skip the sample index forward appropriately (tags
@@ -692,6 +709,11 @@ class digital_rf_sink(gr.hier_block2):
 
         debug : bool, optional
             If True, print debugging information.
+
+        min_chunksize : None | int, optional
+            Minimum number of samples to consume at once. This value can be
+            used to adjust the sink's performance to reduce processing time.
+            If None, a sensible default will be used.
 
 
         Notes

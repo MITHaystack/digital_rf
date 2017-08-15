@@ -84,8 +84,8 @@ if __name__ == '__main__':
                 ' sample rate %f'
             )
             raise ValueError(errstr % sample_rate)
-        sample_rate_numerator = long(sample_rate)
-        sample_rate_denominator = long(1)
+        sample_rate_numerator = int(sample_rate)
+        sample_rate_denominator = int(1)
 
         # read critical metadata
         is_complex = bool(metaDict['is_complex'][0])
