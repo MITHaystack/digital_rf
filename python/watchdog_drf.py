@@ -171,9 +171,9 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
             except (IndexError, TypeError):
                 msecs = 0
             time = datetime.timedelta(seconds=secs, milliseconds=msecs)
-            if time < self.starttime:
+            if self.starttime is not None and time < self.starttime:
                 return
-            elif time > self.endtime:
+            elif self.endtime is not None and time > self.endtime:
                 return
 
         # the event matched, including time if applicable, dispatch
