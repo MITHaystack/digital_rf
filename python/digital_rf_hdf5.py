@@ -15,6 +15,7 @@ Reading/writing functionality is available from two classes: DigitalRFReader
 and DigitalRFWriter.
 
 """
+from __future__ import print_function
 
 import collections
 import datetime
@@ -24,12 +25,12 @@ import glob
 import os
 import re
 import sys
-import types
 import uuid
 import warnings
 
 import h5py
 import numpy
+import six
 
 # local imports
 from . import _py_rf_write_hdf5, digital_metadata, list_drf
@@ -312,15 +313,21 @@ class DigitalRFWriter:
             else:
                 self.byteorder = '<'
 
-        if subdir_cadence_secs < 1:
-            errstr = 'subdir_cadence_secs must be positive, not %s'
+        if (subdir_cadence_secs != int(subdir_cadence_secs)
+                or subdir_cadence_secs < 1):
+            errstr = (
+                'subdir_cadence_secs must be positive integer, not %s'
+            )
             raise ValueError(errstr % str(subdir_cadence_secs))
-        self.subdir_cadence_secs = long(subdir_cadence_secs)
+        self.subdir_cadence_secs = int(subdir_cadence_secs)
 
-        if file_cadence_millisecs < 1:
-            errstr = 'file_cadence_millisecs must be positive, not %s'
+        if (file_cadence_millisecs != int(file_cadence_millisecs)
+                or file_cadence_millisecs < 1):
+            errstr = (
+                'file_cadence_millisecs must be positive integer, not %s'
+            )
             raise ValueError(errstr % str(file_cadence_millisecs))
-        self.file_cadence_millisecs = long(file_cadence_millisecs)
+        self.file_cadence_millisecs = int(file_cadence_millisecs)
 
         if self.subdir_cadence_secs * 1000 % self.file_cadence_millisecs != 0:
             raise ValueError(
@@ -333,29 +340,27 @@ class DigitalRFWriter:
             raise ValueError(errstr % str(start_global_index))
         self.start_global_index = long(start_global_index)
 
-        intTypes = (types.IntType, types.LongType, numpy.integer)
-        if not isinstance(sample_rate_numerator, intTypes):
-            errstr = 'sample_rate_numerator illegal type %s'
-            raise ValueError(errstr % str(type(sample_rate_numerator)))
-        if not isinstance(sample_rate_denominator, intTypes):
-            errstr = 'sample_rate_denominator illegal type %s'
-            raise ValueError(errstr % str(type(sample_rate_denominator)))
-
-        if sample_rate_numerator <= 0:
-            errstr = 'sample_rate_numerator must be positive, not %s'
+        if (sample_rate_numerator != int(sample_rate_numerator)
+                or sample_rate_numerator < 1):
+            errstr = (
+                'sample_rate_numerator must be positive integer, not %s'
+            )
             raise ValueError(errstr % str(sample_rate_numerator))
-        self.sample_rate_numerator = long(sample_rate_numerator)
+        self.sample_rate_numerator = int(sample_rate_numerator)
 
-        if sample_rate_denominator <= 0:
-            errstr = 'sample_rate_denominator must be positive, not %s'
+        if (sample_rate_denominator != int(sample_rate_denominator)
+                or sample_rate_denominator < 1):
+            errstr = (
+                'sample_rate_denominator must be positive integer, not %s'
+            )
             raise ValueError(errstr % str(sample_rate_denominator))
-        self.sample_rate_denominator = long(sample_rate_denominator)
+        self.sample_rate_denominator = int(sample_rate_denominator)
 
         if uuid_str is None:
             # generate random UUID
             uuid_str = uuid.uuid4().hex
-        elif not isinstance(uuid_str, types.StringTypes):
-            errstr = 'uuid_str must be StringType, not %s'
+        elif not isinstance(uuid_str, six.string_types):
+            errstr = 'uuid_str must be a string, not %s type'
             raise ValueError(errstr % str(type(uuid_str)))
         self.uuid = str(uuid_str)
 
@@ -752,7 +757,7 @@ class DigitalRFReader:
         #   and value is a _channel_properties object.
 
         # first, make top_level_directory_arg a list if a string
-        if isinstance(top_level_directory_arg, types.StringType):
+        if isinstance(top_level_directory_arg, six.string_types):
             top_level_arg = [top_level_directory_arg]
         else:
             top_level_arg = top_level_directory_arg
