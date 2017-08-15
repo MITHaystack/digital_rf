@@ -16,6 +16,7 @@ jitter code from Juha Vierinen.
 
 """
 import os
+import glob
 import sys
 import argparse
 import subprocess
@@ -25,6 +26,22 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 from beacon_analysis import corr_tle_rf
+
+def common_times(f1,f2):
+    """ """
+
+    lines1 = [line.rstrip('\n').split(' ') for line in open(f1)]
+    lines2 = [line.rstrip('\n').split(' ') for line in open(f2)]
+    splines1 = [line[0].split('_') for line in lines1]
+    splines2 = [line[0].split('_') for line in lines2]
+    times1 = ['_'.join(spline[-3:-1]) for spline in splines1]
+    times2 = ['_'.join(spline[-3:-1]) for spline in splines2]
+
+    matching = [[i1,times2.index(itime),itime] for i1, itime in enumerate(times1) if itime in times2]
+    for imatch in matching:
+        str1 = imatch[-1] + '\n\t' + lines1[imatch[0]][0] + '\n\t' + lines2[imatch[1]][0] + '\n'
+        print(str1)
+
 def parse_command_line(str_input=None):
     """
         This will parse through the command line arguments
@@ -118,11 +135,10 @@ def beacon_list(input_args):
 
     lines = [line.rstrip('\n').split(' ') for line in open(input_args.config)]
 
-    if input_args.justplots:
-        figsdir = os.path.join(input_args.newdir, 'Figures')
-        if not os.path.exists(figsdir):
-            os.mkdir(figsdir)
 
+    figsdir = os.path.join(input_args.newdir, 'Figures')
+    if not os.path.exists(figsdir):
+        os.mkdir(figsdir)
     for iline in lines:
         curdir = iline[0]
         curtleoff = iline[1]
@@ -132,18 +148,23 @@ def beacon_list(input_args):
         if input_args.justplots:
             cmd = cmd+' -j'
         subprocess.call(cmd, shell=True)
-        if input_args.justplots:
+        oldfigdir = os.path.join(newdir, 'Figures')
+        figslist = glob.glob(os.path.join(oldfigdir, '*.png'))
 
-            oldfig = os.path.join(newdir, 'Figures', 'chancomp.png')
-            newfile = os.path.join(figsdir, curdir+'.png')
-            savename = os.path.join(figsdir, 'comp' + curdir+'.png')
+        if input_args.justplots:
+            savename = os.path.join(oldfigdir, 'linecomp' + '.png')
             plot_dops(rfdir, savename, float(curtleoff))
-            if os.path.exists(oldfig):
-                shutil.copy(oldfig, newfile)
+        for ifig in figslist:
+            figpre = os.path.splitext(os.path.split(ifig)[-1])[0]
+            newfig = os.path.join(figsdir, figpre+'-'+curdir+'.png')
+            shutil.copy(ifig, newfig)
+
+
+
 if __name__ == '__main__':
     """
         Run from command line
-        example: python -c
+        example:python beacon_batch_analysis.py -p /JROANC/disk0/rf/ -c ~/ancond0.txt -n /beaconproc/acond0/ -b 120 -e 120
     """
     args_commd = parse_command_line()
 

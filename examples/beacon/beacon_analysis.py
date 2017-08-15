@@ -535,7 +535,7 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
         F0 = scfft.fftshift(scfft.fft(z00*osc00.astype(z00.dtype), axis=-1), axes=-1)
         F = scfft.fftshift(scfft.fft(z01*osc01.astype(z01.dtype), axis=-1), axes=-1)
         F0spec = sp.power(F0.real, 2).sum(0)+ sp.power(F0.imag, 2).sum(0)
-        outspec0[i_t] = F0spec
+        outspec0[i_t] = F0spec.real
         F0_cor = F0[:, fi]*sp.conj(F[:, fi])
         phase0[i_t] = F0_cor.sum()
 
@@ -935,6 +935,7 @@ def analyzebeacons(input_args):
     #rfexist, tleoff = corr_tle_rf(mainpath,timewin=[input_args.begoff, input_args.endoff])
     rfexist = True
     tleoff = input_args.tleoffset
+    e = ephem_doponly(mainpath)
     if input_args.justplots or not rfexist:
         print('Analysis will not be run, only plots will be made.')
         plotsti_vel(mainpath, savename=os.path.join(figspath, 'chancomp.png'),
@@ -946,6 +947,7 @@ def analyzebeacons(input_args):
         else:
             plot_resid(outdict['resid'], os.path.join(figspath, 'resid.png'))
             plot_measurements(outdict, savename)
+            plot_map(outdict, e, os.path.join(figspath,'mapdata.png'))
     else:
 
         outdict = calc_TEC(mainpath, window=input_args.window,
@@ -960,7 +962,7 @@ def analyzebeacons(input_args):
         outdict['Beginning_Offset'] = input_args.begoff
         outdict['Ending_Offset'] = input_args.endoff
         outdict['Min_SNR'] = input_args.minsnr
-        e = ephem_doponly(mainpath)
+
         save_output(maindirmeta, outdict, e)
 
         if input_args.drawplots:
@@ -970,7 +972,7 @@ def analyzebeacons(input_args):
                         offset=tleoff)
             plot_resid(outdict['resid'], os.path.join(figspath, 'resid.png'))
             plot_measurements(outdict, savename)
-            plot_map(outdict, e, os.path.join(figspath,'mapdata.png'))
+            plot_map(outdict, e, os.path.join(figspath, 'mapdata.png'))
 
 def parse_command_line(str_input=None):
     """
