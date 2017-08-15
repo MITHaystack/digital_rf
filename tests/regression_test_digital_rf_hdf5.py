@@ -37,17 +37,17 @@ global_sample_arr = numpy.array(range(10), dtype=numpy.uint64) * 20
 block_sample_arr = numpy.array(range(10), dtype=numpy.uint64) * 10
 
 # constants
-sample_rate_numerator = long(100)
+sample_rate_numerator = int(100)
 sample_rate_denominator = 1
 sample_rate = numpy.longdouble(sample_rate_numerator) / sample_rate_denominator
 subdir_cadence_secs = 10
 file_cadence_millisecs = 400
 # start 2014-03-09 12:30:30 plus one sample
-start_global_index = long(numpy.uint64(1394368230 * sample_rate)) + 1
+start_global_index = int(numpy.uint64(1394368230 * sample_rate)) + 1
 
 # test get unix time
 dt, picoseconds = digital_rf.get_unix_time(
-    long(start_global_index), sample_rate_numerator, sample_rate_denominator)
+    int(start_global_index), sample_rate_numerator, sample_rate_denominator)
 print('For start_global_index=%i and sample_rate=%f, dt is %s and picoseconds is %i' % (start_global_index, sample_rate,
                                                                                         dt, picoseconds))
 

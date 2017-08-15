@@ -28,7 +28,7 @@ def parse_time_pmt(val, samples_per_second):
     tfrac = pmt.to_double(pmt.tuple_ref(val, 1))
     # calculate sample index of time and floor to uint64
     tidx = np.uint64(tsec*samples_per_second + tfrac*samples_per_second)
-    return long(tsec), tfrac, long(tidx)
+    return int(tsec), tfrac, int(tidx)
 
 
 def translate_rx_freq(tag):
@@ -133,17 +133,17 @@ class digital_rf_channel_sink(gr.sync_block):
 
                 (subdir_cadence_secs*1000 % file_cadence_millisecs) == 0
 
-        sample_rate_numerator : long | int
+        sample_rate_numerator : int
             Numerator of sample rate in Hz.
 
-        sample_rate_denominator : long | int
+        sample_rate_denominator : int
             Denominator of sample rate in Hz.
 
 
         Other Parameters
         ----------------
 
-        start : None | int/long | float | string, optional
+        start : None | int | float | string, optional
             A value giving the time/index of the channel's first sample. When
             `ignore_tags` is False, 'rx_time' tags will be used to identify
             data gaps and skip the sample index forward appropriately (tags
@@ -628,17 +628,17 @@ class digital_rf_sink(gr.hier_block2):
 
                 (subdir_cadence_secs*1000 % file_cadence_millisecs) == 0
 
-        sample_rate_numerator : long | int
+        sample_rate_numerator : int
             Numerator of sample rate in Hz.
 
-        sample_rate_denominator : long | int
+        sample_rate_denominator : int
             Denominator of sample rate in Hz.
 
 
         Other Parameters
         ----------------
 
-        start : None | int/long | float | string, optional
+        start : None | int | float | string, optional
             A value giving the time/index of the channel's first sample. When
             `ignore_tags` is False, 'rx_time' tags will be used to identify
             data gaps and skip the sample index forward appropriately (tags

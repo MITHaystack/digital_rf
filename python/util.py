@@ -30,7 +30,7 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
     Parameters
     ----------
 
-    iden : None | int/long | float | string
+    iden : None | int | float | string
         If None or '', None is returned to indicate that the index should
         be automatically determined.
         If an integer, it is returned as the sample index.
@@ -55,7 +55,7 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
     Returns
     -------
 
-    sample_index : long | None
+    sample_index : int | None
         Index to the identified sample given in the number of samples since
         the epoch (time_since_epoch*sample_per_second).
 
@@ -68,7 +68,7 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
             is_relative = True
             iden = iden.lstrip('+')
         try:
-            # int/long or float
+            # int or float
             iden = ast.literal_eval(iden)
         except (ValueError, SyntaxError):
             if is_relative:
@@ -87,9 +87,9 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
             raise ValueError(
                 'samples_per_second required when time identifier is used.'
             )
-        idx = long(np.uint64(iden*samples_per_second))
+        idx = int(np.uint64(iden*samples_per_second))
     else:
-        idx = long(iden)
+        idx = int(iden)
 
     if is_relative:
         if ref_index is None:
@@ -107,7 +107,7 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
     Parameters
     ----------
 
-    iden : None | float | string | int/long
+    iden : None | float | string | int
         If None or '', None is returned to indicate that the time should
         be automatically determined.
         If a float, it is interpreted as a UTC timestamp (seconds since epoch)
@@ -145,7 +145,7 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
             is_relative = True
             iden = iden.lstrip('+')
         try:
-            # int/long or float
+            # int or float
             iden = ast.literal_eval(iden)
         except (ValueError, SyntaxError):
             if is_relative:
@@ -185,7 +185,7 @@ def sample_to_datetime(sample, samples_per_second):
     Parameters
     ----------
 
-    sample : int/long
+    sample : int
         Sample index in number of samples since epoch.
 
     samples_per_second : numpy.longdouble
@@ -208,7 +208,7 @@ def samples_to_timedelta(samples, samples_per_second):
     Parameters
     ----------
 
-    samples : int/long
+    samples : int
         Duration in number of samples.
 
     samples_per_second : numpy.longdouble

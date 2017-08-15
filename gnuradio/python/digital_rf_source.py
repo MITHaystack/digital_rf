@@ -80,7 +80,7 @@ class digital_rf_channel_source(gr.sync_block):
         Other Parameters
         ----------------
 
-        start : None | int/long | float | string, optional
+        start : None | int | float | string, optional
             A value giving the start of the channel's playback.
             If None or '', the start of the channel's available data is used.
             If an integer, it is interpreted as a sample index given in the
@@ -95,7 +95,7 @@ class digital_rf_channel_source(gr.sync_block):
                     the start of the data, and
                 3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
 
-        end : None | int/long | float | string, optional
+        end : None | int | float | string, optional
             A value giving the end of the channel's playback.
             If None or '', the end of the channel's available data is used.
             See `start` for a description of how this value is interpreted.
@@ -223,7 +223,7 @@ class digital_rf_channel_source(gr.sync_block):
         Parameters
         ----------
 
-        sample : int | long
+        sample : int
             Sample index for the sample to tag, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
@@ -239,7 +239,7 @@ class digital_rf_channel_source(gr.sync_block):
             # add time and rate tags
             time = sample/self._sample_rate
             tag_dict['rx_time'] = pmt.make_tuple(
-                pmt.from_uint64(long(np.uint64(time))),
+                pmt.from_uint64(int(np.uint64(time))),
                 pmt.from_double(float(time % 1)),
             )
             tag_dict['rx_rate'] = self._sample_rate_pmt
@@ -401,7 +401,7 @@ class digital_rf_source(gr.hier_block2):
             to specify the channel index in the sorted list of available
             channel names.
 
-        start : None | string | long | iterable of previous, optional
+        start : None | string | int | iterable of previous, optional
             Can be a single value or an iterable of values corresponding to
             `channels` giving the start of the channel's playback.
             If None or '', the start of the channel's available data is used.
@@ -417,7 +417,7 @@ class digital_rf_source(gr.hier_block2):
                     the start of the data, and
                 3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
 
-        end : None | string | long | iterable of previous, optional
+        end : None | string | int | iterable of previous, optional
             Can be a single value or an iterable of values corresponding to
             `channels` giving the end of the channel's playback.
             If None or '', the end of the channel's available data is used.

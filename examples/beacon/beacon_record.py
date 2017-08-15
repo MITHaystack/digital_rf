@@ -574,7 +574,7 @@ def ephemeris_passes(opt, st0, et0):
                         print "# Executing command %s " % (cmd)
 
                         # write the digital metadata
-                        start_idx = long(start0)
+                        start_idx = int(start0)
                         mdata_dir = site['recorder']['metadata_path']  + '/' + cmd_fname + '/metadata'
 
 

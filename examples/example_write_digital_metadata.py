@@ -39,7 +39,7 @@ obj = digital_rf.DigitalMetadataWriter(metadata_dir, subdirectory_cadence_second
 print('first create okay')
 
 data_dict = {}
-start_idx = long(numpy.uint64(stime * obj.get_samples_per_second()))
+start_idx = int(numpy.uint64(stime * obj.get_samples_per_second()))
 # To save an array of data, make sure the first axis has the same length
 # as the samples index
 idx_arr = numpy.arange(70, dtype=numpy.int64) + start_idx

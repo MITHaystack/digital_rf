@@ -72,17 +72,17 @@ class SoundDRF:
             dtst0 = dateutil.parser.parse(self.control.start)
             st0 = (dtst0 - datetime.datetime(1970, 1,
                                              1, tzinfo=pytz.utc)).total_seconds()
-            st0 = long(st0 * sr)
+            st0 = int(st0 * sr)
         else:
-            st0 = long(bound[0])
+            st0 = int(bound[0])
 
         if self.control.end:
             dtst0 = dateutil.parser.parse(self.control.end)
             et0 = (dtst0 - datetime.datetime(1970, 1,
                                              1, tzinfo=pytz.utc)).total_seconds()
-            et0 = long(et0 * sr)
+            et0 = int(et0 * sr)
         else:
-            et0 = long(bound[1])
+            et0 = int(bound[1])
 
         if self.control.verbose:
 

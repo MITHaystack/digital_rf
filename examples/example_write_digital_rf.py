@@ -22,7 +22,7 @@ import numpy
 import digital_rf
 
 # writing parameters
-sample_rate_numerator = long(100)  # 100 Hz sample rate - typically MUCH faster
+sample_rate_numerator = int(100)  # 100 Hz sample rate - typically MUCH faster
 sample_rate_denominator = 1
 sample_rate = numpy.longdouble(sample_rate_numerator) / sample_rate_denominator
 dtype_str = 'i2'  # short int
@@ -45,7 +45,7 @@ for i in range(len(arr_data)):
     arr_data[i]['i'] = 3 * i
 
 # start 2014-03-09 12:30:30 plus one sample
-start_global_index = long(numpy.uint64(1394368230 * sample_rate)) + 1
+start_global_index = int(numpy.uint64(1394368230 * sample_rate)) + 1
 
 # set up top level directory
 os.system("rm -rf /tmp/hdf5 ; mkdir /tmp/hdf5")

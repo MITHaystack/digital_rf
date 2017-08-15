@@ -23,7 +23,7 @@ except:
     print('Be sure you run test_write_digital_metadata.py before running this test code.')
     raise
 print('init okay')
-start_idx = long(numpy.uint64(stime * obj.get_samples_per_second()))
+start_idx = int(numpy.uint64(stime * obj.get_samples_per_second()))
 first_sample, last_sample = obj.get_bounds()
 print('bounds are %i to %i' % (first_sample, last_sample))
 

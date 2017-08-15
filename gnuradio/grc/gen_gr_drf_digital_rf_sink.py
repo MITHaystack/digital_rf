@@ -367,13 +367,13 @@ File Cadence (s) : int
 
         (subdir_cadence_secs*1000 % file_cadence_millisecs) == 0
 
-Sample Rate (num) : long | int
+Sample Rate (num) : int
     Numerator of sample rate in Hz.
 
-Sample Rate (den) : long | int
+Sample Rate (den) : int
     Denominator of sample rate in Hz.
 
-Start : int/long | float | string, optional
+Start : int | float | string, optional
     A value giving the time/index of the channel's first sample. An
     'rx_time' tag on the first sample will override this value when
     `ignore_tags` is False.

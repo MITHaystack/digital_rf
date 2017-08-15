@@ -24,7 +24,7 @@ import digital_rf
 # constants
 WRITE_BLOCK_SIZE = 1000
 N_WRITES = int(1e9 / WRITE_BLOCK_SIZE)
-SAMPLE_RATE_NUMERATOR = long(1E9)
+SAMPLE_RATE_NUMERATOR = int(1E9)
 SAMPLE_RATE_DENOMINATOR = 1
 sample_rate = (numpy.longdouble(numpy.uint64(SAMPLE_RATE_NUMERATOR)) /
                numpy.longdouble(numpy.uint64(SAMPLE_RATE_DENOMINATOR)))
@@ -32,7 +32,7 @@ subdir_cadence_secs = 3600
 file_cadence_millisecs = 10
 
 # start 2014-03-09 12:30:30 plus one sample
-start_global_index = long(numpy.uint64(1394368230 * sample_rate)) + 1
+start_global_index = int(numpy.uint64(1394368230 * sample_rate)) + 1
 
 
 # data to write

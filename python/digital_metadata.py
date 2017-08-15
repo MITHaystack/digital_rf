@@ -127,10 +127,10 @@ class DigitalMetadataWriter:
                       subdirectory_timestamp + subdir_cadence_secs,
                       file_cadence_secs)
 
-        sample_rate_numerator : long | int
+        sample_rate_numerator : int
             Numerator of sample rate in Hz.
 
-        sample_rate_denominator : long | int
+        sample_rate_denominator : int
             Denominator of sample rate in Hz.
 
         file_name : string
@@ -187,7 +187,7 @@ class DigitalMetadataWriter:
         self._sample_rate_denominator = int(sample_rate_denominator)
 
         # have to go to uint64 before longdouble to ensure correct conversion
-        # from long
+        # from int
         self._samples_per_second = (
             numpy.longdouble(numpy.uint64(self._sample_rate_numerator)) /
             numpy.longdouble(numpy.uint64(self._sample_rate_denominator))
@@ -216,7 +216,7 @@ class DigitalMetadataWriter:
         Parameters
         ----------
 
-        samples : list | 1-D array | long | int | float
+        samples : list | 1-D array | int | float
             A single sample index or an list of sample indices, given in
             the number of samples since the epoch (t_since_epoch*sample_rate),
             for the data to be written.
@@ -567,13 +567,13 @@ class DigitalMetadataReader:
                 sps = f.attrs['samples_per_second'].item()
                 spsfrac = fractions.Fraction(sps).limit_denominator()
                 self._samples_per_second = numpy.longdouble(sps)
-                self._sample_rate_numerator = long(spsfrac.numerator)
-                self._sample_rate_denominator = long(spsfrac.denominator)
+                self._sample_rate_numerator = int(spsfrac.numerator)
+                self._sample_rate_denominator = int(spsfrac.denominator)
             else:
                 self._sample_rate_numerator = spsn
                 self._sample_rate_denominator = spsd
                 # have to go to uint64 before longdouble to ensure correct
-                # conversion from long
+                # conversion from int
                 self._samples_per_second = (
                     numpy.longdouble(numpy.uint64(
                         self._sample_rate_numerator
@@ -616,11 +616,11 @@ class DigitalMetadataReader:
         Returns
         -------
 
-        first_sample_index : long
+        first_sample_index : int
             Index of the first sample, given in the number of samples since the
             epoch (time_since_epoch*sample_rate).
 
-        last_sample_index : long
+        last_sample_index : int
             Index of the last sample, given in the number of samples since the
             epoch (time_since_epoch*sample_rate).
 
@@ -642,7 +642,7 @@ class DigitalMetadataReader:
                 with h5py.File(path, 'r') as f:
                     groups = f.keys()
                     groups.sort()
-                    first_sample = long(groups[0])
+                    first_sample = int(groups[0])
             except (IOError, IndexError):
                 errstr = (
                     'Corrupt or empty file %s found and ignored.'
@@ -664,7 +664,7 @@ class DigitalMetadataReader:
                 with h5py.File(path, 'r') as f:
                     groups = f.keys()
                     groups.sort()
-                    last_sample = long(groups[-1])
+                    last_sample = int(groups[-1])
             except (IOError, IndexError):
                 errstr = (
                     'Corrupt or empty file %s found and ignored.'
@@ -713,11 +713,11 @@ class DigitalMetadataReader:
         Parameters
         ----------
 
-        start_sample : long
+        start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
-        end_sample : None | long
+        end_sample : None | int
             Sample index for end of read (inclusive), given in the number of
             samples since the epoch (time_since_epoch*sample_rate). If None,
             use `end_sample` equal to `start_sample`.
@@ -830,11 +830,11 @@ class DigitalMetadataReader:
         Parameters
         ----------
 
-        sample0 : long
+        sample0 : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
-        sample1 : long
+        sample1 : int
             Sample index for end of read (inclusive), given in the number of
             samples since the epoch (time_since_epoch*sample_rate).
 
@@ -849,8 +849,8 @@ class DigitalMetadataReader:
 
         """
         # need to go through numpy uint64 to prevent conversion to float
-        start_ts = long(numpy.uint64(sample0/self._samples_per_second))
-        end_ts = long(numpy.uint64(sample1/self._samples_per_second))
+        start_ts = int(numpy.uint64(sample0/self._samples_per_second))
+        end_ts = int(numpy.uint64(sample1/self._samples_per_second))
 
         # convert ts to be divisible by self._file_cadence_secs
         start_ts = \
@@ -918,11 +918,11 @@ class DigitalMetadataReader:
             A string or list of strings giving the field/column name of
             metadata to return. If None, all available columns will be read.
 
-        sample0 : long
+        sample0 : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
 
-        sample1 : long
+        sample1 : int
             Sample index for end of read (inclusive), given in the number of
             samples since the epoch (time_since_epoch*sample_rate).
 
