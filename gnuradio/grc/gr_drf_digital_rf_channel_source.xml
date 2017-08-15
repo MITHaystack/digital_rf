@@ -18,8 +18,11 @@
         start=$start,
         end=$end,
         repeat=$repeat,
+        min_chunksize=None if $min_chunksize==0 else $min_chunksize,
     )
     </make>
+
+    <callback>set_repeat($repeat)</callback>
 
     <param>
         <name>Directory</name>
@@ -56,6 +59,14 @@
         </option>
     </param>
     <param>
+        <name>Minimum Chunk Size</name>
+        <key>min_chunksize</key>
+        <value>0</value>
+        <type>int</type>
+        <hide>part</hide>
+        <tab>Advanced</tab>
+    </param>
+    <param>
         <name>Show Message Port</name>
         <key>hide_msg_port</key>
         <value>True</value>
@@ -71,6 +82,8 @@
         </option>
         <tab>Advanced</tab>
     </param>
+
+    <check>$min_chunksize >= 0</check>
 
     <source>
         <name>out</name>
@@ -124,6 +137,15 @@ End : string
 Repeat : bool
     If True, loop the data continuously from the start after the end
     is reached. If False, stop after the data is read once.
+
+
+Other Parameters
+-----------------------
+
+Minimum Chunk Size : int, optional
+    Minimum number of samples to output at once. This value can be
+    used to adjust the source's performance to reduce underruns and
+    processing time. If 0, a sensible default will be used.
 
 
 Notes

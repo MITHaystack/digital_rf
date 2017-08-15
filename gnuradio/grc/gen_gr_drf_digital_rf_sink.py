@@ -40,6 +40,7 @@ MAIN_TMPL = """\
         is_continuous=\$is_continuous, compression_level=\$compression_level,
         checksum=\$checksum, marching_periods=\$marching_periods,
         stop_on_skipped=\$stop_on_skipped, debug=\$debug,
+        min_chunksize=None if \$min_chunksize==0 else \$min_chunksize,
     )
     </make>
 
@@ -295,6 +296,14 @@ MAIN_TMPL = """\
         </option>
         <tab>Advanced</tab>
     </param>
+    <param>
+        <name>Minimum Chunk Size</name>
+        <key>min_chunksize</key>
+        <value>0</value>
+        <type>int</type>
+        <hide>part</hide>
+        <tab>Advanced</tab>
+    </param>
 
     <check>\$vlen > 0</check>
     <check>\$subdir_cadence_s > 0</check>
@@ -303,6 +312,7 @@ MAIN_TMPL = """\
     <check>\$sample_rate_numerator > 0</check>
     <check>\$sample_rate_denominator > 0</check>
     <check>\$compression_level >= 0 and 9 >= \$compression_level</check>
+    <check>\$min_chunksize >= 0</check>
 
     <sink>
         <name>in</name>
@@ -425,6 +435,11 @@ Marching Periods : bool, optional
 Stop on Skip : bool, optional
     If True, stop writing when a sample would be skipped (such as from
     a dropped packet).
+
+Minimum Chunk Size : int, optional
+    Minimum number of samples to consume at once. This value can be
+    used to adjust the sink's performance to reduce processing time.
+    If 0, a sensible default will be used.
 
 
 Notes

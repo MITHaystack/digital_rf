@@ -55,6 +55,7 @@ class digital_rf_channel_source(gr.sync_block):
     """Source block for reading a channel of Digital RF data."""
     def __init__(
         self, channel_dir, start=None, end=None, repeat=False,
+        min_chunksize=None,
     ):
         """Read a channel of data from a Digital RF directory.
 
@@ -79,7 +80,7 @@ class digital_rf_channel_source(gr.sync_block):
         Other Parameters
         ----------------
 
-        start : None | int/long | float | string
+        start : None | int/long | float | string, optional
             A value giving the start of the channel's playback.
             If None or '', the start of the channel's available data is used.
             If an integer, it is interpreted as a sample index given in the
@@ -94,14 +95,19 @@ class digital_rf_channel_source(gr.sync_block):
                     the start of the data, and
                 3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
 
-        end : None | int/long | float | string
+        end : None | int/long | float | string, optional
             A value giving the end of the channel's playback.
             If None or '', the end of the channel's available data is used.
             See `start` for a description of how this value is interpreted.
 
-        repeat : bool
+        repeat : bool, optional
             If True, loop the data continuously from the start after the end
             is reached. If False, stop after the data is read once.
+
+        min_chunksize : None | int, optional
+            Minimum number of samples to output at once. This value can be used
+            to adjust the source's performance to reduce underruns and
+            processing time. If None, a sensible default will be used.
 
 
         Notes
@@ -190,15 +196,22 @@ class digital_rf_channel_source(gr.sync_block):
         self._start = start
         self._end = end
         self._repeat = repeat
+        if min_chunksize is None:
+            # FIXME: it shouldn't have to be quite this high
+            self._min_chunksize = int(sr)
+        else:
+            self._min_chunksize = min_chunksize
+
+        # reduce CPU usage and underruns by setting a minimum number of samples
+        # to handle at once
+        # (really want to set_min_noutput_items, but no way to do that from
+        #  Python)
+        self.set_output_multiple(self._min_chunksize)
 
         try:
             self._DMDReader = self._Reader.get_digital_metadata(self._ch)
         except IOError:
             self._DMDReader = None
-
-        # FIXME: should not be necessary, sets a large output buffer so that
-        # we don't underrun on frequent calls to work
-        self.set_output_multiple(int(sr))
 
     def _queue_tags(self, sample, tags):
         """Queue stream tags to be attached to data in the work function.
@@ -344,12 +357,18 @@ class digital_rf_channel_source(gr.sync_block):
             return -1
         return nout
 
+    def get_repeat(self):
+        return self._repeat
+
+    def set_repeat(self, repeat):
+        self._repeat = repeat
+
 
 class digital_rf_source(gr.hier_block2):
     """Source block for reading Digital RF data."""
     def __init__(
         self, top_level_dir, channels=None, start=None, end=None,
-        repeat=False, throttle=False,
+        repeat=False, throttle=False, min_chunksize=None,
     ):
         """Read data from a directory containing Digital RF channels.
 
@@ -374,7 +393,7 @@ class digital_rf_source(gr.hier_block2):
         Other Parameters
         ----------------
 
-        channels : None | string | int | iterable of previous
+        channels : None | string | int | iterable of previous, optional
             If None, use all available channels in alphabetical order.
             Otherwise, use the channels in the order specified in the given
             iterable (a string or int is taken as a single-element iterable).
@@ -382,7 +401,7 @@ class digital_rf_source(gr.hier_block2):
             to specify the channel index in the sorted list of available
             channel names.
 
-        start : None | string | long | iterable of previous
+        start : None | string | long | iterable of previous, optional
             Can be a single value or an iterable of values corresponding to
             `channels` giving the start of the channel's playback.
             If None or '', the start of the channel's available data is used.
@@ -398,19 +417,24 @@ class digital_rf_source(gr.hier_block2):
                     the start of the data, and
                 3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
 
-        end : None | string | long | iterable of previous
+        end : None | string | long | iterable of previous, optional
             Can be a single value or an iterable of values corresponding to
             `channels` giving the end of the channel's playback.
             If None or '', the end of the channel's available data is used.
             See `start` for a description of how this value is interpreted.
 
-        repeat : bool
+        repeat : bool, optional
             If True, loop the data continuously from the start after the end
             is reached. If False, stop after the data is read once.
 
-        throttle : bool
+        throttle : bool, optional
             If True, playback the samples at their recorded sample rate. If
             False, read samples as quickly as possible.
+
+        min_chunksize : None | int, optional
+            Minimum number of samples to output at once. This value can be used
+            to adjust the source's performance to reduce underruns and
+            processing time. If None, a sensible default will be used.
 
         Notes
         -----
@@ -469,6 +493,7 @@ class digital_rf_source(gr.hier_block2):
         for ch, s, e in zip(self._channel_names, s_iter, e_iter):
             chsrc = digital_rf_channel_source(
                 os.path.join(top_level_dir, ch), start=s, end=e, repeat=repeat,
+                min_chunksize=min_chunksize,
             )
             self._channels.append(chsrc)
 
@@ -493,7 +518,7 @@ class digital_rf_source(gr.hier_block2):
             if throttle:
                 throt = gnuradio.blocks.throttle(
                     src.out_sig()[0].itemsize, src._sample_rate,
-                    ignore_tags=True,
+                    ignore_tags=False,
                 )
                 self.connect(src, throt, (self, k))
             else:
@@ -550,3 +575,10 @@ class digital_rf_source(gr.hier_block2):
                 raise ValueError(errstr.format(ch_name))
             channel_names.append(ch_name)
         return channel_names
+
+    def get_repeat(self):
+        return self._channels[0]._repeat
+
+    def set_repeat(self, repeat):
+        for ch in self._channels:
+            ch.set_repeat(repeat)

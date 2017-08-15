@@ -97,7 +97,7 @@ class digital_rf_channel_sink(gr.sync_block):
         uuid_str=None, center_frequencies=None, metadata={},
         is_continuous=True, compression_level=0,
         checksum=False, marching_periods=True, stop_on_skipped=True,
-        debug=False,
+        debug=False, min_chunksize=None,
     ):
         """Write a channel of data in Digital RF format.
 
@@ -215,6 +215,11 @@ class digital_rf_channel_sink(gr.sync_block):
         debug : bool, optional
             If True, print debugging information.
 
+        min_chunksize : None | int, optional
+            Minimum number of samples to consume at once. This value can be
+            used to adjust the sink's performance to reduce processing time.
+            If None, a sensible default will be used.
+
 
         Notes
         -----
@@ -297,6 +302,18 @@ class digital_rf_channel_sink(gr.sync_block):
             np.longdouble(np.uint64(sample_rate_numerator)) /
             np.longdouble(np.uint64(sample_rate_denominator))
         )
+
+        if min_chunksize is None:
+            self._min_chunksize = int(self._samples_per_second // 1000)
+        else:
+            self._min_chunksize = min_chunksize
+
+        # reduce CPU usage by setting a minimum number of samples to handle
+        # at once
+        # (really want to set_min_noutput_items, but no way to do that from
+        #  Python)
+        self.set_output_multiple(self._min_chunksize)
+
         # will be None if start is None or ''
         self._start_sample = util.parse_identifier_to_sample(
             start, self._samples_per_second, None,
@@ -565,7 +582,7 @@ class digital_rf_sink(gr.hier_block2):
         uuid_str=None, center_frequencies=None, metadata={},
         is_continuous=True, compression_level=0,
         checksum=False, marching_periods=True, stop_on_skipped=True,
-        debug=False,
+        debug=False, min_chunksize=None,
     ):
         """Write data in Digital RF format.
 
@@ -692,6 +709,11 @@ class digital_rf_sink(gr.hier_block2):
 
         debug : bool, optional
             If True, print debugging information.
+
+        min_chunksize : None | int, optional
+            Minimum number of samples to consume at once. This value can be
+            used to adjust the sink's performance to reduce processing time.
+            If None, a sensible default will be used.
 
 
         Notes

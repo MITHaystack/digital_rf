@@ -36,8 +36,11 @@ MAIN_TMPL = """\
         end=\$end,
         repeat=\$repeat,
         throttle=\$throttle,
+        min_chunksize=None if \$min_chunksize==0 else \$min_chunksize,
     )
     </make>
+
+    <callback>set_repeat(\$repeat)</callback>
 
     <param>
         <name>Directory</name>
@@ -89,6 +92,14 @@ MAIN_TMPL = """\
     </param>
     $channel_params
     <param>
+        <name>Minimum Chunk Size</name>
+        <key>min_chunksize</key>
+        <value>0</value>
+        <type>int</type>
+        <hide>part</hide>
+        <tab>Advanced</tab>
+    </param>
+    <param>
         <name>Show Message Port</name>
         <key>hide_msg_port</key>
         <value>True</value>
@@ -104,6 +115,9 @@ MAIN_TMPL = """\
         </option>
         <tab>Advanced</tab>
     </param>
+
+    <check>\$nchan > 0</check>
+    <check>\$min_chunksize >= 0</check>
 
     <source>
         <name>out</name>
@@ -169,6 +183,15 @@ ChN end : string
     A value giving the end of the channel's playback.
     If None or '', the end of the channel's available data is used.
     Otherwise, this is interpreted in the same way as the start value.
+
+
+Other Parameters
+-----------------------
+
+Minimum Chunk Size : int, optional
+    Minimum number of samples to output at once. This value can be
+    used to adjust the source's performance to reduce underruns and
+    processing time. If 0, a sensible default will be used.
 
 
 Notes
