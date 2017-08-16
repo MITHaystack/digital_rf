@@ -149,11 +149,12 @@ def beacon_list(input_args):
             cmd = cmd+' -j'
         subprocess.call(cmd, shell=True)
         oldfigdir = os.path.join(newdir, 'Figures')
-        figslist = glob.glob(os.path.join(oldfigdir, '*.png'))
+
 
         if input_args.justplots:
             savename = os.path.join(oldfigdir, 'linecomp' + '.png')
             plot_dops(rfdir, savename, float(curtleoff))
+        figslist = glob.glob(os.path.join(oldfigdir, '*.png'))
         for ifig in figslist:
             figpre = os.path.splitext(os.path.split(ifig)[-1])[0]
             newfig = os.path.join(figsdir, figpre+'-'+curdir+'.png')
