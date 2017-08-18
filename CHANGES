@@ -1,3 +1,14 @@
+2.5.4 - August 18, 2017
+-----------------------
+
+This release incorporates many robustness improvements and fixes based on testing with the Millstone Hill radar. Major changes include:
+
+- Ringbuffer/mirror/watchdog code are now more efficient and robust to errors.
+- New 'drf cp' and 'drf mv' commands for copying and moving data.
+- The watchdog and cp/mv commands now support specifying a start and end time to watch/copy/move only a particular window of time.
+- Many fixes and updates to the beacon example.
+- Added ability to specify input/output chunksize in the GNU Radio Digital RF Sources/Sinks in order to tweak performance for a particular application.
+
 2.5.3 - July 28, 2017
 ---------------------
 
