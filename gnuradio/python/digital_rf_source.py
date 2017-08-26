@@ -517,7 +517,7 @@ class digital_rf_source(gr.hier_block2):
         for k, src in enumerate(self._channels):
             if throttle:
                 throt = gnuradio.blocks.throttle(
-                    src.out_sig()[0].itemsize, src._sample_rate,
+                    src.out_sig()[0].itemsize, float(src._sample_rate),
                     ignore_tags=False,
                 )
                 self.connect(src, throt, (self, k))
