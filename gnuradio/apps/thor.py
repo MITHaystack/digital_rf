@@ -497,7 +497,17 @@ if __name__ == '__main__':
     formatter = RawDescriptionHelpFormatter(scriptname)
     width = formatter._width
 
-    desc = 'Record data from synchronized USRPs in DigitalRF format.'
+    title = 'THOR (The Haystack Observatory Recorder)'
+    copyright = 'Copyright (c) 2017 Massachusetts Institute of Technology'
+    shortdesc = 'Record data from synchronized USRPs in DigitalRF format.'
+    desc = '\n'.join((
+        '*'*width,
+        '*{0:^{1}}*'.format(title, width-2),
+        '*{0:^{1}}*'.format(copyright, width-2),
+        '*{0:^{1}}*'.format(' ', width-2),
+        '*{0:^{1}}*'.format(shortdesc, width-2),
+        '*'*width,
+    ))
 
     usage = '%(prog)s [options] [-o DIR | DIR]'
 
@@ -538,11 +548,7 @@ if __name__ == '__main__':
 
     parser.add_argument(
         '--version', action='version',
-        version=(
-            'THOR version 3.1 (The Haystack Observatory Recorder)\n'
-            '\n'
-            'Copyright (c) 2017 Massachusetts Institute of Technology'
-        )
+        version='THOR 3.1, using digital_rf {0}'.format(drf.__version__),
     )
     parser.add_argument(
         '-q', '--quiet', dest='verbose', action='store_false',
