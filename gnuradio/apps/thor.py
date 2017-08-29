@@ -504,20 +504,32 @@ if __name__ == '__main__':
         '*'*width,
         '*{0:^{1}}*'.format(title, width-2),
         '*{0:^{1}}*'.format(copyright, width-2),
-        '*{0:^{1}}*'.format(' ', width-2),
+        '*{0:^{1}}*'.format('', width-2),
         '*{0:^{1}}*'.format(shortdesc, width-2),
         '*'*width,
     ))
 
-    usage = '%(prog)s [options] [-o DIR | DIR]'
+    usage = (
+        '%(prog)s [-m MBOARD] [-d SUBDEV] [-c CH] [-y ANT] [-f FREQ]'
+        ' [-F OFFSET] \\\n'
+        '{0:8}[-g GAIN] [-b BANDWIDTH] [-r RATE] [options] DIR\n'.format('')
+    )
 
     epi_pars = [
         '''\
-        Multiple mainboards can be specified by repeating the mainboard and
-        channel arguments. The subdevice, centerfreq, and gain arguments can
-        also be repeated to set those properties per mainboard, but those
-        values will be duplicated if necessary to match the number of specified
-        mainboards.
+        Arguments in the "mainboard" and "channel" groups accept multiple
+        values, allowing multiple mainboards and channels to be specified.
+        Multiple arguments can be provided by repeating the argument flag, by
+        passing a comma-separated list of values, or both. Within each argument
+        group, parameters will be grouped in the order in which they are given
+        to form the complete set of parameters for each mainboard/channel. For
+        any argument with fewer values given than the number of
+        mainboards/channels, its values will be extended by repeatedly cycling
+        through the values given up to the needed number.
+        ''',
+        '''\
+        Arguments in other groups apply to all mainboards/channels (including
+        the sample rate and decimation factor).
         ''',
         '''\
         Example usage:
@@ -535,7 +547,7 @@ if __name__ == '__main__':
         /data/test
         ''',
         '''\
-        {0} -m 192.168.10.2 -d "A:0" -y "TX/RX" -c ch1 -f 20e6 -F 10e3 -g 20
+        {0} -m 192.168.10.2 -d "A:0" -c ch1 -y "TX/RX" -f 20e6 -F 10e3 -g 20
         -b 0 -r 1e6 /data/test
         ''',
     ]
