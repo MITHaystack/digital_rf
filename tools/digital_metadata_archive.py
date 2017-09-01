@@ -80,7 +80,7 @@ class archive:
         self._samples_per_second = long(dmd.get_samples_per_second())
         self._subdirectory_cadence_seconds = long(
             dmd.get_subdirectory_cadence_seconds())
-        self._file_cadence_seconds = long(dmd.get_file_cadence_seconds())
+        self._file_cadence_seconds = long(dmd.get_file_cadence_secs())
         self._file_name = dmd.get_file_name_prefix()
 
         self.metadata_dir = os.path.basename(self.source)
