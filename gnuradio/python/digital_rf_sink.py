@@ -8,6 +8,7 @@
 # ----------------------------------------------------------------------------
 """Module defining a Digital RF Source block."""
 import os
+import sys
 import warnings
 from collections import defaultdict
 from itertools import chain, tee
@@ -282,6 +283,7 @@ class digital_rf_channel_sink(gr.sync_block):
         )
 
         self._channel_dir = channel_dir
+        self._channel_name = os.path.basename(channel_dir)
         self._dtype = dtype
         self._subdir_cadence_secs = subdir_cadence_secs
         self._file_cadence_millisecs = file_cadence_millisecs
@@ -409,10 +411,13 @@ class digital_rf_channel_sink(gr.sync_block):
                 tag.value, self._samples_per_second,
             )
             if self._debug:
-                tagstr = "Time tag @ sample {0} ({1}): {2}+{3}.".format(
-                    offset, tidx, tsec, tfrac,
+                tagstr = (
+                    '\n|{0}|rx_time tag @ sample {1}: {2}+{3} ({4})'
+                ).format(
+                    self._channel_name, offset, tsec, tfrac, tidx,
                 )
-                print(tagstr)
+                sys.stdout.write(tagstr)
+                sys.stdout.flush()
 
             # index into data block for this tag
             bidx = offset - nread
@@ -427,10 +432,14 @@ class digital_rf_channel_sink(gr.sync_block):
             if sidx < next_continuous_sample:
                 if self._debug:
                     errstr = (
-                        "Time tag is invalid: time cannot go backwards"
-                        " from index {0}. Skipping."
-                    ).format(self._start_sample + next_continuous_sample)
-                    print(errstr)
+                        '\n|{0}|rx_time tag is invalid: time cannot go'
+                        ' backwards from index {1}. Skipping.'
+                    ).format(
+                        self._channel_name,
+                        self._start_sample + next_continuous_sample,
+                    )
+                    sys.stdout.write(errstr)
+                    sys.stdout.flush()
                 continue
             elif sidx == next_continuous_sample:
                 # don't create a new block because it's continuous
