@@ -11,6 +11,7 @@ import os
 import sys
 import warnings
 from collections import defaultdict
+from distutils.version import LooseVersion
 from itertools import chain, tee
 
 import numpy as np
@@ -331,6 +332,19 @@ class digital_rf_channel_sink(gr.sync_block):
             self._start_sample = 0
         self._next_rel_sample = 0
 
+        # stream tags to read (in addition to rx_time, handled specially)
+        if LooseVersion(gr.version()) >= LooseVersion('3.7.12'):
+            self._stream_tag_translators = {
+                pmt.intern('rx_freq'): translate_rx_freq,
+                pmt.intern('metadata'): translate_metadata,
+            }
+        else:
+            # USRP source in gnuradio < 3.7.12 has bad rx_freq tags, so avoid
+            # trouble by ignoring rx_freq tags for those gnuradio versions
+            self._stream_tag_translators = {
+                pmt.intern('metadata'): translate_metadata,
+            }
+
         # create metadata dictionary that will be updated and written whenever
         # new metadata is received in stream tags
         self._metadata = metadata.copy()
@@ -467,20 +481,10 @@ class digital_rf_channel_sink(gr.sync_block):
                 data_rel_samples,
         ):
             tags_by_offset = {}
-            # read frequency tags
-            freq_tags = self.get_tags_in_window(
-                0, bidx, bend, pmt.intern('rx_freq'),
-            )
-            collect_tags_in_dict(
-                freq_tags, translate_rx_freq, tags_by_offset,
-            )
-            # read metadata tags
-            meta_tags = self.get_tags_in_window(
-                0, bidx, bend, pmt.intern('metadata'),
-            )
-            collect_tags_in_dict(
-                meta_tags, translate_metadata, tags_by_offset,
-            )
+            # read tags, translate to metadata dict, add to tag dict
+            for tag_name, translator in self._stream_tag_translators.items():
+                tags = self.get_tags_in_window(0, bidx, bend, tag_name)
+                collect_tags_in_dict(tags, translator, tags_by_offset)
             # add tags to metadata sample dictionary
             for offset, tag_dict in tags_by_offset.items():
                 mbidx = offset - nread
