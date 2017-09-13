@@ -773,11 +773,7 @@ class DigitalRFReader:
                 self._top_level_dir_dict[top_level_directory] = 'ftp'
             else:
                 # make sure absolute path used
-                if top_level_directory[0] != '/':
-                    this_top_level_dir = os.path.join(
-                        os.getcwd(), top_level_directory)
-                else:
-                    this_top_level_dir = top_level_directory
+                this_top_level_dir = os.path.abspath(top_level_directory)
                 self._top_level_dir_dict[this_top_level_dir] = 'local'
 
         self._channel_dict = {}
@@ -1639,7 +1635,7 @@ class DigitalRFReader:
         return ret_dict
 
     def _get_channels_in_dir(self, top_level_dir):
-        """Return a list of channel names found in a top-level directory.
+        """Return a list of channel paths found in a top-level directory.
 
         A channel is any subdirectory with a drf_properties.h5 file.
 
@@ -1655,23 +1651,37 @@ class DigitalRFReader:
         -------
 
         list
-            A list of strings giving the channel names found.
+            A list of strings giving the channel paths found.
 
         """
         retList = []
         access_mode = self._top_level_dir_dict[top_level_dir]
 
         if access_mode == 'local':
+            # detect if top_level_dir is a channel directory and raise
+            # helpful error to let user know they need to specify parent
+            properties_paths = [
+                f for f in glob.glob(os.path.join(
+                    top_level_dir, list_drf.GLOB_DRFPROPFILE,
+                )) if re.match(list_drf.RE_DRFPROP, f)
+            ]
+            if properties_paths:
+                errstr = (
+                    "'{0}' is a channel directory, but a top-level directory"
+                    " containing channel directories is required. You probably"
+                    " want to use '{1}' instead."
+                ).format(top_level_dir, os.path.dirname(top_level_dir))
+                raise ValueError(errstr)
             # list and match all channel dirs with properties files
-            potential_channels = [
+            properties_paths = [
                 f for f in glob.glob(os.path.join(
                     top_level_dir, '*', list_drf.GLOB_DRFPROPFILE,
                 )) if re.match(list_drf.RE_DRFPROP, f)
             ]
-            for potential_channel in potential_channels:
-                channel_name = os.path.dirname(potential_channel)
-                if channel_name not in retList:
-                    retList.append(channel_name)
+            for properties_path in properties_paths:
+                channel_path = os.path.dirname(properties_path)
+                if channel_path not in retList:
+                    retList.append(channel_path)
 
         else:
             raise ValueError('access_mode %s not implemented' % (access_mode))
