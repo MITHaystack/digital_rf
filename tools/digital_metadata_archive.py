@@ -78,9 +78,9 @@ class archive:
 
         dmd = digital_rf.DigitalMetadataReader(self.source)
         self._samples_per_second = int(dmd.get_samples_per_second())
-        self._subdirectory_cadence_seconds = int(
-            dmd.get_subdirectory_cadence_seconds())
-        self._file_cadence_seconds = int(dmd.get_file_cadence_seconds())
+        self._subdir_cadence_secs = int(
+            dmd.get_subdir_cadence_secs())
+        self._file_cadence_secs = int(dmd.get_file_cadence_secs())
         self._file_name = dmd.get_file_name_prefix()
 
         self.metadata_dir = os.path.basename(self.source)
@@ -125,27 +125,27 @@ class archive:
         start_ts = int(sample0 / self._samples_per_second)
         end_ts = int(sample1 / self._samples_per_second)
 
-        # convert ts to be divisible by self._file_cadence_seconds
-        start_ts = (start_ts // self._file_cadence_seconds) * \
-            self._file_cadence_seconds
-        end_ts = (end_ts // self._file_cadence_seconds) * \
-            self._file_cadence_seconds
+        # convert ts to be divisible by self._file_cadence_secs
+        start_ts = (start_ts // self._file_cadence_secs) * \
+            self._file_cadence_secs
+        end_ts = (end_ts // self._file_cadence_secs) * \
+            self._file_cadence_secs
 
         # get subdirectory start and end ts
-        start_sub_ts = (start_ts // self._subdirectory_cadence_seconds) * \
-            self._subdirectory_cadence_seconds
-        end_sub_ts = (end_ts // self._subdirectory_cadence_seconds) * \
-            self._subdirectory_cadence_seconds
+        start_sub_ts = (start_ts // self._subdir_cadence_secs) * \
+            self._subdir_cadence_secs
+        end_sub_ts = (end_ts // self._subdir_cadence_secs) * \
+            self._subdir_cadence_secs
 
         # ordered list of full file paths to return, always include dmd_properties.h5
         ret_list = ['dmd_properties.h5']
 
-        for sub_ts in range(start_sub_ts, end_sub_ts + self._subdirectory_cadence_seconds, self._subdirectory_cadence_seconds):
+        for sub_ts in range(start_sub_ts, end_sub_ts + self._subdir_cadence_secs, self._subdir_cadence_secs):
             sub_datetime = datetime.datetime.utcfromtimestamp(sub_ts)
             subdir = sub_datetime.strftime('%Y-%m-%dT%H-%M-%S')
             # create numpy array of all file TS in subdir
             file_ts_in_subdir = numpy.arange(
-                sub_ts, sub_ts + self._subdirectory_cadence_seconds, self._file_cadence_seconds)
+                sub_ts, sub_ts + self._subdir_cadence_secs, self._file_cadence_secs)
             valid_file_ts_list = numpy.compress(numpy.logical_and(file_ts_in_subdir >= start_ts, file_ts_in_subdir <= end_ts),
                                                 file_ts_in_subdir)
             for valid_file_ts in valid_file_ts_list:
