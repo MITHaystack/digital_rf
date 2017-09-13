@@ -18,10 +18,12 @@
         start=$start,
         end=$end,
         repeat=$repeat,
+        gapless=$gapless,
         min_chunksize=None if $min_chunksize==0 else $min_chunksize,
     )
     </make>
 
+    <callback>set_gapless($gapless)</callback>
     <callback>set_repeat($repeat)</callback>
 
     <param>
@@ -49,6 +51,21 @@
         <value>False</value>
         <type>bool</type>
         <hide>#if $repeat() then 'none' else 'part'#</hide>
+        <option>
+            <name>Yes</name>
+            <key>True</key>
+        </option>
+        <option>
+            <name>No</name>
+            <key>False</key>
+        </option>
+    </param>
+    <param>
+        <name>Gapless Playback</name>
+        <key>gapless</key>
+        <value>False</value>
+        <type>bool</type>
+        <hide>part</hide>
         <option>
             <name>Yes</name>
             <key>True</key>
@@ -137,6 +154,11 @@ End : string
 Repeat : bool
     If True, loop the data continuously from the start after the end
     is reached. If False, stop after the data is read once.
+
+Gapless Playback : bool
+    If True, output zeroed samples for any missing data between start
+    and end. If False, skip missing samples and add an `rx_time` stream
+    tag to indicate the gap.
 
 
 Other Parameters

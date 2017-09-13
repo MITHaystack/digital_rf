@@ -19,5 +19,6 @@ install(FILES
     ${generated_blocks}
     drf_digital_rf_sink.xml
     gr_drf_digital_rf_channel_sink.xml
+    gr_drf_digital_rf_channel_source.xml
     DESTINATION ${GRC_BLOCKS_DIR}
 )

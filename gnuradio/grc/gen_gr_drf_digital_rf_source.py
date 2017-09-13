@@ -36,10 +36,12 @@ MAIN_TMPL = """\
         end=\$end,
         repeat=\$repeat,
         throttle=\$throttle,
+        gapless=\$gapless,
         min_chunksize=None if \$min_chunksize==0 else \$min_chunksize,
     )
     </make>
 
+    <callback>set_gapless(\$gapless)</callback>
     <callback>set_repeat(\$repeat)</callback>
 
     <param>
@@ -68,6 +70,21 @@ MAIN_TMPL = """\
         <value>False</value>
         <type>bool</type>
         <hide>\#if \$throttle() then 'none' else 'part'\#</hide>
+        <option>
+            <name>Yes</name>
+            <key>True</key>
+        </option>
+        <option>
+            <name>No</name>
+            <key>False</key>
+        </option>
+    </param>
+    <param>
+        <name>Gapless Playback</name>
+        <key>gapless</key>
+        <value>False</value>
+        <type>bool</type>
+        <hide>part</hide>
         <option>
             <name>Yes</name>
             <key>True</key>
@@ -155,6 +172,11 @@ Repeat : bool
 Throttle : bool
     If True, playback the samples at their recorded sample rate.
     If False, read samples as quickly as possible.
+
+Gapless Playback : bool
+    If True, output zeroed samples for any missing data between start
+    and end. If False, skip missing samples and add an `rx_time` stream
+    tag to indicate the gap.
 
 Number of channels : int
     Number of channels to output.

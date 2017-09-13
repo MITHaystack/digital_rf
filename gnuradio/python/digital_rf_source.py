@@ -53,8 +53,9 @@ def get_h5type(cls, size, is_complex):
 
 class digital_rf_channel_source(gr.sync_block):
     """Source block for reading a channel of Digital RF data."""
+
     def __init__(
-        self, channel_dir, start=None, end=None, repeat=False,
+        self, channel_dir, start=None, end=None, repeat=False, gapless=False,
         min_chunksize=None,
     ):
         """Read a channel of data from a Digital RF directory.
@@ -103,6 +104,11 @@ class digital_rf_channel_source(gr.sync_block):
         repeat : bool, optional
             If True, loop the data continuously from the start after the end
             is reached. If False, stop after the data is read once.
+
+        gapless : bool, optional
+            If True, output zeroed samples for any missing data between start
+            and end. If False, skip missing samples and add an `rx_time` stream
+            tag to indicate the gap.
 
         min_chunksize : None | int, optional
             Minimum number of samples to output at once. This value can be used
@@ -196,6 +202,7 @@ class digital_rf_channel_source(gr.sync_block):
         self._start = start
         self._end = end
         self._repeat = repeat
+        self._gapless = gapless
         if min_chunksize is None:
             # FIXME: it shouldn't have to be quite this high
             self._min_chunksize = int(sr)
@@ -256,11 +263,11 @@ class digital_rf_channel_source(gr.sync_block):
             self._end, self._sample_rate, self._bounds[0],
         )
         if self._start_sample is None:
-            self._global_index = self._bounds[0]
+            self._read_start_sample = self._bounds[0]
         else:
-            self._global_index = self._start_sample
+            self._read_start_sample = self._start_sample
         # add default tags to first sample
-        self._queue_tags(self._global_index, {})
+        self._queue_tags(self._read_start_sample, {})
         # replace longdouble samples_per_second with float for pmt conversion
         properties_message = self._properties.copy()
         properties_message['samples_per_second'] = \
@@ -274,40 +281,50 @@ class digital_rf_channel_source(gr.sync_block):
     def work(self, input_items, output_items):
         out = output_items[0]
         nsamples = len(out)
-        nout = 0
+        next_index = 0
         # repeat reading until we succeed or return
-        while nout < nsamples:
-            start_sample = self._global_index
-            # end_sample is inclusive, hence the -1
-            end_sample = self._global_index + (nsamples - nout) - 1
+        while next_index < nsamples:
+            read_start = self._read_start_sample
+            # read_end is inclusive, hence the -1
+            read_end = self._read_start_sample + (nsamples - next_index) - 1
             # creating a read function that has an output argument so data can
             # be copied directly would be nice
             # also should move EOFError checking into reader once watchdog
             # bounds functionality is implemented
             try:
                 if self._end_sample is None:
-                    if end_sample > self._bounds[1]:
+                    if read_end > self._bounds[1]:
                         self._bounds = self._Reader.get_bounds(self._ch)
-                        end_sample = min(end_sample, self._bounds[1])
+                        read_end = min(read_end, self._bounds[1])
                 else:
-                    if end_sample > self._end_sample:
-                        end_sample = self._end_sample
-                if start_sample > end_sample:
+                    if read_end > self._end_sample:
+                        read_end = self._end_sample
+                if read_start > read_end:
                     raise EOFError
+                # read data
                 data_dict = self._Reader.read(
-                    start_sample, end_sample, self._ch,
+                    read_start, read_end, self._ch,
                 )
-                for sample, data in data_dict.items():
-                    # index into out starts at number of previously read
-                    # samples plus the offset from what we requested
-                    ks = nout + (sample - start_sample)
-                    ke = ks + data.shape[0]
-                    # out is zeroed, so only have to write samples we have
-                    out[ks:ke] = data.squeeze()
-                # now read corresponding metadata
+                # handled all samples through read_end regardless of whether
+                # they were written to the output vector
+                self._read_start_sample = read_end + 1
+                # early escape for no data
+                if not data_dict:
+                    if self._gapless:
+                        # output empty samples if no data and gapless output
+                        stop_index = next_index + read_end + 1 - read_start
+                        out[next_index:stop_index] = 0
+                        next_index = stop_index
+                    else:
+                        # clear any existing tags
+                        self._tag_queue.clear()
+                        # add tag at next potential sample to indicate skip
+                        self._queue_tags(self._read_start_sample, {})
+                    continue
+                # read corresponding metadata
                 if self._DMDReader is not None:
                     meta_dict = self._DMDReader.read(
-                        start_sample, end_sample,
+                        read_start, read_end,
                     )
                     for sample, meta in meta_dict.items():
                         # add tags from Digital Metadata
@@ -326,36 +343,68 @@ class digital_rf_channel_source(gr.sync_block):
                             metadata=meta,
                         )
                         self._queue_tags(sample, tags)
-                # add queued tags to stream
-                for sample, tag_dict in self._tag_queue.items():
-                    offset = (
-                        self.nitems_written(0) + nout +
-                        (sample - start_sample)
-                    )
-                    for name, val in tag_dict.items():
-                        self.add_item_tag(
-                            0, offset, pmt.intern(name), val, self._id,
+
+                # add data and tags to output
+                next_continuous_sample = read_start
+                for sample, data in data_dict.items():
+                    # detect data skip
+                    if sample > next_continuous_sample:
+                        if self._gapless:
+                            # advance output by skipped number of samples
+                            nskipped = sample - next_continuous_sample
+                            sample_index = next_index + nskipped
+                            out[next_index:sample_index]
+                            next_index = sample_index
+                        else:
+                            # emit new time tag at sample to indicate skip
+                            self._queue_tags(sample, {})
+                    # output data
+                    n = data.shape[0]
+                    stop_index = next_index + n
+                    end_sample = sample + n
+                    out[next_index:stop_index] = data.squeeze()
+                    # output tags
+                    for tag_sample in sorted(self._tag_queue.keys()):
+                        if tag_sample < sample:
+                            # drop tags from before current data block
+                            del self._tag_queue[tag_sample]
+                            continue
+                        elif tag_sample >= end_sample:
+                            # wait to output tags from after current data block
+                            break
+                        offset = (
+                            self.nitems_written(0)  # offset @ start of work
+                            + next_index  # additional offset of data block
+                            + (tag_sample - sample)
                         )
-                self._tag_queue.clear()
-                # no errors, so we read all the samples we wanted
-                # (end_sample is inclusive, hence the +1)
-                nread = (end_sample + 1 - start_sample)
-                nout += nread
-                self._global_index += nread
+                        tag_dict = self._tag_queue.pop(tag_sample)
+                        for name, val in tag_dict.items():
+                            self.add_item_tag(
+                                0, offset, pmt.intern(name), val, self._id,
+                            )
+                    # advance next output index and continuous sample
+                    next_index = stop_index  # <=== next_index += n
+                    next_continuous_sample = end_sample
             except EOFError:
                 if self._repeat:
                     if self._start_sample is None:
-                        self._global_index = self._bounds[0]
+                        self._read_start_sample = self._bounds[0]
                     else:
-                        self._global_index = self._start_sample
-                    self._queue_tags(self._global_index, {})
+                        self._read_start_sample = self._start_sample
+                    self._queue_tags(self._read_start_sample, {})
                     continue
                 else:
                     break
-        if nout == 0:
+        if next_index == 0:
             # return WORK_DONE
             return -1
-        return nout
+        return next_index
+
+    def get_gapless(self):
+        return self._gapless
+
+    def set_gapless(self, gapless):
+        self._gapless = gapless
 
     def get_repeat(self):
         return self._repeat
@@ -366,9 +415,10 @@ class digital_rf_channel_source(gr.sync_block):
 
 class digital_rf_source(gr.hier_block2):
     """Source block for reading Digital RF data."""
+
     def __init__(
         self, top_level_dir, channels=None, start=None, end=None,
-        repeat=False, throttle=False, min_chunksize=None,
+        repeat=False, throttle=False, gapless=False, min_chunksize=None,
     ):
         """Read data from a directory containing Digital RF channels.
 
@@ -431,6 +481,11 @@ class digital_rf_source(gr.hier_block2):
             If True, playback the samples at their recorded sample rate. If
             False, read samples as quickly as possible.
 
+        gapless : bool, optional
+            If True, output zeroed samples for any missing data between start
+            and end. If False, skip missing samples and add an `rx_time` stream
+            tag to indicate the gap.
+
         min_chunksize : None | int, optional
             Minimum number of samples to output at once. This value can be used
             to adjust the source's performance to reduce underruns and
@@ -469,6 +524,14 @@ class digital_rf_source(gr.hier_block2):
                 dictionary tag of metadata.
 
         """
+        options = locals()
+        del options['self']
+        del options['top_level_dir']
+        del options['channels']
+        del options['start']
+        del options['end']
+        del options['throttle']
+
         Reader = DigitalRFReader(top_level_dir)
         available_channel_names = Reader.get_channels()
         self._channel_names = self._get_channel_names(
@@ -492,8 +555,7 @@ class digital_rf_source(gr.hier_block2):
         self._channels = []
         for ch, s, e in zip(self._channel_names, s_iter, e_iter):
             chsrc = digital_rf_channel_source(
-                os.path.join(top_level_dir, ch), start=s, end=e, repeat=repeat,
-                min_chunksize=min_chunksize,
+                os.path.join(top_level_dir, ch), start=s, end=e, **options
             )
             self._channels.append(chsrc)
 
@@ -575,6 +637,13 @@ class digital_rf_source(gr.hier_block2):
                 raise ValueError(errstr.format(ch_name))
             channel_names.append(ch_name)
         return channel_names
+
+    def get_gapless(self):
+        return self._channels[0]._gapless
+
+    def set_gapless(self, gapless):
+        for ch in self._channels:
+            ch.set_gapless(gapless)
 
     def get_repeat(self):
         return self._channels[0]._repeat
