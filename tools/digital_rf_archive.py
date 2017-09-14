@@ -392,7 +392,7 @@ class archive:
             self.channels = self._chan_dict.keys()  # archive all channels
 
         self._hostname = self._get_hostname()
-        self._top_level_dest_dir = self._get_top_level_dest_dir()
+        self._top_level_dest_dir = self.get_top_level_dest_dir()
 
         # set _next_level_dir to rf_data or metadata
         if self.is_metadata:
@@ -669,7 +669,7 @@ class archive:
         os.remove(resultFile)
         return(result)
 
-    def _get_top_level_dest_dir(self):
+    def get_top_level_dest_dir(self):
         """returns the top level dest directory to write to in format
         <hostname>_YYYY-MM-DDTHH:MM:SS_YYYY-MM-DDTHH:MM:SS
         """
