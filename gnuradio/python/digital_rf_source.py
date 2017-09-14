@@ -19,27 +19,47 @@ from gnuradio import gr
 from digital_rf import DigitalRFReader, util
 
 H5T_LOOKUP = {
-    # (class, itemsize, is_complex): {name, dtype}
-    (h5py.h5t.INTEGER, 1, False): dict(name='s8', dtype=np.int8),
-    (h5py.h5t.INTEGER, 2, False): dict(name='s16', dtype=np.int16),
-    (h5py.h5t.INTEGER, 4, False): dict(name='s32', dtype=np.int32),
-    (h5py.h5t.INTEGER, 8, False): dict(name='s64', dtype=np.int64),
-    (h5py.h5t.FLOAT, 4, False): dict(name='f32', dtype=np.float32),
-    (h5py.h5t.FLOAT, 8, False): dict(name='f64', dtype=np.float64),
+    # (class, itemsize, is_complex): {name, dtype, fillvalue}
+    (h5py.h5t.INTEGER, 1, False): dict(
+        name='s8', dtype=np.int8, fillvalue=np.iinfo(np.int8).min,
+    ),
+    (h5py.h5t.INTEGER, 2, False): dict(
+        name='s16', dtype=np.int16, fillvalue=np.iinfo(np.int16).min,
+    ),
+    (h5py.h5t.INTEGER, 4, False): dict(
+        name='s32', dtype=np.int32, fillvalue=np.iinfo(np.int32).min,
+    ),
+    (h5py.h5t.INTEGER, 8, False): dict(
+        name='s64', dtype=np.int64, fillvalue=np.iinfo(np.int64).min,
+    ),
+    (h5py.h5t.FLOAT, 4, False): dict(
+        name='f32', dtype=np.float32, fillvalue=np.nan,
+    ),
+    (h5py.h5t.FLOAT, 8, False): dict(
+        name='f64', dtype=np.float64, fillvalue=np.nan,
+    ),
     (h5py.h5t.INTEGER, 1, True): dict(
         name='sc8', dtype=np.dtype([('r', np.int8), ('i', np.int8)]),
+        fillvalue=(np.iinfo(np.int8).min,)*2,
     ),
     (h5py.h5t.INTEGER, 2, True): dict(
         name='sc16', dtype=np.dtype([('r', np.int16), ('i', np.int16)]),
+        fillvalue=(np.iinfo(np.int16).min,)*2,
     ),
     (h5py.h5t.INTEGER, 4, True): dict(
         name='sc32', dtype=np.dtype([('r', np.int32), ('i', np.int32)]),
+        fillvalue=(np.iinfo(np.int32).min,)*2,
     ),
     (h5py.h5t.INTEGER, 8, True): dict(
         name='sc64', dtype=np.dtype([('r', np.int64), ('i', np.int64)]),
+        fillvalue=(np.iinfo(np.int64).min,)*2,
     ),
-    (h5py.h5t.FLOAT, 4, True): dict(name='fc32', dtype=np.complex64),
-    (h5py.h5t.FLOAT, 8, True): dict(name='fc64', dtype=np.complex128),
+    (h5py.h5t.FLOAT, 4, True): dict(
+        name='fc32', dtype=np.complex64, fillvalue=(np.nan+np.nan*1j),
+    ),
+    (h5py.h5t.FLOAT, 8, True): dict(
+        name='fc64', dtype=np.complex128, fillvalue=(np.nan+np.nan*1j),
+    ),
 }
 
 
@@ -106,9 +126,9 @@ class digital_rf_channel_source(gr.sync_block):
             is reached. If False, stop after the data is read once.
 
         gapless : bool, optional
-            If True, output zeroed samples for any missing data between start
-            and end. If False, skip missing samples and add an `rx_time` stream
-            tag to indicate the gap.
+            If True, output default-filled samples for any missing data between
+            start and end. If False, skip missing samples and add an `rx_time`
+            stream tag to indicate the gap.
 
         min_chunksize : None | int, optional
             Minimum number of samples to output at once. This value can be used
@@ -183,6 +203,7 @@ class digital_rf_channel_source(gr.sync_block):
         typedict = get_h5type(typeclass, itemsize, is_complex)
         self._outtype = typedict['name']
         self._itemtype = typedict['dtype']
+        self._fillvalue = typedict['fillvalue']
         if vlen == 1:
             out_sig = [self._itemtype]
         else:
@@ -313,7 +334,7 @@ class digital_rf_channel_source(gr.sync_block):
                     if self._gapless:
                         # output empty samples if no data and gapless output
                         stop_index = next_index + read_end + 1 - read_start
-                        out[next_index:stop_index] = 0
+                        out[next_index:stop_index] = self._fillvalue
                         next_index = stop_index
                     else:
                         # clear any existing tags
@@ -353,7 +374,7 @@ class digital_rf_channel_source(gr.sync_block):
                             # advance output by skipped number of samples
                             nskipped = sample - next_continuous_sample
                             sample_index = next_index + nskipped
-                            out[next_index:sample_index]
+                            out[next_index:sample_index] = self._fillvalue
                             next_index = sample_index
                         else:
                             # emit new time tag at sample to indicate skip
