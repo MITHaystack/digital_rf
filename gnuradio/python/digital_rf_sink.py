@@ -424,14 +424,6 @@ class digital_rf_channel_sink(gr.sync_block):
             tsec, tfrac, tidx = parse_time_pmt(
                 tag.value, self._samples_per_second,
             )
-            if self._debug:
-                tagstr = (
-                    '\n|{0}|rx_time tag @ sample {1}: {2}+{3} ({4})'
-                ).format(
-                    self._channel_name, offset, tsec, tfrac, tidx,
-                )
-                sys.stdout.write(tagstr)
-                sys.stdout.flush()
 
             # index into data block for this tag
             bidx = offset - nread
@@ -446,10 +438,11 @@ class digital_rf_channel_sink(gr.sync_block):
             if sidx < next_continuous_sample:
                 if self._debug:
                     errstr = (
-                        '\n|{0}|rx_time tag is invalid: time cannot go'
-                        ' backwards from index {1}. Skipping.'
+                        '\n|{0}|rx_time tag @ sample {1}: {2}+{3} ({4})'
+                        '\n INVALID: time cannot go backwards from index {5}.'
+                        ' Skipping.'
                     ).format(
-                        self._channel_name,
+                        self._channel_name, offset, tsec, tfrac, tidx,
                         self._start_sample + next_continuous_sample,
                     )
                     sys.stdout.write(errstr)
@@ -460,6 +453,16 @@ class digital_rf_channel_sink(gr.sync_block):
                 continue
             else:
                 # add new block to write based on time tag
+                if self._debug:
+                    tagstr = (
+                        '\n|{0}|rx_time tag @ sample {1}: {2}+{3} ({4})'
+                        '\n {5} dropped samples.'
+                    ).format(
+                        self._channel_name, offset, tsec, tfrac, tidx,
+                        sidx - next_continuous_sample,
+                    )
+                    sys.stdout.write(tagstr)
+                    sys.stdout.flush()
                 if bidx == 0:
                     # override assumed continuous write
                     # data_blk_idxs[0] is already 0
