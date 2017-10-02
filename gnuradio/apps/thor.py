@@ -38,6 +38,7 @@ class Thor(object):
     def __init__(
         self, datadir, mboards=[], subdevs=['A:A'],
         chs=['ch0'], centerfreqs=[100e6], lo_offsets=[0],
+        lo_sources=[''], lo_exports=[None],
         gains=[0], bandwidths=[0], antennas=[''],
         samplerate=1e6, dec=1,
         dev_args=['recv_buff_size=100000000', 'num_recv_frames=512'],
@@ -70,6 +71,8 @@ class Thor(object):
         op.subdevs = list(islice(cycle(op.subdevs), 0, op.nmboards))
         op.centerfreqs = list(islice(cycle(op.centerfreqs), 0, op.nchs))
         op.lo_offsets = list(islice(cycle(op.lo_offsets), 0, op.nchs))
+        op.lo_sources = list(islice(cycle(op.lo_sources), 0, op.nchs))
+        op.lo_exports = list(islice(cycle(op.lo_exports), 0, op.nchs))
         op.gains = list(islice(cycle(op.gains), 0, op.nchs))
         op.bandwidths = list(islice(cycle(op.bandwidths), 0, op.nchs))
         op.antennas = list(islice(cycle(op.antennas), 0, op.nchs))
@@ -105,7 +108,9 @@ class Thor(object):
                 Subdevices: {subdevs}
                 Channel names: {chs}
                 Frequency: {centerfreqs}
-                Frequency offset: {lo_offsets}
+                LO frequency offset: {lo_offsets}
+                LO source: {lo_sources}
+                LO export: {lo_exports}
                 Gain: {gains}
                 Bandwidth: {bandwidths}
                 Antenna: {antennas}
@@ -174,8 +179,9 @@ class Thor(object):
                 u.set_clock_source(op.sync_source, uhd.ALL_MBOARDS)
                 u.set_time_source(op.sync_source, uhd.ALL_MBOARDS)
             except RuntimeError:
-                errstr = 'Unknown sync_source option: {0}. Must be one of {1}.'
-                errstr = errstr.format(op.sync_source, u.get_clock_sources(0))
+                errstr = (
+                    "Unknown sync_source option: '{0}'. Must be one of {1}."
+                ).format(op.sync_source, u.get_clock_sources(0))
                 raise ValueError(errstr)
 
         # set mainboard options
@@ -195,8 +201,34 @@ class Thor(object):
         sr_rat = Fraction(cr).limit_denominator() / srdec
         op.samplerate_num = sr_rat.numerator
         op.samplerate_den = sr_rat.denominator
+
         # set per-channel options
+        # set command time so settings are synced
+        COMMAND_DELAY = 0.2
+        cmd_time = u.get_time_now() + uhd.time_spec(COMMAND_DELAY)
+        u.set_command_time(cmd_time, uhd.ALL_MBOARDS)
         for ch_num in range(op.nchs):
+            # local oscillator sharing settings
+            lo_source = op.lo_sources[ch_num]
+            if lo_source:
+                try:
+                    u.set_lo_source(lo_source, uhd.ALL_LOS, ch_num)
+                except RuntimeError:
+                    errstr = (
+                        "Unknown LO source option: '{0}'. Must be one of {1},"
+                        " or it may not be possible to set the LO source on"
+                        " this daughterboard."
+                    ).format(lo_source, u.get_lo_sources(uhd.ALL_LOS, ch_num))
+                    raise ValueError(errstr)
+            lo_export = op.lo_exports[ch_num]
+            if lo_export is not None:
+                if not lo_source:
+                    errstr = (
+                        'Channel {0}: must set an LO source in order to set'
+                        ' LO export.'
+                    ).format(ch_num)
+                    raise ValueError(errstr)
+                u.set_lo_export_enabled(lo_export, uhd.ALL_LOS, ch_num)
             # center frequency and tuning offset
             tune_res = u.set_center_freq(
                 uhd.tune_request(
@@ -204,38 +236,56 @@ class Thor(object):
                 ),
                 ch_num,
             )
-            # read back actual values
-            op.centerfreqs[ch_num] = u.get_center_freq(chan=ch_num)
+            # store actual values from tune result
+            op.centerfreqs[ch_num] = (
+                tune_res.actual_rf_freq - tune_res.actual_dsp_freq
+            )
             op.lo_offsets[ch_num] = tune_res.actual_dsp_freq
             # gain
             u.set_gain(op.gains[ch_num], ch_num)
-            # read back actual value
-            op.gains[ch_num] = u.get_gain(ch_num)
             # bandwidth
             bw = op.bandwidths[ch_num]
             if bw:
                 u.set_bandwidth(bw, ch_num)
-            # read back actual value
-            op.bandwidths[ch_num] = u.get_bandwidth(chan=ch_num)
             # antenna
             ant = op.antennas[ch_num]
-            if ant != '':
+            if ant:
                 try:
                     u.set_antenna(ant, ch_num)
                 except RuntimeError:
-                    errstr = 'Unknown RX antenna option: {0}.'
-                    errstr += ' Must be one of {1}.'
-                    errstr = errstr.format(ant, u.get_antennas(ch_num))
+                    errstr = (
+                        "Unknown RX antenna option: '{0}'. Must be one of {1}."
+                    ).format(ant, u.get_antennas(ch_num))
                     raise ValueError(errstr)
-            # read back actual value
+
+        # commands are done, clear time
+        u.clear_command_time(uhd.ALL_MBOARDS)
+        time.sleep(COMMAND_DELAY)
+
+        # read back actual channel settings
+        for ch_num in range(op.nchs):
+            if op.lo_sources[ch_num]:
+                op.lo_sources[ch_num] = u.get_lo_source(uhd.ALL_LOS, ch_num)
+            if op.lo_exports[ch_num] is not None:
+                op.lo_exports[ch_num] = u.get_lo_export_enabled(
+                    uhd.ALL_LOS, ch_num,
+                )
+            op.gains[ch_num] = u.get_gain(ch_num)
+            op.bandwidths[ch_num] = u.get_bandwidth(chan=ch_num)
             op.antennas[ch_num] = u.get_antenna(chan=ch_num)
 
         if op.verbose:
             print('Using the following devices:')
-            chinfo = '  Motherboard: {mb_id} ({mb_addr})\n'
-            chinfo += '  Daughterboard: {db_subdev}\n'
-            chinfo += '  Subdev: {subdev}\n'
-            chinfo += '  Antenna: {ant}'
+            chinfostrs = [
+                'Motherboard: {mb_id} ({mb_addr}) | Daughterboard: {db_name}',
+                'Subdev: {sub} | Antenna: {ant} | Gain: {gain} | Rate: {sr}',
+                'Frequency: {freq} (+{lo_off}) | Bandwidth: {bw}',
+            ]
+            if any(op.lo_sources) or any(op.lo_exports):
+                chinfostrs.append(
+                    'LO source: {lo_source} | LO export: {lo_export}'
+                )
+            chinfo = '\n'.join(['  ' + l for l in chinfostrs])
             for ch_num in range(op.nchs):
                 header = '---- {0} '.format(op.chs[ch_num])
                 header += '-' * (78 - len(header))
@@ -247,9 +297,16 @@ class Thor(object):
                 if mba == 'default':
                     mba = usrpinfo['mboard_serial']
                 info['mb_addr'] = mba
-                info['db_subdev'] = usrpinfo['rx_subdev_name']
-                info['subdev'] = op.subdevs_bychan[ch_num]
+                info['db_name'] = usrpinfo['rx_subdev_name']
+                info['sub'] = op.subdevs_bychan[ch_num]
                 info['ant'] = op.antennas[ch_num]
+                info['bw'] = op.bandwidths[ch_num]
+                info['freq'] = op.centerfreqs[ch_num]
+                info['gain'] = op.gains[ch_num]
+                info['lo_off'] = op.lo_offsets[ch_num]
+                info['lo_source'] = op.lo_sources[ch_num]
+                info['lo_export'] = op.lo_exports[ch_num]
+                info['sr'] = op.samplerate
                 print(chinfo.format(**info))
                 print('-' * 78)
 
@@ -607,6 +664,21 @@ if __name__ == '__main__':
                 (default: 0)''',
     )
     chgroup.add_argument(
+        '--lo_source', dest='lo_sources', action='append',
+        help='''Local oscillator source. Typically 'None'/'' (do not set),
+                'internal' (e.g. LO1 for CH1, LO2 for CH2),
+                'companion' (e.g. LO2 for CH1, LO1 for CH2), or
+                'external' (neighboring board via connector).
+                (default: '')''',
+    )
+    chgroup.add_argument(
+        '--lo_export', dest='lo_exports', action='append',
+        help='''Whether to export the LO's source to the external connector.
+                Can be 'None'/'' to skip the channel, otherwise it can be
+                'True' or 'False' provided the LO source is set.
+                (default: None)''',
+    )
+    chgroup.add_argument(
         '-g', '--gain', dest='gains', action='append',
         help='''Gain in dB. (default: 0)''',
     )
@@ -729,6 +801,10 @@ if __name__ == '__main__':
         op.centerfreqs = ['100e6']
     if op.lo_offsets is None:
         op.lo_offsets = ['0']
+    if op.lo_sources is None:
+        op.lo_sources = ['']
+    if op.lo_exports is None:
+        op.lo_exports = ['None']
     if op.gains is None:
         op.gains = ['0']
     if op.bandwidths is None:
@@ -754,6 +830,15 @@ if __name__ == '__main__':
     ]
     op.lo_offsets = [
         float(b.strip()) for a in op.lo_offsets for b in a.strip().split(',')
+    ]
+    op.lo_sources = [
+        b.strip() if b.strip().lower() not in ('', 'none') else None
+        for a in op.lo_sources for b in a.strip().split(',')
+    ]
+    op.lo_exports = [
+        b.strip().lower() in ('true', 't', 'yes', 'y', '1')
+        if b.strip().lower() not in ('', 'none') else None
+        for a in op.lo_exports for b in a.strip().split(',')
     ]
     op.gains = [
         float(b.strip()) for a in op.gains for b in a.strip().split(',')
