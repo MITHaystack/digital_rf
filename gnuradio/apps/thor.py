@@ -385,21 +385,27 @@ class Thor(object):
         # get UHD USRP source
         u = self._usrp_setup()
 
-        # force creation of the RX streamer ahead of time with a finite
-        # acquisition (after setting time/clock sources, before setting the
+        # force creation of the RX streamer ahead of time with a start/stop
+        # (after setting time/clock sources, before setting the
         # device time)
         # this fixes timing with the B210
-        u.finite_acquisition_v(16384)
+        u.start()
+        # need to wait >0.1 s (constant in usrp_source_impl.c) for start/stop
+        # to actually take effect, so sleep a bit
+        time.sleep(0.2)
+        u.stop()
+        time.sleep(0.2)
 
-        # wait until time 0.2 to 0.5 past full second, then latch
-        # we have to trust NTP to be 0.2 s accurate
+        # set device time
         tt = time.time()
-        while tt - math.floor(tt) < 0.2 or tt - math.floor(tt) > 0.3:
-            time.sleep(0.01)
-            tt = time.time()
-        if op.verbose:
-            print('Latching at ' + str(tt))
         if op.sync:
+            # wait until time 0.2 to 0.5 past full second, then latch
+            # we have to trust NTP to be 0.2 s accurate
+            while tt - math.floor(tt) < 0.2 or tt - math.floor(tt) > 0.3:
+                time.sleep(0.01)
+                tt = time.time()
+            if op.verbose:
+                print('Latching at ' + str(tt))
             # waits for the next pps to happen
             # (at time math.ceil(tt))
             # then sets the time for the subsequent pps
@@ -407,9 +413,6 @@ class Thor(object):
             u.set_time_unknown_pps(uhd.time_spec(math.ceil(tt) + 1.0))
         else:
             u.set_time_now(uhd.time_spec(tt))
-        # reset device stream and flush buffer to clear leftovers from finite
-        # acquisition
-        u.stop()
 
         # get output settings that depend on decimation rate
         samplerate_out = op.samplerate / op.dec
@@ -510,7 +513,11 @@ class Thor(object):
             # make channel connections in flowgraph
             fg.connect(*connections)
 
-        # start to receive data
+        # start the flowgraph once we are near the launch time
+        # (start too soon and device buffers might not yet be flushed)
+        while ((lt - pytz.utc.localize(datetime.utcnow()))
+                > timedelta(seconds=0.5)):
+            time.sleep(0.1)
         fg.start()
 
         # wait until end time or until flowgraph stops
