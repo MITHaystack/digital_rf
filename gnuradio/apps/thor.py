@@ -905,6 +905,10 @@ if __name__ == '__main__':
             metadata_dict[k] = v
     op.metadata = metadata_dict
 
+    # ignore test_settings option if no starttime is set (starting right now)
+    if op.starttime is None:
+        op.test_settings = False
+
     options = dict(op._get_kwargs())
     starttime = options.pop('starttime')
     endtime = options.pop('endtime')
