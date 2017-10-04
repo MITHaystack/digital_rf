@@ -515,8 +515,9 @@ class Thor(object):
 
         # start the flowgraph once we are near the launch time
         # (start too soon and device buffers might not yet be flushed)
+        # (start too late and device might not be able to start in time)
         while ((lt - pytz.utc.localize(datetime.utcnow()))
-                > timedelta(seconds=0.5)):
+                > timedelta(seconds=1.2)):
             time.sleep(0.1)
         fg.start()
 
