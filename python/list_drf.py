@@ -31,8 +31,8 @@ GLOB_SUBDIR = (
     'T[0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
 )
 RE_SUBDIR = (
-    r'(?P<ymd>[0-9]{4}-[0-9]{2}-[0-9]{2})'
-    r'T(?P<hms>[0-9]{2}-[0-9]{2}-[0-9]{2})'
+    r'(?P<year>[0-9]{4})-(?P<month>[0-9]{2})-(?P<day>[0-9]{2})'
+    r'T(?P<hour>[0-9]{2})-(?P<minute>[0-9]{2})-(?P<second>[0-9]{2})'
 )
 _RE_SUBDIR = re.compile('^' + RE_SUBDIR + '$')
 
@@ -84,7 +84,7 @@ RE_DMDPROP = re.escape(os.sep).join((r'(?P<chpath>.*?)', RE_DMDPROPFILE))
 RE_DRFDMDPROP = re.escape(os.sep).join((r'(?P<chpath>.*?)', RE_PROPFILE))
 
 
-def sortkey_drf(filename, regexes=[re.compile(RE_FILE)]):
+def sortkey_drf(filename, regexes=[_RE_FILE]):
     """Get key for a Digital RF filename to sort first by sample time."""
     for r in regexes:
         m = r.match(filename)
@@ -108,37 +108,134 @@ def sortkey_drf(filename, regexes=[re.compile(RE_FILE)]):
     return None
 
 
-def _group_drf(root, filenames):
-    """Match Digital RF filenames and group by name into (time, f)."""
-    groups = defaultdict(list)
-    if not _RE_SUBDIR.match(os.path.basename(root)):
-        return groups
+def _decorate_drf_files(subdir, filenames, file_regex):
+    """Match Digital RF/Metadata filenames and decorate into (time, f)."""
+    dec_files = []
     for filename in filenames:
-        m = _RE_DRFFILE.match(filename)
+        m = file_regex.match(filename)
         if m:
+            try:
+                frac = int(m.group('frac'))
+            except (IndexError, TypeError):
+                # regex matched but there is no 'frac' in regex (metadata)
+                frac = 0
             time = datetime.timedelta(
                 seconds=int(m.group('secs')),
-                milliseconds=int(m.group('frac')),
+                milliseconds=frac,
             )
-            groups[m.group('name')].append(
-                (time, os.path.join(root, filename))
+            dec_files.append(
+                (time, os.path.join(subdir, filename))
             )
-    return groups
+    return dec_files
 
 
-def _group_dmd(root, filenames):
-    """Match Digital Metadata filenames and group by name into (time, f)."""
-    groups = defaultdict(list)
-    if not _RE_SUBDIR.match(os.path.basename(root)):
-        return groups
-    for filename in filenames:
-        m = _RE_DMDFILE.match(filename)
+def _decorated_list_slice(dec_list, starttime=None, endtime=None, ffill=False):
+    """Get slice for sorted list of tuples with (time, ...)."""
+    ks = 0
+    ke = len(dec_list)
+    if starttime is not None:
+        # (because of tuple comparison, all bisects are left)
+        # dec_list[:ks][0] < starttime <= dec_list[ks:][0]
+        ks = bisect.bisect_left(dec_list, (starttime,))
+        # forward fill, first index where dec_list[ks][0] <= starttime
+        if ffill and (ks == len(dec_list) or dec_list[ks][0] > starttime):
+            ks = max(ks - 1, 0)
+    if endtime is not None:
+        # (because of tuple comparison, all bisects are left)
+        # dec_list[:ke][0] < endtime <= dec_list[ke:][0]
+        ke = bisect.bisect_left(dec_list, (endtime,), lo=ks)
+        # make ke first index to exclude
+        if ke < len(dec_list) and dec_list[ke][0] == endtime:
+            ke = ke + 1
+    return slice(ks, ke)
+
+
+def _yield_matching_files(
+    root, dirs, props, include_drf, include_dmd, starttime=None, endtime=None,
+    reverse=False,
+):
+    """Yield matching files from a list of subdirectories in a channel dir."""
+    is_drf_channel = (
+        any(_RE_DRFPROPFILE.match(f) for f in props) and include_drf
+    )
+    is_dmd_channel = (
+        any(_RE_DMDPROPFILE.match(f) for f in props) and include_dmd
+    )
+    if is_drf_channel and is_dmd_channel:
+        file_regex = _RE_FILE
+    elif is_drf_channel:
+        file_regex = _RE_DRFFILE
+    elif include_dmd:
+        file_regex = _RE_DMDFILE
+    # get time-stamped subdirectories from dirs list
+    dec_subdirs = []
+    others = []
+    for d in dirs:
+        m = _RE_SUBDIR.match(d)
         if m:
-            time = datetime.timedelta(seconds=int(m.group('secs')))
-            groups[m.group('name')].append(
-                (time, os.path.join(root, filename))
+            dt = datetime.datetime(
+                year=int(m.group('year')),
+                month=int(m.group('month')),
+                day=int(m.group('day')),
+                hour=int(m.group('hour')),
+                minute=int(m.group('minute')),
+                second=int(m.group('second')),
+                tzinfo=pytz.utc,
             )
-    return groups
+            time = dt - util.epoch
+            dec_subdirs.append((time, d))
+        else:
+            others.append(d)
+    # limit list of dirs for recursion by modifying in place
+    dirs[:] = others
+
+    # filter subdirectories by time
+    dec_subdirs.sort()
+    subdir_slice = _decorated_list_slice(
+        dec_subdirs, starttime=starttime, endtime=endtime,
+        ffill=True,
+    )
+
+    for k, (time, subdir) in (
+        enumerate(dec_subdirs[subdir_slice])
+        if not reverse else
+        enumerate(list(reversed(dec_subdirs[subdir_slice])))
+    ):
+        # list potential files and get groups of all matching files
+        subdir_files = os.listdir(os.path.join(root, subdir))
+        dec_files = _decorate_drf_files(
+            os.path.join(root, subdir), subdir_files, file_regex,
+        )
+        dec_files.sort()
+        if ((k == 0) and is_dmd_channel and subdir_slice.start > 0 and
+                starttime and dec_files[0][0] > starttime):
+            # need to include files from earlier subdir so we can
+            # forward fill and include the metadata file prior to starttime
+            for k_subdir in range(subdir_slice.start - 1, -1, -1):
+                prior_subdir = dec_subdirs[k_subdir][-1]
+                prior_files = os.listdir(os.path.join(root, prior_subdir))
+                dec_prior_files = _decorate_drf_files(
+                    os.path.join(root, prior_subdir), prior_files, file_regex,
+                )
+                if dec_prior_files:
+                    dec_prior_files.extend(dec_files)
+                    dec_files = dec_prior_files
+                    dec_files.sort()
+                    break
+
+        # filter by time and yield files
+        # forward fill if metadata since we assume metadata for an older
+        # time is valid until the next metadata sample
+        slc = _decorated_list_slice(
+            dec_files, starttime=starttime, endtime=endtime,
+            ffill=(k == 0) and is_dmd_channel,
+        )
+        for dec_file in (
+            dec_files[slc]
+            if not reverse else
+            reversed(dec_files[slc])
+        ):
+            yield dec_file[-1]
 
 
 def ilsdrf(
@@ -209,13 +306,6 @@ def ilsdrf(
     if include_dmd_properties is None:
         include_dmd_properties = include_dmd
 
-    if not include_drf:
-        # set empty groups so we can iterate over nothing
-        rf_groups = {}
-    if not include_dmd:
-        # set empty groups so we can iterate over nothing
-        md_groups = {}
-
     include_properties = True
     if include_drf_properties and include_dmd_properties:
         prop_regex = _RE_PROPFILE
@@ -225,82 +315,50 @@ def ilsdrf(
         prop_regex = _RE_DMDPROPFILE
     else:
         include_properties = False
-        # set empty props so we can iterate over nothing
-        props = []
 
     path = os.path.abspath(path)
+    if include_drf or include_dmd:
+        # check if path is already a time-stamped subdir with files,
+        # and yield the files if so
+        root, subdir = os.path.split(path)
+        if _RE_SUBDIR.match(subdir):
+            any_props = [f for f in os.listdir(root) if _RE_PROPFILE.match(f)]
+            if any_props:
+                for f in _yield_matching_files(
+                    root, [subdir], any_props, include_drf, include_dmd,
+                    starttime=starttime, endtime=endtime, reverse=reverse,
+                ):
+                    yield f
+
+    # now search for channel directories, starting with path
     for root, dirs, files in os.walk(path):
-        last_level = (not recursive and root != path)
-        if last_level:
-            # don't go further if we're not recursive and we're already
-            # on the first subdir level
-            del dirs[:]
-        else:
-            # walk through directories in sorted order
+        # determine if root is a channel directory (i.e. has property file)
+        any_props = [f for f in files if _RE_PROPFILE.match(f)]
+        if any_props:
+            if include_properties:
+                # first yield property files
+                props = [
+                    os.path.join(root, f) for f in any_props
+                    if prop_regex.match(f)
+                ]
+                props.sort(reverse=reverse)
+                for prop in props:
+                    yield prop
+
+            if include_drf or include_dmd:
+                # list, match, filter, and yield files from subdirectories
+                for f in _yield_matching_files(
+                    root, dirs, any_props, include_drf, include_dmd,
+                    starttime=starttime, endtime=endtime, reverse=reverse,
+                ):
+                    yield f
+
+        if recursive:
+            # walk through (non-ts-subdir) directories in sorted order
             dirs.sort(reverse=reverse)
-
-        # match files
-        if include_drf:
-            rf_groups = _group_drf(root, files)
-        if include_dmd:
-            md_groups = _group_dmd(root, files)
-        if not rf_groups and not md_groups and last_level:
-            # not in a matching subdir and we're not recursive, so don't
-            # match anything else and continue on same level
-            continue
-        if include_properties:
-            props = [
-                os.path.join(root, f) for f in files if prop_regex.match(f)
-            ]
-
-        # sort within groups and yield files
-        # first properties
-        props.sort(reverse=reverse)
-        for prop in props:
-            yield prop
-        # then DMD groups
-        for name, dec_files in sorted(md_groups.items(), reverse=reverse):
-            dec_files.sort(reverse=reverse)
-            if starttime is not None:
-                # we want to include the first file *at or before* starttime
-                # since this is metadata and we assume previous metadata
-                # holds if there is no file at a particular time
-                # (because of tuple comparison, all bisects are left)
-                # dec_files[:k][0] < starttime <= dec_files[k:][0]
-                k = bisect.bisect_left(dec_files, (starttime,))
-                # make k the first index to include
-                if k == len(dec_files) or dec_files[k][0] != starttime:
-                    k = max(k - 1, 0)
-                del dec_files[:k]
-            if endtime is not None:
-                # (because of tuple comparison, all bisects are left)
-                # dec_files[:k][0] < endtime <= dec_files[k:][0]
-                k = bisect.bisect_left(dec_files, (endtime,))
-                # make k first index to exclude
-                if k < len(dec_files) and dec_files[k][0] == endtime:
-                    k = k + 1
-                del dec_files[k:]
-            for dec_file in dec_files:
-                yield dec_file[-1]
-        # finally DRF groups
-        for name, dec_files in sorted(rf_groups.items(), reverse=reverse):
-            dec_files.sort(reverse=reverse)
-            if starttime is not None:
-                # (because of tuple comparison, all bisects are left)
-                # dec_files[:k][0] < starttime <= dec_files[k:][0]
-                k = bisect.bisect_left(dec_files, (starttime,))
-                # k is the first index to include
-                del dec_files[:k]
-            if endtime is not None:
-                # (because of tuple comparison, all bisects are left)
-                # dec_files[:k][0] < endtime <= dec_files[k:][0]
-                k = bisect.bisect_left(dec_files, (endtime,))
-                # make k first index to exclude
-                if k < len(dec_files) and dec_files[k][0] == endtime:
-                    k = k + 1
-                del dec_files[k:]
-            for dec_file in dec_files:
-                yield dec_file[-1]
+        else:
+            # don't go further if we're not recursive
+            del dirs[:]
 
 
 def lsdrf(*args, **kwargs):
