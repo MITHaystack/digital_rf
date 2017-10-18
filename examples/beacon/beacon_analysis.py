@@ -22,6 +22,7 @@ import sys
 import datetime as dt
 import argparse
 import scipy as sp
+import math
 import scipy.fftpack as scfft
 import scipy.signal as sig
 import scipy.constants as s_const
@@ -33,6 +34,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
 from mpl_toolkits.basemap import Basemap
+import shutil
 # Millstone imports
 import digital_rf as drf
 
@@ -362,8 +364,8 @@ def calc_resid(maindir,e,window=2**13,n_measure=500,timewin=[0,0]):
                     }
     """
     # number of Hz to search over for max
-    bw_search0 = 1.5e3
-    bw_search1 = 4e3
+    bw_search0 = 0.5e3
+    bw_search1 = 1e3
 
 
     drfObj, chandict, start_indx, end_indx = open_file(maindir)
@@ -436,7 +438,7 @@ def calc_resid(maindir,e,window=2**13,n_measure=500,timewin=[0,0]):
     tvec[len(tvec)-1] = tvec[len(tvec)-1] + 100
     #outlier removal
     snrmean = .5*snr0+.5*snr1
-    dopfit = outlier_removed_fit(.5*(snr0*freqm0*400./150 + snr1*freqm1)/snrmean,snrmean)
+    dopfit = outlier_removed_fit(.5*(snr0*freqm0*400./150 + snr1*freqm1)/snrmean, snrmean)
     #interpolate residual
     doppler_residual = sp.interpolate.interp1d(tvec, dopfit)
     # correlate residuals together
@@ -481,7 +483,8 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
     sps = chandict[chans[0]]['sps']
     start_indx = start_indx + timewin[0]*sps
     end_indx = end_indx - timewin[1]*sps
-    freq_ratio = chandict[chans[0]]['fo']/chandict[chans[1]]['fo']
+    freq_ratio = chandict[chans[1]]['fo']/chandict[chans[0]]['fo']
+    om0,om1 = 2.*s_const.pi*sp.array([chandict[chans[0]]['fo'],chandict[chans[1]]['fo']])
     start_vec = sp.arange(start_indx, end_indx-Nr, Nr, dtype=float)
     tvec = start_vec/sps
 
@@ -491,7 +494,7 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
     n_t1 = sp.arange(0, incoh_int)* soff
     IDX, N_t1 = sp.meshgrid(idx, n_t1)
     Msamp = IDX + N_t1
-    ls_samp = Msamp.flatten()[-1]
+    ls_samp = float(Msamp.flatten()[-1])
 
     wfun = sig.get_window('hann', window)
     wmat = sp.tile(wfun[sp.newaxis, :], (incoh_int, 1))
@@ -502,6 +505,8 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
     phase0 = sp.zeros(len(start_vec), dtype=sp.complex64)
     phase1 = sp.zeros(len(start_vec), dtype=sp.complex64)
 
+    phase_cs0 = sp.zeros(len(start_vec),dtype = float)
+    phase_cs1 = sp.zeros(len(start_vec),dtype = float)
     snr0 = sp.zeros(len(start_vec))
     snr1 = sp.zeros(len(start_vec))
 
@@ -532,38 +537,44 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
         osc11 = phase_10*wmat*sp.exp(1.0j*2.0*sp.pi*doppler1*(Msamp/sps+ float(soff)/sps))
 
 
-        F0 = scfft.fftshift(scfft.fft(z00*osc00.astype(z00.dtype), axis=-1), axes=-1)
-        F = scfft.fftshift(scfft.fft(z01*osc01.astype(z01.dtype), axis=-1), axes=-1)
-        F0spec = sp.power(F0.real, 2).sum(0)+ sp.power(F0.imag, 2).sum(0)
-        outspec0[i_t] = F0spec.real
-        F0_cor = F0[:, fi]*sp.conj(F[:, fi])
-        phase0[i_t] = F0_cor.sum()
+        f00 = scfft.fftshift(scfft.fft(z00*osc00.astype(z00.dtype), axis=-1), axes=-1)
+        f01 = scfft.fftshift(scfft.fft(z01*osc01.astype(z01.dtype), axis=-1), axes=-1)
+        f00spec = sp.power(f00.real, 2).sum(0)+ sp.power(f00.imag, 2).sum(0)
+        outspec0[i_t] = f00spec.real
+        f00_cor = f00[:, fi]*sp.conj(f01[:, fi])
+        # Use prod to average the phases together.
+        phase0[i_t] = sp.cumprod(sp.power(f00_cor,1./float(incoh_int)))[-1]
+        phase_cs0[i_t] = sp.cumsum(sp.diff(sp.unwrap(sp.angle(f00[:, fi]))))[-1]
+
+        f10 = scfft.fftshift(scfft.fft(z10*osc10.astype(z10.dtype), axis=-1), axes=-1)
+        f11 = scfft.fftshift(scfft.fft(z11*osc11.astype(z11.dtype), axis=-1), axes=-1)
+        f10spec = sp.power(f10.real, 2).sum(0)+ sp.power(f10.imag, 2).sum(0)
+
+        f10_cor = f10[:, fi]*sp.conj(f11[:, fi])
+        outspec1[i_t] = f10spec.real
+        phase1[i_t] = sp.cumprod(sp.power(f10_cor,1./float(incoh_int)))[-1]
+        phase_cs1[i_t] = sp.cumsum(sp.diff(sp.unwrap(sp.angle(f10[:, fi]))))[-1]
 
 
-        F1 = scfft.fftshift(scfft.fft(z10*osc10.astype(z10.dtype), axis=-1), axes=-1)
-        F = scfft.fftshift(scfft.fft(z11*osc11.astype(z11.dtype), axis=-1), axes=-1)
-        F1spec = sp.power(F1.real, 2).sum(0)+ sp.power(F1.imag, 2).sum(0)
-
-        F1_cor = F1[:, fi]*sp.conj(F[:, fi])
-        phase1[i_t] = F1_cor.sum()
-        outspec1[i_t] = F1spec.real
-
-        std0[i_t] = sp.std(sp.angle(F0_cor))
-        std1[i_t] = sp.std(sp.angle(F1_cor))
-        snr0[i_t] = F0spec.real[fi]/sp.median(F0spec.real)
-        snr1[i_t] = F1spec.real[fi]/sp.median(F1spec.real)
+        std0[i_t] = sp.std(sp.angle(f00_cor))
+        std1[i_t] = sp.std(sp.angle(f10_cor))
+        snr0[i_t] = f00spec.real[fi]/sp.median(f00spec.real)
+        snr1[i_t] = f10spec.real[fi]/sp.median(f10spec.real)
 
         # Phases for next time through the loop
-        phase_00 = phase_00*sp.exp(1.0j*2.0*sp.pi*doppler0*(ls_samp/sps))
+        phase_00 = phase_00*sp.exp(1.0j*2.0*sp.pi*doppler0*((ls_samp+1.)/sps))
 
-        phase_10 = phase_10*sp.exp(1.0j*2.0*sp.pi*doppler1*(ls_samp/sps))
+        phase_10 = phase_10*sp.exp(1.0j*2.0*sp.pi*doppler1*((ls_samp+1.)/sps))
 
-    phasecurve = float(incoh_int)*sp.cumsum(sp.angle(phase1)*freq_ratio-sp.angle(phase0))
+    #
+    phasecurve = sp.cumsum(sp.angle(phase0)*freq_ratio-sp.angle(phase1))
+    phasecurve_amp = phase_cs0*freq_ratio - phase_cs1
     stdcurve = sp.sqrt(sp.cumsum(float(sfactor)*incoh_int*(std0**2.0 + std1**2.0)))
 
     # SNR windowing, picking values with minimum snr
     snrwin = sp.logical_and(snr0 > snrmin, snr1 > snrmin)
     phasecurve = phasecurve[snrwin]
+    phasecurve_amp = phasecurve_amp[snrwin]
     stdcurve = stdcurve[snrwin]
     snr0 = snr0[snrwin]
     snr1 = snr1[snrwin]
@@ -576,19 +587,25 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
     Sampmat = Lmat+Tmat
     Sampclip = sp.clip(Sampmat, 0, len(tvec)-1)
     eps = s_const.e**2/(8.*s_const.pi**2*s_const.m_e*s_const.epsilon_0)
+    aconst = s_const.e**2/(2*s_const.m_e*s_const.epsilon_0*s_const.c)
     na = 9.
     nb = 24.
     f0 = 16.668e6
 
-    cTEC = f0*((na*nb**2)/(na**2-nb**2))*s_const.c/(2.*s_const.pi*eps)
-    rTEC = cTEC*(phasecurve-phasecurve.max())*1e-16
-    rTEC_sig = cTEC*stdcurve*1e-16
+    #cTEC = f0*((na*nb**2)/(na**2-nb**2))*s_const.c/(2.*s_const.pi*eps)
+    cTEC = 1e-16*sp.power(om1/om0**2 -1./om1,-1)/aconst
+    rTEC = cTEC*phasecurve
+    rTEC = rTEC-rTEC.min()
+    rTEC_amp = cTEC*phasecurve_amp
+    rTEC_amp = rTEC_amp-rTEC_amp.min()
+    rTEC_sig = cTEC*stdcurve
     S4 = sp.std(snr0[Sampclip], axis=-1)/sp.median(snr0, axis=-1)
 
 
-    outdict = {'rTEC':rTEC, 'rTEC_sig':rTEC_sig, 'S4':S4, 'snr0':snr0,
+    outdict = {'rTEC':rTEC, 'rTEC_amp':rTEC_amp, 'rTEC_sig':rTEC_sig, 'S4':S4, 'snr0':snr0,
                'snr1':snr1, 'time':tvec, 'resid':resid,'phase':phasecurve,
-               'phasestd':stdcurve,'outspec0':outspec0,'outspec1':outspec1}
+               'phase_amp':phasecurve_amp, 'phasestd':stdcurve, 'outspec0':outspec0,
+               'outspec1':outspec1}
     return outdict
 #%% Plotting
 def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window=512, sfactor=2, incoh_int=10, Nt=512):
@@ -718,7 +735,7 @@ def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window
     plt.colorbar(mesh, ax=ax)
     plt.tight_layout()
     print('Saving RF TLE comparison figure: ' + savename)
-    fig1.savefig(savename)
+    fig1.savefig(savename, dpi=300)
     plt.close(fig1)
 
 def plot_resid(d,savename='resfig1.png'):
@@ -768,7 +785,7 @@ def plot_resid(d,savename='resfig1.png'):
 
     plt.tight_layout()
     print('Saving residual plots: '+savename)
-    plt.savefig(savename)
+    plt.savefig(savename, dpi=300)
     plt.close(fig1)
 
 def plot_measurements(outdict, savename='measured.png'):
@@ -797,6 +814,7 @@ def plot_measurements(outdict, savename='measured.png'):
     fig1 = plt.figure(figsize=(15, 5))
     plt.subplot(121)
     plt.plot(datenums, outdict['rTEC'], color="black")
+    # plt.plot(datenums, outdict['rTEC_amp'], color="black")
     ax = plt.gca()
     ax.grid(True)
     ax.xaxis.set_major_formatter(xfmt)
@@ -827,28 +845,100 @@ def plot_measurements(outdict, savename='measured.png'):
 
     plt.tight_layout()
     print('Saving measurement plots: ' + savename)
-    fig1.savefig(savename)
+    fig1.savefig(savename, dpi=300)
     plt.close(fig1)
-def plot_map(outdict, e, savename):
+
+
+
+    fig1 = plt.figure(figsize=(15, 5))
+    plt.subplot(121)
+
+    plt.plot(datenums, outdict['rTEC_amp'], color="black")
+    ax = plt.gca()
+    ax.grid(True)
+    ax.xaxis.set_major_formatter(xfmt)
+    plt.xlabel("UTC")
+    plt.ylabel("rTEC (TECu)")
+    plt.title("Relative TEC and S4 Parameters")
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
+    ax2 = ax.twinx()
+    plt.plot(datenums, outdict['S4'], color='red')
+    ax2.grid(True)
+    ax2.set_ylabel('S4', color='r')
+    ax2.tick_params('y', colors='r')
+
+    # SNR from beacon at those times
+    plt.subplot(122)
+    plt.plot(datenums, 10.0*sp.log10(outdict["snr0"]), label="150 MHz")
+    plt.plot(datenums, 10.0*sp.log10(outdict["snr1"]), label="400 MHz")
+    plt.legend()
+    ax = plt.gca()
+    ax.grid(True)
+    ax.xaxis.set_major_formatter(xfmt)
+    plt.title("SNR for Both Channels")
+    plt.xlabel("UTC")
+    plt.ylabel("SNR (dB)")
+    plt.subplots_adjust(bottom=0.2)
+    plt.xticks(rotation=25)
+
+    plt.tight_layout()
+    figpath,name = os.path.split(savename)
+    savename = os.path.join(figpath,'amp'+name)
+    print('Saving measurement plots: ' + savename)
+    fig1.savefig(savename, dpi=300)
+    plt.close(fig1)
+
+def plot_map(outdict, e, savename, fig1=None, m=None):
     """
         This function will plot the output data in a scatter plot over a map of the
         satellite path.
+
+        Args:
+            outdict (dict[str, obj]): Output dictionary from analyzebeacons.
+            e (dict[str, obj]): Output dictionary from ephem_doponly.
+            savename(:obj:`str`): Name of the file the image will be saved to.
+            fig1(:obj:'matplotlib figure'): Figure.
+            m (:obj:'basemap obj'): Basemap object
     """
 
     t = outdict['time']
-    fig1 = plt.figure()
     slat = e['site_latitude']
     slon = e['site_longitude']
-    m = Basemap(lat_0=slat, lon_0=slon, llcrnrlon=slon-15, llcrnrlat=slat-15,
-                urcrnrlon=slon+15, urcrnrlat=slat+15)
+    if fig1 is None:
+        fig1 = plt.figure()
+    plt.figure(fig1.number)
+    latlim = [math.floor(slat-15.), math.ceil(slat+15.)]
+    lonlim = [math.floor(slon-15.), math.ceil(slon+15.)]
+    if m is None:
+        m = Basemap(lat_0=slat, lon_0=slon, llcrnrlon=lonlim[0], llcrnrlat=latlim[0],
+                    urcrnrlon=lonlim[1], urcrnrlat=latlim[1])
+
     m.drawcoastlines(color="gray")
 
     m.plot(slon, slat, "rx")
-    m.scatter(e["sublon"](t), e["sublat"](t), c=outdict['rTEC'], cmap='viridis',vmin=0,vmax=40)
+    scat = m.scatter(e["sublon"](t), e["sublat"](t), c=outdict['rTEC'], cmap='viridis',
+              vmin=0, vmax=math.ceil(sp.nanmax(outdict['rTEC'])))
     plt.title('Map of TEC Over Satellite Path')
-    plt.colorbar(label='rTEC in TECu')
-    fig1.savefig(savename)
+    cb = plt.colorbar(scat,label='rTEC in TECu')
+    fig1.savefig(savename, dpi=300)
+
+
+
+    #plt.draw()
+
+    scat = m.scatter(e["sublon"](t), e["sublat"](t), c=outdict['rTEC_amp'], cmap='viridis',
+              vmin=0, vmax=math.ceil(sp.nanmax(outdict['rTEC_amp'])))
+    plt.title('Map of TEC_Amp Over Satellite Path')
+    cb.set_clim(vmin=0, vmax=math.ceil(sp.nanmax(outdict['rTEC_amp'])))
+    cb.draw_all()
+
+    #plt.tight_layout()
+    figpath,name = os.path.split(savename)
+    savename = os.path.join(figpath,'amp'+name)
+    fig1.savefig(savename, dpi=300)
     plt.close(fig1)
+
 #%% I/O for measurements
 def save_output(maindirmeta, outdict, e):
     """
@@ -962,11 +1052,14 @@ def analyzebeacons(input_args):
         outdict['Beginning_Offset'] = input_args.begoff
         outdict['Ending_Offset'] = input_args.endoff
         outdict['Min_SNR'] = input_args.minsnr
-
+        if os.path.exists(maindirmeta):
+            shutil.rmtree(maindirmeta)
         save_output(maindirmeta, outdict, e)
 
         if input_args.drawplots:
             print("Plotting data.")
+            if not os.path.exists(figspath):
+                os.mkdir(figspath)
             plotsti_vel(mainpath, savename=os.path.join(figspath, 'chancomp.png'),
                         timewin=[input_args.begoff, input_args.endoff],
                         offset=tleoff)
