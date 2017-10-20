@@ -27,10 +27,15 @@ import re
 import time
 import traceback
 import urllib2
+from collections import defaultdict
 from distutils.version import StrictVersion
 
 # third party imports
 import h5py
+try:
+    import pandas
+except ImportError:
+    pass
 import numpy
 import six
 from six.moves import zip
@@ -707,15 +712,18 @@ class DigitalMetadataReader:
         """Return the metadata file name prefix."""
         return self._file_name
 
-    def read(self, start_sample, end_sample=None, columns=None, method=None):
+    def read(
+        self, start_sample=None, end_sample=None, columns=None, method=None,
+    ):
         """Read metadata between start and end samples.
 
         Parameters
         ----------
 
-        start_sample : int
+        start_sample : None | int
             Sample index for start of read, given in the number of samples
-            since the epoch (time_since_epoch*sample_rate).
+            since the epoch (time_since_epoch*sample_rate). If None,
+            `get_bounds` is called and the last sample is used.
 
         end_sample : None | int
             Sample index for end of read (inclusive), given in the number of
@@ -746,7 +754,16 @@ class DigitalMetadataReader:
             keys and numpy objects as leaf values (if `columns` is None or
             a list).
 
+
+        See Also
+        --------
+
+        read_dataframe : Read metadata into a DataFrame.
+        read_flatdict : Read metadata into a flat dictionary, keyed by field.
+
         """
+        if start_sample is None:
+            _, start_sample = self.get_bounds()
         if end_sample is None:
             end_sample = start_sample
         elif start_sample > end_sample:
@@ -789,6 +806,139 @@ class DigitalMetadataReader:
             )
 
         return ret_dict
+
+    def read_dataframe(
+        self, start_sample=None, end_sample=None, columns=None, method=None,
+    ):
+        """Read metadata between start and end samples into a pandas DataFrame.
+
+        Parameters
+        ----------
+
+        start_sample : int
+            Sample index for start of read, given in the number of samples
+            since the epoch (time_since_epoch*sample_rate). If None,
+            `get_bounds` is called and the last sample is used.
+
+        end_sample : None | int
+            Sample index for end of read (inclusive), given in the number of
+            samples since the epoch (time_since_epoch*sample_rate). If None,
+            use `end_sample` equal to `start_sample`.
+
+        columns : None | string | list of strings
+            A string or list of strings giving the field/column name of
+            metadata to return. If None, all available columns will be read.
+
+        method : None | 'pad'/'ffill'
+            If None, return only samples within the given range. If 'pad' or
+            'ffill', the first sample no later than `start_sample` (if any)
+            will also be included so that values are forward filled into the
+            desired range.
+
+
+        Returns
+        -------
+
+        DataFrame
+            Pandas DataFrame with rows corresponding to the sample index and
+            columns corresponding to the metadata key.
+
+
+        See Also
+        --------
+
+        read : Read metadata into an OrderedDict, keyed by sample index.
+        read_flatdict : Read metadata into a flat dictionary, keyed by field.
+
+        """
+        if isinstance(columns, six.string_types):
+            # preserve column name in returned dictionary so it appears in DF
+            columns = [columns]
+        res = self.read(
+            start_sample=start_sample, end_sample=end_sample,
+            columns=columns, method=method,
+        )
+        data = list(dict(_recursive_items(d)) for d in res.values())
+        index = list(res.keys())
+        return pandas.DataFrame(data, index=index)
+
+    def read_flatdict(
+        self, start_sample=None, end_sample=None, columns=None, method=None,
+        squeeze=True,
+    ):
+        """Read metadata between start and end samples into a flat dictionary.
+
+        Parameters
+        ----------
+
+        start_sample : int
+            Sample index for start of read, given in the number of samples
+            since the epoch (time_since_epoch*sample_rate). If None,
+            `get_bounds` is called and the last sample is used.
+
+        end_sample : None | int
+            Sample index for end of read (inclusive), given in the number of
+            samples since the epoch (time_since_epoch*sample_rate). If None,
+            use `end_sample` equal to `start_sample`.
+
+        columns : None | string | list of strings
+            A string or list of strings giving the field/column name of
+            metadata to return. If None, all available columns will be read.
+
+        method : None | 'pad'/'ffill'
+            If None, return only samples within the given range. If 'pad' or
+            'ffill', the first sample no later than `start_sample` (if any)
+            will also be included so that values are forward filled into the
+            desired range.
+
+        squeeze : bool
+            If True and end_sample is None (returning a single sample), return
+            the column values for the sample directly instead of as arrays with
+            a first dimension of one. Additionally, if only a single column
+            name is given and the result contains no subfields, return the
+            value of that column instead of a dictionary.
+
+
+        Returns
+        -------
+
+        dict or object
+            Dictionary with keys corresponding to the fields/columns of the
+            requested metadata. The values are arrays with length equal to
+            the number of samples. The dictionary also has an 'index' entry
+            containing an array of the sample indices. If `squeeze` is True
+            and a dictionary with a single sample and non-index column would be
+            returned, the non-index value is returned instead.
+
+
+        See Also
+        --------
+
+        read : Read metadata into an OrderedDict, keyed by sample index.
+        read_dataframe : Read metadata into a DataFrame.
+
+        """
+        if isinstance(columns, six.string_types):
+            # preserve column name in returned dictionary so it appears in DF
+            columns = [columns]
+        res = self.read(
+            start_sample=start_sample, end_sample=end_sample,
+            columns=columns, method=method,
+        )
+        dict_of_lists = defaultdict(lambda: [numpy.nan]*len(res))
+        dict_of_lists[u'index'] = res.keys()
+        for k, sample_dict in enumerate(res.values()):
+            for key, val in _recursive_items(sample_dict):
+                dict_of_lists[key][k] = val
+        if squeeze and (end_sample is None):
+            flatdict = {k: v[0] for k, v in dict_of_lists.items()}
+            if len(flatdict) == 2:
+                del flatdict['index']
+                return flatdict.popitem()[1]
+            else:
+                return flatdict
+        else:
+            return {k: numpy.array(v) for k, v in dict_of_lists.items()}
 
     def read_latest(self, columns=None):
         """Read the most recent metadata sample.
