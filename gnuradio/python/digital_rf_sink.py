@@ -37,9 +37,7 @@ def translate_rx_freq(tag):
     """Translate 'rx_freq' tag to 'center_frequencies' metadata sample."""
     offset = tag.offset
     key = 'center_frequencies'
-    # put array in a list because we want the data to be a 1-D array and it
-    # would be a single value if we didn't and the array has length 1
-    val = [np.array(pmt.to_python(tag.value), ndmin=1)]
+    val = np.array(pmt.to_python(tag.value), ndmin=1)
     yield offset, key, val
 
 
@@ -357,9 +355,7 @@ class digital_rf_channel_sink(gr.sync_block):
             uuid_str='',
             sample_rate_numerator=self._sample_rate_numerator,
             sample_rate_denominator=self._sample_rate_denominator,
-            # put in a list because we want the data to be a 1-D array and it
-            # would be a single value if we didn't and the array has length 1
-            center_frequencies=[center_frequencies],
+            center_frequencies=center_frequencies,
         )
 
         # create directories for RF data channel and metadata
