@@ -67,7 +67,6 @@ def recursive_dict_update(d, u):
     """Update d with values from u, recursing into sub-dictionaries."""
     for k, v in u.items():
         if isinstance(v, dict):
-            recursive_dict_update(d.setdefault(k, {}), v)
             try:
                 # copy because we don't want to modify the sub-dictionary
                 # just use its values to create an updated sub-dictionary
