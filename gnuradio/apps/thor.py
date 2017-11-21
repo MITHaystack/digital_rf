@@ -323,25 +323,8 @@ class Thor(object):
         if op.verbose:
             call(('timedatectl', 'status'))
 
-        # get output settings that depend on decimation rate
-        samplerate_out = op.samplerate / op.dec
-        samplerate_num_out = op.samplerate_num
-        samplerate_den_out = op.samplerate_den * op.dec
-        if op.dec > 1:
-            sample_dtype = '<c8'
-
-            taps = firdes.low_pass_2(
-                1.0, float(op.samplerate), float(samplerate_out / 2.0),
-                float(0.2 * samplerate_out), 80.0,
-                window=firdes.WIN_BLACKMAN_hARRIS
-            )
-        else:
-            sample_dtype = np.dtype([('r', '<i2'), ('i', '<i2')])
-
         # parse time arguments
-        st = drf.util.parse_identifier_to_time(
-            starttime, samples_per_second=samplerate_out,
-        )
+        st = drf.util.parse_identifier_to_time(starttime)
         if st is not None:
             # find next suitable start time by cycle repeat period
             now = datetime.utcnow()
@@ -356,9 +339,7 @@ class Thor(object):
                 stts = (st - drf.util.epoch).total_seconds()
                 print('Start time: {0} ({1})'.format(ststr, stts))
 
-        et = drf.util.parse_identifier_to_time(
-            endtime, samples_per_second=samplerate_out, ref_datetime=st,
-        )
+        et = drf.util.parse_identifier_to_time(endtime, ref_datetime=st)
         if et is not None:
             if op.verbose:
                 etstr = et.strftime('%a %b %d %H:%M:%S %Y')
@@ -399,6 +380,21 @@ class Thor(object):
 
         # get UHD USRP source
         u = self._usrp_setup()
+
+        # after USRP setup, get output settings that depend on decimation rate
+        samplerate_out = op.samplerate / op.dec
+        samplerate_num_out = op.samplerate_num
+        samplerate_den_out = op.samplerate_den * op.dec
+        if op.dec > 1:
+            sample_dtype = '<c8'
+
+            taps = firdes.low_pass_2(
+                1.0, float(op.samplerate), float(samplerate_out / 2.0),
+                float(0.2 * samplerate_out), 80.0,
+                window=firdes.WIN_BLACKMAN_hARRIS
+            )
+        else:
+            sample_dtype = np.dtype([('r', '<i2'), ('i', '<i2')])
 
         # force creation of the RX streamer ahead of time with a start/stop
         # (after setting time/clock sources, before setting the
@@ -746,14 +742,14 @@ if __name__ == '__main__':
     timegroup.add_argument(
         '-s', '--starttime', dest='starttime',
         help='''Start time of the experiment as datetime (if in ISO8601 format:
-                2016-01-01T15:24:00Z), Unix time (if float), or output sample
-                index (if int, including decimation) (default: %(default)s)''',
+                2016-01-01T15:24:00Z) or Unix time (if float/int).
+                (default: %(default)s)''',
     )
     timegroup.add_argument(
         '-e', '--endtime', dest='endtime',
         help='''End time of the experiment as datetime (if in ISO8601 format:
-                2016-01-01T16:24:00Z), Unix time (if float), or output sample
-                index (if int, including decimation) (default: %(default)s)''',
+                2016-01-01T16:24:00Z) or Unix time (if float/int).
+                (default: %(default)s)''',
     )
     timegroup.add_argument(
         '-l', '--duration', dest='duration',
