@@ -323,9 +323,24 @@ class Thor(object):
         if op.verbose:
             call(('timedatectl', 'status'))
 
+        # get output settings that depend on decimation rate
+        samplerate_out = op.samplerate / op.dec
+        samplerate_num_out = op.samplerate_num
+        samplerate_den_out = op.samplerate_den * op.dec
+        if op.dec > 1:
+            sample_dtype = '<c8'
+
+            taps = firdes.low_pass_2(
+                1.0, float(op.samplerate), float(samplerate_out / 2.0),
+                float(0.2 * samplerate_out), 80.0,
+                window=firdes.WIN_BLACKMAN_hARRIS
+            )
+        else:
+            sample_dtype = np.dtype([('r', '<i2'), ('i', '<i2')])
+
         # parse time arguments
         st = drf.util.parse_identifier_to_time(
-            starttime, samples_per_second=op.samplerate,
+            starttime, samples_per_second=samplerate_out,
         )
         if st is not None:
             # find next suitable start time by cycle repeat period
@@ -342,7 +357,7 @@ class Thor(object):
                 print('Start time: {0} ({1})'.format(ststr, stts))
 
         et = drf.util.parse_identifier_to_time(
-            endtime, samples_per_second=op.samplerate, ref_datetime=st,
+            endtime, samples_per_second=samplerate_out, ref_datetime=st,
         )
         if et is not None:
             if op.verbose:
@@ -414,21 +429,6 @@ class Thor(object):
         else:
             u.set_time_now(uhd.time_spec(tt))
 
-        # get output settings that depend on decimation rate
-        samplerate_out = op.samplerate / op.dec
-        samplerate_num_out = op.samplerate_num
-        samplerate_den_out = op.samplerate_den * op.dec
-        if op.dec > 1:
-            sample_dtype = '<c8'
-
-            taps = firdes.low_pass_2(
-                1.0, float(op.samplerate), float(samplerate_out / 2.0),
-                float(0.2 * samplerate_out), 80.0,
-                window=firdes.WIN_BLACKMAN_hARRIS
-            )
-        else:
-            sample_dtype = np.dtype([('r', '<i2'), ('i', '<i2')])
-
         # set launch time
         # (at least 1 second out so USRP time is set, time to set up flowgraph)
         if st is not None:
@@ -440,7 +440,7 @@ class Thor(object):
         # adjust launch time forward so it falls on an exact sample since epoch
         lt_samples = np.ceil(ltts * samplerate_out)
         ltts = lt_samples / samplerate_out
-        lt = drf.util.sample_to_datetime(lt_samples, op.samplerate)
+        lt = drf.util.sample_to_datetime(lt_samples, samplerate_out)
         if op.verbose:
             ltstr = lt.strftime('%a %b %d %H:%M:%S.%f %Y')
             print('Launch time: {0} ({1})'.format(ltstr, repr(ltts)))
@@ -745,15 +745,15 @@ if __name__ == '__main__':
     timegroup = parser.add_argument_group(title='time')
     timegroup.add_argument(
         '-s', '--starttime', dest='starttime',
-        help='''Start time of the experiment as sample index (if int), Unix
-                time (if float), or datetime (if in ISO8601 format:
-                2016-01-01T15:24:00Z) (default: %(default)s)''',
+        help='''Start time of the experiment as datetime (if in ISO8601 format:
+                2016-01-01T15:24:00Z), Unix time (if float), or output sample
+                index (if int, including decimation) (default: %(default)s)''',
     )
     timegroup.add_argument(
         '-e', '--endtime', dest='endtime',
-        help='''End time of the experiment as sample index (if int), Unix
-                time (if float), or datetime (if in ISO8601 format:
-                2016-01-01T16:24:00Z (default: %(default)s)''',
+        help='''End time of the experiment as datetime (if in ISO8601 format:
+                2016-01-01T16:24:00Z), Unix time (if float), or output sample
+                index (if int, including decimation) (default: %(default)s)''',
     )
     timegroup.add_argument(
         '-l', '--duration', dest='duration',
