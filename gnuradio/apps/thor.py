@@ -279,7 +279,7 @@ class Thor(object):
             chinfostrs = [
                 'Motherboard: {mb_id} ({mb_addr}) | Daughterboard: {db_name}',
                 'Subdev: {sub} | Antenna: {ant} | Gain: {gain} | Rate: {sr}',
-                'Frequency: {freq} (+{lo_off}) | Bandwidth: {bw}',
+                'Frequency: {freq:.3f} ({lo_off:+.3f}) | Bandwidth: {bw}',
             ]
             if any(op.lo_sources) or any(op.lo_exports):
                 chinfostrs.append(
