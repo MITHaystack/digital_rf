@@ -33,14 +33,17 @@ import digital_rf as drf
 
 
 def evalint(s):
+    """Evaluate string to an integer."""
     return int(eval(s, {}, {}))
 
 
 def evalfloat(s):
+    """Evaluate string to a float."""
     return float(eval(s, {}, {}))
 
 
 def noneorstr(s):
+    """Turn empty or 'none' string to None."""
     if s.lower() in ('', 'none'):
         return None
     else:
@@ -48,6 +51,7 @@ def noneorstr(s):
 
 
 def noneorbool(s):
+    """Turn empty or 'none' string to None, all others to boolean."""
     if s.lower() in ('', 'none'):
         return None
     elif s.lower() in ('true', 't', 'yes', 'y', '1'):
@@ -57,6 +61,8 @@ def noneorbool(s):
 
 
 class Extend(Action):
+    """Action to split comma-separated arguments and add to a list."""
+
     def __init__(self, option_strings, dest, type=None, **kwargs):
         if type is not None:
             itemtype = type
@@ -191,8 +197,7 @@ class Tx(object):
         lo_sources=[''], lo_exports=[None],
         gains=[0], bandwidths=[0], antennas=[''],
         samplerate=1e6,
-        dev_args=[''],
-        stream_args=[],
+        dev_args=[], stream_args=[], tune_args=[],
         sync=True, sync_source='external',
         realtime=False, verbose=True, test_settings=True,
     ):
@@ -280,6 +285,7 @@ class Tx(object):
                 Antenna: {antennas}
                 Device arguments: {dev_args}
                 Stream arguments: {stream_args}
+                Tune arguments: {tune_args}
                 Sample rate: {samplerate}
             ''').strip().format(**op.__dict__)
             print(opstr)
@@ -371,6 +377,7 @@ class Tx(object):
             tune_res = u.set_center_freq(
                 uhd.tune_request(
                     op.centerfreqs[ch_num], op.lo_offsets[ch_num],
+                    args=uhd.device_addr(','.join(op.tune_args)),
                 ),
                 ch_num,
             )
@@ -779,6 +786,11 @@ if __name__ == '__main__':
                 (default: '')''',
     )
     txgroup.add_argument(
+        '-T', '--tuneargs', dest='tune_args', action=Extend,
+        help='''Tune request arguments, e.g. "mode_n=integer,int_n_step=100e3".
+                (default: '')''',
+    )
+    txgroup.add_argument(
         '--sync_source', dest='sync_source',
         help='''Clock and time source for all mainboards.
                 (default: 'external')''',
@@ -822,7 +834,7 @@ if __name__ == '__main__':
     if not op.tone and op.file is None:
         raise ValueError('Must specify a waveform file or use "--tone".')
 
-    # remove redundant arguments in dev_args and stream_args
+    # remove redundant arguments in dev_args, stream_args, tune_args
     if op.dev_args is not None:
         try:
             dev_args_dict = dict([a.split('=') for a in op.dev_args])
@@ -843,20 +855,29 @@ if __name__ == '__main__':
         op.stream_args = [
             '{0}={1}'.format(k, v) for k, v in stream_args_dict.iteritems()
         ]
+    if op.tune_args is not None:
+        try:
+            tune_args_dict = dict([a.split('=') for a in op.tune_args])
+        except ValueError:
+            raise ValueError(
+                'Tune request arguments must be {KEY}={VALUE} pairs.'
+            )
+        op.tune_args = [
+            '{0}={1}'.format(k, v) for k, v in tune_args_dict.iteritems()
+        ]
 
     # ignore test_settings option if no starttime is set (starting right now)
     if op.starttime is None:
         op.test_settings = False
 
-    # options = dict(op._get_kwargs())
     options = {k: v for k, v in op._get_kwargs() if v is not None}
     fpath = options.pop('file')
     iq_dir = options.pop('iq_dir', None)
     tone = options.pop('tone', False)
-    starttime = options.pop('starttime', None)
-    endtime = options.pop('endtime', None)
-    duration = options.pop('duration', None)
-    period = options.pop('period', 10)
+    runopts = {
+        k: options.pop(k) for k in list(options.keys())
+        if k in ('starttime', 'endtime', 'duration', 'period')
+    }
 
     # read waveform
     if op.tone:
@@ -872,4 +893,4 @@ if __name__ == '__main__':
             options['waveform'] = np.fromfile(op.file, dtype=np.complex64)
 
     tx = Tx(**options)
-    tx.run(starttime, endtime, duration, period)
+    tx.run(**runopts)
