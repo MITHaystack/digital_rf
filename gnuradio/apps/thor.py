@@ -15,7 +15,9 @@ import os
 import re
 import sys
 import time
-from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
+from argparse import (
+    Action, ArgumentParser, Namespace, RawDescriptionHelpFormatter,
+)
 from ast import literal_eval
 from datetime import datetime, timedelta
 from fractions import Fraction
@@ -32,6 +34,59 @@ import digital_rf as drf
 import gr_drf
 
 
+def evalint(s):
+    """Evaluate string to an integer."""
+    return int(eval(s, {}, {}))
+
+
+def evalfloat(s):
+    """Evaluate string to a float."""
+    return float(eval(s, {}, {}))
+
+
+def noneorstr(s):
+    """Turn empty or 'none' string to None."""
+    if s.lower() in ('', 'none'):
+        return None
+    else:
+        return s
+
+
+def noneorbool(s):
+    """Turn empty or 'none' string to None, all others to boolean."""
+    if s.lower() in ('', 'none'):
+        return None
+    elif s.lower() in ('true', 't', 'yes', 'y', '1'):
+        return True
+    else:
+        return False
+
+
+class Extend(Action):
+    """Action to split comma-separated arguments and add to a list."""
+
+    def __init__(self, option_strings, dest, type=None, **kwargs):
+        if type is not None:
+            itemtype = type
+        else:
+            def itemtype(s):
+                return s
+
+        def split_string_and_cast(s):
+            return [itemtype(a.strip()) for a in s.strip().split(',')]
+
+        super(Extend, self).__init__(
+            option_strings, dest, type=split_string_and_cast, **kwargs
+        )
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        cur_list = getattr(namespace, self.dest, [])
+        if cur_list is None:
+            cur_list = []
+        cur_list.extend(values)
+        setattr(namespace, self.dest, cur_list)
+
+
 class Thor(object):
     """Record data from synchronized USRPs in DigitalRF format."""
 
@@ -42,7 +97,7 @@ class Thor(object):
         gains=[0], bandwidths=[0], antennas=[''],
         samplerate=1e6, dec=1,
         dev_args=['recv_buff_size=100000000', 'num_recv_frames=512'],
-        stream_args=[],
+        stream_args=[], tune_args=[],
         sync=True, sync_source='external',
         stop_on_dropped=False, realtime=False,
         file_cadence_ms=1000, subdir_cadence_s=3600, metadata={}, uuid=None,
@@ -116,6 +171,7 @@ class Thor(object):
                 Antenna: {antennas}
                 Device arguments: {dev_args}
                 Stream arguments: {stream_args}
+                Tune arguments: {tune_args}
                 Sample rate: {samplerate}
                 Data dir: {datadir}
                 Metadata: {metadata}
@@ -233,6 +289,7 @@ class Thor(object):
             tune_res = u.set_center_freq(
                 uhd.tune_request(
                     op.centerfreqs[ch_num], op.lo_offsets[ch_num],
+                    args=uhd.device_addr(','.join(op.tune_args)),
                 ),
                 ch_num,
             )
@@ -645,30 +702,30 @@ if __name__ == '__main__':
 
     mbgroup = parser.add_argument_group(title='mainboard')
     mbgroup.add_argument(
-        '-m', '--mainboard', dest='mboards', action='append',
+        '-m', '--mainboard', dest='mboards', action=Extend,
         help='''Mainboard address. (default: first device found)''',
     )
     mbgroup.add_argument(
-        '-d', '--subdevice', dest='subdevs', action='append',
+        '-d', '--subdevice', dest='subdevs', action=Extend,
         help='''USRP subdevice string. (default: "A:A")''',
     )
 
     chgroup = parser.add_argument_group(title='channel')
     chgroup.add_argument(
-        '-c', '--channel', dest='chs', action='append',
+        '-c', '--channel', dest='chs', action=Extend,
         help='''Channel names to use in data directory. (default: "ch0")''',
     )
     chgroup.add_argument(
-        '-f', '--centerfreq', dest='centerfreqs', action='append',
+        '-f', '--centerfreq', dest='centerfreqs', action=Extend, type=float,
         help='''Center frequency in Hz. (default: 100e6)''',
     )
     chgroup.add_argument(
-        '-F', '--lo_offset', dest='lo_offsets', action='append',
+        '-F', '--lo_offset', dest='lo_offsets', action=Extend, type=float,
         help='''Frontend tuner offset from center frequency, in Hz.
                 (default: 0)''',
     )
     chgroup.add_argument(
-        '--lo_source', dest='lo_sources', action='append',
+        '--lo_source', dest='lo_sources', action=Extend, type=noneorstr,
         help='''Local oscillator source. Typically 'None'/'' (do not set),
                 'internal' (e.g. LO1 for CH1, LO2 for CH2),
                 'companion' (e.g. LO2 for CH1, LO1 for CH2), or
@@ -676,53 +733,55 @@ if __name__ == '__main__':
                 (default: '')''',
     )
     chgroup.add_argument(
-        '--lo_export', dest='lo_exports', action='append',
+        '--lo_export', dest='lo_exports', action=Extend, type=noneorbool,
         help='''Whether to export the LO's source to the external connector.
                 Can be 'None'/'' to skip the channel, otherwise it can be
                 'True' or 'False' provided the LO source is set.
                 (default: None)''',
     )
     chgroup.add_argument(
-        '-g', '--gain', dest='gains', action='append',
+        '-g', '--gain', dest='gains', action=Extend, type=float,
         help='''Gain in dB. (default: 0)''',
     )
     chgroup.add_argument(
-        '-b', '--bandwidth', dest='bandwidths', action='append',
+        '-b', '--bandwidth', dest='bandwidths', action=Extend, type=float,
         help='''Frontend bandwidth in Hz. (default: 0 == frontend default)''',
     )
     chgroup.add_argument(
-        '-y', '--antenna', dest='antennas', action='append',
+        '-y', '--antenna', dest='antennas', action=Extend, type=noneorstr,
         help='''Name of antenna to select on the frontend.
                 (default: frontend default))''',
     )
 
     recgroup = parser.add_argument_group(title='receiver')
     recgroup.add_argument(
-        '-r', '--samplerate', dest='samplerate',
-        default='1e6',
-        help='''Sample rate in Hz. (default: %(default)s)''',
+        '-r', '--samplerate', dest='samplerate', type=evalfloat,
+        help='''Sample rate in Hz. (default: 1e6)''',
     )
     recgroup.add_argument(
-        '-i', '--dec', dest='dec',
-        default=1, type=int,
+        '-i', '--dec', dest='dec', type=int,
         help='''Integrate and decimate by this factor.
-                (default: %(default)s)''',
+                (default: 1)''',
     )
     recgroup.add_argument(
-        '-A', '--devargs', dest='dev_args', action='append',
-        default=['recv_buff_size=100000000', 'num_recv_frames=512'],
+        '-A', '--devargs', dest='dev_args', action=Extend,
         help='''Device arguments, e.g. "master_clock_rate=30e6".
-                (default: %(default)s)''',
+                (default: 'recv_buff_size=100000000,num_recv_frames=512')''',
     )
     recgroup.add_argument(
-        '-a', '--streamargs', dest='stream_args', action='append',
+        '-a', '--streamargs', dest='stream_args', action=Extend,
         help='''Stream arguments, e.g. "peak=0.125,fullscale=1.0".
-                (default: %(default)s)''',
+                (default: '')''',
     )
     recgroup.add_argument(
-        '--sync_source', dest='sync_source', default='external',
+        '-T', '--tuneargs', dest='tune_args', action=Extend,
+        help='''Tune request arguments, e.g. "mode_n=integer,int_n_step=100e3".
+                (default: '')''',
+    )
+    recgroup.add_argument(
+        '--sync_source', dest='sync_source',
         help='''Clock and time source for all mainboards.
-                (default: %(default)s)''',
+                (default: external)''',
     )
     recgroup.add_argument(
         '--nosync', dest='sync', action='store_false',
@@ -743,48 +802,44 @@ if __name__ == '__main__':
         '-s', '--starttime', dest='starttime',
         help='''Start time of the experiment as datetime (if in ISO8601 format:
                 2016-01-01T15:24:00Z) or Unix time (if float/int).
-                (default: %(default)s)''',
+                (default: start ASAP)''',
     )
     timegroup.add_argument(
         '-e', '--endtime', dest='endtime',
         help='''End time of the experiment as datetime (if in ISO8601 format:
                 2016-01-01T16:24:00Z) or Unix time (if float/int).
-                (default: %(default)s)''',
+                (default: wait for Ctrl-C)''',
     )
     timegroup.add_argument(
         '-l', '--duration', dest='duration',
         default=None,
         help='''Duration of experiment in seconds. When endtime is not given,
-                end this long after start time. (default: %(default)s)''',
+                end this long after start time. (default: wait for Ctrl-C)''',
     )
     timegroup.add_argument(
-        '-p', '--cycle-length', dest='period',
-        default=10, type=int,
+        '-p', '--cycle-length', dest='period', type=int,
         help='''Repeat time of experiment cycle. Align to start of next cycle
-                if start time has passed. (default: %(default)s)''',
+                if start time has passed. (default: 10)''',
     )
 
     drfgroup = parser.add_argument_group(title='digital_rf')
     drfgroup.add_argument(
-        '-n', '--file_cadence_ms', dest='file_cadence_ms',
-        default=1000, type=int,
+        '-n', '--file_cadence_ms', dest='file_cadence_ms', type=int,
         help='''Number of milliseconds of data per file.
-                (default: %(default)s)''',
+                (default: 1000)''',
     )
     drfgroup.add_argument(
-        '-N', '--subdir_cadence_s', dest='subdir_cadence_s',
-        default=3600, type=int,
+        '-N', '--subdir_cadence_s', dest='subdir_cadence_s', type=int,
         help='''Number of seconds of data per subdirectory.
-                (default: %(default)s)''',
+                (default: 3600)''',
     )
     drfgroup.add_argument(
-        '--metadata', action='append', metavar='{KEY}={VALUE}',
+        '--metadata', action=Extend, metavar='{KEY}={VALUE}',
         help='''Key, value metadata pairs to include with data.
                 (default: "")''',
     )
     drfgroup.add_argument(
         '--uuid', dest='uuid',
-        default=None,
         help='''Unique ID string for this data collection.
                 (default: random)''',
     )
@@ -795,121 +850,65 @@ if __name__ == '__main__':
         op.datadir = op.outdir
     del op.outdir
 
-    if op.mboards is None:
-        op.mboards = []
-    if op.subdevs is None:
-        op.subdevs = ['A:A']
-    if op.chs is None:
-        op.chs = ['ch0']
-    if op.centerfreqs is None:
-        op.centerfreqs = ['100e6']
-    if op.lo_offsets is None:
-        op.lo_offsets = ['0']
-    if op.lo_sources is None:
-        op.lo_sources = ['']
-    if op.lo_exports is None:
-        op.lo_exports = ['None']
-    if op.gains is None:
-        op.gains = ['0']
-    if op.bandwidths is None:
-        # use 0 bandwidth as special case to set frontend default
-        op.bandwidths = ['0']
-    if op.antennas is None:
-        op.antennas = ['']
-    if op.dev_args is None:
-        op.dev_args = []
-    if op.stream_args is None:
-        op.stream_args = []
-    if op.metadata is None:
-        op.metadata = []
-
-    # separate any combined arguments
-    # e.g. op.mboards = ['192.168.10.2,192.168.10.3']
-    #      becomes ['192.168.10.2', '192.168.10.3']
-    op.mboards = [b.strip() for a in op.mboards for b in a.strip().split(',')]
-    op.subdevs = [b.strip() for a in op.subdevs for b in a.strip().split(',')]
-    op.chs = [b.strip() for a in op.chs for b in a.strip().split(',')]
-    op.centerfreqs = [
-        float(b.strip()) for a in op.centerfreqs for b in a.strip().split(',')
-    ]
-    op.lo_offsets = [
-        float(b.strip()) for a in op.lo_offsets for b in a.strip().split(',')
-    ]
-    op.lo_sources = [
-        b.strip() if b.strip().lower() not in ('', 'none') else None
-        for a in op.lo_sources for b in a.strip().split(',')
-    ]
-    op.lo_exports = [
-        b.strip().lower() in ('true', 't', 'yes', 'y', '1')
-        if b.strip().lower() not in ('', 'none') else None
-        for a in op.lo_exports for b in a.strip().split(',')
-    ]
-    op.gains = [
-        float(b.strip()) for a in op.gains for b in a.strip().split(',')
-    ]
-    op.bandwidths = [
-        float(b.strip()) for a in op.bandwidths for b in a.strip().split(',')
-    ]
-    op.antennas = [
-        b.strip() for a in op.antennas for b in a.strip().split(',')
-    ]
-    op.dev_args = [
-        b.strip() for a in op.dev_args for b in a.strip().split(',')
-    ]
-    op.stream_args = [
-        b.strip() for a in op.stream_args for b in a.strip().split(',')
-    ]
-    op.metadata = [
-        b.strip() for a in op.metadata for b in a.strip().split(',')
-    ]
-
-    # remove redundant arguments in dev_args and stream_args
-    try:
-        dev_args_dict = dict([a.split('=') for a in op.dev_args])
-        stream_args_dict = dict([a.split('=') for a in op.stream_args])
-    except ValueError:
-        raise ValueError(
-            'Device and stream arguments must be {KEY}={VALUE} pairs.'
-        )
-    op.dev_args = [
-        '{0}={1}'.format(k, v) for k, v in dev_args_dict.iteritems()
-    ]
-    op.stream_args = [
-        '{0}={1}'.format(k, v) for k, v in stream_args_dict.iteritems()
-    ]
-
-    # evaluate samplerate to float
-    op.samplerate = float(eval(op.samplerate))
-    # evaluate duration to int
-    if op.duration is not None:
-        op.duration = int(eval(op.duration))
+    # remove redundant arguments in dev_args, stream_args, tune_args
+    if op.dev_args is not None:
+        try:
+            dev_args_dict = dict([a.split('=') for a in op.dev_args])
+        except ValueError:
+            raise ValueError(
+                'Device arguments must be {KEY}={VALUE} pairs.'
+            )
+        op.dev_args = [
+            '{0}={1}'.format(k, v) for k, v in dev_args_dict.iteritems()
+        ]
+    if op.stream_args is not None:
+        try:
+            stream_args_dict = dict([a.split('=') for a in op.stream_args])
+        except ValueError:
+            raise ValueError(
+                'Stream arguments must be {KEY}={VALUE} pairs.'
+            )
+        op.stream_args = [
+            '{0}={1}'.format(k, v) for k, v in stream_args_dict.iteritems()
+        ]
+    if op.tune_args is not None:
+        try:
+            tune_args_dict = dict([a.split('=') for a in op.tune_args])
+        except ValueError:
+            raise ValueError(
+                'Tune request arguments must be {KEY}={VALUE} pairs.'
+            )
+        op.tune_args = [
+            '{0}={1}'.format(k, v) for k, v in tune_args_dict.iteritems()
+        ]
 
     # convert metadata strings to a dictionary
-    metadata_dict = {}
-    for a in op.metadata:
-        try:
-            k, v = a.split('=')
-        except ValueError:
-            k = None
-            v = a
-        try:
-            v = literal_eval(v)
-        except ValueError:
-            pass
-        if k is None:
-            metadata_dict.setdefault('metadata', []).append(v)
-        else:
-            metadata_dict[k] = v
-    op.metadata = metadata_dict
+    if op.metadata is not None:
+        metadata_dict = {}
+        for a in op.metadata:
+            try:
+                k, v = a.split('=')
+            except ValueError:
+                k = None
+                v = a
+            try:
+                v = literal_eval(v)
+            except ValueError:
+                pass
+            if k is None:
+                metadata_dict.setdefault('metadata', []).append(v)
+            else:
+                metadata_dict[k] = v
+        op.metadata = metadata_dict
 
     # ignore test_settings option if no starttime is set (starting right now)
     if op.starttime is None:
         op.test_settings = False
 
-    options = dict(op._get_kwargs())
-    starttime = options.pop('starttime')
-    endtime = options.pop('endtime')
-    duration = options.pop('duration')
-    period = options.pop('period')
+    options = {k: v for k, v in op._get_kwargs() if v is not None}
+    runopts = {
+        k: options.pop(k) for k in list(options.keys())
+        if k in ('starttime', 'endtime', 'duration', 'period')
+    }
     thor = Thor(**options)
-    thor.run(starttime, endtime, duration, period)
+    thor.run(**runopts)
