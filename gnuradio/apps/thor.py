@@ -716,11 +716,12 @@ if __name__ == '__main__':
         help='''Channel names to use in data directory. (default: "ch0")''',
     )
     chgroup.add_argument(
-        '-f', '--centerfreq', dest='centerfreqs', action=Extend, type=float,
+        '-f', '--centerfreq', dest='centerfreqs', action=Extend,
+        type=evalfloat,
         help='''Center frequency in Hz. (default: 100e6)''',
     )
     chgroup.add_argument(
-        '-F', '--lo_offset', dest='lo_offsets', action=Extend, type=float,
+        '-F', '--lo_offset', dest='lo_offsets', action=Extend, type=evalfloat,
         help='''Frontend tuner offset from center frequency, in Hz.
                 (default: 0)''',
     )
@@ -740,11 +741,11 @@ if __name__ == '__main__':
                 (default: None)''',
     )
     chgroup.add_argument(
-        '-g', '--gain', dest='gains', action=Extend, type=float,
+        '-g', '--gain', dest='gains', action=Extend, type=evalfloat,
         help='''Gain in dB. (default: 0)''',
     )
     chgroup.add_argument(
-        '-b', '--bandwidth', dest='bandwidths', action=Extend, type=float,
+        '-b', '--bandwidth', dest='bandwidths', action=Extend, type=evalfloat,
         help='''Frontend bandwidth in Hz. (default: 0 == frontend default)''',
     )
     chgroup.add_argument(
@@ -816,19 +817,19 @@ if __name__ == '__main__':
                 end this long after start time. (default: wait for Ctrl-C)''',
     )
     timegroup.add_argument(
-        '-p', '--cycle-length', dest='period', type=int,
+        '-p', '--cycle-length', dest='period', type=evalint,
         help='''Repeat time of experiment cycle. Align to start of next cycle
                 if start time has passed. (default: 10)''',
     )
 
     drfgroup = parser.add_argument_group(title='digital_rf')
     drfgroup.add_argument(
-        '-n', '--file_cadence_ms', dest='file_cadence_ms', type=int,
+        '-n', '--file_cadence_ms', dest='file_cadence_ms', type=evalint,
         help='''Number of milliseconds of data per file.
                 (default: 1000)''',
     )
     drfgroup.add_argument(
-        '-N', '--subdir_cadence_s', dest='subdir_cadence_s', type=int,
+        '-N', '--subdir_cadence_s', dest='subdir_cadence_s', type=evalint,
         help='''Number of seconds of data per subdirectory.
                 (default: 3600)''',
     )
