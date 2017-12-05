@@ -811,8 +811,7 @@ if __name__ == '__main__':
                 (default: wait for Ctrl-C)''',
     )
     timegroup.add_argument(
-        '-l', '--duration', dest='duration',
-        default=None,
+        '-l', '--duration', dest='duration', type=evalint,
         help='''Duration of experiment in seconds. When endtime is not given,
                 end this long after start time. (default: wait for Ctrl-C)''',
     )
