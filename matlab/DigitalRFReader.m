@@ -64,7 +64,7 @@ classdef DigitalRFReader
                 resultDims = size(result);
                 for j = 1:resultDims(1)
                     data = char(result(j));
-                    remainder = data(top_level_dir_len + 2:end-1);
+                    remainder = data(top_level_dir_len + 1:end-1);
                     [pathstr,name,ext] = fileparts(remainder);
                     if dirFlag == 0
                         dirArr = struct('top_level_dir', strtrim(reader.topLevelDirectories(i,:)), ...
