@@ -276,25 +276,29 @@ classdef drf_channel
             sps_d = obj.samples_per_second_denominator;
             sample0 = uint64(sample0);
             sample1 = uint64(sample1);
+            % get the start and end time in seconds to get the subdirectory
             start_ts = idivide(sample0, sps_n)*sps_d + idivide(mod(sample0, sps_n)*sps_d, sps_n);
             end_ts = idivide(sample1, sps_n)*sps_d + idivide(mod(sample1, sps_n)*sps_d, sps_n) + 1;
-            start_msts = idivide(sample0, sps_n)*1000*sps_d + idivide(mod(sample0, sps_n)*1000*sps_d, sps_n);
-            end_msts = idivide(sample1, sps_n)*1000*sps_d + idivide(mod(sample1, sps_n)*1000*sps_d, sps_n);
+            % Get the start time and end time in microsecs to get file
+            start_msts = idivide(sample0*1000, sps_n)*sps_d + idivide(mod(sample0*1000, sps_n)*sps_d, sps_n);
+            end_msts = idivide(sample1*1000, sps_n)*sps_d + idivide(mod(sample1*1000, sps_n)*sps_d, sps_n);
 
             % get subdirectory start and end ts
-            start_sub_ts = floor((start_ts / obj.subdir_cadence_secs) * obj.subdir_cadence_secs);
-            end_sub_ts = floor((end_ts / obj.subdir_cadence_secs) * obj.subdir_cadence_secs);
+            start_sub_ts = floor(double(start_ts)/double(obj.subdir_cadence_secs)) * obj.subdir_cadence_secs;
+            end_sub_ts = floor(double(end_ts) / double(obj.subdir_cadence_secs)) * obj.subdir_cadence_secs;
 
             sub_ts_arr = start_sub_ts:obj.subdir_cadence_secs:end_sub_ts + obj.subdir_cadence_secs;
-            for i = 1:length(sub_ts_arr)
+            for i = 1:length(sub_ts_arr)-1
                 sub_datetime = datetime(sub_ts_arr(i),'ConvertFrom','posixtime');
                 subdir = datestr(sub_datetime, 'YYYY-mm-ddTHH-MM-SS');
                 % file_msts_in_subdir = numpy.arange(sub_ts*1000, long(sub_ts + subdir_cadence_seconds)*1000, file_cadence_millisecs)
                 start_point = sub_ts_arr(i)*1000;
                 end_point = floor(sub_ts_arr(i) + obj.subdir_cadence_secs)*1000;
                 file_msts_in_subdir = start_point:obj.file_cadence_millisecs:end_point;
-                valid_file_msts = file_msts_in_subdir(file_msts_in_subdir + obj.file_cadence_millisecs >= start_msts ...
-                    & file_msts_in_subdir <= end_msts);
+                file_msts_in_subdir = file_msts_in_subdir(1:end-1);
+                valid_file_logic = file_msts_in_subdir + obj.file_cadence_millisecs -1 >= start_msts ...
+                    & file_msts_in_subdir <= end_msts;
+                valid_file_msts = file_msts_in_subdir(valid_file_logic);
                 valid_file_msts = sort(valid_file_msts);
                 for j = 1:length(valid_file_msts)
                     file_basename = sprintf('rf@%i.%03i.h5', floor(double(valid_file_msts(j)) / 1000.0), mod(valid_file_msts(j), 1000));
