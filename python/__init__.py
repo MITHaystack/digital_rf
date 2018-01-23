@@ -1,5 +1,8 @@
 """Digital RF Python package."""
-from ._version import __version__
+try:
+    from ._version import __version__
+except ImportError:
+    __version__ = None
 from .digital_metadata import *
 from .digital_rf_hdf5 import *
 from . import list_drf

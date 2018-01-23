@@ -31,7 +31,7 @@ from gnuradio import filter, gr, uhd
 from gnuradio.filter import firdes
 
 import digital_rf as drf
-import gr_drf
+import gr_digital_rf as gr_drf
 
 
 def evalint(s):

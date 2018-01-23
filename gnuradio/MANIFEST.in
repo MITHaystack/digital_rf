@@ -1,0 +1,7 @@
+include gnuradio.project
+include MANIFEST.md
+# manually include data_files because setuptools doesn't do it automatically
+include grc/gr_digital_rf_digital_rf_channel_sink.xml
+include grc/gr_digital_rf_digital_rf_channel_source.xml
+include grc/gr_digital_rf_digital_rf_sink.xml
+include grc/gr_digital_rf_digital_rf_source.xml

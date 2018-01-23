@@ -18,13 +18,13 @@ MAIN_TMPL = """\
 -->
 <block>
     <name>Digital RF Sink</name>
-    <key>gr_drf_digital_rf_sink</key>
+    <key>gr_digital_rf_digital_rf_sink</key>
     <category>Digital RF</category>
-    <import>import numpy as np; import gr_drf</import>
+    <import>import numpy as np; import gr_digital_rf</import>
     <make>\\
     \#set \$allchannels = #echo '[{0}]'.format(', '.join(['$channel{0}()'.format(n) for n in range($max_num_channels)]))
     \#set \$channels = \$allchannels[:\$nchan()]
-    gr_drf.digital_rf_sink(
+    gr_digital_rf.digital_rf_sink(
         \$top_level_dir,
         channels=\$channels,
         dtype=\$input.dtype,

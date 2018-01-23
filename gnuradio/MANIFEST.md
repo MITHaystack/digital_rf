@@ -1,4 +1,4 @@
-title: gr_drf
+title: gr_digital_rf
 brief: Digital RF module for GNU Radio
 tags:
   - recording
@@ -8,8 +8,8 @@ author:
 copyright_owner:
   - Massachusetts Institute of Technology
 dependencies:
-  - gnuradio, libdigital_rf
-license: GPLv3
+  - gnuradio, digital_rf
+license: BSD-3-Clause
 repo: https://github.com/MITHaystack/digital_rf
 #website: <module_website> # If you have a separate project website, put it here
 #icon: <icon_url> # Put a URL to a square image here that will be used as an icon on CGRAN

@@ -9,11 +9,11 @@
 -->
 <block>
     <name>Digital RF Channel Sink</name>
-    <key>gr_drf_digital_rf_channel_sink</key>
+    <key>gr_digital_rf_digital_rf_channel_sink</key>
     <category>Digital RF</category>
-    <import>import numpy as np; import gr_drf</import>
+    <import>import numpy as np; import gr_digital_rf</import>
     <make>\
-    gr_drf.digital_rf_channel_sink(
+    gr_digital_rf.digital_rf_channel_sink(
         channel_dir=$dir, dtype=$input.dtype,
         subdir_cadence_secs=$subdir_cadence_s,
         file_cadence_millisecs=$file_cadence_ms,

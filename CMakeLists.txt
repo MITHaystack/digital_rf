@@ -32,6 +32,9 @@ set_target_properties(digital_rf::hdf5 PROPERTIES
 
 enable_testing()
 
+# source distribution target (dependencies added later)
+add_custom_target(sdist)
+
 # libdigital_rf
 configure_file(include/digital_rf.h include/digital_rf.h COPYONLY)
 configure_file(include/digital_rf_version.h.in include/digital_rf_version.h @ONLY)
@@ -95,44 +98,69 @@ install(
     ${ConfigPackageLocation}
 )
 
-# digital_rf python package
-file(GLOB PYTHON_SRCS "python/*.py" "tools/*.py")
+# build digital_rf python package with setup.py
+# if(TARGET digital_rf)
+#     set(DIGITAL_RF_TARGET digital_rf)
+# else(TARGET digital_rf)
+#     find_package(digital_rf REQUIRED)
+#     set(DIGITAL_RF_TARGET digital_rf::digital_rf)
+# endif(TARGET digital_rf)
+
 find_program(PYTHON "python" REQUIRED)
-set(SETUP_PY_IN ${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in)
-set(SETUP_PY ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
+file(GLOB PYTHON_SRCS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+    "AUTHORS" "CHANGES" "LICENSE" "README.rst"
+    "python/*.py"
+    "tools/*.py"
+    "lib/py_rf_write_hdf5.c"
+)
+set(VERSION_PY python/_version.py)
 set(PYBUILD_DEPS
     ${PYTHON_SRCS}
-    ${CMAKE_CURRENT_SOURCE_DIR}/lib/py_rf_write_hdf5.c
     digital_rf
-    ${SETUP_PY}
+    ${CMAKE_CURRENT_BINARY_DIR}/${VERSION_PY}
+    ${CMAKE_CURRENT_BINARY_DIR}/setup.py
 )
 set(PYBUILD_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/build)
 
-configure_file(${SETUP_PY_IN} ${SETUP_PY})
-add_custom_command(OUTPUT ${PYBUILD_OUTPUT}
-                   COMMAND ${PYTHON} ${SETUP_PY} build
-                   COMMAND ${PYTHON} ${SETUP_PY} egg_info
-                   COMMAND ${CMAKE_COMMAND} -E touch ${PYBUILD_OUTPUT}
-                   DEPENDS ${PYBUILD_DEPS})
-add_custom_target(python ALL DEPENDS ${PYBUILD_OUTPUT})
-install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} install --prefix ${CMAKE_INSTALL_PREFIX} --single-version-externally-managed --record ${CMAKE_CURRENT_BINARY_DIR}/install_python_manifest.txt)")
+foreach(f ${PYTHON_SRCS})
+    configure_file(${f} ${f} COPYONLY)
+endforeach(f)
+configure_file(${VERSION_PY}.in ${VERSION_PY})
+configure_file(setup.py.in setup.py)
+add_custom_command(
+    OUTPUT ${PYBUILD_OUTPUT}
+    COMMAND ${PYTHON} setup.py build
+    COMMAND ${PYTHON} setup.py egg_info
+    COMMAND ${CMAKE_COMMAND} -E touch ${PYBUILD_OUTPUT}
+    DEPENDS ${PYBUILD_DEPS}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+add_custom_target(digital_rf_python ALL DEPENDS ${PYBUILD_OUTPUT})
+add_custom_target(digital_rf_sdist
+    COMMAND ${PYTHON} setup.py sdist -d ${CMAKE_BINARY_DIR}
+    DEPENDS ${PYBUILD_OUTPUT}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+add_dependencies(sdist digital_rf_sdist)
+install(CODE "execute_process(COMMAND ${PYTHON} setup.py install\
+ --prefix ${CMAKE_INSTALL_PREFIX} --single-version-externally-managed\
+ --record ${CMAKE_BINARY_DIR}/install_${PROJECT_NAME}_manifest.txt\
+ WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})\
+")
 
 # docs, examples, tests
 add_subdirectory(docs)
 add_subdirectory(examples EXCLUDE_FROM_ALL)
 add_subdirectory(tests)
 
-# gr_drf gnuradio module
-option(ENABLE_GNURADIO "Build gr_drf GNU Radio module." ON)
-set(GR_REQUIRED_COMPONENTS RUNTIME PMT)
-find_package(Gnuradio)
-if(GNURADIO_RUNTIME_FOUND AND ENABLE_GNURADIO)
-  message("| GNU Radio found, gr_drf module ENABLED.")
+# gr_digital_rf gnuradio module
+option(ENABLE_GNURADIO "Build gr_digital_rf GNU Radio module." ON)
+if(ENABLE_GNURADIO)
+  message("| gr_digital_rf module ENABLED.")
   add_subdirectory(gnuradio)
-else(GNURADIO_RUNTIME_FOUND AND ENABLE_GNURADIO)
-  message("| GNU Radio not found or disabled, gr_drf module will be SKIPPED.")
-endif(GNURADIO_RUNTIME_FOUND AND ENABLE_GNURADIO)
-
+else(ENABLE_GNURADIO)
+  message("| gr_digital_rf module DISABLED.")
+endif(ENABLE_GNURADIO)
 
 # add uninstall target
 # uninstall target

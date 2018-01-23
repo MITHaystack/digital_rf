@@ -1,16 +1,14 @@
 # https://cmake.org/Wiki/CMake_FAQ#Can_I_do_.22make_uninstall.22_with_CMake.3F
-set(manifests
-    install_manifest.txt
-    install_python_manifest.txt
-)
 
-foreach(manifest_file ${manifests})
+file(GLOB MANIFESTS "install_*_manifest.txt")
 
-if(NOT EXISTS "@CMAKE_CURRENT_BINARY_DIR@/${manifest_file}")
-  message(FATAL_ERROR "Cannot find install manifest: @CMAKE_CURRENT_BINARY_DIR@/${manifest_file}")
-endif(NOT EXISTS "@CMAKE_CURRENT_BINARY_DIR@/${manifest_file}")
+foreach(manifest_file ${MANIFESTS})
 
-file(READ "@CMAKE_CURRENT_BINARY_DIR@/${manifest_file}" files)
+if(NOT EXISTS "${manifest_file}")
+  message(FATAL_ERROR "Cannot find install manifest: ${manifest_file}")
+endif(NOT EXISTS "${manifest_file}")
+
+file(READ "${manifest_file}" files)
 string(REGEX REPLACE "\n" ";" files "${files}")
 foreach(file ${files})
   message(STATUS "Uninstalling $ENV{DESTDIR}${file}")
@@ -28,4 +26,4 @@ foreach(file ${files})
   endif(IS_SYMLINK "$ENV{DESTDIR}${file}" OR EXISTS "$ENV{DESTDIR}${file}")
 endforeach(file)
 
-endforeach(manifest)
+endforeach(manifest_file)

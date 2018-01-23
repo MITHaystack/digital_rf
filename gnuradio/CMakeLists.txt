@@ -1,122 +1,71 @@
-########################################################################
-# Project setup
-########################################################################
 cmake_minimum_required(VERSION 3.0)
-cmake_policy(SET CMP0026 OLD)
-cmake_policy(SET CMP0048 NEW)
-cmake_policy(SET CMP0054 NEW)
-project(gr_drf LANGUAGES CXX C)
+project(gr_digital_rf VERSION ${digital_rf_VERSION} LANGUAGES NONE)
 
-#select the release build type by default to get optimization flags
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release")
-    message(STATUS "Build type not specified: defaulting to release.")
-endif(NOT CMAKE_BUILD_TYPE)
-set(CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE} CACHE STRING "")
+find_program(PYTHON "python" REQUIRED)
 
-# make sure our local CMake Modules path comes first
-list(INSERT CMAKE_MODULE_PATH 0 ${PROJECT_SOURCE_DIR}/cmake/Modules)
-
-########################################################################
-# Compiler specific setup
-########################################################################
-if(CMAKE_COMPILER_IS_GNUCXX AND NOT WIN32)
-    #http://gcc.gnu.org/wiki/Visibility
-    add_definitions(-fvisibility=hidden)
-endif()
-
-########################################################################
-# Find boost
-########################################################################
-if(UNIX AND EXISTS "/usr/lib64")
-    list(APPEND BOOST_LIBRARYDIR "/usr/lib64") #fedora 64-bit fix
-endif(UNIX AND EXISTS "/usr/lib64")
-set(Boost_ADDITIONAL_VERSIONS
-    "1.35.0" "1.35" "1.36.0" "1.36" "1.37.0" "1.37" "1.38.0" "1.38" "1.39.0" "1.39"
-    "1.40.0" "1.40" "1.41.0" "1.41" "1.42.0" "1.42" "1.43.0" "1.43" "1.44.0" "1.44"
-    "1.45.0" "1.45" "1.46.0" "1.46" "1.47.0" "1.47" "1.48.0" "1.48" "1.49.0" "1.49"
-    "1.50.0" "1.50" "1.51.0" "1.51" "1.52.0" "1.52" "1.53.0" "1.53" "1.54.0" "1.54"
-    "1.55.0" "1.55" "1.56.0" "1.56" "1.57.0" "1.57" "1.58.0" "1.58" "1.59.0" "1.59"
-    "1.60.0" "1.60" "1.61.0" "1.61" "1.62.0" "1.62" "1.63.0" "1.63" "1.64.0" "1.64"
-    "1.65.0" "1.65" "1.66.0" "1.66" "1.67.0" "1.67" "1.68.0" "1.68" "1.69.0" "1.69"
+# get list of python source files by generating egg info
+set(EGG_INFO_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/temp_egg/${PROJECT_NAME}.egg-info)
+file(MAKE_DIRECTORY ${EGG_INFO_OUTPUT})
+execute_process(
+    COMMAND ${PYTHON} setup.py egg_info -e ${CMAKE_CURRENT_BINARY_DIR}/temp_egg
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
-find_package(Boost "1.35" REQUIRED COMPONENTS filesystem system)
+file(READ ${EGG_INFO_OUTPUT}/SOURCES.txt PYSOURCES)
+STRING(REGEX REPLACE ";" "\\\\;" PYSOURCES "${PYSOURCES}")
+STRING(REGEX REPLACE "\n" ";" PYSOURCES "${PYSOURCES}")
 
-########################################################################
-# Install directories
-########################################################################
-include(GrPlatform) #define LIB_SUFFIX
-set(GR_RUNTIME_DIR      bin)
-set(GR_LIBRARY_DIR      lib${LIB_SUFFIX})
-set(GR_INCLUDE_DIR      include/${PROJECT_NAME})
-set(GR_DATA_DIR         share)
-set(GR_PKG_DATA_DIR     ${GR_DATA_DIR}/${PROJECT_NAME})
-set(GR_DOC_DIR          ${GR_DATA_DIR}/doc)
-set(GR_PKG_DOC_DIR      ${GR_DOC_DIR}/${PROJECT_NAME})
-set(GR_CONF_DIR         etc)
-set(GR_PKG_CONF_DIR     ${GR_CONF_DIR}/${PROJECT_NAME}/conf.d)
-set(GR_LIBEXEC_DIR      libexec)
-set(GR_PKG_LIBEXEC_DIR  ${GR_LIBEXEC_DIR}/${PROJECT_NAME})
-set(GRC_BLOCKS_DIR      ${GR_DATA_DIR}/gnuradio/grc/blocks)
+# copy python source files to build directory so we can run setup.py from there
+foreach(SRCFILE ${PYSOURCES})
+    configure_file(${SRCFILE} ${SRCFILE} COPYONLY)
+endforeach(SRCFILE)
 
-########################################################################
-# On Apple only, set install name and use rpath correctly, if not already set
-########################################################################
-if(APPLE)
-    if(NOT CMAKE_INSTALL_NAME_DIR)
-        set(CMAKE_INSTALL_NAME_DIR
-            ${CMAKE_INSTALL_PREFIX}/${GR_LIBRARY_DIR} CACHE
-            PATH "Library Install Name Destination Directory" FORCE)
-    endif(NOT CMAKE_INSTALL_NAME_DIR)
-    if(NOT CMAKE_INSTALL_RPATH)
-        set(CMAKE_INSTALL_RPATH
-            ${CMAKE_INSTALL_PREFIX}/${GR_LIBRARY_DIR} CACHE
-            PATH "Library Install RPath" FORCE)
-    endif(NOT CMAKE_INSTALL_RPATH)
-    if(NOT CMAKE_BUILD_WITH_INSTALL_RPATH)
-        set(CMAKE_BUILD_WITH_INSTALL_RPATH ON CACHE
-            BOOL "Do Build Using Library Install RPath" FORCE)
-    endif(NOT CMAKE_BUILD_WITH_INSTALL_RPATH)
-endif(APPLE)
+# generate _version.py with version number from CMake
+configure_file(python/_version.py.in python/_version.py)
 
-########################################################################
-# Find gnuradio build dependencies
-########################################################################
-# Search for GNU Radio and its components and versions. Add any
-# components required to the list of GR_REQUIRED_COMPONENTS (in all
-# caps such as FILTER or FFT) and change the version to the minimum
-# API comptible version required.
-if(GNURADIO_RUNTIME_FOUND)
-else(GNURADIO_RUNTIME_FOUND)
-    set(GR_REQUIRED_COMPONENTS RUNTIME PMT)
-    find_package(Gnuradio "3.7.2" REQUIRED)
-endif(GNURADIO_RUNTIME_FOUND)
-
-########################################################################
-# Setup the include and linker paths
-########################################################################
-include_directories(
-    ${PROJECT_SOURCE_DIR}/lib
-    ${PROJECT_SOURCE_DIR}/include
-    ${Boost_INCLUDE_DIRS}
-    ${GNURADIO_ALL_INCLUDE_DIRS}
+# build requires generating some of the gnuradio-companion blocks
+macro(gen_block_xml _generator _xml_block)
+    set(generator ${CMAKE_CURRENT_SOURCE_DIR}/${_generator})
+    set(xml_block ${CMAKE_CURRENT_BINARY_DIR}/${_xml_block})
+    list(APPEND GENERATED_BLOCKS ${xml_block})
+    add_custom_command(
+        OUTPUT ${xml_block}
+        COMMAND ${PYTHON} ${generator} ${xml_block}
+        DEPENDS ${generator}
+    )
+endmacro(gen_block_xml)
+gen_block_xml(
+    grc/gen_gr_digital_rf_digital_rf_sink.py
+    grc/gr_digital_rf_digital_rf_sink.xml
+)
+gen_block_xml(
+    grc/gen_gr_digital_rf_digital_rf_source.py
+    grc/gr_digital_rf_digital_rf_source.xml
+)
+add_custom_target(gr_digital_rf_grc_xml_blocks ALL
+    DEPENDS ${GENERATED_BLOCKS}
 )
 
-link_directories(
-    ${Boost_LIBRARY_DIRS}
-    ${GNURADIO_RUNTIME_LIBRARY_DIRS}
+# build and install python package with setup.py
+set(GRPYBUILD_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/build)
+add_custom_command(
+    OUTPUT ${GRPYBUILD_OUTPUT}
+    COMMAND ${PYTHON} setup.py build
+    COMMAND ${PYTHON} setup.py egg_info
+    COMMAND ${CMAKE_COMMAND} -E touch ${GRPYBUILD_OUTPUT}
+    DEPENDS ${PYSOURCES} gr_digital_rf_grc_xml_blocks
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
-
-# Set component parameters
-set(GR_DRF_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include CACHE INTERNAL "" FORCE)
-set(GR_DRF_SWIG_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/swig CACHE INTERNAL "" FORCE)
-
-########################################################################
-# Add subdirectories
-########################################################################
-add_subdirectory(include/gr_drf)
-add_subdirectory(lib)
-add_subdirectory(swig)
-add_subdirectory(python)
-add_subdirectory(grc)
-add_subdirectory(apps)
+add_custom_target(gr_digital_rf_python ALL
+    DEPENDS ${GRPYBUILD_OUTPUT}
+)
+add_custom_target(gr_digital_rf_sdist
+    COMMAND ${PYTHON} setup.py sdist -d ${CMAKE_BINARY_DIR}
+    DEPENDS ${GRPYBUILD_OUTPUT}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+add_dependencies(sdist gr_digital_rf_sdist)
+install(CODE "execute_process(COMMAND ${PYTHON} setup.py install\
+ --prefix ${CMAKE_INSTALL_PREFIX} --single-version-externally-managed\
+ --record ${CMAKE_BINARY_DIR}/install_${PROJECT_NAME}_manifest.txt\
+ WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})\
+")

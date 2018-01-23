@@ -8,48 +8,33 @@
 # ----------------------------------------------------------------------------
 """Setup file for the digital_rf package."""
 from setuptools import setup, Extension
-from setuptools.command.build_py import build_py
 import os
 import numpy
 # to use a consistent encoding
 from codecs import open
 
 # Get the long description from the README file
-with open(
-    os.path.join('${CMAKE_CURRENT_SOURCE_DIR}', 'README.rst'),
-    encoding='utf-8',
-) as f:
+with open('README.rst', encoding='utf-8') as f:
     long_description = f.read()
 
-def write_version_py(path):
-    with open(os.path.join(path, '_version.py'), 'w') as f:
-        # write version substituted from CMake
-        f.write("__version__ = '${digital_rf_VERSION}'\n")
-
-class build_py_with_version(build_py):
-    def run(self):
-        # call parent method (distutils uses old-style classes, so no super())
-        build_py.run(self)
-
-        # honor the --dry-run flag
-        if not self.dry_run:
-            pkg_build_path = os.path.join(self.build_lib, 'digital_rf')
-
-            # mkpath is a distutils helper to create directories
-            self.mkpath(pkg_build_path)
-
-            write_version_py(pkg_build_path)
+# read __version__ variable by exec-ing python/_version.py
+version = {}
+try:
+    with open(os.path.join('python', '_version.py')) as fp:
+        exec(fp.read(), version)
+except IOError:
+    version['__version__'] = None
 
 setup(
     name='digital_rf',
-    version='${digital_rf_VERSION}',
+    version=version['__version__'],
     description='Python tools to read and write Digital RF data in HDF5 format',
     long_description=long_description,
 
-    # url='http://www.haystack.mit.edu/digital_rf/',
+    url='https://github.com/MITHaystack/digital_rf',
 
     author='MIT Haystack Observatory',
-    # author_email='digital_rf@haystack.mit.edu',
+    author_email='openradar-developers@openradar.org',
 
     license='BSD-3-Clause',
 
@@ -72,13 +57,13 @@ setup(
     },
 
     package_dir={
-        'digital_rf': '${CMAKE_CURRENT_SOURCE_DIR}/python',
+        'digital_rf': 'python',
     },
     packages=['digital_rf'],
     ext_modules=[
         Extension(
             'digital_rf._py_rf_write_hdf5',
-            ['${CMAKE_CURRENT_SOURCE_DIR}/lib/py_rf_write_hdf5.c'],
+            ['lib/py_rf_write_hdf5.c'],
             include_dirs=filter(None, [
                 '${CMAKE_CURRENT_BINARY_DIR}/include',
                 '${HDF5_INCLUDE_DIRS}',
@@ -98,14 +83,13 @@ setup(
         'console_scripts': ['drf=digital_rf.drf_command:main'],
     },
     scripts=[
-        '${CMAKE_CURRENT_SOURCE_DIR}/tools/digital_metadata_archive.py',
-        '${CMAKE_CURRENT_SOURCE_DIR}/tools/digital_rf_archive.py',
-        '${CMAKE_CURRENT_SOURCE_DIR}/tools/digital_rf_upconvert.py',
-        '${CMAKE_CURRENT_SOURCE_DIR}/tools/drf_cross_sti.py',
-        '${CMAKE_CURRENT_SOURCE_DIR}/tools/drf_plot.py',
-        '${CMAKE_CURRENT_SOURCE_DIR}/tools/drf_sti.py',
-        '${CMAKE_CURRENT_SOURCE_DIR}/tools/drf_sound.py',
-        '${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_digital_rf_upconvert.py',
+        'tools/digital_metadata_archive.py',
+        'tools/digital_rf_archive.py',
+        'tools/digital_rf_upconvert.py',
+        'tools/drf_cross_sti.py',
+        'tools/drf_plot.py',
+        'tools/drf_sti.py',
+        'tools/drf_sound.py',
+        'tools/verify_digital_rf_upconvert.py',
     ],
-    cmdclass={'build_py': build_py_with_version},
 )

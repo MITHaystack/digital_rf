@@ -9,11 +9,11 @@
 -->
 <block>
     <name>Digital RF Channel Source</name>
-    <key>gr_drf_digital_rf_channel_source</key>
+    <key>gr_digital_rf_digital_rf_channel_source</key>
     <category>Digital RF</category>
-    <import>import gr_drf</import>
+    <import>import gr_digital_rf</import>
     <make>\
-    gr_drf.digital_rf_channel_source(
+    gr_digital_rf.digital_rf_channel_source(
         $dir,
         start=$start,
         end=$end,

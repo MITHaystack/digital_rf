@@ -18,10 +18,10 @@ MAIN_TMPL = """\
 -->
 <block>
     <name>Digital RF Source</name>
-    <key>gr_drf_digital_rf_source</key>
+    <key>gr_digital_rf_digital_rf_source</key>
     <category>Digital RF</category>
     <flags>\#if \$throttle() then 'throttle' else ''\#</flags>
-    <import>import gr_drf</import>
+    <import>import gr_digital_rf</import>
     <make>\\
     \#set \$allchannels = #echo '[{0}]'.format(', '.join(['$channel{0}()'.format(n) for n in range($max_num_channels)]))
     \#set \$channels = \$allchannels[:\$nchan()]
@@ -29,7 +29,7 @@ MAIN_TMPL = """\
     \#set \$start = \$allstart[:\$nchan()]
     \#set \$allend = #echo '[{0}]'.format(', '.join(['$end{0}()'.format(n) for n in range($max_num_channels)]))
     \#set \$end = \$allend[:\$nchan()]
-    gr_drf.digital_rf_source(
+    gr_digital_rf.digital_rf_source(
         \$top_level_dir,
         channels=\$channels,
         start=\$start,
