@@ -1,6 +1,6 @@
 # https://cmake.org/Wiki/CMake_FAQ#Can_I_do_.22make_uninstall.22_with_CMake.3F
 
-file(GLOB MANIFESTS "install_*_manifest.txt")
+file(GLOB MANIFESTS "install_*manifest.txt")
 
 foreach(manifest_file ${MANIFESTS})
 

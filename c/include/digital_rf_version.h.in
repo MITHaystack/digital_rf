@@ -1,0 +1,2 @@
+// the version is defined with CMake
+#define DIGITAL_RF_VERSION "@libdigital_rf_VERSION@"

@@ -59,7 +59,7 @@ int main (int argc, char *argv[])
 
 	printf("Test 0 - simple single write to multiple files, no compress, no checksum, 2 secs/subdir, 400 ms/file, - channel 0\n");
 	is_continuous = 1;
-	system("rm -rf /tmp/hdf5 ; mkdir /tmp/hdf5 ; mkdir /tmp/hdf5/junk0");
+	result = system("rm -rf /tmp/hdf5 ; mkdir /tmp/hdf5 ; mkdir /tmp/hdf5/junk0");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk0", H5T_NATIVE_SHORT, 3600, 10000, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_0", 0, 0, 1, 1, is_continuous, 0);
 	if (!data_object)

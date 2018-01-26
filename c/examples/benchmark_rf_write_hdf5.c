@@ -76,7 +76,7 @@ int main (int argc, char *argv[])
   char fname[4096];
 
   printf("Test -1 - fwrite raw data to disk\n");
-  system("rm -rf /tmp/hdf5 ; mkdir /tmp/hdf5 ; mkdir /tmp/hdf5/junk0");
+  result = system("rm -rf /tmp/hdf5 ; mkdir /tmp/hdf5 ; mkdir /tmp/hdf5/junk0");
   printf("Start writing\n");
   begin = clock();
   file_idx=0;
@@ -102,7 +102,7 @@ int main (int argc, char *argv[])
 #endif
 #ifdef TEST_HDF5
   printf("Test 0 - simple single write to multiple files, no compress, no checksum - channel 0\n");
-  system("rm -rf /tmp/hdf5/junk0 ; mkdir /tmp/hdf5/junk0");
+  result = system("rm -rf /tmp/hdf5/junk0 ; mkdir /tmp/hdf5/junk0");
   printf("Start writing\n");
   vector_leading_edge_index=0;
   data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk0", H5T_NATIVE_SHORT, SUBDIR_CADENCE, MILLISECS_PER_FILE, global_start_sample, SAMPLE_RATE_NUMERATOR, SAMPLE_RATE_DENOMINATOR,
@@ -130,7 +130,7 @@ int main (int argc, char *argv[])
 #endif
 #ifdef TEST_HDF5_CHECKSUM
   printf("Test 1 - simple single write to multiple files, no compress, checksum - channel 0\n");
-  system("rm -rf /tmp/hdf5/junk0 ; mkdir /tmp/hdf5/junk0");
+  result = system("rm -rf /tmp/hdf5/junk0 ; mkdir /tmp/hdf5/junk0");
   printf("Start writing\n");
   vector_leading_edge_index=0;
   data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk0", H5T_NATIVE_SHORT, SUBDIR_CADENCE, MILLISECS_PER_FILE, global_start_sample, SAMPLE_RATE_NUMERATOR, SAMPLE_RATE_DENOMINATOR,
@@ -158,7 +158,7 @@ int main (int argc, char *argv[])
 #endif
 #ifdef TEST_HDF5_CHECKSUM_COMPRESS
   printf("Test 2 - simple single write to multiple files, compress, checksum - channel 0\n");
-  system("rm -rf /tmp/hdf5/junk0 ; mkdir /tmp/hdf5/junk0");
+  result = system("rm -rf /tmp/hdf5/junk0 ; mkdir /tmp/hdf5/junk0");
   printf("Start writing\n");
   vector_leading_edge_index=0;
   data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk0", H5T_NATIVE_SHORT, SUBDIR_CADENCE, MILLISECS_PER_FILE, global_start_sample, SAMPLE_RATE_NUMERATOR, SAMPLE_RATE_DENOMINATOR,
@@ -184,7 +184,7 @@ int main (int argc, char *argv[])
   time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
   printf("done test %1.2f MB/s\n",((double)n_writes*4.0*NUM_SUBCHANNELS*vector_length)/time_spent/1e6);
 #endif
-  system("rm -rf /tmp/hdf5/junk0");
+  result = system("rm -rf /tmp/hdf5/junk0");
   free(data_int16);
   return(0);
 }

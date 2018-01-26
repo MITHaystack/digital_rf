@@ -166,7 +166,8 @@ int main (int argc, char *argv[])
 
 	printf("Test 0 - simple single write to multiple files, no compress, no checksum, 2 secs/subdir, 400 ms/file, - channel 0\n");
 	is_continuous = 1;
-	system("rm -rf /tmp/hdf5 ; mkdir /tmp/hdf5 ; mkdir /tmp/hdf5/junk0");
+	result = system("rm -rf /tmp/hdf5 ; mkdir /tmp/hdf5 ; mkdir /tmp/hdf5/junk0");
+
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk0", H5T_NATIVE_INT, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_0", 0, 0, 1, 1, is_continuous, 0);
 	if (!data_object)
@@ -185,7 +186,7 @@ int main (int argc, char *argv[])
 	printf("done test 0\n");
 
 	printf("Test 0.1 - simple single array write to multiple files, no compress, no checksum - channel 0.1\n");
-	system("rm -rf /tmp/hdf5/junk0.1 ; mkdir /tmp/hdf5/junk0.1");
+	result = system("rm -rf /tmp/hdf5/junk0.1 ; mkdir /tmp/hdf5/junk0.1");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk0.1", H5T_NATIVE_INT, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_0.1", 0, 0, 1, ARR_SIZE, is_continuous, 0);
 	if (!data_object)
@@ -201,7 +202,7 @@ int main (int argc, char *argv[])
 
 	printf("Test 1 - use complex 1 byte ints with data gap, no compress, no checksum - channel 1\n");
 	is_continuous = 0;
-	system("rm -rf /tmp/hdf5/junk1 ; mkdir /tmp/hdf5/junk1");
+	result = system("rm -rf /tmp/hdf5/junk1 ; mkdir /tmp/hdf5/junk1");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk1", H5T_NATIVE_CHAR, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_1", 0, 0, 1, 1, is_continuous, 1);
 	if (!data_object)
@@ -216,7 +217,7 @@ int main (int argc, char *argv[])
 	printf("done test 1\n");
 
 	printf("Test 1.0 - use array of complex 1 byte ints with data gap, no compress, no checksum - channel 1.0\n");
-	system("rm -rf /tmp/hdf5/junk1.0 ; mkdir /tmp/hdf5/junk1.0");
+	result = system("rm -rf /tmp/hdf5/junk1.0 ; mkdir /tmp/hdf5/junk1.0");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk1.0", H5T_NATIVE_CHAR, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_1.0", 0, 0, 1, ARR_SIZE, is_continuous, 1);
 	if (!data_object)
@@ -246,7 +247,7 @@ int main (int argc, char *argv[])
 
 	printf("Test 1.1 - use single 1 byte ints with no data gap, no compress, no checksum - channel 1.1\n");
 	is_continuous = 1;
-	system("rm -rf /tmp/hdf5/junk1.1 ; mkdir /tmp/hdf5/junk1.1");
+	result = system("rm -rf /tmp/hdf5/junk1.1 ; mkdir /tmp/hdf5/junk1.1");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk1.1", H5T_NATIVE_CHAR, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_1.1", 0, 0, 0, 1, is_continuous, 1);
 	if (!data_object)
@@ -261,7 +262,7 @@ int main (int argc, char *argv[])
 	printf("done test 1.1\n");
 
 	printf("Test 1.1.0 - use array of single 1 byte ints with no data gap, no compress, no checksum - channel 1.1.0\n");
-	system("rm -rf /tmp/hdf5/junk1.1.0 ; mkdir /tmp/hdf5/junk1.1.0");
+	result = system("rm -rf /tmp/hdf5/junk1.1.0 ; mkdir /tmp/hdf5/junk1.1.0");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk1.1.0", H5T_NATIVE_CHAR, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_1.1", 0, 0, 0, ARR_SIZE, is_continuous, 1);
 	if (!data_object)
@@ -277,7 +278,7 @@ int main (int argc, char *argv[])
 
 	printf("Test 2 - use 2 byte ints with data gap, level 1 compress, but no checksum - channel 2\n");
 	is_continuous = 0;
-	system("rm -rf /tmp/hdf5/junk2 ; mkdir /tmp/hdf5/junk2");
+	result = system("rm -rf /tmp/hdf5/junk2 ; mkdir /tmp/hdf5/junk2");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk2", H5T_NATIVE_SHORT, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_2", 1, 0, 1, 1, is_continuous, 1);
 	if (!data_object)
@@ -292,7 +293,7 @@ int main (int argc, char *argv[])
 	printf("done test 2\n");
 
 	printf("Test 3 - use 4 byte ints with data gap, no compress, but with checksum - channel 3\n");
-	system("rm -rf /tmp/hdf5/junk3 ; mkdir /tmp/hdf5/junk3");
+	result = system("rm -rf /tmp/hdf5/junk3 ; mkdir /tmp/hdf5/junk3");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk3", H5T_NATIVE_INT, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_3", 0, 1, 1, 1, is_continuous, 1);
 	if (!data_object)
@@ -307,7 +308,7 @@ int main (int argc, char *argv[])
 	printf("done test 3\n");
 
 	printf("Test 4 - use 8 byte ints with data gap, both compress (level 6) and checksum - channel 4\n");
-	system("rm -rf /tmp/hdf5/junk4 ; mkdir /tmp/hdf5/junk4");
+	result = system("rm -rf /tmp/hdf5/junk4 ; mkdir /tmp/hdf5/junk4");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk4", H5T_NATIVE_LLONG, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_4.1", 6, 1, 1, 1, is_continuous, 1);
 	if (!data_object)
@@ -322,7 +323,7 @@ int main (int argc, char *argv[])
 	printf("done test 4\n");
 
 	printf("Test 4.1 - use single 8 byte ints with 10 on/10 missing blocks, both compress (level 6) and checksum - channel 4.1\n");
-	system("rm -rf /tmp/hdf5/junk4.1 ; mkdir /tmp/hdf5/junk4.1");
+	result = system("rm -rf /tmp/hdf5/junk4.1 ; mkdir /tmp/hdf5/junk4.1");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk4.1", H5T_NATIVE_LLONG, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_4.1", 6, 1, 0, 1, is_continuous, 1);
 	if (!data_object)
@@ -339,7 +340,7 @@ int main (int argc, char *argv[])
 	printf("done test 4.1\n");
 
 	printf("Test 4.2 - same as 4.1, except use both write methods intermixed - channel 4.2\n");
-	system("rm -rf /tmp/hdf5/junk4.2 ; mkdir /tmp/hdf5/junk4.2");
+	result = system("rm -rf /tmp/hdf5/junk4.2 ; mkdir /tmp/hdf5/junk4.2");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk4.2", H5T_NATIVE_LLONG, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_4.2", 6, 1, 0, 1, is_continuous, 1);
 	if (!data_object)
@@ -360,7 +361,7 @@ int main (int argc, char *argv[])
 	printf("done test 4.2\n");
 
 	printf("Test 5 - use 4 byte unsigned ints with data gap, no compress, no checksum - channel 5\n");
-	system("rm -rf /tmp/hdf5/junk5 ; mkdir /tmp/hdf5/junk5");
+	result = system("rm -rf /tmp/hdf5/junk5 ; mkdir /tmp/hdf5/junk5");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk5", H5T_NATIVE_UINT, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_5", 0, 0, 1, 1, is_continuous, 1);
 	if (!data_object)
@@ -376,7 +377,7 @@ int main (int argc, char *argv[])
 
 	printf("Test 5.1 - use 4 byte unsigned ints without data gap, no compress, no checksum - channel 5.1\n");
 	is_continuous = 1;
-	system("rm -rf /tmp/hdf5/junk5.1 ; mkdir /tmp/hdf5/junk5.1");
+	result = system("rm -rf /tmp/hdf5/junk5.1 ; mkdir /tmp/hdf5/junk5.1");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk5.1", H5T_NATIVE_UINT, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_5.1", 0, 0, 1, 1, is_continuous, 1);
 	if (!data_object)
@@ -391,7 +392,7 @@ int main (int argc, char *argv[])
 	printf("done test 5.1\n");
 
 	printf("Test 5.2 - use 4 byte unsigned ints without data gap, no compress, no checksum - channel 5.2, smaller data writes\n");
-	system("rm -rf /tmp/hdf5/junk5.2 ; mkdir /tmp/hdf5/junk5.2");
+	result = system("rm -rf /tmp/hdf5/junk5.2 ; mkdir /tmp/hdf5/junk5.2");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk5.2", H5T_NATIVE_UINT, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_5.2", 0, 0, 1, 1, is_continuous, 1);
 	if (!data_object)
@@ -414,7 +415,7 @@ int main (int argc, char *argv[])
 
 	printf("Test 6 - use doubles with data gap, both compress (level 9) and checksum - channel 6\n");
 	is_continuous = 0;
-	system("rm -rf /tmp/hdf5/junk6 ; mkdir /tmp/hdf5/junk6");
+	result = system("rm -rf /tmp/hdf5/junk6 ; mkdir /tmp/hdf5/junk6");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk6", H5T_NATIVE_DOUBLE, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_6", 9, 1, 1, 1, is_continuous, 1);
 	if (!data_object)
@@ -431,7 +432,7 @@ int main (int argc, char *argv[])
 	/* from here on we try to do illegal stuff, and make sure error checking catches it */
 
 	printf("Test 7 - try to write backwards and get an error\n");
-	system("rm -rf /tmp/hdf5/junk7 ; mkdir /tmp/hdf5/junk7");
+	result = system("rm -rf /tmp/hdf5/junk7 ; mkdir /tmp/hdf5/junk7");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk7", H5T_NATIVE_DOUBLE, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_7", 9, 1, 1, 1, is_continuous, 1);
 	if (!data_object)
@@ -451,7 +452,7 @@ int main (int argc, char *argv[])
 	printf("done test 7\n");
 
 	printf("Test 8 - try to write using a NULL pointer and get an error\n");
-	system("rm -rf /tmp/hdf5/junk8 ; mkdir /tmp/hdf5/junk8");
+	result = system("rm -rf /tmp/hdf5/junk8 ; mkdir /tmp/hdf5/junk8");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk8", H5T_NATIVE_DOUBLE, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_8", 9, 1, 1, 1, is_continuous, 1);
 	if (!data_object)
@@ -519,7 +520,7 @@ int main (int argc, char *argv[])
 	}
 
 	printf("Test 13 - try to write using digital_rf_write_blocks_hdf5, but with overlapping data, both compress (level 6) and checksum - channel 13\n");
-	system("rm -rf /tmp/hdf5/junk13 ; mkdir /tmp/hdf5/junk13");
+	result = system("rm -rf /tmp/hdf5/junk13 ; mkdir /tmp/hdf5/junk13");
 	data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk13", H5T_NATIVE_LLONG, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 			"FAKE_UUID_4", 6, 1, 0, 1, is_continuous, 1);
 	if (!data_object)
@@ -543,7 +544,7 @@ int main (int argc, char *argv[])
 	printf("done test 13\n");
 
 	printf("Test 14 - try to write using digital_rf_write_blocks_hdf5, but with block data indices that advance slower than the global index - channel 13\n");
-		system("rm -rf /tmp/hdf5/junk14 ; mkdir /tmp/hdf5/junk14");
+		result = system("rm -rf /tmp/hdf5/junk14 ; mkdir /tmp/hdf5/junk14");
 		data_object = digital_rf_create_write_hdf5("/tmp/hdf5/junk14", H5T_NATIVE_LLONG, 2, 400, global_index, sample_rate_numerator, sample_rate_denominator,
 				"FAKE_UUID_4", 6, 1, 0, 1, is_continuous, 1);
 		if (!data_object)

@@ -20,7 +20,7 @@ with open('README.rst', encoding='utf-8') as f:
 # read __version__ variable by exec-ing python/_version.py
 version = {}
 try:
-    with open(os.path.join('python', '_version.py')) as fp:
+    with open(os.path.join('digital_rf', '_version.py')) as fp:
         exec(fp.read(), version)
 except IOError:
     version['__version__'] = None
@@ -56,27 +56,34 @@ setup(
         'watchdog': ['watchdog'],
     },
 
-    package_dir={
-        'digital_rf': 'python',
-    },
-    packages=['digital_rf'],
+    packages=[
+        'digital_rf',
+        'gr_digital_rf',
+    ],
+    data_files=[
+        ('share/gnuradio/grc/blocks', [
+            'grc/gr_digital_rf_digital_rf_channel_sink.xml',
+            'grc/gr_digital_rf_digital_rf_channel_source.xml',
+            'grc/gr_digital_rf_digital_rf_sink.xml',
+            'grc/gr_digital_rf_digital_rf_source.xml',
+        ]),
+    ],
     ext_modules=[
         Extension(
             'digital_rf._py_rf_write_hdf5',
             ['lib/py_rf_write_hdf5.c'],
-            include_dirs=filter(None, [
-                '${CMAKE_CURRENT_BINARY_DIR}/include',
-                '${HDF5_INCLUDE_DIRS}',
+            include_dirs=(
+                filter(None,
+                    '${LIBDIGITAL_RF_INCLUDE_DIRS}'.split(';')
+                ) + [
                 numpy.get_include(),
             ]),
-            library_dirs=filter(None, [
-                '${CMAKE_CURRENT_BINARY_DIR}/lib',
-                '${HDF5_LIBRARY_DIR}',
-            ]),
-            libraries=[
-                'digital_rf',
-                'hdf5',
-            ],
+            library_dirs=filter(None,
+                '${LIBDIGITAL_RF_LIBRARY_DIRS}'.split(';')
+            ),
+            extra_link_args=filter(None,
+                '${LIBDIGITAL_RF_LINK_ARGS}'.split(';')
+            ),
         ),
     ],
     entry_points= {
@@ -90,6 +97,7 @@ setup(
         'tools/drf_plot.py',
         'tools/drf_sti.py',
         'tools/drf_sound.py',
+        'tools/thor.py',
         'tools/verify_digital_rf_upconvert.py',
     ],
 )

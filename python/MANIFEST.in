@@ -1,5 +1,15 @@
-include gnuradio.project
+include AUTHORS
+include CHANGES
+include LICENSE
 include MANIFEST.md
+include examples/beacon/*.py
+include examples/beacon/config/*.ini
+include examples/sounder/*.py
+include examples/sounder/*.txt
+include examples/sounder/waveforms/*.py
+include examples/sounder/waveforms/*.bin
+include examples/*.py
+include tests/*.py
 # manually include data_files because setuptools doesn't do it automatically
 include grc/gr_digital_rf_digital_rf_channel_sink.xml
 include grc/gr_digital_rf_digital_rf_channel_source.xml

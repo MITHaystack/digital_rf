@@ -5,4 +5,4 @@ function(InitializeTest test_name file)
     add_test(NAME ${test_name} COMMAND ${test_name})
 endfunction()
 
-InitializeTest(test_rf_write_hdf5 src/test_rf_write_hdf5.c)
+InitializeTest(test_rf_write_hdf5 test_rf_write_hdf5.c)
