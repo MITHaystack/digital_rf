@@ -28,7 +28,6 @@ import time
 import traceback
 import urllib2
 from collections import defaultdict
-from distutils.version import StrictVersion
 
 # third party imports
 import h5py
@@ -37,6 +36,7 @@ try:
 except ImportError:
     pass
 import numpy
+import packaging.version
 import six
 from six.moves import zip
 
@@ -97,8 +97,8 @@ def _recursive_items(d, prefix='', visited=None):
 class DigitalMetadataWriter:
     """Write data in Digital Metadata HDF5 format."""
 
-    _min_version = StrictVersion('2.5')
-    _max_version = StrictVersion(__version__)
+    _min_version = packaging.version.parse('2.5')
+    _max_version = packaging.version.parse(__version__)
 
     def __init__(
         self, metadata_dir, subdir_cadence_secs, file_cadence_secs,
@@ -439,7 +439,7 @@ class DigitalMetadataWriter:
         self._fields = getattr(org_obj, '_fields')
 
     def _check_compatible_version(self):
-        version = StrictVersion(self._digital_metadata_version)
+        version = packaging.version.parse(self._digital_metadata_version)
 
         if (version >= self._min_version) and (version <= self._max_version):
             pass
@@ -487,7 +487,7 @@ class DigitalMetadataWriter:
 class DigitalMetadataReader:
     """Read data in Digital Metadata HDF5 format."""
 
-    _min_version = StrictVersion('2.0')
+    _min_version = packaging.version.parse('2.0')
 
     def __init__(self, metadata_dir, accept_empty=True):
         """Initialize reader to metadata channel directory.
@@ -1150,7 +1150,7 @@ class DigitalMetadataReader:
                 self._populate_data(ret_dict[name], value, key)
 
     def _check_compatible_version(self):
-        version = StrictVersion(self._digital_metadata_version)
+        version = packaging.version.parse(self._digital_metadata_version)
 
         if version >= self._min_version:
             pass

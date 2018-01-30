@@ -4,7 +4,7 @@ cmake_policy(SET CMP0048 NEW)
 # get the package version from _version.py
 file(READ digital_rf/_version.py VERSION_PY)
 string(REGEX REPLACE
-    ".*__version__ = ['\"]([0-9]+\\.[0-9]+\\.[0-9]+)\\.*[a-z]*[0-9]*['\"].*" "\\1"
+    ".*__version__ = ['\"]([0-9]+\\.[0-9]+\\.[0-9]+)[\\.a-z0-9]*['\"].*" "\\1"
     digital_rf_VERSION ${VERSION_PY}
 )
 

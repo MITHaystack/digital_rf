@@ -39,6 +39,8 @@ Runtime:
 * hdf5 >= 1.8 (``libhdf5``)
 * python == 2.7 (``python``)
 * numpy (``python-numpy``)
+* packaging (``python-packaging``)
+* six (``python-six``)
 
 Additional optional runtime dependencies:
 

@@ -30,6 +30,7 @@ import warnings
 
 import h5py
 import numpy
+import packaging.version
 import six
 
 # local imports
@@ -1886,8 +1887,8 @@ class _top_level_dir_properties:
             # assume at least 2.0)
             version = '2.0'
         if (
-            distutils.version.StrictVersion(version) <
-            distutils.version.StrictVersion(_min_version)
+            packaging.version.parse(version) <
+            packaging.version.parse(_min_version)
         ):
             errstr = (
                 'Digital RF files being read version %s,'
