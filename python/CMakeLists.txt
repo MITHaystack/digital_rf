@@ -1,38 +1,19 @@
 cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0048 NEW)
 
-# this is the canonical place to set the version for digital_rf
-# (used to populate _version.py)
-project(digital_rf LANGUAGES C VERSION 2.5.4)
+# get the package version from _version.py
+file(READ digital_rf/_version.py VERSION_PY)
+string(REGEX REPLACE
+    ".*__version__ = ['\"]([0-9]+\\.[0-9]+\\.[0-9]+)\\.*[a-z]*[0-9]*['\"].*" "\\1"
+    digital_rf_VERSION ${VERSION_PY}
+)
+
+project(digital_rf LANGUAGES C VERSION ${digital_rf_VERSION})
 
 include(GNUInstallDirs)
 
 find_program(PYTHON "python" REQUIRED)
 
-if(NOT TARGET digital_rf::digital_rf)
-    find_package(libdigital_rf REQUIRED)
-endif(NOT TARGET digital_rf::digital_rf)
-
-# generate setup.py with CMake-populated include, library, and link args
-set(LIBDIGITAL_RF_INCLUDE_DIRS
-    $<TARGET_PROPERTY:digital_rf::digital_rf,INTERFACE_INCLUDE_DIRECTORIES>
-)
-set(LIBDIGITAL_RF_LINK_TARGETS
-    digital_rf::digital_rf
-    digital_rf::hdf5
-)
-foreach(LTGT ${LIBDIGITAL_RF_LINK_TARGETS})
-    list(APPEND LIBDIGITAL_RF_LIBRARY_DIRS $<TARGET_LINKER_FILE_DIR:${LTGT}>)
-    list(APPEND LIBDIGITAL_RF_LINK_ARGS -l:$<TARGET_LINKER_FILE_NAME:${LTGT}>)
-endforeach(LTGT)
-# replace CMake variables in setup.py (like the ones above)
-configure_file(setup.py.in setup.py)
-# replace generator expressions to get actual include/link values
-file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/setup.py INPUT ${CMAKE_CURRENT_BINARY_DIR}/setup.py)
-
-# generate _version.py with version number from CMake
-configure_file(digital_rf/_version.py.in digital_rf/_version.py)
-configure_file(gr_digital_rf/_version.py.in gr_digital_rf/_version.py)
 # copy files from root directory that we want in the python package
 set(ROOT_SRCS AUTHORS CHANGES LICENSE)
 foreach(SRCFILE ${ROOT_SRCS})
@@ -40,6 +21,7 @@ foreach(SRCFILE ${ROOT_SRCS})
 endforeach(SRCFILE)
 
 # get list of python source files by generating egg info
+configure_file(setup.py setup.py COPYONLY)
 set(EGG_INFO_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/temp_egg/${PROJECT_NAME}.egg-info)
 file(MAKE_DIRECTORY ${EGG_INFO_OUTPUT})
 execute_process(
@@ -96,7 +78,12 @@ add_custom_target(digital_rf_python ALL
     DEPENDS ${PYBUILD_OUTPUT}
 )
 add_custom_target(digital_rf_sdist
-    COMMAND ${PYTHON} setup.py sdist -d ${CMAKE_BINARY_DIR}
+    COMMAND ${PYTHON} setup.py sdist -d ${CMAKE_BINARY_DIR}/dist
+    DEPENDS ${PYBUILD_OUTPUT}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+add_custom_target(digital_rf_wheel
+    COMMAND ${PYTHON} setup.py bdist_wheel -d ${CMAKE_BINARY_DIR}/dist
     DEPENDS ${PYBUILD_OUTPUT}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )

@@ -1,12 +1,21 @@
 cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0048 NEW)
 
-# set the library version, which is only incremented for library changes
-project(libdigital_rf LANGUAGES C VERSION 2.0.0)
+# get the library version from the header file
+file(READ include/digital_rf_version.h DIGITAL_RF_VERSION_H)
+string(REGEX REPLACE
+    ".*#define DIGITAL_RF_VERSION ['\"]([0-9]+\\.[0-9]+\\.[0-9]+)['\"].*" "\\1"
+    libdigital_rf_VERSION ${DIGITAL_RF_VERSION_H}
+)
+
+project(libdigital_rf LANGUAGES C VERSION ${libdigital_rf_VERSION})
 
 include(GNUInstallDirs)
 enable_testing()
 
+# build shared library by default
+option(BUILD_SHARED_LIBS "Build libdigital_rf as a shared library" ON)
+# set Release configuration by default
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release" CACHE STRING
       "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or\
@@ -37,7 +46,7 @@ set_target_properties(digital_rf::hdf5 PROPERTIES
 
 # build/install libdigital_rf
 configure_file(include/digital_rf.h include/digital_rf.h COPYONLY)
-configure_file(include/digital_rf_version.h.in include/digital_rf_version.h @ONLY)
+configure_file(include/digital_rf_version.h include/digital_rf_version.h COPYONLY)
 add_library(digital_rf lib/rf_write_hdf5.c)
 add_library(digital_rf::digital_rf ALIAS digital_rf)
 target_include_directories(digital_rf PUBLIC

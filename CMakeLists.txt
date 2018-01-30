@@ -15,6 +15,10 @@ add_subdirectory(python)
 add_custom_target(sdist)
 add_dependencies(sdist digital_rf_sdist)
 
+# wheel distribution target
+add_custom_target(wheel)
+add_dependencies(wheel digital_rf_wheel)
+
 # uninstall target
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cmake_uninstall.cmake.in"

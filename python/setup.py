@@ -10,8 +10,51 @@
 from setuptools import setup, Extension
 import os
 import numpy
+import sys
+import warnings
 # to use a consistent encoding
 from codecs import open
+
+# default and fallback settings for include/libraries
+hdf5_config = dict(
+    include_dirs=[os.path.join(sys.prefix, 'include')],
+    library_dirs=[os.path.join(sys.prefix, 'lib')],
+    libraries=['hdf5']
+)
+if not sys.platform.startswith('win'):
+    hdf5_config['include_dirs'].extend([
+        '/opt/local/include',
+        '/usr/local/include',
+    ])
+    hdf5_config['library_dirs'].extend([
+        '/opt/local/lib',
+        '/usr/local/lib',
+    ])
+
+HDF5_ROOT = os.getenv('HDF5_ROOT', None)
+if HDF5_ROOT is not None:
+    # use specified HDF5_ROOT if available (as environment variable)
+    hdf5_config['include_dirs'] = [os.path.join(HDF5_ROOT, 'include')]
+    hdf5_config['library_dirs'] = [os.path.join(HDF5_ROOT, 'lib')]
+else:
+    # try pkg-config
+    try:
+        import pkgconfig
+    except ImportError:
+        warnings.warn(
+            'python-pkgconfig not installed and HDF5_ROOT not specified,'
+            ' using default include and library path for HDF5'
+        )
+    else:
+        if pkgconfig.exists('hdf5'):
+            hdf5_pkgconfig = pkgconfig.parse('hdf5')
+            for k in ('include_dirs', 'library_dirs', 'libraries'):
+                hdf5_config[k] = list(hdf5_pkgconfig[k])
+        else:
+            warnings.warn(
+                'pkgconfig cannot find HDF5 and HDF5_ROOT not specified,'
+                ' using default include and library path for HDF5'
+            )
 
 # Get the long description from the README file
 with open('README.rst', encoding='utf-8') as f:
@@ -19,16 +62,13 @@ with open('README.rst', encoding='utf-8') as f:
 
 # read __version__ variable by exec-ing python/_version.py
 version = {}
-try:
-    with open(os.path.join('digital_rf', '_version.py')) as fp:
-        exec(fp.read(), version)
-except IOError:
-    version['__version__'] = None
+with open(os.path.join('digital_rf', '_version.py')) as fp:
+    exec(fp.read(), version)
 
 setup(
     name='digital_rf',
     version=version['__version__'],
-    description='Python tools to read and write Digital RF data in HDF5 format',
+    description='Python tools to read/write Digital RF data in HDF5 format',
     long_description=long_description,
 
     url='https://github.com/MITHaystack/digital_rf',
@@ -45,13 +85,15 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: C',
-        'Programming Language :: Python',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.7',
         'Topic :: Scientific/Engineering',
     ],
 
     keywords='hdf5 radio rf',
 
     install_requires=['h5py', 'numpy'],
+    setup_requires=['numpy', 'pkgconfig'],
     extras_require={
         'watchdog': ['watchdog'],
     },
@@ -71,22 +113,16 @@ setup(
     ext_modules=[
         Extension(
             'digital_rf._py_rf_write_hdf5',
-            ['lib/py_rf_write_hdf5.c'],
-            include_dirs=(
-                filter(None,
-                    '${LIBDIGITAL_RF_INCLUDE_DIRS}'.split(';')
-                ) + [
+            ['lib/py_rf_write_hdf5.c', 'lib/rf_write_hdf5.c'],
+            include_dirs=[
+                'include',
                 numpy.get_include(),
-            ]),
-            library_dirs=filter(None,
-                '${LIBDIGITAL_RF_LIBRARY_DIRS}'.split(';')
-            ),
-            extra_link_args=filter(None,
-                '${LIBDIGITAL_RF_LINK_ARGS}'.split(';')
-            ),
+            ] + hdf5_config['include_dirs'],
+            library_dirs=hdf5_config['library_dirs'],
+            libraries=hdf5_config['libraries'],
         ),
     ],
-    entry_points= {
+    entry_points={
         'console_scripts': ['drf=digital_rf.drf_command:main'],
     },
     scripts=[

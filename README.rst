@@ -7,7 +7,7 @@
 
 The Digital RF project encompasses a standardized HDF5 format for reading and writing of radio frequency data and the software for doing so. The format is designed to be self-documenting for data archive and to allow rapid random access for data processing. For details on the format, refer to the 'documents' directory in the source tree.
 
-This suite of software includes libraries for reading and writing data in the Digital RF HDF5 format in C (``libdigital_rf``) and Python (``digital_rf``), with optional interfaces for GNU Radio (``gr_drf``) and MATLAB. It also contains the `thor` UHD radio recorder script, Python tools for managing and processing Digital RF data, example scripts that demonstrate basic usage, and example applications that encompass a complete data recording and processing chain for various use cases.
+This suite of software includes libraries for reading and writing data in the Digital RF HDF5 format in C (``libdigital_rf``), Python (``digital_rf``) with blocks for GNU Radio (``gr_digital_rf``), and MATLAB. It also contains the `thor` UHD radio recorder script, Python tools for managing and processing Digital RF data, example scripts that demonstrate basic usage, and example applications that encompass a complete data recording and processing chain for various use cases.
 
 
 Important Links
@@ -31,12 +31,7 @@ Build:
 * python == 2.7 (``python-dev``)
 * numpy (``python-numpy``)
 * cmake (``cmake``)
-
-Additional optional build dependencies:
-
-* gnuradio (``gnuradio-dev``) [gnuradio]
-* boost (``libboost-dev``) [gnuradio]
-* swig (``swig``) [gnuradio]
+* pkgconfig (``python-pkgconfig``)
 
 Runtime:
 
@@ -61,7 +56,7 @@ Installation
 Using source code package
 -------------------------
 
-First, ensure that you have the above-listed dependencies installed. On macOS the dependencies can be installed through macports.
+First, ensure that you have the above-listed dependencies installed.
 
 Clone the repository and enter the source directory::
 
@@ -83,9 +78,7 @@ Finally, you will probably then need to update the library cache so the newly-in
 
     sudo ldconfig
 
-The above commands will build the ``gr_drf`` module for GNU Radio if GNU Radio is found on the system. To disable ``gr_drf`` manually, set the 'ENABLE_GNURADIO' option to 'OFF' when invoking cmake::
-
-    cmake -DENABLE_GNURADIO=OFF ..
+You can also build the C and Python libraries separately by following the above procedure from within those respective directories.
 
 
 Using Conda package
