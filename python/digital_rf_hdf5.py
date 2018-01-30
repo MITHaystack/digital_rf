@@ -44,10 +44,11 @@ __all__ = (
 # constants
 _min_version = '2.0'  # the version digital rf must be to be successfully read
 
+
 def updatese_properties_file(channel_dir):
     """Helper function to re-create top-level drf_properties.h5 in channel dir.
 
-    This function a missing drf_properties.h5 file in a Digital RF
+    This function creates a drf_properties.h5 file in a Digital RF
     channel directory using the duplicate attributes stored in one of the data
     files and the metadata.h5 files that used to take its place.
 
@@ -91,19 +92,20 @@ def updatese_properties_file(channel_dir):
         subdir_cadence_secs : int
 
     """
-
-    attr_list = ['H5Tget_class', 'H5Tget_size', 'H5Tget_order', 'H5Tget_offset',
-                 'subdir_cadence_secs', 'file_cadence_millisecs', 'sample_rate_numerator',
-                 'sample_rate_denominator', 'is_complex', 'num_subchannels',
-                 'is_continuous', 'epoch', 'digital_rf_time_description',
-                 'digital_rf_version']
+    attr_list = [
+        'H5Tget_class', 'H5Tget_size', 'H5Tget_order', 'H5Tget_offset',
+        'subdir_cadence_secs', 'file_cadence_millisecs',
+        'sample_rate_numerator', 'sample_rate_denominator', 'is_complex',
+        'num_subchannels', 'is_continuous', 'epoch',
+        'digital_rf_time_description', 'digital_rf_version',
+    ]
     properties_file = os.path.join(channel_dir, 'drf_properties.h5')
     if os.access(properties_file, os.R_OK):
         raise IOError('drf_properties.h5 already exists in %s' % (channel_dir))
 
-    #metadata file check
+    # metadata file check
     mdata_file = os.path.join(channel_dir, 'metadata.h5')
-    attr_dict = {i:None for i in attr_list}
+    attr_dict = {i: None for i in attr_list}
     with h5py.File(mdata_file, 'r') as fi:
         md_attr = fi.attrs
         md_attr_keys = md_attr.keys()
@@ -113,13 +115,19 @@ def updatese_properties_file(channel_dir):
             elif i_attr == 'sample_rate_numerator':
                 sps = md_attr['samples_per_second'][0]
                 if sps % 1 != 0:
-                    errstr = 'No sample rate numerator value and sample rate is not integer.'
+                    errstr = (
+                        'No sample rate numerator value and sample rate is not'
+                        ' an integer.'
+                    )
                     raise IOError(errstr)
                 attr_dict[i_attr] = md_attr['samples_per_second']
             elif i_attr == 'sample_rate_denominator':
                 sps = md_attr['samples_per_second'][0]
                 if sps % 1 != 0:
-                    errstr = 'No sample rate denominator value and sample rate is not integer.'
+                    errstr = (
+                        'No sample rate denominator value and sample rate is'
+                        ' not an integer.'
+                    )
                     raise IOError(errstr)
                 attr_dict[i_attr] = md_attr['samples_per_second']
                 attr_dict[i_attr][0] = 1
@@ -143,10 +151,10 @@ def updatese_properties_file(channel_dir):
             if i_attr in md_keys and attr_dict[i_attr] is None:
                 attr_dict[i_attr] = md[i_attr]
 
-
     with h5py.File(properties_file, 'w') as fo:
         for i_attr in attr_list:
             fo.attrs[i_attr] = attr_dict[i_attr]
+
 
 def recreate_properties_file(channel_dir):
     """Helper function to re-create top-level drf_properties.h5 in channel dir.
