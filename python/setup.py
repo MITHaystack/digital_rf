@@ -92,11 +92,11 @@ setup(
 
     keywords='hdf5 radio rf',
 
-    install_requires=['h5py', 'numpy', 'packaging', 'six'],
+    install_requires=[
+        'h5py', 'numpy', 'packaging', 'python-dateutil', 'pytz', 'six',
+        'sounddevice', 'watchdog',
+    ],
     setup_requires=['numpy', 'pkgconfig'],
-    extras_require={
-        'watchdog': ['watchdog'],
-    },
 
     packages=[
         'digital_rf',

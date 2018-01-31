@@ -27,6 +27,7 @@ Dependencies
 
 Build:
 
+* Cheetah (``python-cheetah``) [python]
 * cmake (``cmake``)
 * hdf5 >= 1.8 (``libhdf5-dev``) [c, python]
 * MATLAB >= R2016a [matlab]
@@ -42,15 +43,15 @@ Runtime:
 * numpy (``python-numpy``) [python]
 * packaging (``python-packaging``) [python]
 * python == 2.7 (``python``) [python]
+* python-dateutil (``python-dateutil``) [python]
+* pytz (``python-tz``) [python]
 * six (``python-six``) [python]
 
 Additional optional runtime dependencies:
 
-* dateutil (``python-dateutil``) [python:thor]
 * gnuradio (``gnuradio``) [python:gr_digital_rf]
 * gr-uhd (``libgnuradio-uhd``) [python:thor]
 * python-sounddevice (``pip install sounddevice``) [python:drf_sound]
-* pytz (``python-tz``) [python:thor]
 * watchdog (``python-watchdog``) [python:watchdog]
 
 
