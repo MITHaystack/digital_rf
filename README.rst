@@ -27,29 +27,31 @@ Dependencies
 
 Build:
 
-* hdf5 >= 1.8 (``libhdf5-dev``)
-* python == 2.7 (``python-dev``)
-* numpy (``python-numpy``)
 * cmake (``cmake``)
-* pkgconfig (``python-pkgconfig``)
+* hdf5 >= 1.8 (``libhdf5-dev``) [c, python]
+* MATLAB >= R2016a [matlab]
+* numpy (``python-numpy``) [python]
+* pkgconfig (``python-pkgconfig``) [python]
+* python == 2.7 (``python-dev``) [python]
 
 Runtime:
 
-* h5py (``python-h5py``)
-* hdf5 >= 1.8 (``libhdf5``)
-* python == 2.7 (``python``)
-* numpy (``python-numpy``)
-* packaging (``python-packaging``)
-* six (``python-six``)
+* h5py (``python-h5py``) [python]
+* hdf5 >= 1.8 (``libhdf5``) [c, python]
+* MATLAB >= R2014b [matlab]
+* numpy (``python-numpy``) [python]
+* packaging (``python-packaging``) [python]
+* python == 2.7 (``python``) [python]
+* six (``python-six``) [python]
 
 Additional optional runtime dependencies:
 
-* watchdog (``python-watchdog``) [watchdog]
-* gnuradio (``gnuradio``) [gnuradio]
-* gr-uhd (``libgnuradio-uhd``) [thor]
-* pytz (``python-tz``) [thor]
-* dateutil (``python-dateutil``) [thor]
-* python-sounddevice (``pip install sounddevice``) [drf_sound]
+* dateutil (``python-dateutil``) [python:thor]
+* gnuradio (``gnuradio``) [python:gr_digital_rf]
+* gr-uhd (``libgnuradio-uhd``) [python:thor]
+* python-sounddevice (``pip install sounddevice``) [python:drf_sound]
+* pytz (``python-tz``) [python:thor]
+* watchdog (``python-watchdog``) [python:watchdog]
 
 
 Installation
@@ -80,14 +82,14 @@ Finally, you may need to update the library cache so the newly-installed ``libdi
 
     sudo ldconfig
 
-Note that it is also possible to build the different language libraries separately by following the CMake build procedure from within the :file:`c`, :file:`matlab`, and :file:`python` directories.
+Note that it is also possible to build the different language libraries separately by following the CMake build procedure from within the `c`, `matlab`, and `python` directories.
 
 
 The MATLAB toolbox is not created by default. If you have MATLAB R2016a or higher and want to create an installable toolbox package, run the following from the build directory::
 
     make matlab
 
-The toolbox package will then be found at :file:`build/matlab/digital_rf.mltbx`.
+The toolbox package will then be found at `build/matlab/digital_rf.mltbx`.
 
 
 Using Conda package
