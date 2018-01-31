@@ -1,0 +1,60 @@
+<deployment-project plugin="plugin.toolbox" plugin-version="1.0">
+  <configuration file="@DIGITAL_RF_PRJ@" location="@CMAKE_CURRENT_BINARY_DIR@" name="digital_rf" target="target.toolbox" target-name="Package Toolbox">
+    <param.appname>digital_rf</param.appname>
+    <param.authnamewatermark>MIT Haystack Observatory</param.authnamewatermark>
+    <param.email>openradar-developers@openradar.org</param.email>
+    <param.company />
+    <param.summary>MATLAB tools to read/write Digital RF data in HDF5 format</param.summary>
+    <param.description>The Digital RF project encompasses a standardized HDF5 format for reading and writing of radio frequency data and the software for doing so. The format is designed to be self-documenting for data archive and to allow rapid random access for data processing.</param.description>
+    <param.screenshot />
+    <param.version>2.0.0</param.version>
+    <param.output>@DIGITAL_RF_MLTBX@</param.output>
+    <param.products.name>
+      <item>MATLAB</item>
+    </param.products.name>
+    <param.products.id>
+      <item>1</item>
+    </param.products.id>
+    <param.products.version />
+    <param.platforms />
+    <param.guid />
+    <param.exclude.filters />
+    <param.examples />
+    <param.demosxml />
+    <param.apps />
+    <param.registered.apps />
+    <param.docs />
+    <param.getting.started.guide />
+    <param.matlabpath.excludes />
+    <param.javaclasspath.excludes />
+    <unset>
+      <param.company />
+      <param.screenshot />
+      <param.output />
+      <param.platforms />
+      <param.guid />
+      <param.demosxml />
+      <param.apps />
+      <param.registered.apps />
+      <param.docs />
+      <param.getting.started.guide />
+      <param.matlabpath.excludes />
+      <param.javaclasspath.excludes />
+    </unset>
+    <fileset.rootdir>
+      <file>@DIGITAL_RF_TOOLBOX_ROOT@</file>
+    </fileset.rootdir>
+    <fileset.rootfiles>
+      @DIGITAL_RF_TOOLBOX_ROOTFILES@
+    </fileset.rootfiles>
+    <fileset.depfun.included />
+    <fileset.depfun.excluded />
+    <fileset.package />
+    <build-deliverables>
+      <file location="@CMAKE_CURRENT_BINARY_DIR@" name="digital_rf.mltbx" optional="false">@DIGITAL_RF_MLTBX@</file>
+    </build-deliverables>
+    <workflow />
+    <matlab />
+    <platform />
+  </configuration>
+</deployment-project>

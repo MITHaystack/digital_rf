@@ -76,11 +76,18 @@ Build and install::
     make
     sudo make install
 
-Finally, you will probably then need to update the library cache so the newly-installed ``libdigital_rf`` is found::
+Finally, you may need to update the library cache so the newly-installed ``libdigital_rf`` is found::
 
     sudo ldconfig
 
-You can also build the C and Python libraries separately by following the above procedure from within those respective directories.
+Note that it is also possible to build the different language libraries separately by following the CMake build procedure from within the :file:`c`, :file:`matlab`, and :file:`python` directories.
+
+
+The MATLAB toolbox is not created by default. If you have MATLAB R2016a or higher and want to create an installable toolbox package, run the following from the build directory::
+
+    make matlab
+
+The toolbox package will then be found at :file:`build/matlab/digital_rf.mltbx`.
 
 
 Using Conda package

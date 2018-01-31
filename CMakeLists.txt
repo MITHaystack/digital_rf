@@ -9,7 +9,12 @@ enable_testing()
 # include sub-projects
 add_subdirectory(c)
 add_subdirectory(docs)
+add_subdirectory(matlab EXCLUDE_FROM_ALL)
 add_subdirectory(python)
+
+# shortcut target for digital_rf_toolbox
+add_custom_target(matlab)
+add_dependencies(matlab digital_rf_toolbox)
 
 # source distribution target
 add_custom_target(sdist)
