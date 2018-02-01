@@ -99,6 +99,8 @@ class DigitalMetadataWriter:
 
     _min_version = packaging.version.parse('2.5')
     _max_version = packaging.version.parse(__version__)
+    # increment when format changes are made, must be <= __version__
+    _writer_version = packaging.version.parse('2.5')
 
     def __init__(
         self, metadata_dir, subdir_cadence_secs, file_cadence_secs,
@@ -207,7 +209,7 @@ class DigitalMetadataWriter:
         ):
             self._parse_properties()
         else:
-            self._digital_metadata_version = __version__
+            self._digital_metadata_version = self._writer_version.base_version
             self._fields = None  # No data written yet
             self._write_properties()
 
@@ -448,9 +450,9 @@ class DigitalMetadataWriter:
                 'Existing Digital Metadata files are version %s, which is'
                 ' not in the range required (%s to %s).'
             )
-            raise IOError(errstr % (str(version),
-                                    str(self._min_version),
-                                    str(self._max_version)))
+            raise IOError(errstr % (version.base_version,
+                                    self._min_version.base_version,
+                                    self._max_version.base_version))
 
     def _write_properties(self):
         """Write Digital Metadata properties to dmd_properties.h5 file."""
@@ -1156,10 +1158,10 @@ class DigitalMetadataReader:
             pass
         else:
             errstr = (
-                'Digital Metadata files being read are version %s, which is'
-                ' less than the required version (%s).'
-            )
-            raise IOError(errstr % (str(version), str(self._min_version)))
+                'Digital Metadata files being read are version {0}, which is'
+                ' less than the required version ({1}).'
+            ).format(version.base_version, self._min_version.base_version)
+            raise IOError(errstr)
 
     def __str__(self):
         """String summary of the DigitalMetadataReader's parameters."""
