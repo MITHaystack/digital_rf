@@ -13,8 +13,10 @@ add_subdirectory(matlab EXCLUDE_FROM_ALL)
 add_subdirectory(python)
 
 # shortcut target for digital_rf_toolbox
-add_custom_target(matlab)
-add_dependencies(matlab digital_rf_toolbox)
+if(${ENABLE_MATLAB})
+    add_custom_target(matlab)
+    add_dependencies(matlab digital_rf_toolbox)
+endif(${ENABLE_MATLAB})
 
 # source distribution target
 add_custom_target(sdist)
