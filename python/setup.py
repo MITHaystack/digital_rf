@@ -7,54 +7,14 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Setup file for the digital_rf package."""
-from setuptools import setup, Extension
 import os
-import numpy
 import sys
 import warnings
 # to use a consistent encoding
 from codecs import open
 
-# default and fallback settings for include/libraries
-hdf5_config = dict(
-    include_dirs=[os.path.join(sys.prefix, 'include')],
-    library_dirs=[os.path.join(sys.prefix, 'lib')],
-    libraries=['hdf5']
-)
-if not sys.platform.startswith('win'):
-    hdf5_config['include_dirs'].extend([
-        '/opt/local/include',
-        '/usr/local/include',
-    ])
-    hdf5_config['library_dirs'].extend([
-        '/opt/local/lib',
-        '/usr/local/lib',
-    ])
-
-HDF5_ROOT = os.getenv('HDF5_ROOT', None)
-if HDF5_ROOT is not None:
-    # use specified HDF5_ROOT if available (as environment variable)
-    hdf5_config['include_dirs'] = [os.path.join(HDF5_ROOT, 'include')]
-    hdf5_config['library_dirs'] = [os.path.join(HDF5_ROOT, 'lib')]
-else:
-    # try pkg-config
-    try:
-        import pkgconfig
-    except ImportError:
-        warnings.warn(
-            'python-pkgconfig not installed and HDF5_ROOT not specified,'
-            ' using default include and library path for HDF5'
-        )
-    else:
-        if pkgconfig.exists('hdf5'):
-            hdf5_pkgconfig = pkgconfig.parse('hdf5')
-            for k in ('include_dirs', 'library_dirs', 'libraries'):
-                hdf5_config[k] = list(hdf5_pkgconfig[k])
-        else:
-            warnings.warn(
-                'pkgconfig cannot find HDF5 and HDF5_ROOT not specified,'
-                ' using default include and library path for HDF5'
-            )
+from setuptools import Extension, setup
+from setuptools.command.build_ext import build_ext as _build_ext
 
 # Get the long description from the README file
 with open('README.rst', encoding='utf-8') as f:
@@ -64,6 +24,77 @@ with open('README.rst', encoding='utf-8') as f:
 version = {}
 with open(os.path.join('digital_rf', '_version.py')) as fp:
     exec(fp.read(), version)
+
+
+# subclass build_ext so we only add build settings for dependencies
+# at build time
+class build_ext(_build_ext):
+    def _add_build_settings(self):
+        # get numpy settings for extension (importing numpy)
+        try:
+            import numpy
+            np_includes = numpy.get_include()
+        except (ImportError, AttributeError):
+            # if numpy is not installed get the headers from the .egg directory
+            import numpy.core
+            np_includes = os.path.join(
+                os.path.dirname(numpy.core.__file__), 'include',
+            )
+        np_config = dict(
+            include_dirs=[np_includes]
+        )
+
+        # get hdf5 settings for extension (importing pkgconfig)
+        hdf5_config = dict(
+            include_dirs=[os.path.join(sys.prefix, 'include')],
+            library_dirs=[os.path.join(sys.prefix, 'lib')],
+            libraries=['hdf5']
+        )
+        if not sys.platform.startswith('win'):
+            hdf5_config['include_dirs'].extend([
+                '/opt/local/include',
+                '/usr/local/include',
+            ])
+            hdf5_config['library_dirs'].extend([
+                '/opt/local/lib',
+                '/usr/local/lib',
+            ])
+        HDF5_ROOT = os.getenv('HDF5_ROOT', None)
+        if HDF5_ROOT is not None:
+            # use specified HDF5_ROOT if available (as environment variable)
+            hdf5_config['include_dirs'] = [os.path.join(HDF5_ROOT, 'include')]
+            hdf5_config['library_dirs'] = [os.path.join(HDF5_ROOT, 'lib')]
+        else:
+            # try pkg-config
+            try:
+                import pkgconfig
+            except ImportError:
+                warnings.warn(
+                    'python-pkgconfig not installed and HDF5_ROOT not'
+                    ' specified, using default include and library path for'
+                    ' HDF5'
+                )
+            else:
+                if pkgconfig.exists('hdf5'):
+                    hdf5_pkgconfig = pkgconfig.parse('hdf5')
+                    for k in ('include_dirs', 'library_dirs', 'libraries'):
+                        hdf5_config[k] = list(hdf5_pkgconfig[k])
+                else:
+                    warnings.warn(
+                        'pkgconfig cannot find HDF5 and HDF5_ROOT not'
+                        ' specified, using default include and library path'
+                        ' for HDF5'
+                    )
+
+        # update extension settings
+        for c in (np_config, hdf5_config):
+            for k, v in c.items():
+                getattr(self, k).extend(v)
+
+    def finalize_options(self):
+        _build_ext.finalize_options(self)
+        self._add_build_settings()
+
 
 setup(
     name='digital_rf',
@@ -111,15 +142,13 @@ setup(
         ]),
     ],
     ext_modules=[
+        # extension settings without external dependencies
         Extension(
-            'digital_rf._py_rf_write_hdf5',
-            ['lib/py_rf_write_hdf5.c', 'lib/rf_write_hdf5.c'],
-            include_dirs=[
-                'include',
-                numpy.get_include(),
-            ] + hdf5_config['include_dirs'],
-            library_dirs=hdf5_config['library_dirs'],
-            libraries=hdf5_config['libraries'],
+            name='digital_rf._py_rf_write_hdf5',
+            sources=['lib/py_rf_write_hdf5.c', 'lib/rf_write_hdf5.c'],
+            include_dirs=['include'],
+            library_dirs=[],
+            libraries=[]
         ),
     ],
     entry_points={
@@ -136,4 +165,8 @@ setup(
         'tools/thor.py',
         'tools/verify_digital_rf_upconvert.py',
     ],
+
+    cmdclass={
+        'build_ext': build_ext,
+    },
 )

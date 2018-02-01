@@ -58,6 +58,13 @@ Additional optional runtime dependencies:
 Installation
 ============
 
+If you're just getting started with Digital RF, we recommend using the Python package. The easiest way to install it is through `PyPI <https://pypi.python.org/pypi/digital-rf/>`_ with `pip`::
+
+    pip install digital_rf
+
+If you're interested in the C library or development, see below for ways to install the full project package.
+
+
 Using source code package
 -------------------------
 
