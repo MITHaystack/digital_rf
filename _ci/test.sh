@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e -x
 
-# starting in build directory
+cd build
 
 # c tests
 make test
