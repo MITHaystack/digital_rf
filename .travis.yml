@@ -15,7 +15,7 @@ before_install:
   - sudo apt-get install -qq libhdf5-dev
 
 install:
-  - pip install -r dev_requirements.txt
+  - pip install -r python/dev_requirements.txt
 
 script:
   - _ci/build.sh && _ci/test.sh

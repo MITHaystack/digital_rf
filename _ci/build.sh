@@ -8,5 +8,6 @@ cmake ..
 make
 
 # install python digital_rf, gr_digital_rf into virtual environment
-cd python
+pushd python
 python -m pip install .
+popd
