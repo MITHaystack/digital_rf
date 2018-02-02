@@ -28,7 +28,7 @@ Dependencies
 Build:
 
 * Cheetah (``python-cheetah``) [python]
-* cmake (``cmake``)
+* cmake >= 3.0 (``cmake``)
 * hdf5 >= 1.8 (``libhdf5-dev``) [c, python]
 * MATLAB >= R2016a [matlab]
 * numpy (``python-numpy``) [python]
