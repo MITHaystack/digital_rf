@@ -7,8 +7,8 @@
 % The full license is in the LICENSE file, distributed with this software.
 % ----------------------------------------------------------------------------
 % example usage of DigitalMetadataReader.m
-% Requires python test_write_digital_metadata.py be run first to create test data
-% $Id$
+% Requires python example_write_digital_metadata.py be run first to create test data
+%
 metadataDir = '/tmp/test_metadata';
 
 % init the object
@@ -22,13 +22,13 @@ fields = reader.get_fields();
 disp('The fields are:');
 disp(fields);
 disp('The samples per sec numerator, denominator, and float values are:');
-disp(reader.get_samples_per_second_numerator());
-disp(reader.get_samples_per_second_denominator());
+disp(reader.get_sample_rate_numerator());
+disp(reader.get_sample_rate_denominator());
 disp(reader.get_samples_per_second());
 disp('The subdirectory cadence in seconds is:');
-disp(reader.get_subdirectory_cadence_seconds());
+disp(reader.get_subdir_cadence_secs());
 disp('The file cadence in seconds is:');
-disp(reader.get_file_cadence_seconds());
+disp(reader.get_file_cadence_secs());
 disp('The file name prefix is:');
 disp(reader.get_file_name());
 

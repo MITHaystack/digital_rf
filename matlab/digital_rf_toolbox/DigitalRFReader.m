@@ -59,20 +59,21 @@ classdef DigitalRFReader
             dirFlag = 0;
             for i = 1:dims(1)
                 topGlobPath = fullfile(strtrim(reader.topLevelDirectories(i,:)),'*', 'drf_properties.h5');
-                top_level_dir_len = length(strtrim(reader.topLevelDirectories(i,:)));
                 result = glob(topGlobPath);
                 resultDims = size(result);
                 for j = 1:resultDims(1)
                     data = char(result(j));
-                    remainder = data(top_level_dir_len + 1:end-1);
-                    [pathstr,name,ext] = fileparts(remainder);
+                    path_components = strsplit(data, filesep);
+                    % last component is drf_properties.h5, second to last
+                    % is channel name
+                    ch = path_components{end-1};
                     if dirFlag == 0
                         dirArr = struct('top_level_dir', strtrim(reader.topLevelDirectories(i,:)), ...
-                            'channel', pathstr);
+                            'channel', ch);
                         dirFlag = 1;
                     else
                         newArr = struct('top_level_dir', strtrim(reader.topLevelDirectories(i,:)), ...
-                            'channel', pathstr);
+                            'channel', ch);
                         dirArr(end+1) = newArr;
                     end
                 end
@@ -100,8 +101,8 @@ classdef DigitalRFReader
                 % properties to read and/or verify consistency
                 subdir_cadence_secs = 0;
                 file_cadence_millisecs = 0;
-                samples_per_second_numerator = 0;
-                samples_per_second_denominator = 0;
+                sample_rate_numerator = 0;
+                sample_rate_denominator = 0;
                 is_complex = 0;
                 num_subchannels = 0;
                 top_dir_list = {}; % cell array of top level dirs in this channel
@@ -114,15 +115,15 @@ classdef DigitalRFReader
                         propFile = fullfile(this_top_level, thisChannel, 'drf_properties.h5');
                         this_subdir_cadence_secs = h5readatt(propFile, '/', 'subdir_cadence_secs');
                         this_file_cadence_millisecs = h5readatt(propFile, '/', 'file_cadence_millisecs');
-                        this_samples_per_second_numerator = h5readatt(propFile, '/', 'sample_rate_numerator');
-                        this_samples_per_second_denominator = h5readatt(propFile, '/', 'sample_rate_denominator');
+                        this_sample_rate_numerator = h5readatt(propFile, '/', 'sample_rate_numerator');
+                        this_sample_rate_denominator = h5readatt(propFile, '/', 'sample_rate_denominator');
                         this_is_complex = h5readatt(propFile, '/', 'is_complex');
                         this_num_subchannels = h5readatt(propFile, '/', 'num_subchannels');
                         if (subdir_cadence_secs == 0)
                             subdir_cadence_secs = this_subdir_cadence_secs;
                             file_cadence_millisecs = this_file_cadence_millisecs;
-                            samples_per_second_numerator = this_samples_per_second_numerator;
-                            samples_per_second_denominator = this_samples_per_second_denominator;
+                            sample_rate_numerator = this_sample_rate_numerator;
+                            sample_rate_denominator = this_sample_rate_denominator;
                             is_complex = this_is_complex;
                             num_subchannels = this_num_subchannels;
                         else
@@ -136,14 +137,14 @@ classdef DigitalRFReader
                                     'mismatched file_cadence_millisecs found');
                                 throw(ME)
                             end
-                            if (samples_per_second_numerator ~= this_samples_per_second_numerator)
+                            if (sample_rate_numerator ~= this_sample_rate_numerator)
                                 ME = MException('DigitalRFReader:metadataError', ...
-                                    'mismatched samples_per_second_numerator found');
+                                    'mismatched sample_rate_numerator found');
                                 throw(ME)
                             end
-                            if (samples_per_second_denominator ~= this_samples_per_second_denominator)
+                            if (sample_rate_denominator ~= this_sample_rate_denominator)
                                 ME = MException('DigitalRFReader:metadataError', ...
-                                    'mismatched samples_per_second_denominator found');
+                                    'mismatched sample_rate_denominator found');
                                 throw(ME)
                             end
                             if (is_complex ~= this_is_complex)
@@ -161,7 +162,7 @@ classdef DigitalRFReader
                 end
                 % found all top level dirs for this channel - add it
                 new_drf_channel = drf_channel(thisChannel, top_dir_list, subdir_cadence_secs, ...
-                    file_cadence_millisecs, samples_per_second_numerator, samples_per_second_denominator, is_complex, num_subchannels);
+                    file_cadence_millisecs, sample_rate_numerator, sample_rate_denominator, is_complex, num_subchannels);
                 reader.channel_map(thisChannel) = new_drf_channel;
             end % end loop through unique channel names
 
@@ -186,6 +187,13 @@ classdef DigitalRFReader
         end
 
 
+        function [reader] = get_digital_metadata(obj, channel)
+            % get Digital Metadata reader for the given channel
+            drf_chan = obj.channel_map(channel);
+            reader = drf_chan.get_digital_metadata();
+        end
+
+
         function [data_map] = read(obj, channel, start_sample, end_sample, subchannel)
             % read returns a containers.Map() object containing key= all
             % first samples of continuous block of data found between
@@ -203,14 +211,30 @@ classdef DigitalRFReader
             % get_subdir_cadence_secs returns subdir_cadence_secs for given channel
             drf_chan = obj.channel_map(channel);
             subdir_cadence_secs = drf_chan.subdir_cadence_secs;
-        end %
+        end
 
 
         function file_cadence_millisecs = get_file_cadence_millisecs(obj, channel)
             % get_file_cadence_millisecs returns file_cadence_millisecs for given channel
             drf_chan = obj.channel_map(channel);
             file_cadence_millisecs = drf_chan.file_cadence_millisecs;
-        end %
+        end
+
+
+
+        function sample_rate_numerator = get_sample_rate_numerator(obj, channel)
+            % get_sample_rate_numerator returns the numerator of the sample rate for given channel
+            drf_chan = obj.channel_map(channel);
+            sample_rate_numerator = drf_chan.sample_rate_numerator;
+        end
+
+
+
+        function sample_rate_denominator = get_sample_rate_denominator(obj, channel)
+            % get_sample_rate_denominator returns the denominator of the sample rate for given channel
+            drf_chan = obj.channel_map(channel);
+            sample_rate_denominator = drf_chan.sample_rate_denominator;
+        end
 
 
 
@@ -218,7 +242,7 @@ classdef DigitalRFReader
             % get_samples_per_second returns samples_per_second for given channel
             drf_chan = obj.channel_map(channel);
             samples_per_second = drf_chan.samples_per_second;
-        end % end get_channels
+        end
 
 
 
@@ -226,7 +250,7 @@ classdef DigitalRFReader
             % get_is_complex returns is_complex (1 or 0) for given channel
             drf_chan = obj.channel_map(channel);
             is_complex = drf_chan.is_complex;
-        end % end get_is_complex
+        end
 
 
 
@@ -234,7 +258,7 @@ classdef DigitalRFReader
             % get_num_subchannels returns num_subchannels (1 or greater) for given channel
             drf_chan = obj.channel_map(channel);
             num_subchannels = drf_chan.num_subchannels;
-        end % end get_num_subchannels
+        end
 
 
 

@@ -8,8 +8,8 @@
 % ----------------------------------------------------------------------------
 % benchmarkDigitalRFReader.m is a script to benchmark reading speed
 % requires Hdf5 test data in /tmp/benchmark as produced by
-% benchmark_fr_write_hdf5.py
-% $Id$
+% benchmark_rf_write_hdf5.py
+%
 
 disp('Test of reading files with no compression and no checksum');
 startTime = datenum(clock);

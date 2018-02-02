@@ -17,8 +17,8 @@ classdef drf_channel
         top_level_dirs % char array of one or more top level dirs
         subdir_cadence_secs % seconds per subdirectory (int)
         file_cadence_millisecs % number of millseconds per file (int)
-        samples_per_second_numerator % sample rate numerator in Hz in this drf_channel (int)
-        samples_per_second_denominator % sample rate denomerator in Hz in this drf_channel (int)
+        sample_rate_numerator % sample rate numerator in Hz in this drf_channel (int)
+        sample_rate_denominator % sample rate denomerator in Hz in this drf_channel (int)
         samples_per_second % sample rate in Hz in this drf_channel (numerator/denominator) (double)
         is_complex % 1 if channel has real and imag data, 0 if real only
         num_subchannels % number of subchannels - 1 or greater
@@ -28,15 +28,15 @@ classdef drf_channel
 
     methods
         function channel = drf_channel(channel_name, top_level_dirs, subdir_cadence_secs, file_cadence_millisecs, ...
-                samples_per_second_numerator, samples_per_second_denominator, is_complex, num_subchannels)
+                sample_rate_numerator, sample_rate_denominator, is_complex, num_subchannels)
             % drf_channel constructor
             % Inputs:
             %   channel_name - channel name
             %   top_level_dirs - char array of one or more top level dirs
             %   subdir_cadence_secs - seconds per subdirectory (int)
             %   file_cadence_millisecs - number of millseconds per file (int)
-            %   samples_per_second_numerator - sample rate numerator in Hz in this drf_channel (int)
-            %   samples_per_second_denominator - sample rate denominator in Hz in this drf_channel (int)
+            %   sample_rate_numerator - sample rate numerator in Hz in this drf_channel (int)
+            %   sample_rate_denominator - sample rate denominator in Hz in this drf_channel (int)
             %   is_complex - 1 if channel has real and imag data, 0 if real only
             %   num_subchannels - number of subchannels - 1 or greater
 
@@ -48,11 +48,11 @@ classdef drf_channel
 
             channel.channel_name = channel_name;
             channel.top_level_dirs = top_level_dirs;
-            channel.subdir_cadence_secs = subdir_cadence_secs;
-            channel.file_cadence_millisecs = file_cadence_millisecs;
-            channel.samples_per_second_numerator = samples_per_second_numerator;
-            channel.samples_per_second_denominator = samples_per_second_denominator;
-            channel.samples_per_second = double(samples_per_second_numerator)/double(samples_per_second_denominator);
+            channel.subdir_cadence_secs = uint64(subdir_cadence_secs);
+            channel.file_cadence_millisecs = uint64(file_cadence_millisecs);
+            channel.sample_rate_numerator = uint64(sample_rate_numerator);
+            channel.sample_rate_denominator = uint64(sample_rate_denominator);
+            channel.samples_per_second = double(sample_rate_numerator)/double(sample_rate_denominator);
             channel.is_complex = is_complex;
             channel.num_subchannels = num_subchannels;
         end
@@ -117,6 +117,16 @@ classdef drf_channel
 
         end
 
+        function [reader] = get_digital_metadata(obj)
+            % get Digital Metadata reader for the channel
+            for i = 1:length(obj.top_level_dirs)
+                metadata_dir = fullfile(obj.top_level_dirs{i}, obj.channel_name, 'metadata');
+                if (exist(metadata_dir, 'dir'))
+                    reader = DigitalMetadataReader(metadata_dir);
+                    return
+                end
+            end
+        end
 
         function [data_map] = read(obj, start_sample, end_sample, subchannel)
             % read returns a containers.Map() object containing key= all
@@ -272,8 +282,8 @@ classdef drf_channel
 
             file_list = {};
 
-            sps_n = obj.samples_per_second_numerator;
-            sps_d = obj.samples_per_second_denominator;
+            sps_n = obj.sample_rate_numerator;
+            sps_d = obj.sample_rate_denominator;
             sample0 = uint64(sample0);
             sample1 = uint64(sample1);
             % get the start and end time in seconds to get the subdirectory
@@ -284,24 +294,24 @@ classdef drf_channel
             end_msts = idivide(sample1*1000, sps_n)*sps_d + idivide(mod(sample1*1000, sps_n)*sps_d, sps_n);
 
             % get subdirectory start and end ts
-            start_sub_ts = floor(double(start_ts)/double(obj.subdir_cadence_secs)) * obj.subdir_cadence_secs;
-            end_sub_ts = floor(double(end_ts) / double(obj.subdir_cadence_secs)) * obj.subdir_cadence_secs;
+            start_sub_ts = idivide(start_ts, obj.subdir_cadence_secs)*obj.subdir_cadence_secs;
+            end_sub_ts = idivide(end_ts, obj.subdir_cadence_secs)*obj.subdir_cadence_secs;
 
-            sub_ts_arr = start_sub_ts:obj.subdir_cadence_secs:end_sub_ts + obj.subdir_cadence_secs;
-            for i = 1:length(sub_ts_arr)-1
-                sub_datetime = datetime(sub_ts_arr(i),'ConvertFrom','posixtime');
+            sub_ts_arr = start_sub_ts:obj.subdir_cadence_secs:end_sub_ts;
+            for i = 1:length(sub_ts_arr)
+                sub_ts = sub_ts_arr(i);
+                sub_datetime = datetime(sub_ts, 'ConvertFrom', 'posixtime');
                 subdir = datestr(sub_datetime, 'YYYY-mm-ddTHH-MM-SS');
-                % file_msts_in_subdir = numpy.arange(sub_ts*1000, long(sub_ts + subdir_cadence_seconds)*1000, file_cadence_millisecs)
-                start_point = sub_ts_arr(i)*1000;
-                end_point = floor(sub_ts_arr(i) + obj.subdir_cadence_secs)*1000;
+                start_point = sub_ts*1000;
+                end_point = (sub_ts + obj.subdir_cadence_secs)*1000 - 1;
                 file_msts_in_subdir = start_point:obj.file_cadence_millisecs:end_point;
-                file_msts_in_subdir = file_msts_in_subdir(1:end-1);
-                valid_file_logic = file_msts_in_subdir + obj.file_cadence_millisecs -1 >= start_msts ...
-                    & file_msts_in_subdir <= end_msts;
+                % file has valid samples if last time in file is after start time
+                % and first time in file is before end time
+                valid_file_logic = (file_msts_in_subdir + obj.file_cadence_millisecs - 1 >= start_msts) ...
+                    & (file_msts_in_subdir <= end_msts);
                 valid_file_msts = file_msts_in_subdir(valid_file_logic);
-                valid_file_msts = sort(valid_file_msts);
                 for j = 1:length(valid_file_msts)
-                    file_basename = sprintf('rf@%i.%03i.h5', floor(double(valid_file_msts(j)) / 1000.0), mod(valid_file_msts(j), 1000));
+                    file_basename = sprintf('rf@%i.%03i.h5', idivide(valid_file_msts(j), uint64(1000)), mod(valid_file_msts(j), 1000));
                     full_filename = fullfile(subdir, file_basename);
                     file_list(end+1) = cellstr(full_filename);
                 end

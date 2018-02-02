@@ -15,10 +15,10 @@ classdef DigitalMetadataReader
 
     properties
         metadataDir % a string of metadata directory
-        subdirectory_cadence_seconds % a number of seconds per directory
-        file_cadence_seconds % number of seconds per filereader
-        samples_per_second_numerator % samples per second numerator of metadata
-        samples_per_second_denominator % samples per second denominator of metadata
+        subdir_cadence_secs % a number of seconds per directory
+        file_cadence_secs % number of seconds per filereader
+        sample_rate_numerator % samples per second numerator of metadata
+        sample_rate_denominator % samples per second denominator of metadata
         samples_per_second % float samples per second of metadata as determined by numerator and denominator
         file_name % file naming prefix
         fields % a char array of field names in metadata
@@ -33,11 +33,11 @@ classdef DigitalMetadataReader
             reader.metadataDir = metadataDir;
             % read properties from drf_properties.h5
             propFile = fullfile(metadataDir, 'dmd_properties.h5');
-            reader.subdirectory_cadence_seconds = uint64(h5readatt(propFile, '/', 'subdirectory_cadence_seconds'));
-            reader.file_cadence_seconds = uint64(h5readatt(propFile, '/', 'file_cadence_seconds'));
-            reader.samples_per_second_numerator = uint64(h5readatt(propFile, '/', 'samples_per_second_numerator'));
-            reader.samples_per_second_denominator = uint64(h5readatt(propFile, '/', 'samples_per_second_denominator'));
-            reader.samples_per_second = double(reader.samples_per_second_numerator) / double(reader.samples_per_second_denominator);
+            reader.subdir_cadence_secs = uint64(h5readatt(propFile, '/', 'subdir_cadence_secs'));
+            reader.file_cadence_secs = uint64(h5readatt(propFile, '/', 'file_cadence_secs'));
+            reader.sample_rate_numerator = uint64(h5readatt(propFile, '/', 'sample_rate_numerator'));
+            reader.sample_rate_denominator = uint64(h5readatt(propFile, '/', 'sample_rate_denominator'));
+            reader.samples_per_second = double(reader.sample_rate_numerator) / double(reader.sample_rate_denominator);
             reader.file_name = h5readatt(propFile, '/', 'file_name');
             fields = h5read(propFile, '/fields');
             reader.fields = cellstr(fields.column');
@@ -71,25 +71,25 @@ classdef DigitalMetadataReader
             fields = obj.fields;
         end % end get_fields
 
-        function fields = get_samples_per_second_numerator(obj)
-            fields = obj.samples_per_second_numerator;
-        end % end get_samples_per_second_numerator
+        function fields = get_sample_rate_numerator(obj)
+            fields = obj.sample_rate_numerator;
+        end % end get_sample_rate_numerator
 
-        function fields = get_samples_per_second_denominator(obj)
-            fields = obj.samples_per_second_denominator;
-        end % end get_samples_per_second_denominator
+        function fields = get_sample_rate_denominator(obj)
+            fields = obj.sample_rate_denominator;
+        end % end get_sample_rate_denominator
 
         function fields = get_samples_per_second(obj)
             fields = obj.samples_per_second;
         end % end get_samples_per_second
 
-        function fields = get_subdirectory_cadence_seconds(obj)
-            fields = obj.subdirectory_cadence_seconds;
-        end % end get_subdirectory_cadence_seconds
+        function fields = get_subdir_cadence_secs(obj)
+            fields = obj.subdir_cadence_secs;
+        end % end get_subdir_cadence_secs
 
-        function fields = get_file_cadence_seconds(obj)
-            fields = obj.file_cadence_seconds;
-        end % end get_file_cadence_seconds
+        function fields = get_file_cadence_secs(obj)
+            fields = obj.file_cadence_secs;
+        end % end get_file_cadence_secs
 
         function fields = get_file_name(obj)
             fields = obj.file_name;
@@ -124,35 +124,38 @@ classdef DigitalMetadataReader
             %       sample0 - first sample for which to return metadata
             %       sample1 - last sample for which to return metadata. A sample
             %           is the unix time times the sample rate as a long.
-            start_ts = uint64(sample0/obj.samples_per_second);
-            end_ts = uint64(sample1/obj.samples_per_second);
+            sps_n = obj.sample_rate_numerator;
+            sps_d = obj.sample_rate_denominator;
+            sample0 = uint64(sample0);
+            sample1 = uint64(sample1);
+            % get the start and end time in seconds
+            start_ts = idivide(sample0, sps_n)*sps_d + idivide(mod(sample0, sps_n)*sps_d, sps_n);
+            end_ts = idivide(sample1, sps_n)*sps_d + idivide(mod(sample1, sps_n)*sps_d, sps_n) + 1;
 
-            % convert ts to be divisible by obj.file_cadence_seconds
-            start_ts = (start_ts ./ obj.file_cadence_seconds) * obj.file_cadence_seconds;
-            end_ts = (end_ts ./ obj.file_cadence_seconds) * obj.file_cadence_seconds;
+            % convert ts to be divisible by obj.file_cadence_secs
+            start_ts = idivide(start_ts, obj.file_cadence_secs) * obj.file_cadence_secs;
+            end_ts = idivide(end_ts, obj.file_cadence_secs) * obj.file_cadence_secs;
 
             % get subdirectory start and end ts
-            start_sub_ts = (start_ts ./ obj.subdirectory_cadence_seconds) * obj.subdirectory_cadence_seconds;
-            end_sub_ts = (end_ts ./ obj.subdirectory_cadence_seconds) * obj.subdirectory_cadence_seconds;
+            start_sub_ts = idivide(start_ts, obj.subdir_cadence_secs) * obj.subdir_cadence_secs;
+            end_sub_ts = idivide(end_ts, obj.subdir_cadence_secs) * obj.subdir_cadence_secs;
 
-            num_sub = uint64(1 + ((end_sub_ts - start_sub_ts) ./ obj.subdirectory_cadence_seconds));
-
-            sub_arr = linspace(double(start_sub_ts), double(end_sub_ts), double(num_sub));
+            sub_ts_arr = start_sub_ts:obj.subdir_cadence_secs:end_sub_ts;
 
             file_list = {};
 
-            for i=1:length(sub_arr)
-                sub_ts = uint64(sub_arr(i));
-                sub_datetime = datetime( sub_ts, 'ConvertFrom', 'posixtime' );
+            for i=1:length(sub_ts_arr)
+                sub_ts = sub_ts_arr(i);
+                sub_datetime = datetime(sub_ts, 'ConvertFrom', 'posixtime' );
                 subdir = fullfile(obj.metadataDir, datestr(sub_datetime, 'yyyy-mm-ddTHH-MM-SS'));
-                num_file_ts = uint64(1 + (obj.subdirectory_cadence_seconds - obj.file_cadence_seconds) ./ obj.file_cadence_seconds);
-                file_ts_in_subdir = linspace(double(sub_ts), ...
-                    double(sub_ts + (obj.subdirectory_cadence_seconds - obj.file_cadence_seconds)), double(num_file_ts));
-                file_ts_in_subdir = uint64(file_ts_in_subdir);
-                ind = find(file_ts_in_subdir >= start_ts & file_ts_in_subdir <= end_ts);
-                valid_file_ts_list = file_ts_in_subdir(ind);
-                for j=1:length(valid_file_ts_list)
-                    basename = sprintf('%s@%i.h5', char(obj.file_name), valid_file_ts_list(j));
+                file_ts_in_subdir = sub_ts:obj.file_cadence_secs:(sub_ts + obj.subdir_cadence_secs - 1);
+                % file has valid samples if last time in file is after start time
+                % and first time in file is before end time
+                valid_file_logic = (file_ts_in_subdir + obj.file_cadence_secs - 1 >= start_ts) ...
+                    & (file_ts_in_subdir <= end_ts);
+                valid_file_ts = file_ts_in_subdir(valid_file_logic);
+                for j=1:length(valid_file_ts)
+                    basename = sprintf('%s@%i.h5', char(obj.file_name), valid_file_ts(j));
                     full_file = fullfile(subdir, basename);
                     if exist(full_file, 'file') == 2
                         file_list{1+length(file_list)} = full_file;

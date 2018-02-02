@@ -8,7 +8,7 @@
 % ----------------------------------------------------------------------------
 % example usage of DigitalRFReader.m
 % Requires python test_digital_rf_hdf5.py be run first to create test data
-% $Id$
+%
 top_level_directories = char('/tmp/hdf5', '/tmp/hdf52');
 reader = DigitalRFReader(top_level_directories);
 disp(reader.get_channels());

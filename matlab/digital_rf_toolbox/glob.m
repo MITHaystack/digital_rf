@@ -31,9 +31,9 @@
 %           * GLOB supports wildcards for directories.
 %           * GLOB returns the directory part of FILESPEC.
 %           * GLOB returns a cell array of matching names.
-%           * GLOB does not return hidden files and directories that start 
+%           * GLOB does not return hidden files and directories that start
 %             with '.' unless explicitly specified in FILESPEC.
-%           * GLOB does not return '.' and '..' unless explicitly specified 
+%           * GLOB does not return '.' and '..' unless explicitly specified
 %             in FILESPEC.
 %           * GLOB adds a trailing file separator to directory names.
 %           * GLOB does not return the contents of a directory when
@@ -44,7 +44,7 @@
 %           * On Windows GLOB is not case sensitive, but it returns
 %             matching names exactely in the case as they are defined on
 %             the filesystem. Case of host and sharename of a UNC path and
-%             case of drive letters will be returned as specified in 
+%             case of drive letters will be returned as specified in
 %             FILESPEC.
 %
 %   glob(FILESPEC, '-ignorecase')
@@ -79,7 +79,7 @@
 %
 %       glob **         recursively list all files and directories,
 %                       starting in current directory (current directory
-%                       name, hidden files and hidden directories are 
+%                       name, hidden files and hidden directories are
 %                       excluded).
 %
 %       glob **.m       list all m-files anywhere in directory tree,
@@ -115,27 +115,27 @@
 
 %% Copyright (c) 2013, Peter van den Biggelaar
 % All rights reserved.
-% 
-% Redistribution and use in source and binary forms, with or without 
-% modification, are permitted provided that the following conditions are 
+%
+% Redistribution and use in source and binary forms, with or without
+% modification, are permitted provided that the following conditions are
 % met:
-% 
-%     * Redistributions of source code must retain the above copyright 
+%
+%     * Redistributions of source code must retain the above copyright
 %       notice, this list of conditions and the following disclaimer.
-%     * Redistributions in binary form must reproduce the above copyright 
-%       notice, this list of conditions and the following disclaimer in 
+%     * Redistributions in binary form must reproduce the above copyright
+%       notice, this list of conditions and the following disclaimer in
 %       the documentation and/or other materials provided with the distribution
-%       
-% THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
-% AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-% IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-% ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE 
-% LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-% CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
-% SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
-% INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-% CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-% ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+%
+% THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+% AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+% IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+% ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+% LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+% CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+% SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+% INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+% CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+% ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 % POSSIBILITY OF SUCH DAMAGE.
 
 
@@ -154,7 +154,7 @@ if ischar(FILESPEC)
     end
 else
     error('glob:invalidInput', 'FILESPEC must be a string.')
-end    
+end
 
 %% check ignorecase option
 if nargin==2
@@ -163,11 +163,11 @@ if nargin==2
         if strncmp(ignorecase, '-ignorecase', max(numel(ignorecase),2));
             ignorecase = true;
         else
-            error('glob:invalidOption', 'Invalid option.') 
-        end    
+            error('glob:invalidOption', 'Invalid option.')
+        end
     else
         error('glob:invalidOption', 'Invalid option.')
-    end    
+    end
 else
     % Windows is not case sensitive
     % Unix is case sensitive
@@ -188,7 +188,7 @@ filespec = strrep(FILESPEC, '\', '/');
 if strncmp(filespec, '//',2)
     if ispc
         % FILESPEC specifies a UNC path
-        % It is not allowed to get a directory listing of share names of a 
+        % It is not allowed to get a directory listing of share names of a
         % host with the DIR command.
         % pathroot will contains e.g. //host/share/
         pathroot = regexprep(filespec, '(^//+[^/]+/[^/]+/)(.*)', '$1');
@@ -266,7 +266,7 @@ if nargout==0
         disp(char(list))
     else
         disp(['''' FILESPEC ''' not found.']);
-    end    
+    end
 else
     LIST = list';
 end
@@ -282,36 +282,36 @@ in_curlies  = 0;        % is > 0 within curly braces
 
 % handle characters in glob_str one-by-one
 for c = glob_str
-        
+
     if any(c=='.()|+^$@%')
         % escape simple special characters
         regexp_str = [regexp_str '\' c]; %#ok<AGROW>
-            
+
     elseif c=='*'
         % '*' should not match '/'
         regexp_str = [regexp_str '[^/]*']; %#ok<AGROW>
-        
+
     elseif c=='?'
         % '?' should not match '/'
         regexp_str = [regexp_str '[^/]']; %#ok<AGROW>
-        
+
     elseif c=='{'
         regexp_str = [regexp_str '(']; %#ok<AGROW>
-        in_curlies = in_curlies+1;    
+        in_curlies = in_curlies+1;
 
     elseif c=='}' && in_curlies
         regexp_str = [regexp_str ')']; %#ok<AGROW>
-        in_curlies = in_curlies-1;    
+        in_curlies = in_curlies-1;
 
     elseif c==',' && in_curlies
         regexp_str = [regexp_str '|']; %#ok<AGROW>
-            
-    else                    
+
+    else
         regexp_str = [regexp_str c]; %#ok<AGROW>
     end
 end
 
-% replace original '**' (that has now become '[^/]*[^/]*') with '.*.*'  
+% replace original '**' (that has now become '[^/]*[^/]*') with '.*.*'
 regexp_str = strrep(regexp_str, '[^/]*[^/]*', '.*.*');
 
 
@@ -324,15 +324,15 @@ function L = ls_regexp(regexp_fhandle, path, varargin)
 % L is a cell array with matching file or directory names.
 % REGEXP_FHANDLE contain a file handle to REGEXP or REGEXPI depending
 % on specified case sensitivity.
-    
+
 % if first regular expressions contains '**', examine complete file tree
 if nargin>=3 && any(regexp(varargin{1}, '\.\*\.\*'))
     L = ls_regexp_tree(regexp_fhandle, path, varargin{:});
-    
+
 else
     % get contents of path
     list = dir(path);
-    
+
     if nargin>=3
         if strcmp(varargin{1},'\.') || strcmp(varargin{1},'\.\.')
             % keep explicitly specified '.' or '..' in first regular expression
@@ -341,25 +341,25 @@ else
                 list(end+1).name = '.';
                 list(end).isdir = true;
                 list(end+1).name = '..';
-                list(end).isdir = true;                
-            end    
+                list(end).isdir = true;
+            end
         else
             % remove '.' and '..'
             list(strcmp({list.name},'.')) = [];
             list(strcmp({list.name},'..')) = [];
-     
+
             % remove files starting with '.' specified in first regular expression
             if ~strncmp(varargin{1},'\.',2)
                 % remove files starting with '.' from list
                 list(strncmp({list.name},'.',1))  = [];
-            end    
+            end
         end
     end
-    
+
     % define shortcuts
     list_isdir = [list.isdir];
     list_name = {list.name};
-    
+
     L = {};  % initialize
     if nargin==2    % no regular expressions
         %% return filename
@@ -382,8 +382,8 @@ else
             trailing_fsep(list_isdir) = {'/'};
             L = strcat(path, list_name, trailing_fsep);
         end
-        
-    elseif nargin==4 && isempty(varargin{2})    
+
+    elseif nargin==4 && isempty(varargin{2})
         %% only return directories when last regexp is empty
         % return list_name matching regular expression and that are directories
         I = regexp_fhandle(list_name, ['^' varargin{1} '$']);
@@ -394,7 +394,7 @@ else
         if any(list_isdir)
             % add a trailing file separator
             L = strcat(path, list_name(list_isdir), '/');
-        end            
+        end
     else
         %% traverse for list_name matching regular expression
         I = regexp_fhandle(list_name, ['^' varargin{1} '$']);
@@ -460,11 +460,11 @@ if ~isempty(d)
     % add trailing fileseparator to directories
     trailing_fsep = repmat({''}, size(d));
     trailing_fsep([d.isdir]) = {'/'};
-    
+
     % prefix startdir to name and postfix fileseparator for directories
     dname = strcat(startdir, {d.name}, trailing_fsep');
     [d(:).name] = deal(dname{:});
-    
+
     % recurse into subdirectories
     for subd = {d([d.isdir]).name}
         d = [d; dir_recur(char(subd), keep_hidden)]; %#ok<AGROW>

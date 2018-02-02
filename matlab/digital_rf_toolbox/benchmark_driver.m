@@ -7,7 +7,7 @@
 % The full license is in the LICENSE file, distributed with this software.
 % ----------------------------------------------------------------------------
 % benchmark_driver is the function to test read speed
-% $Id$
+%
 
 function result = benchmark_driver(channel)
     SAMPLES = 1000000;
