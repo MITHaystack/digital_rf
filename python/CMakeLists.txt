@@ -12,7 +12,13 @@ project(digital_rf LANGUAGES C VERSION ${digital_rf_VERSION})
 
 include(GNUInstallDirs)
 
-find_program(PYTHON "python" REQUIRED)
+find_package(PythonInterp REQUIRED)
+
+# variable to allow for different install location for python package
+set(DRF_INSTALL_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX}
+    CACHE PATH
+    "Installation prefix for python package, defaults to CMAKE_INSTALL_PREFIX"
+)
 
 # copy files from root directory that we want in the python package
 set(ROOT_SRCS AUTHORS CHANGES LICENSE)
@@ -25,7 +31,7 @@ configure_file(setup.py setup.py COPYONLY)
 set(EGG_INFO_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/temp_egg/${PROJECT_NAME}.egg-info)
 file(MAKE_DIRECTORY ${EGG_INFO_OUTPUT})
 execute_process(
-    COMMAND ${PYTHON} ${CMAKE_CURRENT_BINARY_DIR}/setup.py -q
+    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/setup.py -q
         egg_info -e ${CMAKE_CURRENT_BINARY_DIR}/temp_egg
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
@@ -45,7 +51,7 @@ macro(gen_block_xml _generator _xml_block)
     list(APPEND GENERATED_BLOCKS ${xml_block})
     add_custom_command(
         OUTPUT ${xml_block}
-        COMMAND ${PYTHON} ${generator} ${xml_block}
+        COMMAND ${PYTHON_EXECUTABLE} ${generator} ${xml_block}
         DEPENDS ${generator}
     )
 endmacro(gen_block_xml)
@@ -68,8 +74,8 @@ set(PYBUILD_DEPS
 )
 add_custom_command(
     OUTPUT ${PYBUILD_OUTPUT}
-    COMMAND ${PYTHON} setup.py build
-    COMMAND ${PYTHON} setup.py egg_info
+    COMMAND ${PYTHON_EXECUTABLE} setup.py build
+    COMMAND ${PYTHON_EXECUTABLE} setup.py egg_info
     COMMAND ${CMAKE_COMMAND} -E touch ${PYBUILD_OUTPUT}
     DEPENDS ${PYBUILD_DEPS}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -78,17 +84,17 @@ add_custom_target(digital_rf_python ALL
     DEPENDS ${PYBUILD_OUTPUT}
 )
 add_custom_target(digital_rf_sdist
-    COMMAND ${PYTHON} setup.py sdist -d ${CMAKE_BINARY_DIR}/dist
+    COMMAND ${PYTHON_EXECUTABLE} setup.py sdist -d ${CMAKE_BINARY_DIR}/dist
     DEPENDS ${PYBUILD_OUTPUT}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 add_custom_target(digital_rf_wheel
-    COMMAND ${PYTHON} setup.py bdist_wheel -d ${CMAKE_BINARY_DIR}/dist
+    COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wheel -d ${CMAKE_BINARY_DIR}/dist
     DEPENDS ${PYBUILD_OUTPUT}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
-install(CODE "execute_process(COMMAND ${PYTHON} setup.py install\
- --prefix ${CMAKE_INSTALL_PREFIX} --single-version-externally-managed\
+install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py install\
+ --prefix ${DRF_INSTALL_PREFIX_PYTHON} --single-version-externally-managed\
  --record ${CMAKE_CURRENT_BINARY_DIR}/install_${PROJECT_NAME}_manifest.txt\
  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})\
 ")

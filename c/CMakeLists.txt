@@ -26,7 +26,7 @@ endif(NOT CMAKE_BUILD_TYPE)
 if(UNIX)
     set(MATH_LIB m)
 ELSE(UNIX)
-    SET(MATH_LIB)
+    set(MATH_LIB)
 ENDIF(UNIX)
 
 find_package(HDF5 REQUIRED)
