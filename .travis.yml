@@ -26,7 +26,7 @@ jobs:
       script:
         - _ci/prepare_digital_rf_python.sh
         - docker run --rm -v `pwd`:/io $DOCKER_IMAGE $PRE_CMD /io/_ci/travis/build_wheels.sh
-        - ls wheelhouse/
+        - ls wheelhouse/digital_rf*.whl
     - stage: wheel
       sudo: required
       services:
@@ -37,4 +37,4 @@ jobs:
       script:
         - _ci/prepare_digital_rf_python.sh
         - docker run --rm -v `pwd`:/io $DOCKER_IMAGE $PRE_CMD /io/_ci/travis/build_wheels.sh
-        - ls wheelhouse/
+        - ls wheelhouse/digital_rf*.whl

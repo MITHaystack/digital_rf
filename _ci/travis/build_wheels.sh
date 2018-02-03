@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e -x
 
+export CFLAGS='-std=c99'
+
 # install build dependencies in container
 yum install -y hdf5-devel
 
@@ -11,7 +13,7 @@ for PYBIN in /opt/python/*27*/bin; do
 done
 
 # Bundle external shared libraries into the wheels
-for whl in wheelhouse/*.whl; do
+for whl in wheelhouse/digital_rf*.whl; do
     auditwheel repair "$whl" -w /io/wheelhouse
 done
 
