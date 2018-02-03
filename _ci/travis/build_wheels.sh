@@ -18,7 +18,7 @@ for whl in /io/wheelhouse/digital_rf*.whl; do
 done
 
 # Install packages and test
-for PYBIN in /opt/python/*/bin/; do
+for PYBIN in /opt/python/*27*/bin/; do
     "${PYBIN}/pip" install digital_rf --no-index -f /io/wheelhouse
     # (cd "$HOME"; "${PYBIN}/nosetests" digital_rf)
 done
