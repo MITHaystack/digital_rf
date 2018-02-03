@@ -26,6 +26,12 @@ with open(os.path.join('digital_rf', '_version.py')) as fp:
     exec(fp.read(), version)
 
 
+def localpath(*args):
+    return os.path.abspath(
+        reduce(os.path.join, (os.path.dirname(__file__),) + args)
+    )
+
+
 # subclass build_ext so we only add build settings for dependencies
 # at build time
 class build_ext(_build_ext):
@@ -148,7 +154,7 @@ setup(
         Extension(
             name='digital_rf._py_rf_write_hdf5',
             sources=['lib/py_rf_write_hdf5.c', 'lib/rf_write_hdf5.c'],
-            include_dirs=['include'],
+            include_dirs=[localpath('include')],
             library_dirs=[],
             libraries=[]
         ),

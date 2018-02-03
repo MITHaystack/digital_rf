@@ -67,27 +67,27 @@ add_custom_target(gr_digital_rf_grc_xml_blocks ALL
     DEPENDS ${GENERATED_BLOCKS}
 )
 
+add_custom_target(digital_rf_sdist
+    COMMAND ${PYTHON_EXECUTABLE} setup.py sdist -d ${CMAKE_BINARY_DIR}/dist
+    DEPENDS ${PYSOURCES}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+add_dependencies(digital_rf_sdist gr_digital_rf_grc_xml_blocks)
+
 # build and install python package with setup.py
 set(PYBUILD_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/build)
-set(PYBUILD_DEPS
-    ${PYSOURCES} ${DIGITAL_RF_TARGET} gr_digital_rf_grc_xml_blocks
-)
 add_custom_command(
     OUTPUT ${PYBUILD_OUTPUT}
     COMMAND ${PYTHON_EXECUTABLE} setup.py build
     COMMAND ${PYTHON_EXECUTABLE} setup.py egg_info
     COMMAND ${CMAKE_COMMAND} -E touch ${PYBUILD_OUTPUT}
-    DEPENDS ${PYBUILD_DEPS}
+    DEPENDS ${PYSOURCES}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 add_custom_target(digital_rf_python ALL
     DEPENDS ${PYBUILD_OUTPUT}
 )
-add_custom_target(digital_rf_sdist
-    COMMAND ${PYTHON_EXECUTABLE} setup.py sdist -d ${CMAKE_BINARY_DIR}/dist
-    DEPENDS ${PYBUILD_OUTPUT}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
+add_dependencies(digital_rf_python gr_digital_rf_grc_xml_blocks)
 add_custom_target(digital_rf_wheel
     COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wheel -d ${CMAKE_BINARY_DIR}/dist
     DEPENDS ${PYBUILD_OUTPUT}
