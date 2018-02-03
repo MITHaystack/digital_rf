@@ -15,6 +15,7 @@ stages:
   - wheel
 
 jobs:
+  fast_finish: true
   include:
     - stage: test
       script:
@@ -40,8 +41,6 @@ jobs:
         - brew cask uninstall oclint
         - brew install hdf5
         - pip install -r python/dev_requirements.txt
-    - allow_failures:
-      - os: osx
 
 # install dependencies for test and linux wheel prep
 before_install:
