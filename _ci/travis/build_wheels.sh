@@ -13,7 +13,7 @@ for PYBIN in /opt/python/*27*/bin; do
 done
 
 # Bundle external shared libraries into the wheels
-for whl in wheelhouse/digital_rf*.whl; do
+for whl in /io/wheelhouse/digital_rf*.whl; do
     auditwheel repair "$whl" -w /io/wheelhouse
 done
 
