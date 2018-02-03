@@ -18,9 +18,7 @@ from setuptools.command.build_ext import build_ext as _build_ext
 
 
 def localpath(*args):
-    return os.path.abspath(
-        reduce(os.path.join, (os.path.dirname(__file__),) + args)
-    )
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), *args))
 
 
 # Get the long description from the README file
