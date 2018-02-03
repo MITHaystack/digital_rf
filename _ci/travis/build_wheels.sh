@@ -1,13 +1,15 @@
 #!/bin/bash
 set -e -x
 
+export CFLAGS='-std=c99'
+
 # install build dependencies in container
 yum install -y hdf5-devel
 
 # Compile wheels
 for PYBIN in /opt/python/*/bin; do
     "${PYBIN}/pip" install -r /io/python/dev_requirements.txt
-    "${PYBIN}/pip" wheel /io/build/python -w wheelhouse/
+    "${PYBIN}/pip" wheel -w wheelhouse/ /io/build/python/dist/*
 done
 
 # Bundle external shared libraries into the wheels

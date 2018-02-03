@@ -54,10 +54,12 @@ class build_ext(_build_ext):
             hdf5_config['include_dirs'].extend([
                 '/opt/local/include',
                 '/usr/local/include',
+                '/usr/include',
             ])
             hdf5_config['library_dirs'].extend([
                 '/opt/local/lib',
                 '/usr/local/lib',
+                '/usr/lib',
             ])
         HDF5_ROOT = os.getenv('HDF5_ROOT', None)
         if HDF5_ROOT is not None:
@@ -91,9 +93,9 @@ class build_ext(_build_ext):
             for k, v in c.items():
                 getattr(self, k).extend(v)
 
-    def finalize_options(self):
-        _build_ext.finalize_options(self)
+    def run(self):
         self._add_build_settings()
+        _build_ext.run(self)
 
 
 setup(
