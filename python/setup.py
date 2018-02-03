@@ -16,20 +16,21 @@ from codecs import open
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext as _build_ext
 
-# Get the long description from the README file
-with open('README.rst', encoding='utf-8') as f:
-    long_description = f.read()
-
-# read __version__ variable by exec-ing python/_version.py
-version = {}
-with open(os.path.join('digital_rf', '_version.py')) as fp:
-    exec(fp.read(), version)
-
 
 def localpath(*args):
     return os.path.abspath(
         reduce(os.path.join, (os.path.dirname(__file__),) + args)
     )
+
+
+# Get the long description from the README file
+with open(localpath('README.rst'), encoding='utf-8') as f:
+    long_description = f.read()
+
+# read __version__ variable by exec-ing python/_version.py
+version = {}
+with open(localpath('digital_rf', '_version.py')) as fp:
+    exec(fp.read(), version)
 
 
 # subclass build_ext so we only add build settings for dependencies
