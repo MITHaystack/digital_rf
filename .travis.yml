@@ -2,39 +2,49 @@ language: python
 
 python: "2.7"
 
+env:
+  global:
+    - CIBW_SKIP="cp34-* cp35-* cp36-*"
+    - CIBW_ENVIRONMENT_LINUX="CFLAGS='-std=c99'"
+    - CIBW_BEFORE_BUILD_LINUX="yum install -y hdf5-devel && {pip} install ."
+    - CIBW_BEFORE_BUILD_MACOS="{pip} install ."
+    - PIP=pip
+    # Note: TWINE_USERNAME and TWINE_PASSWORD are set in Travis settings
+
 stages:
   - test
   - wheel
 
-before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -qq cmake libhdf5-dev
-  - pip install -r python/dev_requirements.txt
-
-script:
-  - _ci/build.sh && _ci/test.sh
-
 jobs:
   include:
     - stage: test
+      script:
+        - _ci/build.sh && _ci/test.sh
     - stage: wheel
       sudo: required
       services:
         - docker
-      env: DOCKER_IMAGE=quay.io/pypa/manylinux1_x86_64
-      install: docker pull $DOCKER_IMAGE
-      script:
-        - _ci/prepare_digital_rf_python.sh
-        - docker run --rm -v `pwd`:/io $DOCKER_IMAGE $PRE_CMD /io/_ci/travis/build_wheels.sh
-        - ls wheelhouse/digital_rf*.whl
     - stage: wheel
-      sudo: required
-      services:
-        - docker
-      env: DOCKER_IMAGE=quay.io/pypa/manylinux1_i686
-           PRE_CMD=linux32
-      install: docker pull $DOCKER_IMAGE
-      script:
-        - _ci/prepare_digital_rf_python.sh
-        - docker run --rm -v `pwd`:/io $DOCKER_IMAGE $PRE_CMD /io/_ci/travis/build_wheels.sh
-        - ls wheelhouse/digital_rf*.whl
+      os: osx
+      language: generic
+      env: PIP=pip2
+      before_install:
+        - $PIP install -r python/dev_requirements.txt
+
+# install dependencies for test and linux wheel prep
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq cmake libhdf5-dev
+  - $PIP install -r python/dev_requirements.txt
+
+# script to follow for wheel jobs, test script overridden above
+script:
+  - _ci/prepare_digital_rf_python.sh
+  - $PIP install cibuildwheel==0.7.0
+  - cibuildwheel --output-dir wheelhouse python/build
+  - ls wheelhouse/*.whl
+  - |
+    if [[ $TRAVIS_TAG ]]; then
+      $PIP install twine
+      python -m twine upload wheelhouse/*.whl
+    fi
