@@ -27,11 +27,10 @@ foreach(SRCFILE ${ROOT_SRCS})
 endforeach(SRCFILE)
 
 # get list of python source files by generating egg info
-configure_file(setup.py setup.py COPYONLY)
 set(EGG_INFO_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/temp_egg/${PROJECT_NAME}.egg-info)
 file(MAKE_DIRECTORY ${EGG_INFO_OUTPUT})
 execute_process(
-    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/setup.py -q
+    COMMAND ${PYTHON_EXECUTABLE} setup.py -q
         egg_info -e ${CMAKE_CURRENT_BINARY_DIR}/temp_egg
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
