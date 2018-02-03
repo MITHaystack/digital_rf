@@ -6,7 +6,7 @@
 .. _GitHub: https://badge.fury.io/gh/MITHaystack%2Fdigital_rf
 
 .. |PyPI| image:: https://badge.fury.io/py/digital-rf.svg
-.. _PyPI: https://badge.fury.io/py/digital-rf
+.. _PyPI: https://pypi.python.org/pypi/digital-rf/
 
 .. |Conda| image:: https://anaconda.org/ryanvolz/digital_rf/badges/version.svg
 .. _Conda: https://anaconda.org/ryanvolz/digital_rf
@@ -74,7 +74,7 @@ Additional optional runtime dependencies:
 Installation
 ============
 
-If you're just getting started with Digital RF, we recommend using the Python package. The easiest way to install it is through `PyPI <https://pypi.python.org/pypi/digital-rf/>`_ with `pip`::
+If you're just getting started with Digital RF, we recommend using the Python package. The easiest way to install it is through PyPI_ with `pip`::
 
     pip install digital_rf
 
@@ -119,7 +119,7 @@ The toolbox package will then be found at `build/matlab/digital_rf.mltbx`.
 Using Conda package
 -------------------
 
-Alternatively, you can install digital_rf using our `Conda <https://conda.io/docs/>`_ binary package. Our package is compatible with the `conda-forge <https://conda-forge.github.io/>`_ distribution of community-maintained packages.
+Alternatively, you can install digital_rf using our Conda_ binary package. Our package is compatible with the `conda-forge <https://conda-forge.github.io/>`_ distribution of community-maintained packages.
 
 In an existing Conda environment, run the following to install digital_rf and its dependencies::
 
