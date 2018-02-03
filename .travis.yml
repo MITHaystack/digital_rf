@@ -9,8 +9,6 @@ stages:
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -qq cmake libhdf5-dev
-
-install:
   - pip install -r python/dev_requirements.txt
 
 script:
