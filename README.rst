@@ -1,3 +1,19 @@
+.. -*- mode: rst -*-
+
+|GitHub|_ |PyPI|_ |Conda|_ |Travis|_
+
+.. |GitHub| image:: https://badge.fury.io/gh/MITHaystack%2Fdigital_rf.svg
+.. _GitHub: https://badge.fury.io/gh/MITHaystack%2Fdigital_rf
+
+.. |PyPI| image:: https://badge.fury.io/py/digital-rf.svg
+.. _PyPI: https://badge.fury.io/py/digital-rf
+
+.. |Conda| image:: https://anaconda.org/ryanvolz/digital_rf/badges/version.svg
+.. _Conda: https://anaconda.org/ryanvolz/digital_rf
+
+.. |Travis| image:: https://travis-ci.org/MITHaystack/digital_rf.svg?branch=master
+.. _Travis: https://travis-ci.org/MITHaystack/digital_rf
+
 |DigitalRF|
 ===========
 
