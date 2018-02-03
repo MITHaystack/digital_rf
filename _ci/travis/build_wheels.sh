@@ -9,7 +9,7 @@ yum install -y hdf5-devel
 # Compile wheels
 for PYBIN in /opt/python/*/bin; do
     "${PYBIN}/pip" install -r /io/python/dev_requirements.txt
-    "${PYBIN}/pip" wheel -w wheelhouse/ /io/build/python/dist/*
+    "${PYBIN}/pip" wheel -w wheelhouse/ /io/python/build
 done
 
 # Bundle external shared libraries into the wheels
