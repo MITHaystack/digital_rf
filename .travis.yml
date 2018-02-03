@@ -7,7 +7,7 @@ env:
     - CIBW_SKIP="cp33-* cp34-* cp35-* cp36-*"
     - CIBW_ENVIRONMENT_LINUX="CFLAGS='-std=c99'"
     - CIBW_BEFORE_BUILD_LINUX="yum install -y hdf5-devel && {pip} install ."
-    - CIBW_BEFORE_BUILD_MACOS="{pip} install ."
+    - CIBW_BEFORE_BUILD_MACOS="{pip} install python/build"
     # Note: TWINE_USERNAME and TWINE_PASSWORD are set in Travis settings
 
 stages:
@@ -40,6 +40,8 @@ jobs:
         - brew cask uninstall oclint
         - brew install hdf5
         - pip install -r python/dev_requirements.txt
+    - allow_failures:
+      - os: osx
 
 # install dependencies for test and linux wheel prep
 before_install:
