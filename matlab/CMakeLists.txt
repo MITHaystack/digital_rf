@@ -14,9 +14,9 @@ project(digital_rf_matlab LANGUAGES NONE VERSION ${digital_rf_matlab_VERSION})
 option(ENABLE_MATLAB "Enable target for Digital RF Toolbox for MATLAB." ON)
 
 if(${ENABLE_MATLAB})
-    if(${WIN32} OR ${APPLE})
+    if(WIN32 OR APPLE)
         find_package(Matlab COMPONENTS MAIN_PROGRAM)
-    else(${WIN32} OR ${APPLE})
+    else(WIN32 OR APPLE)
         # shortcut to just find binary (which is what FindMatlab does anyway)
         # so we don't wait on calling matlab to get its version
         find_program(Matlab_MAIN_PROGRAM
@@ -28,7 +28,7 @@ if(${ENABLE_MATLAB})
         else(Matlab_MAIN_PROGRAM)
             set(Matlab_FOUND FALSE)
         endif(Matlab_MAIN_PROGRAM)
-    endif(${WIN32} OR ${APPLE})
+    endif(WIN32 OR APPLE)
     if(NOT ${Matlab_FOUND})
         set(ENABLE_MATLAB OFF CACHE BOOL "MATLAB not found" FORCE)
         message(STATUS "\
