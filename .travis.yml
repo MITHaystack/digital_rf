@@ -2,36 +2,15 @@ language: python
 
 python: "2.7"
 
-env:
-  global:
-    - CIBW_SKIP="cp33-* cp34-* cp35-* cp36-*"
-    - CIBW_ENVIRONMENT_LINUX="CFLAGS='-std=c99'"
-    - CIBW_BEFORE_BUILD_LINUX="yum install -y hdf5-devel && {pip} install ."
-    - CIBW_BEFORE_BUILD_MACOS="{pip} install python/build"
-    # Note: TWINE_USERNAME and TWINE_PASSWORD are set in Travis settings
-
-stages:
-  - test
-  - wheel
-
-jobs:
+matrix:
   fast_finish: true
   include:
-    - stage: test
-      script:
-        - _ci/build.sh && _ci/test.sh && _ci/prepare_digital_rf_python.sh
-      deploy:
-        provider: script
-        script: _ci/pypi_upload.sh python/build/dist/*
-        skip_cleanup: true
-        on:
-          tags: true
-    - stage: wheel
-      sudo: required
-      services:
-        - docker
-    - stage: wheel
-      os: osx
+    - os: linux
+      before_install:
+        - sudo apt-get update -qq
+        - sudo apt-get install -qq cmake libhdf5-dev
+        - pip install -r python/dev_requirements.txt
+    - os: osx
       language: generic
       before_install:
         # because osx image lacks python support, make virtualenv manually
@@ -42,23 +21,9 @@ jobs:
         - brew install hdf5
         - pip install -r python/dev_requirements.txt
 
-# install dependencies for test and linux wheel prep
-before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -qq cmake libhdf5-dev
-  - pip install -r python/dev_requirements.txt
+install:
+  - _ci/build.sh
 
-# script to follow for wheel jobs, test script overridden above
 script:
-  - _ci/prepare_digital_rf_python.sh
-  - pip install cibuildwheel==0.7.0
-  - cibuildwheel --output-dir wheelhouse python/build
-  - ls wheelhouse/*.whl
+  - _ci/test.sh
 
-# deployment for wheel jobs, test deploy overridden above
-deploy:
-  provider: script
-  script: _ci/pypi_upload.sh wheelhouse/*.whl
-  skip_cleanup: true
-  on:
-    tags: true
