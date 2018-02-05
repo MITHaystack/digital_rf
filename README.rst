@@ -67,8 +67,11 @@ Additional optional runtime dependencies:
 
 * gnuradio (``gnuradio``) [python:gr_digital_rf]
 * gr-uhd (``libgnuradio-uhd``) [python:thor]
-* python-sounddevice (``pip install sounddevice``) [python:drf_sound]
-* watchdog (``python-watchdog``) [python:watchdog]
+* matplotlib (``python-matplotlib``) [python:tools]
+* pandas (``python-pandas``) [python:digital_metadata]
+* python-sounddevice (``pip install sounddevice``) [python:tools]
+* scipy (``python-scipy``) [python:tools]
+* watchdog (``python-watchdog``) [python:mirror,ringbuffer,watchdog]
 
 
 Installation
