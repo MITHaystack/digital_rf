@@ -1,0 +1,80 @@
+{% set rev = "master" %}
+
+package:
+  name: digital_rf
+  version: {{ GIT_DESCRIBE_TAG }}+{{ GIT_DESCRIBE_NUMBER }}.{{ GIT_DESCRIBE_HASH[:8] }}
+
+source:
+  git_url: ../../
+  git_rev: {{ rev }}
+
+build:
+  number: 0
+  skip: True  # [win]
+  detect_binary_files_with_prefix: True
+
+requirements:
+  build:
+    - cheetah
+    - cmake >=3.0
+    - hdf5 1.8.18|1.8.18.*
+    - numpy 1.8.*
+    - pkgconfig
+    - python >=2.7,<3
+    - setuptools
+    - toolchain
+  run:
+    - dateutil
+    - gnuradio
+    - h5py
+    - hdf5 1.8.18|1.8.18.*
+    - matplotlib
+    - numpy >=1.8
+    - packaging
+    - pandas
+    - python >=2.7,<3
+    - pytz
+    - scipy
+    - watchdog
+
+test:
+  imports:
+    - digital_rf
+    - digital_rf.digital_rf_hdf5
+    - gr_digital_rf
+  source_files:
+    - python/tests/*.py
+    - python/examples/*.py
+  commands:
+    - python python/tests/test_digital_rf_hdf5.py
+    - rm -r /tmp/hdf5*
+    - python python/examples/example_write_digital_metadata.py
+    - python python/examples/example_read_digital_metadata.py
+    - rm -r /tmp/test_metadata/
+
+about:
+  home: https://github.com/MITHaystack/digital_rf
+  license: BSD
+  license_file: LICENSE
+  summary: 'Work with data in the Digital RF and Digital Metadata formats.'
+  description: |
+    The Digital RF project encompasses a standardized HDF5 format for reading
+    and writing of radio frequency data and the software for doing so. The
+    format is designed to be self-documenting for data archive and to allow
+    rapid random access for data processing. For details on the format, refer
+    to the documentation.
+
+    This suite of software includes libraries for reading and writing data in
+    the Digital RF HDF5 format in C (``libdigital_rf``), Python
+    (``digital_rf``) with blocks for GNU Radio (``gr_digital_rf``), and
+    MATLAB. It also contains the `thor` UHD radio recorder script, Python
+    tools for managing and processing Digital RF data, example scripts that
+    demonstrate basic usage, and example applications that encompass a
+    complete data recording and processing chain for various use cases.
+
+  doc_url: https://github.com/MITHaystack/digital_rf/tree/master/docs
+  dev_url: https://github.com/MITHaystack/digital_rf
+
+extra:
+  recipe-maintainers:
+    - ryanvolz
