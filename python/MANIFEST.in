@@ -16,3 +16,6 @@ include grc/gr_digital_rf_digital_rf_channel_sink.xml
 include grc/gr_digital_rf_digital_rf_channel_source.xml
 include grc/gr_digital_rf_digital_rf_sink.xml
 include grc/gr_digital_rf_digital_rf_source.xml
+# versioneer
+include versioneer.py
+include digital_rf/_version.py

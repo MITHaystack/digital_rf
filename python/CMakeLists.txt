@@ -1,18 +1,23 @@
 cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0048 NEW)
 
-# get the package version from _version.py
-file(READ digital_rf/_version.py VERSION_PY)
+find_package(PythonInterp REQUIRED)
+
+# get the package version from setup.py
+execute_process(
+    COMMAND ${PYTHON_EXECUTABLE} setup.py --version
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE digital_rf_FULLVERSION
+    ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE
+)
 string(REGEX REPLACE
-    ".*__version__ = ['\"]([0-9]+\\.[0-9]+\\.[0-9]+)[\\.a-z0-9]*['\"].*" "\\1"
-    digital_rf_VERSION ${VERSION_PY}
+    "([0-9]+\\.[0-9]+\\.[0-9]+)[\\.a-z0-9]*\\+.*" "\\1"
+    digital_rf_VERSION ${digital_rf_FULLVERSION}
 )
 
 project(digital_rf LANGUAGES C VERSION ${digital_rf_VERSION})
 
 include(GNUInstallDirs)
-
-find_package(PythonInterp REQUIRED)
 
 # variable to allow for different install location for python package
 set(DRF_INSTALL_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX}

@@ -1,8 +1,5 @@
 """Digital RF Python package."""
-try:
-    from ._version import __version__
-except ImportError:
-    __version__ = None
+
 from .digital_metadata import *
 from .digital_rf_hdf5 import *
 from . import list_drf
@@ -15,3 +12,7 @@ try:
 except ImportError:
     # if no watchdog package, these fail to import, so just ignore
     pass
+
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions

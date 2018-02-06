@@ -16,6 +16,8 @@ from codecs import open
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext as _build_ext
 
+import versioneer
+
 
 def localpath(*args):
     return os.path.abspath(os.path.join(os.path.dirname(__file__), *args))
@@ -24,11 +26,6 @@ def localpath(*args):
 # Get the long description from the README file
 with open(localpath('README.rst'), encoding='utf-8') as f:
     long_description = f.read()
-
-# read __version__ variable by exec-ing python/_version.py
-version = {}
-with open(localpath('digital_rf', '_version.py')) as fp:
-    exec(fp.read(), version)
 
 
 # subclass build_ext so we only add build settings for dependencies
@@ -103,9 +100,12 @@ class build_ext(_build_ext):
         _build_ext.run(self)
 
 
+cmdclass = versioneer.get_cmdclass()
+cmdclass.update(build_ext=build_ext)
+
 setup(
     name='digital_rf',
-    version=version['__version__'],
+    version=versioneer.get_version(),
     description='Python tools to read/write Digital RF data in HDF5 format',
     long_description=long_description,
 
@@ -155,7 +155,7 @@ setup(
             sources=['lib/py_rf_write_hdf5.c', 'lib/rf_write_hdf5.c'],
             include_dirs=[localpath('include')],
             library_dirs=[],
-            libraries=['m'] if not sys.platform.startswith('win') else []
+            libraries=['m'] if not sys.platform.startswith('win') else [],
         ),
     ],
     entry_points={
@@ -173,7 +173,5 @@ setup(
         'tools/verify_digital_rf_upconvert.py',
     ],
 
-    cmdclass={
-        'build_ext': build_ext,
-    },
+    cmdclass=cmdclass,
 )

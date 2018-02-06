@@ -42,7 +42,9 @@ from six.moves import zip
 
 # local imports
 from . import list_drf
-from ._version import __version__
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions
 
 __all__ = (
     'DigitalMetadataReader', 'DigitalMetadataWriter',
