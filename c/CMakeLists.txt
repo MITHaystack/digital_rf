@@ -30,6 +30,7 @@ ELSE(UNIX)
 ENDIF(UNIX)
 
 find_package(HDF5 REQUIRED)
+message(STATUS "HDF5_INCLUDE_DIRS=${HDF5_INCLUDE_DIRS}")
 # make each of the HDF5_LIBRARIES (HDF5 and what it linked against)
 # an imported target
 foreach(LIB IN LISTS HDF5_LIBRARIES)
@@ -38,14 +39,15 @@ foreach(LIB IN LISTS HDF5_LIBRARIES)
     # strip leading lib (if it exists) to get target name
     string(REGEX REPLACE "^lib(.*)" "\\1" TGT ${LIBNAME})
     add_library(digital_rf::${TGT} SHARED IMPORTED GLOBAL)
-    message(STATUS "set_target_properties digital_rf::${TGT} ${LIB}")
     set_target_properties(digital_rf::${TGT} PROPERTIES
         IMPORTED_LOCATION ${LIB}
     )
     if(${TGT} STREQUAL "hdf5")
-        set_target_properties(digital_rf::${TGT} PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS}
-        )
+        if(HDF5_INCLUDE_DIRS)
+            set_target_properties(digital_rf::${TGT} PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS}
+            )
+        endif(HDF5_INCLUDE_DIRS)
     endif(${TGT} STREQUAL "hdf5")
 endforeach(LIB)
 

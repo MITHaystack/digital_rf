@@ -13,9 +13,11 @@ foreach(LIB IN LISTS HDF5_LIBRARIES)
         IMPORTED_LOCATION ${LIB}
     )
     if(${TGT} STREQUAL "hdf5")
-        set_target_properties(digital_rf::${TGT} PROPERTIES
-            INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS}
-        )
+        if(HDF5_INCLUDE_DIRS)
+            set_target_properties(digital_rf::${TGT} PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS}
+            )
+        endif(HDF5_INCLUDE_DIRS)
     endif(${TGT} STREQUAL "hdf5")
 endforeach(LIB)
 
