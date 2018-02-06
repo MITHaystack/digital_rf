@@ -30,19 +30,23 @@ ELSE(UNIX)
 ENDIF(UNIX)
 
 find_package(HDF5 REQUIRED)
-# need the dirs to explicitly find just the 'hdf5' library
-set(HDF5_LIBRARY_DIRS)
+# make each of the HDF5_LIBRARIES (HDF5 and what it linked against)
+# an imported target
 foreach(LIB IN LISTS HDF5_LIBRARIES)
-    get_filename_component(LIBDIR ${LIB} DIRECTORY)
-    list(APPEND HDF5_LIBRARY_DIRS ${LIBDIR})
+    # name of library file with directory and extension stripped
+    get_filename_component(LIBNAME ${LIB} NAME_WE)
+    # strip leading lib (if it exists) to get target name
+    string(REGEX REPLACE "^lib(.*)" "\\1" TGT ${LIBNAME})
+    add_library(digital_rf::${TGT} SHARED IMPORTED GLOBAL)
+    set_target_properties(digital_rf::${TGT} PROPERTIES
+        IMPORTED_LOCATION ${LIB}
+    )
+    if(${TGT} STREQUAL "hdf5")
+        set_target_properties(digital_rf::${TGT} PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS}
+        )
+    endif(${TGT} STREQUAL "hdf5")
 endforeach(LIB)
-list(REMOVE_DUPLICATES HDF5_LIBRARY_DIRS)
-find_library(HDF5_LIBRARY hdf5 HINTS ${HDF5_LIBRARY_DIRS})
-add_library(digital_rf::hdf5 SHARED IMPORTED GLOBAL)
-set_target_properties(digital_rf::hdf5 PROPERTIES
-    IMPORTED_LOCATION ${HDF5_LIBRARY}
-    INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS}
-)
 
 # build/install libdigital_rf
 configure_file(include/digital_rf.h include/digital_rf.h COPYONLY)
