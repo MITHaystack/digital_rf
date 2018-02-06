@@ -42,13 +42,11 @@ foreach(LIB IN LISTS HDF5_LIBRARIES)
     set_target_properties(digital_rf::${TGT} PROPERTIES
         IMPORTED_LOCATION ${LIB}
     )
-    if(${TGT} STREQUAL "hdf5")
-        if(HDF5_INCLUDE_DIRS)
-            set_target_properties(digital_rf::${TGT} PROPERTIES
-                INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS}
-            )
-        endif(HDF5_INCLUDE_DIRS)
-    endif(${TGT} STREQUAL "hdf5")
+    if(HDF5_INCLUDE_DIRS)
+        set_property(TARGET digital_rf::${TGT} APPEND PROPERTY
+            INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS}
+        )
+    endif(HDF5_INCLUDE_DIRS)
 endforeach(LIB)
 
 # build/install libdigital_rf
