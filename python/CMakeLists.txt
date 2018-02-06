@@ -11,7 +11,7 @@ execute_process(
     ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 string(REGEX REPLACE
-    "([0-9]+\\.[0-9]+\\.[0-9]+)[\\.a-z0-9]*\\+.*" "\\1"
+    "([0-9]+\\.[0-9]+\\.[0-9]+)[\\.a-z0-9]*\\+*.*" "\\1"
     digital_rf_VERSION ${digital_rf_FULLVERSION}
 )
 
