@@ -155,7 +155,7 @@ setup(
             sources=['lib/py_rf_write_hdf5.c', 'lib/rf_write_hdf5.c'],
             include_dirs=[localpath('include')],
             library_dirs=[],
-            libraries=[]
+            libraries=['m'] if not sys.platform.startswith('win') else []
         ),
     ],
     entry_points={
