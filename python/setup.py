@@ -131,8 +131,8 @@ setup(
     keywords='hdf5 radio rf',
 
     install_requires=[
-        'h5py', 'numpy', 'packaging', 'python-dateutil', 'pytz', 'six',
-        'sounddevice', 'watchdog',
+        'h5py', 'matplotlib', 'numpy', 'packaging', 'pandas',
+        'python-dateutil', 'pytz', 'scipy', 'six', 'sounddevice', 'watchdog',
     ],
     setup_requires=['numpy', 'pkgconfig'],
 
