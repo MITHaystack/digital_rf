@@ -38,6 +38,7 @@ foreach(LIB IN LISTS HDF5_LIBRARIES)
     # strip leading lib (if it exists) to get target name
     string(REGEX REPLACE "^lib(.*)" "\\1" TGT ${LIBNAME})
     add_library(digital_rf::${TGT} SHARED IMPORTED GLOBAL)
+    message(STATUS "set_target_properties digital_rf::${TGT} ${LIB}")
     set_target_properties(digital_rf::${TGT} PROPERTIES
         IMPORTED_LOCATION ${LIB}
     )
