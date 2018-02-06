@@ -141,7 +141,7 @@ setup(
         'plot': ['matplotlib', 'scipy'],
         'sound': ['sounddevice'],
         'test': [],
-    }
+    },
 
     packages=[
         'digital_rf',
