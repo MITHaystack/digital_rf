@@ -7,5 +7,8 @@ cd build
 cmake ..
 make
 
-# install python digital_rf, gr_digital_rf into virtual environment
+# make python source distribution (for upload to PyPI)
+make digital_rf_sdist
+
+# install python package into virtual environment for testing
 python -m pip install python/
