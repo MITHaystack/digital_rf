@@ -30,7 +30,6 @@ ELSE(UNIX)
 ENDIF(UNIX)
 
 find_package(HDF5 REQUIRED)
-message(STATUS "HDF5_INCLUDE_DIRS=${HDF5_INCLUDE_DIRS}")
 # make each of the HDF5_LIBRARIES (HDF5 and what it linked against)
 # an imported target
 foreach(LIB IN LISTS HDF5_LIBRARIES)
