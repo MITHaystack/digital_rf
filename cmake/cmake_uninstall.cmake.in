@@ -11,19 +11,24 @@ endif(NOT EXISTS "${manifest_file}")
 file(READ "${manifest_file}" files)
 string(REGEX REPLACE "\n" ";" files "${files}")
 foreach(file ${files})
-  message(STATUS "Uninstalling $ENV{DESTDIR}${file}")
-  if(IS_SYMLINK "$ENV{DESTDIR}${file}" OR EXISTS "$ENV{DESTDIR}${file}")
+  # transform relative paths to absolute paths with default root (workaround
+  # for the way setup.py install uses relative paths when --root is set)
+  get_filename_component(fullfile ${file} ABSOLUTE BASE_DIR /)
+  # add destdir if specified
+  get_filename_component(fullfile $ENV{DESTDIR}${fullfile} ABSOLUTE)
+  message(STATUS "Uninstalling ${fullfile}")
+  if(IS_SYMLINK "${fullfile}" OR EXISTS "${fullfile}")
     exec_program(
-      "@CMAKE_COMMAND@" ARGS "-E remove \"$ENV{DESTDIR}${file}\""
+      "@CMAKE_COMMAND@" ARGS "-E remove \"${fullfile}\""
       OUTPUT_VARIABLE rm_out
       RETURN_VALUE rm_retval
       )
     if(NOT "${rm_retval}" STREQUAL 0)
-      message(FATAL_ERROR "Problem when removing $ENV{DESTDIR}${file}")
+      message(FATAL_ERROR "Problem when removing ${fullfile}")
     endif(NOT "${rm_retval}" STREQUAL 0)
-  else(IS_SYMLINK "$ENV{DESTDIR}${file}" OR EXISTS "$ENV{DESTDIR}${file}")
-    message(STATUS "File $ENV{DESTDIR}${file} does not exist.")
-  endif(IS_SYMLINK "$ENV{DESTDIR}${file}" OR EXISTS "$ENV{DESTDIR}${file}")
+  else(IS_SYMLINK "${fullfile}" OR EXISTS "${fullfile}")
+    message(STATUS "File ${fullfile} does not exist.")
+  endif(IS_SYMLINK "${fullfile}" OR EXISTS "${fullfile}")
 endforeach(file)
 
 endforeach(manifest_file)

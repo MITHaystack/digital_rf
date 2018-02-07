@@ -98,8 +98,9 @@ add_custom_target(digital_rf_wheel
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
 install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py install\
- --prefix ${DRF_INSTALL_PREFIX_PYTHON} --single-version-externally-managed\
- --record ${CMAKE_CURRENT_BINARY_DIR}/install_${PROJECT_NAME}_manifest.txt\
+ --prefix=${DRF_INSTALL_PREFIX_PYTHON} --root=\$ENV{DESTDIR}/\
+ --single-version-externally-managed\
+ --record=${CMAKE_CURRENT_BINARY_DIR}/install_${PROJECT_NAME}_manifest.txt\
  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})\
 ")
 
