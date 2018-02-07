@@ -9,7 +9,6 @@
 """Setup file for the digital_rf package."""
 import os
 import sys
-import warnings
 # to use a consistent encoding
 from codecs import open
 
@@ -73,22 +72,24 @@ class build_ext(_build_ext):
             try:
                 import pkgconfig
             except ImportError:
-                warnings.warn(
-                    'python-pkgconfig not installed and HDF5_ROOT not'
-                    ' specified, using default include and library path for'
-                    ' HDF5'
+                infostr = (
+                    'setup.py: python-pkgconfig not installed and HDF5_ROOT'
+                    ' not specified, using default include and library path'
+                    ' for HDF5'
                 )
+                print(infostr)
             else:
                 if pkgconfig.exists('hdf5'):
                     hdf5_pkgconfig = pkgconfig.parse('hdf5')
                     for k in ('include_dirs', 'library_dirs', 'libraries'):
                         hdf5_config[k] = list(hdf5_pkgconfig[k])
                 else:
-                    warnings.warn(
-                        'pkgconfig cannot find HDF5 and HDF5_ROOT not'
-                        ' specified, using default include and library path'
-                        ' for HDF5'
+                    infostr = (
+                        'setup.py: pkgconfig cannot find HDF5 and HDF5_ROOT'
+                        ' not specified, using default include and library'
+                        ' path for HDF5'
                     )
+                    print(infostr)
 
         # update extension settings
         for c in (np_config, hdf5_config):
