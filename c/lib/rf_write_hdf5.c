@@ -18,7 +18,6 @@
 */
 
 #ifdef _WIN32
-#  define _CRT_SECURE_NO_WARNINGS 1
 #  include "wincompat.h"
 #else
 #  include <unistd.h>

@@ -34,6 +34,11 @@ These may be OR'd together.  */
 #define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
 #endif
 
+/* prevent warnings as with _CRT_SECURE_NO_WARNINGS */
+#ifdef _MSC_VER
+#pragma warning (disable: 4996)
+#endif
+
 #if defined(_MSC_VER) && _MSC_VER < 1900
 
 #define snprintf c99_snprintf
