@@ -25,16 +25,24 @@ set(DRF_INSTALL_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX}
     "Installation prefix for python package, defaults to CMAKE_INSTALL_PREFIX"
 )
 
-# use CMake to find HDF5 and provide HDF5_ROOT to setup.py
-if(NOT HDF5_FOUND)
-    find_package(HDF5 REQUIRED)
-endif(NOT HDF5_FOUND)
-foreach(INCLUDE_DIR ${HDF5_INCLUDE_DIRS})
-	# get HDF5_ROOT from first include dir (if more than one)
-	get_filename_component(HDF5_ROOT ${INCLUDE_DIR} DIRECTORY)
-	break()
-endforeach(INCLUDE_DIR)
-file(TO_NATIVE_PATH ${HDF5_ROOT} HDF5_ROOT)
+# get compiler settings for digital_rf interface libraries (i.e. HDF5)
+# to pass to setup.py
+if(NOT TARGET digital_rf::digital_rf)
+    find_package(libdigital_rf REQUIRED)
+endif(NOT TARGET digital_rf::digital_rf)
+get_target_property(HDF5_LINK_LIBS
+    digital_rf::digital_rf INTERFACE_LINK_LIBRARIES
+)
+set(HDF5_INCLUDE_DIRS)
+foreach(LTGT ${HDF5_LINK_LIBS})
+    list(APPEND HDF5_INCLUDE_DIRS $<TARGET_PROPERTY:${LTGT},INTERFACE_INCLUDE_DIRECTORIES>)
+    list(APPEND HDF5_LIBRARY_DIRS $<TARGET_LINKER_FILE_DIR:${LTGT}>)
+    list(APPEND HDF5_LIBRARIES :$<TARGET_LINKER_FILE_NAME:${LTGT}>)
+endforeach(LTGT)
+# make the lists still be semicolon-separated after generator expansion
+STRING(REGEX REPLACE ";" "\\\\;" HDF5_INCLUDE_DIRS "${HDF5_INCLUDE_DIRS}")
+STRING(REGEX REPLACE ";" "\\\\;" HDF5_LIBRARY_DIRS "${HDF5_LIBRARY_DIRS}")
+STRING(REGEX REPLACE ";" "\\\\;" HDF5_LIBRARIES "${HDF5_LIBRARIES}")
 
 # copy files from root directory that we want in the python package
 set(ROOT_SRCS AUTHORS CHANGES LICENSE)
@@ -93,7 +101,9 @@ add_dependencies(digital_rf_sdist gr_digital_rf_grc_xml_blocks)
 set(PYBUILD_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/build)
 add_custom_command(
     OUTPUT ${PYBUILD_OUTPUT}
-    COMMAND ${CMAKE_COMMAND} -E env HDF5_ROOT=${HDF5_ROOT}
+    COMMAND ${CMAKE_COMMAND} -E env HDF5_INCLUDE_DIRS="${HDF5_INCLUDE_DIRS}"
+        HDF5_LIBRARY_DIRS="${HDF5_LIBRARY_DIRS}"
+        HDF5_LIBRARIES="${HDF5_LIBRARIES}"
 		${PYTHON_EXECUTABLE} setup.py build
     COMMAND ${PYTHON_EXECUTABLE} setup.py egg_info
     COMMAND ${CMAKE_COMMAND} -E touch ${PYBUILD_OUTPUT}

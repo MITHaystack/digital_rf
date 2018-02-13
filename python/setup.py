@@ -46,9 +46,10 @@ class build_ext(_build_ext):
         )
 
         # get hdf5 settings for extension (importing pkgconfig)
+        HDF5_ROOT = os.getenv('HDF5_ROOT', sys.prefix)
         hdf5_config = dict(
-            include_dirs=[os.path.join(sys.prefix, 'include')],
-            library_dirs=[os.path.join(sys.prefix, 'lib')],
+            include_dirs=[os.path.join(HDF5_ROOT, 'include')],
+            library_dirs=[os.path.join(HDF5_ROOT, 'lib')],
             libraries=['hdf5'],
             define=[],
         )
@@ -68,46 +69,56 @@ class build_ext(_build_ext):
                 '/usr/local/lib',
                 '/usr/lib',
             ])
-        HDF5_ROOT = os.getenv('HDF5_ROOT', None)
-        if HDF5_ROOT is not None:
-            # use specified HDF5_ROOT if available (as environment variable)
-            hdf5_config['include_dirs'] = [os.path.join(HDF5_ROOT, 'include')]
-            hdf5_config['library_dirs'] = [os.path.join(HDF5_ROOT, 'lib')]
+        # try pkg-config to override default settings
+        try:
+            import pkgconfig
+        except ImportError:
+            infostr = (
+                'INFO: python-pkgconfig not installed. Defaulting to'
+                ' HDF5_ROOT="{0}"'
+            )
+            print(infostr.format(HDF5_ROOT))
         else:
-            # try pkg-config
             try:
-                import pkgconfig
-            except ImportError:
+                hdf5_exists = pkgconfig.exists('hdf5')
+            except EnvironmentError:
                 infostr = (
-                    'setup.py: python-pkgconfig not installed and HDF5_ROOT'
-                    ' not specified, using default include and library path'
-                    ' for HDF5'
+                    'INFO: pkg-config not installed. Defaulting to'
+                    ' HDF5_ROOT="{0}"'
                 )
-                print(infostr)
+                print(infostr.format(HDF5_ROOT))
             else:
-                try:
-                    hdf5_exists = pkgconfig.exists('hdf5')
-                except EnvironmentError:
-                    infostr = (
-                        'setup.py: pkg-config not installed and HDF5_ROOT'
-                        ' not specified, using default include and library'
-                        ' path for HDF5'
-                    )
-                    print(infostr)
+                if hdf5_exists:
+                    hdf5_pkgconfig = pkgconfig.parse('hdf5')
+                    for k in (
+                        'include_dirs', 'library_dirs', 'libraries',
+                    ):
+                        hdf5_config[k] = list(hdf5_pkgconfig[k])
                 else:
-                    if hdf5_exists:
-                        hdf5_pkgconfig = pkgconfig.parse('hdf5')
-                        for k in (
-                            'include_dirs', 'library_dirs', 'libraries',
-                        ):
-                            hdf5_config[k] = list(hdf5_pkgconfig[k])
-                    else:
-                        infostr = (
-                            'setup.py: pkgconfig cannot find HDF5 and'
-                            ' HDF5_ROOT not specified, using default'
-                            ' include and library path for HDF5'
-                        )
-                        print(infostr)
+                    infostr = (
+                        'INFO: pkgconfig cannot find HDF5. Defaulting to'
+                        ' HDF5_ROOT="{0}"'
+                    )
+                    print(infostr.format(HDF5_ROOT))
+        # use environment variables to override discovered settings
+        hdf5_env_config = dict(
+            include_dirs='HDF5_INCLUDE_DIRS',
+            library_dirs='HDF5_LIBRARY_DIRS',
+            libraries='HDF5_LIBRARIES',
+            define='HDF5_DEFINE',
+        )
+        for k, e in hdf5_env_config.items():
+            env_val = os.getenv(e, None)
+            if env_val is not None:
+                val_list = filter(None, env_val.split(';'))
+                used = set()
+                val_list = [
+                    v for v in val_list
+                    if v not in used and (used.add(v) or True)
+                ]
+                # update hdf5_config
+                hdf5_config[k] = val_list
+                print('INFO: {0}={1}'.format(e, val_list))
 
         # update extension settings
         for c in (np_config, hdf5_config):
