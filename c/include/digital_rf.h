@@ -48,6 +48,16 @@
 
 #include "digital_rf_version.h"
 
+#ifdef _WIN32
+#  ifdef digital_rf_EXPORTS
+#    define EXPORT __declspec(dllexport)
+#  else
+#    define EXPORT __declspec(dllimport)
+#  endif
+#else
+#  define EXPORT
+#endif
+
 /* string sizes */
 #define SMALL_HDF5_STR 265
 #define MED_HDF5_STR 512
@@ -79,7 +89,7 @@ typedef struct digital_rf_write_object {
 	uint64_t   max_chunk_size;          /* smallest possible value for maximum number of samples in a file = floor((file_cadence_millisecs/1000)*sample_rate) */
 	int        is_continuous;           /* 1 if continuous data being written, 0 if there might be gaps */
 	int        needs_chunking;  		/* 1 if /rf_data needs chunking (either not is_continuous or compression or checksums used) */
-	int        chunk_size;      		/* With Digital RF 2.0 hard coded to CHUNK_SIZE_RF_DATA */
+	hsize_t    chunk_size;      		/* With Digital RF 2.0 hard coded to CHUNK_SIZE_RF_DATA */
 	hid_t      dtype_id;        		/* individual field data type as defined by hdf5.h */
 	hid_t      complex_dtype_id;        /* complex compound data type if is_complex, with fields r and i */
 	uint64_t   global_index;    		/* index into the next sample that could be written (global) */
@@ -106,36 +116,39 @@ typedef struct digital_rf_write_object {
 /* Public method declarations */
 
 
-int digital_rf_write_blocks_hdf5(Digital_rf_write_object *hdf5_data_object, uint64_t * global_index_arr, uint64_t * data_index_arr,
-		                         uint64_t index_len, void * vector, uint64_t vector_length);
+EXPORT int digital_rf_write_blocks_hdf5(
+	Digital_rf_write_object *hdf5_data_object, uint64_t * global_index_arr, uint64_t * data_index_arr,
+	uint64_t index_len, void * vector, uint64_t vector_length
+);
 
 
 #ifdef __cplusplus
-	extern "C" int digital_rf_get_unix_time(uint64_t, long double, int*, int*, int*,
-											int*, int*, int*, uint64_t*);
-	extern "C" Digital_rf_write_object * digital_rf_create_write_hdf5(char*, hid_t, uint64_t, uint64_t, uint64_t,
-														uint64_t, uint64_t, char *, int, int, int, int, int, int);
-	extern "C" int digital_rf_write_hdf5(Digital_rf_write_object*, uint64_t, void*,uint64_t);
-	extern "C" char * digital_rf_get_last_file_written(Digital_rf_write_object *);
-	extern "C" char * digital_rf_get_last_dir_written(Digital_rf_write_object *);
-	extern "C" uint64_t digital_rf_get_last_write_time(Digital_rf_write_object *);
-	extern "C" int digital_rf_close_write_hdf5(Digital_rf_write_object*);
+	extern "C" EXPORT int digital_rf_get_unix_time(
+		uint64_t, long double, int*, int*, int*, int*, int*, int*, uint64_t*);
+	extern "C" EXPORT Digital_rf_write_object * digital_rf_create_write_hdf5(
+		char*, hid_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, char *, int, int, int, int, int, int);
+	extern "C" EXPORT int digital_rf_write_hdf5(Digital_rf_write_object*, uint64_t, void*,uint64_t);
+	extern "C" EXPORT char * digital_rf_get_last_file_written(Digital_rf_write_object *);
+	extern "C" EXPORT char * digital_rf_get_last_dir_written(Digital_rf_write_object *);
+	extern "C" EXPORT uint64_t digital_rf_get_last_write_time(Digital_rf_write_object *);
+	extern "C" EXPORT int digital_rf_close_write_hdf5(Digital_rf_write_object*);
 
 #else
-	int digital_rf_get_unix_time(uint64_t global_sample, long double sample_rate, int * year, int * month, int *day,
-								 int * hour, int * minute, int * second, uint64_t * picosecond);
-	Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t dtype_id, uint64_t subdir_cadence_secs,
-									   	   	   	   	   	   uint64_t file_cadence_millisecs, uint64_t global_start_sample,
-														   uint64_t sample_rate_numerator,
-														   uint64_t sample_rate_denominator, char * uuid_str,
-														   int compression_level, int checksum, int is_complex,
-														   int num_subchannels, int is_continuous, int marching_dots);
-	int digital_rf_write_hdf5(Digital_rf_write_object *hdf5_data_object, uint64_t global_leading_edge_index, void * vector,
+	EXPORT int digital_rf_get_unix_time(uint64_t global_sample, long double sample_rate, int * year, int * month, int *day,
+								        int * hour, int * minute, int * second, uint64_t * picosecond);
+	EXPORT Digital_rf_write_object * digital_rf_create_write_hdf5(
+		char * directory, hid_t dtype_id, uint64_t subdir_cadence_secs,
+		uint64_t file_cadence_millisecs, uint64_t global_start_sample,
+		uint64_t sample_rate_numerator,
+		uint64_t sample_rate_denominator, char * uuid_str,
+		int compression_level, int checksum, int is_complex,
+		int num_subchannels, int is_continuous, int marching_dots);
+	EXPORT int digital_rf_write_hdf5(Digital_rf_write_object *hdf5_data_object, uint64_t global_leading_edge_index, void * vector,
 							  uint64_t vector_length);
-	char * digital_rf_get_last_file_written(Digital_rf_write_object *hdf5_data_object);
-	char * digital_rf_get_last_dir_written(Digital_rf_write_object *hdf5_data_object);
-	uint64_t digital_rf_get_last_write_time(Digital_rf_write_object *hdf5_data_object);
-	int digital_rf_close_write_hdf5(Digital_rf_write_object *hdf5_data_object);
+	EXPORT char * digital_rf_get_last_file_written(Digital_rf_write_object *hdf5_data_object);
+	EXPORT char * digital_rf_get_last_dir_written(Digital_rf_write_object *hdf5_data_object);
+	EXPORT uint64_t digital_rf_get_last_write_time(Digital_rf_write_object *hdf5_data_object);
+	EXPORT int digital_rf_close_write_hdf5(Digital_rf_write_object *hdf5_data_object);
 #endif
 
 /* Private method declarations */

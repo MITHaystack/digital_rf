@@ -25,6 +25,17 @@ set(DRF_INSTALL_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX}
     "Installation prefix for python package, defaults to CMAKE_INSTALL_PREFIX"
 )
 
+# use CMake to find HDF5 and provide HDF5_ROOT to setup.py
+if(NOT HDF5_FOUND)
+    find_package(HDF5 REQUIRED)
+endif(NOT HDF5_FOUND)
+foreach(INCLUDE_DIR ${HDF5_INCLUDE_DIRS})
+	# get HDF5_ROOT from first include dir (if more than one)
+	get_filename_component(HDF5_ROOT ${INCLUDE_DIR} DIRECTORY)
+	break()
+endforeach(INCLUDE_DIR)
+file(TO_NATIVE_PATH ${HDF5_ROOT} HDF5_ROOT)
+
 # copy files from root directory that we want in the python package
 set(ROOT_SRCS AUTHORS CHANGES LICENSE)
 foreach(SRCFILE ${ROOT_SRCS})
@@ -82,7 +93,8 @@ add_dependencies(digital_rf_sdist gr_digital_rf_grc_xml_blocks)
 set(PYBUILD_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/build)
 add_custom_command(
     OUTPUT ${PYBUILD_OUTPUT}
-    COMMAND ${PYTHON_EXECUTABLE} setup.py build
+    COMMAND ${CMAKE_COMMAND} -E env HDF5_ROOT=${HDF5_ROOT}
+		${PYTHON_EXECUTABLE} setup.py build
     COMMAND ${PYTHON_EXECUTABLE} setup.py egg_info
     COMMAND ${CMAKE_COMMAND} -E touch ${PYBUILD_OUTPUT}
     DEPENDS ${PYSOURCES}

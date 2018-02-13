@@ -49,9 +49,15 @@ class build_ext(_build_ext):
         hdf5_config = dict(
             include_dirs=[os.path.join(sys.prefix, 'include')],
             library_dirs=[os.path.join(sys.prefix, 'lib')],
-            libraries=['hdf5']
+            libraries=['hdf5'],
+            define=[],
         )
-        if not sys.platform.startswith('win'):
+        if sys.platform.startswith('win'):
+            hdf5_config['define'].extend([
+                ('_HDF5USEDLL_', None),
+                ('H5_BUILT_AS_DYNAMIC_LIB', None),
+            ])
+        else:
             hdf5_config['include_dirs'].extend([
                 '/opt/local/include',
                 '/usr/local/include',
@@ -79,22 +85,38 @@ class build_ext(_build_ext):
                 )
                 print(infostr)
             else:
-                if pkgconfig.exists('hdf5'):
-                    hdf5_pkgconfig = pkgconfig.parse('hdf5')
-                    for k in ('include_dirs', 'library_dirs', 'libraries'):
-                        hdf5_config[k] = list(hdf5_pkgconfig[k])
-                else:
+                try:
+                    hdf5_exists = pkgconfig.exists('hdf5')
+                except EnvironmentError:
                     infostr = (
-                        'setup.py: pkgconfig cannot find HDF5 and HDF5_ROOT'
+                        'setup.py: pkg-config not installed and HDF5_ROOT'
                         ' not specified, using default include and library'
                         ' path for HDF5'
                     )
                     print(infostr)
+                else:
+                    if hdf5_exists:
+                        hdf5_pkgconfig = pkgconfig.parse('hdf5')
+                        for k in (
+                            'include_dirs', 'library_dirs', 'libraries',
+                        ):
+                            hdf5_config[k] = list(hdf5_pkgconfig[k])
+                    else:
+                        infostr = (
+                            'setup.py: pkgconfig cannot find HDF5 and'
+                            ' HDF5_ROOT not specified, using default'
+                            ' include and library path for HDF5'
+                        )
+                        print(infostr)
 
         # update extension settings
         for c in (np_config, hdf5_config):
             for k, v in c.items():
-                getattr(self, k).extend(v)
+                cur = getattr(self, k)
+                if cur is not None:
+                    cur.extend(v)
+                else:
+                    setattr(self, k, v)
 
     def run(self):
         self._add_build_settings()
@@ -163,9 +185,19 @@ setup(
         Extension(
             name='digital_rf._py_rf_write_hdf5',
             sources=['lib/py_rf_write_hdf5.c', 'lib/rf_write_hdf5.c'],
-            include_dirs=[localpath('include')],
+            include_dirs=filter(None, [
+                localpath('include'),
+                (localpath('include/windows')
+                 if sys.platform.startswith('win') else None),
+            ]),
             library_dirs=[],
-            libraries=['m'] if not sys.platform.startswith('win') else [],
+            libraries=filter(None, [
+                'm' if not sys.platform.startswith('win') else None,
+            ]),
+            define_macros=filter(None, [
+                (('digital_rf_EXPORTS', None)
+                 if sys.platform.startswith('win') else None),
+            ]),
         ),
     ],
     entry_points={

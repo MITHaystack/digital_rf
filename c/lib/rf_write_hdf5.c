@@ -17,17 +17,22 @@
   $Id$
 */
 
+#ifdef _WIN32
+#  define _CRT_SECURE_NO_WARNINGS 1
+#  include "wincompat.h"
+#else
+#  include <unistd.h>
+#endif     
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 #include <stdint.h>
 #include <time.h>
 #include <math.h>
 #include <errno.h>
 
 #include "digital_rf.h"
-
 
 
 /* Public method implementations */
@@ -322,7 +327,7 @@ int digital_rf_write_blocks_hdf5(Digital_rf_write_object *hdf5_data_object, uint
 	uint64_t samples_written = 0; /* total samples written so far to all Hdf5 files during this write call */
 	uint64_t dataset_samples_written = 0; /* number of samples written to the present file */
 	hsize_t chunk_dims[2] = {0, hdf5_data_object->num_subchannels};
-	int chunk_size = 0;
+	hsize_t chunk_size = 0;
 
 	if (hdf5_data_object->has_failure)
 	{
@@ -333,7 +338,7 @@ int digital_rf_write_blocks_hdf5(Digital_rf_write_object *hdf5_data_object, uint
 	/* verify data exists */
 	if (!vector)
 	{
-		sprintf(error_str, "Null data passed in\n");
+		snprintf(error_str, SMALL_HDF5_STR, "Null data passed in\n");
 		fprintf(stderr, "%s", error_str);
 		return(-2);
 	}
@@ -341,7 +346,7 @@ int digital_rf_write_blocks_hdf5(Digital_rf_write_object *hdf5_data_object, uint
 	/* verify not writing in the past */
 	if (global_index_arr[0] < hdf5_data_object->global_index)
 	{
-		sprintf(error_str, "Request index %" PRIu64 " before first expected index %" PRIu64 " in digital_rf_write_hdf5\n",
+		snprintf(error_str, SMALL_HDF5_STR, "Request index %" PRIu64 " before first expected index %" PRIu64 " in digital_rf_write_hdf5\n",
 				global_index_arr[0], hdf5_data_object->global_index);
 		fprintf(stderr, "%s", error_str);
 		return(-3);
@@ -364,7 +369,7 @@ int digital_rf_write_blocks_hdf5(Digital_rf_write_object *hdf5_data_object, uint
 	/* verify continuous if is_continuous */
 	if (hdf5_data_object->is_continuous && index_len > 1)
 	{
-		sprintf(error_str, "Gapped data passed in, but is_continuous set\n");
+		snprintf(error_str, SMALL_HDF5_STR, "Gapped data passed in, but is_continuous set\n");
 		fprintf(stderr, "%s", error_str);
 		return(-4);
 	}
@@ -548,10 +553,10 @@ int digital_rf_get_unix_time(uint64_t global_sample, long double sample_rate, in
 
 	/* set picoseconds */
 	if (fmod(sample_rate, 1.0) == 0.0) /* use integer logic when sample rate can be converted to an integer */
-		unix_remainder = global_sample - (unix_second * (uint64_t)sample_rate);
+		unix_remainder = (double)(global_sample - (unix_second * (uint64_t)sample_rate));
 	else
 		unix_remainder = fmod((long double)global_sample, sample_rate);
-	*picosecond = (uint64_t)round((unix_remainder/sample_rate)*1.0E12);
+	*picosecond = (uint64_t)floor((unix_remainder/sample_rate)*1.0E12 + 0.5);
 	return(0);
 }
 
@@ -601,14 +606,14 @@ int digital_rf_get_subdir_file(Digital_rf_write_object *hdf5_data_object, uint64
 	dir_sec = (sample_sec / hdf5_data_object->subdir_cadence_secs) * hdf5_data_object->subdir_cadence_secs;
 	if (digital_rf_get_unix_time(dir_sec, 1.0, &year, &month, &day, &hour, &minute, &second, &picosecond))
 		return(-1);
-	sprintf(subdir, "%04i-%02i-%02iT%02i-%02i-%02i", year, month, day, hour, minute, second);
+	snprintf(subdir, BIG_HDF5_STR, "%04i-%02i-%02iT%02i-%02i-%02i", year, month, day, hour, minute, second);
 
 	/* next derive the file name */
 	sample_millisec = (uint64_t)((global_sample/hdf5_data_object->sample_rate)*1000);
 	file_millisec = (sample_millisec / hdf5_data_object->file_cadence_millisecs) * hdf5_data_object->file_cadence_millisecs;
 	file_sec_part = file_millisec / 1000; /* second part of file name */
 	file_millisec_part = file_millisec % 1000; /* millisecond part of file name */
-	sprintf(basename, "tmp.rf@%" PRIu64 ".%03" PRIu64 ".h5", file_sec_part, file_millisec_part);
+	snprintf(basename, SMALL_HDF5_STR, "tmp.rf@%" PRIu64 ".%03" PRIu64 ".h5", file_sec_part, file_millisec_part);
 	file_millisec += hdf5_data_object->file_cadence_millisecs; /* now file_millisec is the unix start millisecond of the *next* file */
 	next_file_sec_part = file_millisec / 1000;
 	next_file_millisec_part = file_millisec % 1000;
@@ -953,7 +958,7 @@ int digital_rf_create_hdf5_file(Digital_rf_write_object *hdf5_data_object, char 
 	strcat(finished_fullname, strstr(hdf5_data_object->basename, "rf"));
 	if( access( finished_fullname, F_OK ) != -1 )
 	{
-		sprintf(error_str, "The following Hdf5 file already exists: %s\n", finished_fullname);
+		snprintf(error_str, BIG_HDF5_STR, "The following Hdf5 file already exists: %s\n", finished_fullname);
 		fprintf(stderr, "%s", error_str);
 		return(-1);
 	}
@@ -962,7 +967,7 @@ int digital_rf_create_hdf5_file(Digital_rf_write_object *hdf5_data_object, char 
 	hdf5_data_object->hdf5_file = H5Fcreate (fullname, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
 	if (hdf5_data_object->hdf5_file < 0)
 	{
-		sprintf(error_str, "The following Hdf5 file could not be created, or already exists: %s\n", fullname);
+		snprintf(error_str, BIG_HDF5_STR, "The following Hdf5 file could not be created, or already exists: %s\n", fullname);
 		fprintf(stderr, "%s", error_str);
 		hdf5_data_object->has_failure = 1;
 		hdf5_data_object->hdf5_file = 0;
@@ -1056,10 +1061,17 @@ int digital_rf_create_new_directory(Digital_rf_write_object *hdf5_data_object, c
 {
 	/* local variables */
 	char full_directory[BIG_HDF5_STR] = "";
+	int result;
 
 	strcpy(full_directory, hdf5_data_object->directory); /* directory ends with "/" */
 	strcat(full_directory, subdir);
-	if (mkdir(full_directory, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) && errno != EEXIST)
+	
+	#if defined(_WIN32)
+		result = _mkdir(full_directory);
+	#else
+		result = mkdir(full_directory, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	#endif
+	if (result && errno != EEXIST)
 	{
 		fprintf(stderr, "Unable to create directory %s\n", full_directory);
 		hdf5_data_object->has_failure = 1;
@@ -1095,57 +1107,41 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 
 	/* char */
 	char minChar = -128;
-	struct complex_char_fill_type {char r,i;} complex_char_fill;
-	complex_char_fill.r = minChar;
-	complex_char_fill.i = minChar;
-	struct complex_uchar_fill_type {unsigned char r,i;} complex_uchar_fill;
-	complex_uchar_fill.r = 0;
-	complex_uchar_fill.i = 0;
+	struct complex_char_fill_type { char r, i; };
+	struct complex_char_fill_type complex_char_fill = { minChar, minChar };
+	struct complex_uchar_fill_type { unsigned char r; unsigned char i; };
+	struct complex_uchar_fill_type complex_uchar_fill = { 0, 0 };
 
 	/* short */
 	short minShort[2] = {INT16_MIN, 128};
-	struct complex_short_fill_type {short r,i;} complex_short_fill[2];
-	complex_short_fill[0].r = minShort[0];
-	complex_short_fill[0].i = minShort[0];
-	complex_short_fill[1].r = minShort[1];
-	complex_short_fill[1].i = minShort[1];
-	struct complex_ushort_fill_type {unsigned short r,i;} complex_ushort_fill;
-	complex_ushort_fill.r = 0;
-	complex_ushort_fill.i = 0;
+	struct complex_short_fill_type { short r, i; };
+	struct complex_short_fill_type complex_short_fill[2] = { {minShort[0], minShort[0]}, {minShort[1], minShort[1]} };
+	struct complex_ushort_fill_type { unsigned short r, i; };
+	struct complex_ushort_fill_type complex_ushort_fill = { 0, 0 };
 
 	/* int */
 	int minInt[2] = {INT32_MIN, 128};
-	struct complex_int_fill_type {int r,i;} complex_int_fill[2];
-	complex_int_fill[0].r = minInt[0];
-	complex_int_fill[0].i = minInt[0];
-	complex_int_fill[1].r = minInt[1];
-	complex_int_fill[1].i = minInt[1];
-	struct complex_uint_fill_type {unsigned int r,i;} complex_uint_fill;
-	complex_uint_fill.r = 0;
-	complex_uint_fill.i = 0;
+	struct complex_int_fill_type { int r, i; };
+	struct complex_int_fill_type complex_int_fill[2] = { {minInt[0], minInt[0]}, {minInt[1], minInt[1]} };
+	struct complex_uint_fill_type { unsigned int r, i; };
+	struct complex_uint_fill_type complex_uint_fill = { 0, 0 };
 
 	/* int64 */
-	int64_t minLLong[2] = {INT64_MIN,128};
-	struct complex_long_fill_type {int64_t r,i;} complex_long_fill[2];
-	complex_long_fill[0].r = minLLong[0];
-	complex_long_fill[0].i = minLLong[0];
-	complex_long_fill[1].r = minLLong[1];
-	complex_long_fill[1].i = minLLong[1];
-	struct complex_ulong_fill_type {uint64_t r,i;} complex_ulong_fill;
-	complex_ulong_fill.r = 0;
-	complex_ulong_fill.i = 0;
+	int64_t minLLong[2] = {INT64_MIN, 128};
+	struct complex_long_fill_type { int64_t r, i; };
+	struct complex_long_fill_type complex_long_fill[2] = { {minLLong[0], minLLong[0]}, {minLLong[1], minLLong[1]} };
+	struct complex_ulong_fill_type { uint64_t r, i; };
+	struct complex_ulong_fill_type complex_ulong_fill = { 0, 0 };
 
 	// float
-	float float_fill = NAN;
-	struct complex_float_fill_type {float r,i;} complex_float_fill;
-	complex_float_fill.r = float_fill;
-	complex_float_fill.i = float_fill;
+	float float_fill = (float) HUGE_VAL * 0;  /* NAN but works in C89 (MSVC++ 2008)*/
+	struct complex_float_fill_type { float r, i; };
+	struct complex_float_fill_type complex_float_fill = { float_fill, float_fill };
 
 	// double
-	double double_fill = NAN;
-	struct complex_double_fill_type {double r,i;} complex_double_fill;
-	complex_double_fill.r = double_fill;
-	complex_double_fill.i = double_fill;
+	double double_fill = HUGE_VAL * 0;  /* NAN but works in C89 (MSVC++ 2008)*/
+	struct complex_double_fill_type { double r, i; };
+	struct complex_double_fill_type complex_double_fill = { double_fill, double_fill };
 
 	char error_str[SMALL_HDF5_STR] = "";
 	H5T_class_t classType;
@@ -1165,7 +1161,7 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 	classType = H5Tget_class( hdf5_data_object->dtype_id );
 	/* find out if integer is signed, and the number of bytes */
 	signType = H5Tget_sign(hdf5_data_object->dtype_id);
-	numBytes = H5Tget_size(hdf5_data_object->dtype_id);
+	numBytes = (int)H5Tget_size(hdf5_data_object->dtype_id);
 
 	if (classType == H5T_FLOAT && hdf5_data_object->is_complex == 0)
 	{
@@ -1202,7 +1198,7 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 						H5Pset_fill_value(hdf5_data_object->dataset_prop, hdf5_data_object->dtype_id, &minLLong[endian_flip]);
 						break;
 					default:
-						sprintf(error_str, "Integer type has unexpected number of bytes: %i\n", numBytes);
+						snprintf(error_str, SMALL_HDF5_STR, "Integer type has unexpected number of bytes: %i\n", numBytes);
 						fprintf(stderr, "%s", error_str);
 						return(-1);
 				}
@@ -1243,7 +1239,7 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 								&complex_long_fill[endian_flip]);
 					break;
 				default:
-					sprintf(error_str, "Integer type has unexpected number of bytes: %i\n", numBytes);
+					snprintf(error_str, SMALL_HDF5_STR, "Integer type has unexpected number of bytes: %i\n", numBytes);
 					fprintf(stderr, "%s", error_str);
 					return(-1);
 			}
@@ -1480,7 +1476,7 @@ uint64_t * digital_rf_create_rf_data_index(Digital_rf_write_object *hdf5_data_ob
 
 	if (index_len < 1)
 	{
-		sprintf(error_str, "index_len (%" PRIu64 ") must be greater than 0\n",
+		snprintf(error_str, BIG_HDF5_STR, "index_len (%" PRIu64 ") must be greater than 0\n",
 				index_len);
 		fprintf(stderr, "%s", error_str);
 		*rows_to_write = -1;
@@ -1494,7 +1490,7 @@ uint64_t * digital_rf_create_rf_data_index(Digital_rf_write_object *hdf5_data_ob
 	/* this first pass is just to count the number of rows needed before the malloc, and to valid data is reasonable */
 	if (samples_written == 0 && global_index_arr[0] < hdf5_data_object->global_index)
 	{
-		sprintf(error_str, "global_index_arr passed in %" PRIu64 " before minimum value of %" PRIu64 "\n",
+		snprintf(error_str, BIG_HDF5_STR, "global_index_arr passed in %" PRIu64 " before minimum value of %" PRIu64 "\n",
 				global_index_arr[0], hdf5_data_object->global_index);
 		fprintf(stderr, "%s", error_str);
 		*rows_to_write = -1;
@@ -1509,14 +1505,14 @@ uint64_t * digital_rf_create_rf_data_index(Digital_rf_write_object *hdf5_data_ob
 		/* more input data sanity checks */
 		if (i>0 && prev_index >= this_index)
 		{
-			sprintf(error_str, "indices in data_index_arr out of order - index %i and %i\n", i-1,i);
+			snprintf(error_str, BIG_HDF5_STR, "indices in data_index_arr out of order - index %i and %i\n", i-1,i);
 			fprintf(stderr, "%s", error_str);
 			*rows_to_write = -1;
 			return(NULL);
 		}
 		if (i>0 && ((this_index - prev_index) > (global_index_arr[i] - global_index_arr[i-1])))
 		{
-			sprintf(error_str, "error - indices advancing faster than global index at index %i, illegal\n", i);
+			snprintf(error_str, BIG_HDF5_STR, "error - indices advancing faster than global index at index %i, illegal\n", i);
 			fprintf(stderr, "%s", error_str);
 			*rows_to_write = -1;
 			return(NULL);
@@ -1819,7 +1815,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		hdf5_file = H5Fcreate (metadata_file, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
 		if (hdf5_file < 0)
 		{
-			sprintf(error_str, "The following metadata file could not be created: %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The following metadata file could not be created: %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(1);
 		}
@@ -1930,7 +1926,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		hdf5_file = H5Fopen(metadata_file, H5F_ACC_RDONLY, H5P_DEFAULT);
 		if (hdf5_file < 0)
 		{
-			sprintf(error_str, "The following metadata file could not be opened: %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The following metadata file could not be opened: %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -1941,7 +1937,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "H5Tget_class", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			sprintf(error_str, "The H5Tget_class attribute not found in %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The H5Tget_class attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -1957,7 +1953,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "H5Tget_size", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			sprintf(error_str, "The H5Tget_size attribute not found in %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The H5Tget_size attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -1973,7 +1969,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "H5Tget_order", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			sprintf(error_str, "The H5Tget_order attribute not found in %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The H5Tget_order attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -1989,7 +1985,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "H5Tget_precision", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			sprintf(error_str, "The H5Tget_precision attribute not found in %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The H5Tget_precision attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2005,7 +2001,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "H5Tget_offset", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			sprintf(error_str, "The H5Tget_offset attribute not found in %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The H5Tget_offset attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2021,7 +2017,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "subdir_cadence_secs", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			sprintf(error_str, "The subdir_cadence_secs attribute not found in %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The subdir_cadence_secs attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2037,7 +2033,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "file_cadence_millisecs", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			sprintf(error_str, "The file_cadence_millisecs attribute not found in %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The file_cadence_millisecs attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2053,7 +2049,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "sample_rate_numerator", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			sprintf(error_str, "The sample_rate_numerator attribute not found in %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The sample_rate_numerator attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2069,7 +2065,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "sample_rate_denominator", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			sprintf(error_str, "The sample_rate_denominator attribute not found in %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The sample_rate_denominator attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2085,7 +2081,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "is_complex", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			sprintf(error_str, "The is_complex attribute not found in %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The is_complex attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2101,7 +2097,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "num_subchannels", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			sprintf(error_str, "The num_subchannels attribute not found in %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The num_subchannels attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2117,7 +2113,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "is_continuous", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			sprintf(error_str, "The is_continuous attribute not found in %s\n", metadata_file);
+			snprintf(error_str, BIG_HDF5_STR, "The is_continuous attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}

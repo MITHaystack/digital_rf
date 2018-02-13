@@ -94,7 +94,7 @@ int main (int argc, char *argv[])
 			data_int64[i][0] = 2;
 			data_double[i][0] = 2.0;
 			single_char[i] = 2;
-			single_int64[i] = 2.0;
+			single_int64[i] = 2;
 			data_char[i][1] = 3;
 			data_short[i][1] = 3;
 			data_int[i][1] = 3;
@@ -111,7 +111,7 @@ int main (int argc, char *argv[])
 			data_int64[i][0] = 4;
 			data_double[i][0] = 4.0;
 			single_char[i] = 4;
-			single_int64[i] = 4.0;
+			single_int64[i] = 4;
 			data_char[i][1] = 6;
 			data_short[i][1] = 6;
 			data_int[i][1] = 6;

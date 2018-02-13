@@ -10,6 +10,7 @@ include examples/sounder/waveforms/*.py
 include examples/sounder/waveforms/*.bin
 include examples/*.py
 include include/*.h
+include include/windows/*.h
 include tests/*.py
 # manually include data_files because setuptools doesn't do it automatically
 include grc/gr_digital_rf_digital_rf_channel_sink.xml

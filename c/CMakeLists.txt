@@ -25,39 +25,50 @@ endif(NOT CMAKE_BUILD_TYPE)
 
 if(UNIX)
     set(MATH_LIB m)
-ELSE(UNIX)
+else(UNIX)
     set(MATH_LIB)
-ENDIF(UNIX)
+endif(UNIX)
 
 find_package(HDF5 REQUIRED)
 # make each of the HDF5_LIBRARIES (HDF5 and what it linked against)
 # an imported target
+set(HDF5_LIB_TARGETS)
 foreach(LIB IN LISTS HDF5_LIBRARIES)
-    # name of library file with directory and extension stripped
-    get_filename_component(LIBNAME ${LIB} NAME_WE)
-    # strip leading lib (if it exists) to get target name
-    string(REGEX REPLACE "^lib(.*)" "\\1" TGT ${LIBNAME})
-    add_library(digital_rf::${TGT} SHARED IMPORTED GLOBAL)
-    set_target_properties(digital_rf::${TGT} PROPERTIES
-        IMPORTED_LOCATION ${LIB}
-    )
-    if(HDF5_INCLUDE_DIRS)
-        set_property(TARGET digital_rf::${TGT} APPEND PROPERTY
-            INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS}
+    if(TARGET ${LIB})
+        list(APPEND HDF5_LIB_TARGETS ${LIB})
+    else(TARGET ${LIB})
+        # name of library file with directory and extension stripped
+        get_filename_component(LIBNAME ${LIB} NAME_WE)
+        # strip leading lib (if it exists) to get target name
+        string(REGEX REPLACE "^lib(.*)" "\\1" TGT ${LIBNAME})
+        add_library(digital_rf::${TGT} SHARED IMPORTED GLOBAL)
+        set_target_properties(digital_rf::${TGT} PROPERTIES
+            IMPORTED_LOCATION ${LIB}
         )
-    endif(HDF5_INCLUDE_DIRS)
+        if(HDF5_INCLUDE_DIRS)
+            set_property(TARGET digital_rf::${TGT} APPEND PROPERTY
+                INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS}
+            )
+        endif(HDF5_INCLUDE_DIRS)
+        list(APPEND HDF5_LIB_TARGETS digital_rf::${TGT})
+    endif(TARGET ${LIB})
 endforeach(LIB)
 
 # build/install libdigital_rf
 configure_file(include/digital_rf.h include/digital_rf.h COPYONLY)
 configure_file(include/digital_rf_version.h include/digital_rf_version.h COPYONLY)
+if(WIN32)
+	configure_file(include/windows/inttypes.h include/inttypes.h COPYONLY)
+	configure_file(include/windows/stdint.h include/stdint.h COPYONLY)
+	configure_file(include/windows/wincompat.h include/wincompat.h COPYONLY)
+endif(WIN32)
 add_library(digital_rf lib/rf_write_hdf5.c)
 add_library(digital_rf::digital_rf ALIAS digital_rf)
 target_include_directories(digital_rf PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/digital_rf>
 )
-target_link_libraries(digital_rf PUBLIC digital_rf::hdf5 PRIVATE ${MATH_LIB})
+target_link_libraries(digital_rf PUBLIC ${HDF5_LIB_TARGETS} PRIVATE ${MATH_LIB})
 set_target_properties(digital_rf PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY lib
     LIBRARY_OUTPUT_DIRECTORY lib
