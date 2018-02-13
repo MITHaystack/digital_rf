@@ -22,7 +22,7 @@
 #  include "wincompat.h"
 #else
 #  include <unistd.h>
-#endif     
+#endif
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -1065,7 +1065,7 @@ int digital_rf_create_new_directory(Digital_rf_write_object *hdf5_data_object, c
 
 	strcpy(full_directory, hdf5_data_object->directory); /* directory ends with "/" */
 	strcat(full_directory, subdir);
-	
+
 	#if defined(_WIN32)
 		result = _mkdir(full_directory);
 	#else
