@@ -8,6 +8,7 @@
 # ----------------------------------------------------------------------------
 """Setup file for the digital_rf package."""
 import os
+import re
 import sys
 # to use a consistent encoding
 from codecs import open
@@ -125,12 +126,28 @@ class build_ext(_build_ext):
             for k, v in c.items():
                 cur = getattr(self, k)
                 if cur is not None:
-                    cur.extend(v)
+                    cur.extend(i for i in v if i not in cur)
                 else:
                     setattr(self, k, v)
 
+    def _convert_abspath_libraries(self):
+        if sys.platform.startswith('win'):
+            libname_re = re.compile('(?P<libname>.*)')
+        else:
+            libname_re = re.compile('^lib(?P<libname>.*)')
+        for k, lib in enumerate(self.libraries):
+            if os.path.isabs(lib):
+                libdir, libfile = os.path.split(lib)
+                libfilename, _ = os.path.splitext(libfile)
+                libname = libname_re.sub('\g<libname>', libfilename)
+                # replace library entry with its name and add dir to path
+                self.libraries[k] = libname
+                if libdir not in self.library_dirs:
+                    self.library_dirs.append(libdir)
+
     def run(self):
         self._add_build_settings()
+        self._convert_abspath_libraries()
         _build_ext.run(self)
 
 

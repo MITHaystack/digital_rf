@@ -36,12 +36,10 @@ get_target_property(HDF5_LINK_LIBS
 set(HDF5_INCLUDE_DIRS)
 foreach(LTGT ${HDF5_LINK_LIBS})
     list(APPEND HDF5_INCLUDE_DIRS $<TARGET_PROPERTY:${LTGT},INTERFACE_INCLUDE_DIRECTORIES>)
-    list(APPEND HDF5_LIBRARY_DIRS $<TARGET_LINKER_FILE_DIR:${LTGT}>)
-    list(APPEND HDF5_LIBRARIES :$<TARGET_LINKER_FILE_NAME:${LTGT}>)
+    list(APPEND HDF5_LIBRARIES $<TARGET_LINKER_FILE:${LTGT}>)
 endforeach(LTGT)
 # make the lists still be semicolon-separated after generator expansion
 STRING(REGEX REPLACE ";" "\\\\;" HDF5_INCLUDE_DIRS "${HDF5_INCLUDE_DIRS}")
-STRING(REGEX REPLACE ";" "\\\\;" HDF5_LIBRARY_DIRS "${HDF5_LIBRARY_DIRS}")
 STRING(REGEX REPLACE ";" "\\\\;" HDF5_LIBRARIES "${HDF5_LIBRARIES}")
 
 # copy files from root directory that we want in the python package
@@ -102,7 +100,7 @@ set(PYBUILD_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/build)
 add_custom_command(
     OUTPUT ${PYBUILD_OUTPUT}
     COMMAND ${CMAKE_COMMAND} -E env HDF5_INCLUDE_DIRS="${HDF5_INCLUDE_DIRS}"
-        HDF5_LIBRARY_DIRS="${HDF5_LIBRARY_DIRS}"
+        HDF5_LIBRARY_DIRS="" # overwrite default with empty, full path given
         HDF5_LIBRARIES="${HDF5_LIBRARIES}"
 		${PYTHON_EXECUTABLE} setup.py build
     COMMAND ${PYTHON_EXECUTABLE} setup.py egg_info
