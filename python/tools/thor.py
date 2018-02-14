@@ -377,8 +377,12 @@ class Thor(object):
         SETUP_TIME = 10
 
         # print current time and NTP status
-        if op.verbose:
-            call(('timedatectl', 'status'))
+        if op.verbose and sys.platform.startswith('linux'):
+            try:
+                call(('timedatectl', 'status'))
+            except OSError:
+                # no timedatectl command, ignore
+                pass
 
         # parse time arguments
         st = drf.util.parse_identifier_to_time(starttime)
