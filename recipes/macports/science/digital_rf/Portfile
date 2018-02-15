@@ -8,7 +8,7 @@ PortGroup           python 1.0
 
 github.setup        MITHaystack digital_rf 2.6.0a6
 name                digital_rf
-version             2.6.0a6
+version             2.6.0a7
 maintainers         @MITHaystack {mit.edu:rvolz @ryanvolz} {mit.edu:swoboj @jswoboda}
 description         Read, write, and interact with data in the Digital RF and Digital Metadata formats
 categories          science
