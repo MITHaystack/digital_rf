@@ -60,6 +60,14 @@ def noneorbool(s):
         return False
 
 
+def noneorcomplex(s):
+    """Turn empty or 'none' to None, else evaluate to complex."""
+    if s.lower() in ('', 'none'):
+        return None
+    else:
+        return complex(eval(s, {}, {}))
+
+
 class Extend(Action):
     """Action to split comma-separated arguments and add to a list."""
 
@@ -195,6 +203,7 @@ class Tx(object):
         mboards=[], subdevs=['A:0'],
         centerfreqs=[440e6], lo_offsets=[0],
         lo_sources=[''], lo_exports=[None],
+        dc_offsets=[None], iq_balances=[None],
         gains=[0], bandwidths=[0], antennas=[''],
         samplerate=1e6,
         dev_args=[], stream_args=[], tune_args=[],
@@ -238,6 +247,8 @@ class Tx(object):
         op.phases = list(islice(cycle(op.phases), 0, op.nchs))
         op.subdevs = list(islice(cycle(op.subdevs), 0, op.nmboards))
         op.centerfreqs = list(islice(cycle(op.centerfreqs), 0, op.nchs))
+        op.dc_offsets = list(islice(cycle(op.dc_offsets), 0, op.nchs))
+        op.iq_balances = list(islice(cycle(op.iq_balances), 0, op.nchs))
         op.lo_offsets = list(islice(cycle(op.lo_offsets), 0, op.nchs))
         op.lo_sources = list(islice(cycle(op.lo_sources), 0, op.nchs))
         op.lo_exports = list(islice(cycle(op.lo_exports), 0, op.nchs))
@@ -278,6 +289,8 @@ class Tx(object):
                 LO frequency offset: {lo_offsets}
                 LO source: {lo_sources}
                 LO export: {lo_exports}
+                DC offset: {dc_offsets}
+                IQ balance: {iq_balances}
                 Amplitude: {amplitudes}
                 Phases: {phases}
                 Gain: {gains}
@@ -386,6 +399,14 @@ class Tx(object):
                 tune_res.actual_rf_freq + tune_res.actual_dsp_freq
             )
             op.lo_offsets[ch_num] = -tune_res.actual_dsp_freq
+            # dc offset
+            dc_offset = op.dc_offsets[ch_num]
+            if dc_offset is not None:
+                u.set_dc_offset(dc_offset, ch_num)
+            # iq balance
+            iq_balance = op.iq_balances[ch_num]
+            if iq_balance is not None:
+                u.set_iq_balance(iq_balance, ch_num)
             # gain
             u.set_gain(op.gains[ch_num], ch_num)
             # bandwidth
@@ -446,8 +467,10 @@ class Tx(object):
                 info['sub'] = op.subdevs_bychan[ch_num]
                 info['ant'] = op.antennas[ch_num]
                 info['bw'] = op.bandwidths[ch_num]
+                info['dc_offset'] = op.dc_offsets[ch_num]
                 info['freq'] = op.centerfreqs[ch_num]
                 info['gain'] = op.gains[ch_num]
+                info['iq_balance'] = op.iq_balances[ch_num]
                 info['lo_off'] = op.lo_offsets[ch_num]
                 info['lo_source'] = op.lo_sources[ch_num]
                 info['lo_export'] = op.lo_exports[ch_num]
@@ -465,8 +488,12 @@ class Tx(object):
         SETUP_TIME = 10
 
         # print current time and NTP status
-        if op.verbose:
-            call(('timedatectl', 'status'))
+        if op.verbose and sys.platform.startswith('linux'):
+            try:
+                call(('timedatectl', 'status'))
+            except OSError:
+                # no timedatectl command, ignore
+                pass
 
         # parse time arguments
         st = drf.util.parse_identifier_to_time(starttime)
@@ -747,6 +774,16 @@ if __name__ == '__main__':
                 Can be 'None'/'' to skip the channel, otherwise it can be
                 'True' or 'False' provided the LO source is set.
                 (default: None)''',
+    )
+    chgroup.add_argument(
+        '--dc_offset', dest='dc_offsets', action=Extend, type=noneorcomplex,
+        help='''DC offset correction to use. Can be 'None'/'' to keep device
+                default or a complex value (e.g. "1+1j"). (default: 0)''',
+    )
+    chgroup.add_argument(
+        '--iq_balance', dest='iq_balances', action=Extend, type=noneorcomplex,
+        help='''IQ balance correction to use. Can be 'None'/'' to keep device
+                default or a complex value (e.g. "1+1j"). (default: 0)''',
     )
     chgroup.add_argument(
         '-G', '--amplitude', dest='amplitudes', action=Extend, type=float,
