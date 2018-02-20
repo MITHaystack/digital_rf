@@ -820,5 +820,5 @@ class digital_rf_sink(gr.hier_block2):
         return self._channels[0].get_stop_on_skipped()
 
     def set_stop_on_skipped(self, stop_on_skipped):
-        for ch in self._channels():
+        for ch in self._channels:
             ch.set_stop_on_skipped(stop_on_skipped)
