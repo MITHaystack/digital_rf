@@ -629,9 +629,14 @@ class DigitalRFRingbuffer(object):
                         include_drf_properties=False,
                         include_dmd_properties=False,
                     )
-                    bytes_available += sum(
-                        os.stat(p).st_size for p in existing
-                    )
+                    for p in existing:
+                        try:
+                            bytes_available += os.path.getsize(p)
+                        except OSError:
+                            # catch instances where file no longer exists
+                            if self.verbose:
+                                traceback.print_exc()
+                            return
                 self.size = max(bytes_available + self.size, 0)
 
         self.event_handler = DigitalRFRingbufferHandler(

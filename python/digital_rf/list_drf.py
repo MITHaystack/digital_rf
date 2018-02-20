@@ -202,7 +202,11 @@ def _yield_matching_files(
         enumerate(list(reversed(dec_subdirs[subdir_slice])))
     ):
         # list potential files and get groups of all matching files
-        subdir_files = os.listdir(os.path.join(root, subdir))
+        try:
+            subdir_files = os.listdir(os.path.join(root, subdir))
+        except OSError:
+            # directory failed to list (e.g. doesn't exist anymore), skip
+            continue
         dec_files = _decorate_drf_files(
             os.path.join(root, subdir), subdir_files, file_regex,
         )

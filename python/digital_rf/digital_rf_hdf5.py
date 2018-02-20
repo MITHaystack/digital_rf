@@ -2095,12 +2095,16 @@ class _top_level_dir_properties:
             ):
                 try:
                     first_unix_sample = self._get_first_sample(path)
-                except Exception:
+                except IOError:
+                    # can't open file (e.g. doesn't exist anymore)
+                    continue
+                except (AttributeError, IndexError, KeyError, ValueError):
                     errstr = (
                         'Warning: corrupt file %s found and ignored.'
                         ' Deleting it will speed up get_bounds().'
                     )
                     print(errstr % path)
+                    continue
                 else:
                     break
 
@@ -2112,12 +2116,16 @@ class _top_level_dir_properties:
             ):
                 try:
                     last_unix_sample = self._get_last_sample(path)
-                except Exception:
+                except IOError:
+                    # can't open file (e.g. doesn't exist anymore)
+                    continue
+                except (AttributeError, IndexError, KeyError, ValueError):
                     errstr = (
                         'Warning: corrupt file %s found and ignored.'
                         ' Deleting it will speed up get_bounds().'
                     )
                     print(errstr % path)
+                    continue
                 else:
                     break
         else:

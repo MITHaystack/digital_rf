@@ -652,12 +652,16 @@ class DigitalMetadataReader:
                     groups = f.keys()
                     groups.sort()
                     first_sample = int(groups[0])
-            except (IOError, IndexError):
+            except IOError:
+                # can't open file (e.g. doesn't exist anymore)
+                continue
+            except IndexError:
                 errstr = (
                     'Corrupt or empty file %s found and ignored.'
                     ' Deleting it will speed up get_bounds().'
                 )
                 print(errstr % path)
+                continue
             else:
                 break
         if first_sample is None:
@@ -674,12 +678,16 @@ class DigitalMetadataReader:
                     groups = f.keys()
                     groups.sort()
                     last_sample = int(groups[-1])
-            except (IOError, IndexError):
+            except IOError:
+                # can't open file (e.g. doesn't exist anymore)
+                continue
+            except IndexError:
                 errstr = (
                     'Corrupt or empty file %s found and ignored.'
                     ' Deleting it will speed up get_bounds().'
                 )
                 print(errstr % path)
+                continue
             else:
                 break
         if last_sample is None:
