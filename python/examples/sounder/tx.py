@@ -341,6 +341,36 @@ class Tx(object):
                 ).format(op.sync_source, u.get_clock_sources(0))
                 raise ValueError(errstr)
 
+        # check for ref lock
+        mbnums_with_ref = [
+            mb_num for mb_num in range(op.nmboards)
+            if 'ref_locked' in u.get_mboard_sensor_names(mb_num)
+        ]
+        if mbnums_with_ref:
+            if op.verbose:
+                sys.stdout.write('Waiting for reference lock...')
+                sys.stdout.flush()
+            timeout = 0
+            while not all(
+                u.get_mboard_sensor('ref_locked', mb_num).to_bool()
+                for mb_num in mbnums_with_ref
+            ):
+                if op.verbose:
+                    sys.stdout.write('.')
+                    sys.stdout.flush()
+                time.sleep(1)
+                timeout += 1
+                if timeout > 30:
+                    if op.verbose:
+                        sys.stdout.write('failed\n')
+                        sys.stdout.flush()
+                    raise RuntimeError(
+                        'Failed to lock to 10 MHz reference.'
+                    )
+            if op.verbose:
+                sys.stdout.write('locked\n')
+                sys.stdout.flush()
+
         # set mainboard options
         for mb_num in range(op.nmboards):
             u.set_subdev_spec(op.subdevs[mb_num], mb_num)
@@ -563,15 +593,21 @@ class Tx(object):
             # then sets the time for the subsequent pps
             # (at time math.ceil(tt) + 1.0)
             u.set_time_unknown_pps(uhd.time_spec(math.ceil(tt) + 1.0))
+            # wait for time registers to be in known state
+            time.sleep(math.ceil(tt) - tt + 1.0)
         else:
-            u.set_time_now(uhd.time_spec(tt))
+            u.set_time_now(uhd.time_spec(tt), uhd.ALL_MBOARDS)
+            # wait for time registers to be in known state
+            time.sleep(1)
 
         # set launch time
-        # (at least 1 second out so USRP time is set, time to set up flowgraph)
+        # (at least 1 second out so USRP start time can be set properly and
+        #  there is time to set up flowgraph)
         if st is not None:
             lt = st
         else:
             now = pytz.utc.localize(datetime.utcnow())
+            # launch on integer second by default for convenience  (ceil + 1)
             lt = now.replace(microsecond=0) + timedelta(seconds=2)
         ltts = (lt - drf.util.epoch).total_seconds()
         # adjust launch time forward so it falls on an exact sample since epoch
