@@ -27,94 +27,36 @@ from textwrap import TextWrapper, dedent, fill
 
 import numpy as np
 import pytz
-from gnuradio import filter, gr, uhd
-from gnuradio.filter import firdes
+from gnuradio import blocks, gr, uhd
+from gnuradio.filter import firdes, freq_xlating_fir_filter_ccf
 
 import digital_rf as drf
 import gr_digital_rf as gr_drf
-
-
-def evalint(s):
-    """Evaluate string to an integer."""
-    return int(eval(s, {}, {}))
-
-
-def evalfloat(s):
-    """Evaluate string to a float."""
-    return float(eval(s, {}, {}))
-
-
-def noneorstr(s):
-    """Turn empty or 'none' string to None."""
-    if s.lower() in ('', 'none'):
-        return None
-    else:
-        return s
-
-
-def noneorbool(s):
-    """Turn empty or 'none' string to None, all others to boolean."""
-    if s.lower() in ('', 'none'):
-        return None
-    elif s.lower() in ('true', 't', 'yes', 'y', '1'):
-        return True
-    else:
-        return False
-
-
-def noneorboolorcomplex(s):
-    """Turn empty or 'none' to None, else evaluate to a boolean or complex."""
-    if s.lower() in ('', 'none'):
-        return None
-    elif s.lower() in ('auto', 'true', 't', 'yes', 'y'):
-        return True
-    elif s.lower() in ('false', 'f', 'no', 'n'):
-        return False
-    else:
-        return complex(eval(s, {}, {}))
-
-
-class Extend(Action):
-    """Action to split comma-separated arguments and add to a list."""
-
-    def __init__(self, option_strings, dest, type=None, **kwargs):
-        if type is not None:
-            itemtype = type
-        else:
-            def itemtype(s):
-                return s
-
-        def split_string_and_cast(s):
-            return [itemtype(a.strip()) for a in s.strip().split(',')]
-
-        super(Extend, self).__init__(
-            option_strings, dest, type=split_string_and_cast, **kwargs
-        )
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        cur_list = getattr(namespace, self.dest, [])
-        if cur_list is None:
-            cur_list = []
-        cur_list.extend(values)
-        setattr(namespace, self.dest, cur_list)
 
 
 class Thor(object):
     """Record data from synchronized USRPs in DigitalRF format."""
 
     def __init__(
-        self, datadir, mboards=[], subdevs=['A:A'],
-        chs=['ch0'], centerfreqs=[100e6], lo_offsets=[0],
-        lo_sources=[''], lo_exports=[None],
-        dc_offsets=[False], iq_balances=[None],
-        gains=[0], bandwidths=[0], antennas=[''],
-        samplerate=1e6, dec=1,
+        self, datadir, verbose=True,
+        # mainboard group (num: len of mboards)
+        mboards=[], subdevs=['A:A'],
+        # receiver group (apply to all)
+        samplerate=1e6,
         dev_args=['recv_buff_size=100000000', 'num_recv_frames=512'],
         stream_args=[], tune_args=[],
         sync=True, sync_source='external',
-        stop_on_dropped=False, realtime=False,
+        stop_on_dropped=False, realtime=False, test_settings=True,
+        # receiver channel group (num: matching channels from mboards/subdevs)
+        centerfreqs=[100e6],
+        lo_offsets=[0], lo_sources=[''], lo_exports=[None],
+        dc_offsets=[False], iq_balances=[None],
+        gains=[0], bandwidths=[0], antennas=[''],
+        # output channel group (num: len of channel_names)
+        channel_names=['ch0'], channels=[None], decimations=[1],
+        scalings=[1.0], out_types=[None],
+        # digital_rf group (apply to all)
         file_cadence_ms=1000, subdir_cadence_s=3600, metadata={}, uuid=None,
-        verbose=True, test_settings=True,
     ):
         options = locals()
         del options['self']
@@ -133,19 +75,141 @@ class Thor(object):
         """Put all keyword options in a namespace and normalize them."""
         op = Namespace(**kwargs)
 
+        # check that subdevice specifications are unique per-mainboard
+        for sd in op.subdevs:
+            sds = sd.split()
+            if len(set(sds)) != len(sds):
+                errstr = (
+                    'Invalid subdevice specification: "{0}". '
+                    'Each subdevice specification for a given mainboard must '
+                    'be unique.'
+                )
+                raise ValueError(errstr.format(sd))
+
+        # get USRP cpu_format based on output type and decimation requirements
+        if (all(ot is None or ot == 'sc16' for ot in op.out_types)
+                and all(d == 1 for d in op.decimations)
+                and all(s == 1 for s in op.scalings)):
+            # with only sc16 output and no processing, can use sc16 as cpu
+            # format and disable conversion
+            op.cpu_format = 'sc16'
+            op.out_specs = [dict(
+                convert=None,
+                convert_kwargs=None,
+                dtype=np.dtype([('r', np.int16), ('i', np.int16)]),
+                name='sc16',
+            )]
+        else:
+            op.cpu_format = 'fc32'
+            # get full specification for output types
+            supported_out_types = {
+                'sc8': dict(
+                    convert='float_to_char',
+                    convert_kwargs=dict(vlen=2, scale=float(2**7-1)),
+                    dtype=np.dtype([('r', np.int8), ('i', np.int8)]),
+                    name='sc8',
+                ),
+                'sc16': dict(
+                    convert='float_to_short',
+                    convert_kwargs=dict(vlen=2, scale=float(2**15-1)),
+                    dtype=np.dtype([('r', np.int16), ('i', np.int16)]),
+                    name='sc16',
+                ),
+                'sc32': dict(
+                    convert='float_to_int',
+                    convert_kwargs=dict(vlen=2, scale=float(2**31-1)),
+                    dtype=np.dtype([('r', np.int32), ('i', np.int32)]),
+                    name='sc32',
+                ),
+                'fc32': dict(
+                    convert=None,
+                    convert_kwargs=None,
+                    dtype=np.dtype('complex64'),
+                    name='fc32',
+                ),
+            }
+            supported_out_types[None] = supported_out_types['fc32']
+            type_dicts = []
+            for ot in op.out_types:
+                try:
+                    type_dict = supported_out_types[ot]
+                except KeyError:
+                    errstr = (
+                        'Output type {0} is not supported. Must be one of {1}.'
+                    ).format(ot, supported_out_types.keys())
+                    raise ValueError(errstr)
+                else:
+                    type_dicts.append(type_dict)
+            op.out_specs = type_dicts
+        # replace out_types to fill in None values with type name
+        op.out_types = [os['name'] for os in op.out_specs]
+
+        # repeat mainboard arguments as necessary
         op.nmboards = len(op.mboards) if len(op.mboards) > 0 else 1
-        op.nchs = len(op.chs)
-        # repeat arguments as necessary
         op.subdevs = list(islice(cycle(op.subdevs), 0, op.nmboards))
-        op.centerfreqs = list(islice(cycle(op.centerfreqs), 0, op.nchs))
-        op.dc_offsets = list(islice(cycle(op.dc_offsets), 0, op.nchs))
-        op.iq_balances = list(islice(cycle(op.iq_balances), 0, op.nchs))
-        op.lo_offsets = list(islice(cycle(op.lo_offsets), 0, op.nchs))
-        op.lo_sources = list(islice(cycle(op.lo_sources), 0, op.nchs))
-        op.lo_exports = list(islice(cycle(op.lo_exports), 0, op.nchs))
-        op.gains = list(islice(cycle(op.gains), 0, op.nchs))
-        op.bandwidths = list(islice(cycle(op.bandwidths), 0, op.nchs))
-        op.antennas = list(islice(cycle(op.antennas), 0, op.nchs))
+
+        # get number of receiver channels by total number of subdevices over
+        # all mainboards
+        op.mboards_bychan = []
+        op.subdevs_bychan = []
+        op.mboardnum_bychan = []
+        mboards = op.mboards if op.mboards else ['default']
+        for mbnum, (mb, sd) in enumerate(zip(mboards, op.subdevs)):
+            sds = sd.split()
+            mbs = list(repeat(mb, len(sds)))
+            mbnums = list(repeat(mbnum, len(sds)))
+            op.mboards_bychan.extend(mbs)
+            op.subdevs_bychan.extend(sds)
+            op.mboardnum_bychan.extend(mbnums)
+
+        # repeat receiver channel arguments as necessary
+        op.nrchs = len(op.subdevs_bychan)
+        for rch_arg in (
+            'antennas', 'bandwidths', 'centerfreqs', 'dc_offsets',
+            'iq_balances', 'lo_offsets', 'lo_sources', 'lo_exports', 'gains',
+        ):
+            val = getattr(op, rch_arg)
+            rval = list(islice(cycle(val), 0, op.nrchs))
+            setattr(op, rch_arg, rval)
+
+        # repeat output channel arguments as necessary
+        op.nochs = len(op.channel_names)
+        for och_arg in (
+            'channels', 'decimations', 'out_specs', 'out_types', 'scalings',
+        ):
+            val = getattr(op, och_arg)
+            rval = list(islice(cycle(val), 0, op.nochs))
+            setattr(op, och_arg, rval)
+
+        # fill in unspecified (None) channels values
+        rchannels = set(range(op.nrchs))
+        ochannels = set(c for c in op.channels if c is not None)
+        if not ochannels.issubset(rchannels):
+            errstr = (
+                'Invalid channel specification. Output channel uses'
+                ' non-existent receiver channel: {0}.'
+            )
+            raise ValueError(errstr.format(list(ochannels - rchannels)))
+        avail = sorted(rchannels - ochannels)
+        try:
+            op.channels = [
+                c if c is not None else avail.pop(0) for c in op.channels
+            ]
+        except IndexError:
+            errstr = (
+                'No remaining receiver channels left to assign to unspecified'
+                ' (None) output channel. You probably need to explicitly'
+                ' specify the receiver channels to output.'
+            )
+            raise ValueError(errstr)
+        unused_rchs = set(range(op.nrchs)) - set(op.channels)
+        if unused_rchs:
+            errstr = (
+                'Receiver channels {0} are unused in the output. Either'
+                ' remove them from the mainboard/subdevice specification or'
+                ' correct the output channel specification.'
+            )
+            raise ValueError(errstr.format(unused_rchs))
 
         # create device_addr string to identify the requested device(s)
         op.mboard_strs = []
@@ -176,54 +240,29 @@ class Thor(object):
             opstr = dedent('''\
                 Main boards: {mboard_strs}
                 Subdevices: {subdevs}
-                Channel names: {chs}
+                Sample rate: {samplerate}
+                Device arguments: {dev_args}
+                Stream arguments: {stream_args}
+                Tune arguments: {tune_args}
+                Antenna: {antennas}
+                Bandwidth: {bandwidths}
                 Frequency: {centerfreqs}
                 LO frequency offset: {lo_offsets}
                 LO source: {lo_sources}
                 LO export: {lo_exports}
+                Gain: {gains}
                 DC offset: {dc_offsets}
                 IQ balance: {iq_balances}
-                Gain: {gains}
-                Bandwidth: {bandwidths}
-                Antenna: {antennas}
-                Device arguments: {dev_args}
-                Stream arguments: {stream_args}
-                Tune arguments: {tune_args}
-                Sample rate: {samplerate}
+                Output channels: {channels}
+                Channel names: {channel_names}
+                Output decimation: {decimations}
+                Output scaling: {scalings}
+                Output type: {out_types}
                 Data dir: {datadir}
                 Metadata: {metadata}
                 UUID: {uuid}
             ''').strip().format(**op.__dict__)
             print(opstr)
-
-        # check that subdevice specifications are unique per-mainboard
-        for sd in op.subdevs:
-            sds = sd.split()
-            if len(set(sds)) != len(sds):
-                errstr = (
-                    'Invalid subdevice specification: "{0}". '
-                    'Each subdevice specification for a given mainboard must '
-                    'be unique.'
-                )
-                raise ValueError(errstr.format(sd))
-
-        # sanity check: # of total subdevs should be same as # of channels
-        op.mboards_bychan = []
-        op.subdevs_bychan = []
-        op.mboardnum_bychan = []
-        mboards = op.mboards if op.mboards else ['default']
-        for mbnum, (mb, sd) in enumerate(zip(mboards, op.subdevs)):
-            sds = sd.split()
-            mbs = list(repeat(mb, len(sds)))
-            mbnums = list(repeat(mbnum, len(sds)))
-            op.mboards_bychan.extend(mbs)
-            op.subdevs_bychan.extend(sds)
-            op.mboardnum_bychan.extend(mbnums)
-        if len(op.subdevs_bychan) != op.nchs:
-            raise ValueError(
-                'Number of device channels does not match the number of '
-                'channel names provided.'
-            )
 
         return op
 
@@ -231,17 +270,13 @@ class Thor(object):
         """Create, set up, and return USRP source object."""
         op = self.op
         # create usrp source block
-        if op.dec > 1:
-            op.cpu_format = 'fc32'
-        else:
-            op.cpu_format = 'sc16'
         op.otw_format = 'sc16'
         u = uhd.usrp_source(
             device_addr=','.join(chain(op.mboard_strs, op.dev_args)),
             stream_args=uhd.stream_args(
                 cpu_format=op.cpu_format,
                 otw_format=op.otw_format,
-                channels=range(len(op.chs)),
+                channels=range(op.nrchs),
                 args=','.join(op.stream_args)
             ),
         )
@@ -312,7 +347,7 @@ class Thor(object):
         COMMAND_DELAY = 0.2
         cmd_time = u.get_time_now() + uhd.time_spec(COMMAND_DELAY)
         u.set_command_time(cmd_time, uhd.ALL_MBOARDS)
-        for ch_num in range(op.nchs):
+        for ch_num in range(op.nrchs):
             # local oscillator sharing settings
             lo_source = op.lo_sources[ch_num]
             if lo_source:
@@ -387,7 +422,7 @@ class Thor(object):
         time.sleep(COMMAND_DELAY)
 
         # read back actual channel settings
-        for ch_num in range(op.nchs):
+        for ch_num in range(op.nrchs):
             if op.lo_sources[ch_num]:
                 op.lo_sources[ch_num] = u.get_lo_source(uhd.ALL_LOS, ch_num)
             if op.lo_exports[ch_num] is not None:
@@ -410,8 +445,8 @@ class Thor(object):
                     'LO source: {lo_source} | LO export: {lo_export}'
                 )
             chinfo = '\n'.join(['  ' + l for l in chinfostrs])
-            for ch_num in range(op.nchs):
-                header = '---- {0} '.format(op.chs[ch_num])
+            for ch_num in range(op.nrchs):
+                header = '---- receiver channel {0} '.format(ch_num)
                 header += '-' * (78 - len(header))
                 print(header)
                 usrpinfo = dict(u.get_usrp_info(chan=ch_num))
@@ -425,10 +460,8 @@ class Thor(object):
                 info['sub'] = op.subdevs_bychan[ch_num]
                 info['ant'] = op.antennas[ch_num]
                 info['bw'] = op.bandwidths[ch_num]
-                info['dc_offset'] = op.dc_offsets[ch_num]
                 info['freq'] = op.centerfreqs[ch_num]
                 info['gain'] = op.gains[ch_num]
-                info['iq_balance'] = op.iq_balances[ch_num]
                 info['lo_off'] = op.lo_offsets[ch_num]
                 info['lo_source'] = op.lo_sources[ch_num]
                 info['lo_export'] = op.lo_exports[ch_num]
@@ -511,21 +544,6 @@ class Thor(object):
         # get UHD USRP source
         u = self._usrp_setup()
 
-        # after USRP setup, get output settings that depend on decimation rate
-        samplerate_out = op.samplerate / op.dec
-        samplerate_num_out = op.samplerate_num
-        samplerate_den_out = op.samplerate_den * op.dec
-        if op.dec > 1:
-            sample_dtype = '<c8'
-
-            taps = firdes.low_pass_2(
-                1.0, float(op.samplerate), float(samplerate_out / 2.0),
-                float(0.2 * samplerate_out), 80.0,
-                window=firdes.WIN_BLACKMAN_hARRIS
-            )
-        else:
-            sample_dtype = np.dtype([('r', '<i2'), ('i', '<i2')])
-
         # force creation of the RX streamer ahead of time with a start/stop
         # (after setting time/clock sources, before setting the
         # device time)
@@ -566,9 +584,9 @@ class Thor(object):
             lt = now.replace(microsecond=0) + timedelta(seconds=2)
         ltts = (lt - drf.util.epoch).total_seconds()
         # adjust launch time forward so it falls on an exact sample since epoch
-        lt_samples = np.ceil(ltts * samplerate_out)
-        ltts = lt_samples / samplerate_out
-        lt = drf.util.sample_to_datetime(lt_samples, samplerate_out)
+        lt_rsamples = np.ceil(ltts * op.samplerate)
+        ltts = lt_rsamples / op.samplerate
+        lt = drf.util.sample_to_datetime(lt_rsamples, op.samplerate)
         if op.verbose:
             ltstr = lt.strftime('%a %b %d %H:%M:%S.%f %Y')
             print('Launch time: {0} ({1})'.format(ltstr, repr(ltts)))
@@ -582,40 +600,88 @@ class Thor(object):
 
         # populate flowgraph one channel at a time
         fg = gr.top_block()
-        for k in range(op.nchs):
-            mbnum = op.mboardnum_bychan[k]
+        for ko in range(op.nochs):
+            # receiver channel number corresponding to this output channel
+            kr = op.channels[ko]
+            # mainboard number corresponding to this receiver's channel
+            mbnum = op.mboardnum_bychan[kr]
+
+            # get output settings
+            ot_dict = op.out_specs[ko]
+            converter = ot_dict['convert']
+            osample_dtype = ot_dict['dtype']
+            scaling = conv_scaling = op.scalings[ko]
+            dec = op.decimations[ko]
+            samplerate_out = op.samplerate / dec
+            samplerate_out_fr = Fraction(
+                op.samplerate_num, op.samplerate_den * dec,
+            )
+            samplerate_num_out = samplerate_out_fr.numerator
+            samplerate_den_out = samplerate_out_fr.denominator
+            start_sample = int(np.uint64(ltts * samplerate_out))
+            if dec > 1:
+                # (integrate scaling into filter taps)
+                taps = firdes.low_pass_2(
+                    scaling, float(op.samplerate),
+                    float(samplerate_out / 2.0), float(0.2 * samplerate_out),
+                    80.0, window=firdes.WIN_BLACKMAN_HARRIS,
+                )
+                conv_scaling = 1.0
+                # create low-pass filter
+                lpf = freq_xlating_fir_filter_ccf(
+                    dec, taps, 0.0, float(op.samplerate)
+                )
+            else:
+                lpf = None
+
+            if converter is not None:
+                kw = ot_dict['convert_kwargs']
+                # incorporate any scaling into type conversion block
+                kw['scale'] *= conv_scaling
+                convert = getattr(blocks, converter)(**kw)
+            elif conv_scaling != 1:
+                convert = blocks.multiply_const_vcc(conv_scaling)
+            else:
+                convert = None
+
             # create digital RF sink
             dst = gr_drf.digital_rf_channel_sink(
-                channel_dir=os.path.join(op.datadir, op.chs[k]),
-                dtype=sample_dtype,
+                channel_dir=os.path.join(op.datadir, op.channel_names[ko]),
+                dtype=osample_dtype,
                 subdir_cadence_secs=op.subdir_cadence_s,
                 file_cadence_millisecs=op.file_cadence_ms,
                 sample_rate_numerator=samplerate_num_out,
                 sample_rate_denominator=samplerate_den_out,
-                start=lt_samples,
+                start=start_sample,
                 ignore_tags=False,
                 is_complex=True,
                 num_subchannels=1,
                 uuid_str=op.uuid,
-                center_frequencies=op.centerfreqs[k],
+                center_frequencies=op.centerfreqs[kr],
                 metadata=dict(
                     # receiver metadata for USRP
                     receiver=dict(
                         description='UHD USRP source using GNU Radio',
-                        info=dict(u.get_usrp_info(chan=k)),
-                        antenna=op.antennas[k],
-                        bandwidth=op.bandwidths[k],
-                        center_freq=op.centerfreqs[k],
+                        info=dict(u.get_usrp_info(chan=kr)),
+                        antenna=op.antennas[kr],
+                        bandwidth=op.bandwidths[kr],
+                        center_freq=op.centerfreqs[kr],
                         clock_rate=u.get_clock_rate(mboard=mbnum),
                         clock_source=u.get_clock_source(mboard=mbnum),
-                        gain=op.gains[k],
-                        id=op.mboards_bychan[k],
-                        lo_offset=op.lo_offsets[k],
+                        dc_offset=op.dc_offsets[kr],
+                        gain=op.gains[kr],
+                        id=op.mboards_bychan[kr],
+                        iq_balance=op.iq_balances[kr],
+                        lo_offset=op.lo_offsets[kr],
                         otw_format=op.otw_format,
                         samp_rate=u.get_samp_rate(),
                         stream_args=','.join(op.stream_args),
-                        subdev=op.subdevs_bychan[k],
+                        subdev=op.subdevs_bychan[kr],
                         time_source=u.get_time_source(mboard=mbnum),
+                    ),
+                    processing=dict(
+                        decimation=op.decimations[ko],
+                        scaling=op.scalings[ko],
                     ),
                 ),
                 is_continuous=True,
@@ -626,17 +692,13 @@ class Thor(object):
                 debug=op.verbose,
             )
 
-            if op.dec > 1:
-                # create low-pass filter
-                lpf = filter.freq_xlating_fir_filter_ccf(
-                    op.dec, taps, 0.0, float(op.samplerate)
-                )
-
-                # connections for usrp->lpf->drf
-                connections = ((u, k), (lpf, 0), (dst, 0))
-            else:
-                # connections for usrp->drf
-                connections = ((u, k), (dst, 0))
+            connections = [(u, kr)]
+            if lpf is not None:
+                connections.append((lpf, 0))
+            if convert is not None:
+                connections.append((convert, 0))
+            connections.append((dst, 0))
+            connections = tuple(connections)
 
             # make channel connections in flowgraph
             fg.connect(*connections)
@@ -684,87 +746,81 @@ class Thor(object):
         sys.stdout.flush()
 
 
-if __name__ == '__main__':
-    scriptname = os.path.basename(sys.argv[0])
+def evalint(s):
+    """Evaluate string to an integer."""
+    return int(eval(s, {}, {}))
 
-    formatter = RawDescriptionHelpFormatter(scriptname)
-    width = formatter._width
 
-    title = 'THOR (The Haystack Observatory Recorder)'
-    copyright = 'Copyright (c) 2017 Massachusetts Institute of Technology'
-    shortdesc = 'Record data from synchronized USRPs in DigitalRF format.'
-    desc = '\n'.join((
-        '*'*width,
-        '*{0:^{1}}*'.format(title, width-2),
-        '*{0:^{1}}*'.format(copyright, width-2),
-        '*{0:^{1}}*'.format('', width-2),
-        '*{0:^{1}}*'.format(shortdesc, width-2),
-        '*'*width,
-    ))
+def evalfloat(s):
+    """Evaluate string to a float."""
+    return float(eval(s, {}, {}))
 
-    usage = (
-        '%(prog)s [-m MBOARD] [-d SUBDEV] [-c CH] [-y ANT] [-f FREQ]'
-        ' [-F OFFSET] \\\n'
-        '{0:8}[-g GAIN] [-b BANDWIDTH] [-r RATE] [options] DIR\n'.format('')
-    )
 
-    epi_pars = [
-        '''\
-        Arguments in the "mainboard" and "channel" groups accept multiple
-        values, allowing multiple mainboards and channels to be specified.
-        Multiple arguments can be provided by repeating the argument flag, by
-        passing a comma-separated list of values, or both. Within each argument
-        group, parameters will be grouped in the order in which they are given
-        to form the complete set of parameters for each mainboard/channel. For
-        any argument with fewer values given than the number of
-        mainboards/channels, its values will be extended by repeatedly cycling
-        through the values given up to the needed number.
-        ''',
-        '''\
-        Arguments in other groups apply to all mainboards/channels (including
-        the sample rate and decimation factor).
-        ''',
-        '''\
-        Example usage:
-        ''',
-    ]
-    epi_pars = [fill(dedent(s), width) for s in epi_pars]
+def intstrtuple(s):
+    """Get (int, string) tuple from int:str strings."""
+    parts = [p.strip() for p in s.split(':', 1)]
+    if len(parts) == 2:
+        return int(parts[0]), parts[1]
+    else:
+        return None, parts[0]
 
-    egtw = TextWrapper(
-        width=(width - 2), break_long_words=False, break_on_hyphens=False,
-        subsequent_indent=' ' * (len(scriptname) + 1),
-    )
-    egs = [
-        '''\
-        {0} -m 192.168.20.2 -d "A:A A:B" -c h,v -f 95e6 -r 100e6/24
-        /data/test
-        ''',
-        '''\
-        {0} -m 192.168.10.2 -d "A:0" -c ch1 -y "TX/RX" -f 20e6 -F 10e3 -g 20
-        -b 0 -r 1e6 /data/test
-        ''',
-    ]
-    egs = [' \\\n'.join(egtw.wrap(dedent(s.format(scriptname)))) for s in egs]
-    epi = '\n' + '\n\n'.join(epi_pars + egs) + '\n'
 
-    # parse options
-    parser = ArgumentParser(description=desc, usage=usage, epilog=epi,
-                            formatter_class=RawDescriptionHelpFormatter)
+def noneorstr(s):
+    """Turn empty or 'none' string to None."""
+    if s.lower() in ('', 'none'):
+        return None
+    else:
+        return s
 
-    parser.add_argument(
-        '--version', action='version',
-        version='THOR 3.1, using digital_rf {0}'.format(drf.__version__),
-    )
-    parser.add_argument(
-        '-q', '--quiet', dest='verbose', action='store_false',
-        help='''Reduce text output to the screen. (default: False)''',
-    )
-    parser.add_argument(
-        '--notest', dest='test_settings', action='store_false',
-        help='''Do not test USRP settings until experiment start.
-                (default: False)''',
-    )
 
+def noneorbool(s):
+    """Turn empty or 'none' string to None, all others to boolean."""
+    if s.lower() in ('', 'none'):
+        return None
+    elif s.lower() in ('true', 't', 'yes', 'y', '1'):
+        return True
+    else:
+        return False
+
+
+def noneorboolorcomplex(s):
+    """Turn empty or 'none' to None, else evaluate to a boolean or complex."""
+    if s.lower() in ('', 'none'):
+        return None
+    elif s.lower() in ('auto', 'true', 't', 'yes', 'y'):
+        return True
+    elif s.lower() in ('false', 'f', 'no', 'n'):
+        return False
+    else:
+        return complex(eval(s, {}, {}))
+
+
+class Extend(Action):
+    """Action to split comma-separated arguments and add to a list."""
+
+    def __init__(self, option_strings, dest, type=None, **kwargs):
+        if type is not None:
+            itemtype = type
+        else:
+            def itemtype(s):
+                return s
+
+        def split_string_and_cast(s):
+            return [itemtype(a.strip()) for a in s.strip().split(',')]
+
+        super(Extend, self).__init__(
+            option_strings, dest, type=split_string_and_cast, **kwargs
+        )
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        cur_list = getattr(namespace, self.dest, [])
+        if cur_list is None:
+            cur_list = []
+        cur_list.extend(values)
+        setattr(namespace, self.dest, cur_list)
+
+
+def _add_dir_group(parser):
     dirgroup = parser.add_mutually_exclusive_group(required=True)
     dirgroup.add_argument(
         'datadir', nargs='?', default=None,
@@ -774,7 +830,10 @@ if __name__ == '__main__':
         '-o', '--out', dest='outdir', default=None,
         help='''Data directory, to be filled with channel subdirectories.''',
     )
+    return parser
 
+
+def _add_mainboard_group(parser):
     mbgroup = parser.add_argument_group(title='mainboard')
     mbgroup.add_argument(
         '-m', '--mainboard', dest='mboards', action=Extend,
@@ -784,12 +843,58 @@ if __name__ == '__main__':
         '-d', '--subdevice', dest='subdevs', action=Extend,
         help='''USRP subdevice string. (default: "A:A")''',
     )
+    return parser
 
-    chgroup = parser.add_argument_group(title='channel')
-    chgroup.add_argument(
-        '-c', '--channel', dest='chs', action=Extend,
-        help='''Channel names to use in data directory. (default: "ch0")''',
+
+def _add_receiver_group(parser):
+    recgroup = parser.add_argument_group(title='receiver')
+    recgroup.add_argument(
+        '-r', '--samplerate', dest='samplerate', type=evalfloat,
+        help='''Sample rate in Hz. (default: 1e6)''',
     )
+    recgroup.add_argument(
+        '-A', '--devargs', dest='dev_args', action=Extend,
+        help='''Device arguments, e.g. "master_clock_rate=30e6".
+                (default: 'recv_buff_size=100000000,num_recv_frames=512')''',
+    )
+    recgroup.add_argument(
+        '-a', '--streamargs', dest='stream_args', action=Extend,
+        help='''Stream arguments, e.g. "peak=0.125,fullscale=1.0".
+                (default: '')''',
+    )
+    recgroup.add_argument(
+        '-T', '--tuneargs', dest='tune_args', action=Extend,
+        help='''Tune request arguments, e.g. "mode_n=integer,int_n_step=100e3".
+                (default: '')''',
+    )
+    recgroup.add_argument(
+        '--sync_source', dest='sync_source',
+        help='''Clock and time source for all mainboards.
+                (default: external)''',
+    )
+    recgroup.add_argument(
+        '--nosync', dest='sync', action='store_false',
+        help='''No syncing with external clock. (default: False)''',
+    )
+    recgroup.add_argument(
+        '--stop_on_dropped', dest='stop_on_dropped', action='store_true',
+        help='''Stop on dropped packet. (default: %(default)s)''',
+    )
+    recgroup.add_argument(
+        '--realtime', dest='realtime', action='store_true',
+        help='''Enable realtime scheduling if possible.
+                (default: %(default)s)''',
+    )
+    recgroup.add_argument(
+        '--notest', dest='test_settings', action='store_false',
+        help='''Do not test USRP settings until experiment start.
+                (default: False)''',
+    )
+    return parser
+
+
+def _add_rchannel_group(parser):
+    chgroup = parser.add_argument_group(title='receiver channel')
     chgroup.add_argument(
         '-f', '--centerfreq', dest='centerfreqs', action=Extend,
         type=evalfloat,
@@ -844,51 +949,69 @@ if __name__ == '__main__':
         help='''Name of antenna to select on the frontend.
                 (default: frontend default))''',
     )
+    return parser
 
-    recgroup = parser.add_argument_group(title='receiver')
-    recgroup.add_argument(
-        '-r', '--samplerate', dest='samplerate', type=evalfloat,
-        help='''Sample rate in Hz. (default: 1e6)''',
-    )
-    recgroup.add_argument(
-        '-i', '--dec', dest='dec', type=int,
-        help='''Integrate and decimate by this factor.
-                (default: 1)''',
-    )
-    recgroup.add_argument(
-        '-A', '--devargs', dest='dev_args', action=Extend,
-        help='''Device arguments, e.g. "master_clock_rate=30e6".
-                (default: 'recv_buff_size=100000000,num_recv_frames=512')''',
-    )
-    recgroup.add_argument(
-        '-a', '--streamargs', dest='stream_args', action=Extend,
-        help='''Stream arguments, e.g. "peak=0.125,fullscale=1.0".
-                (default: '')''',
-    )
-    recgroup.add_argument(
-        '-T', '--tuneargs', dest='tune_args', action=Extend,
-        help='''Tune request arguments, e.g. "mode_n=integer,int_n_step=100e3".
-                (default: '')''',
-    )
-    recgroup.add_argument(
-        '--sync_source', dest='sync_source',
-        help='''Clock and time source for all mainboards.
-                (default: external)''',
-    )
-    recgroup.add_argument(
-        '--nosync', dest='sync', action='store_false',
-        help='''No syncing with external clock. (default: False)''',
-    )
-    recgroup.add_argument(
-        '--stop_on_dropped', dest='stop_on_dropped', action='store_true',
-        help='''Stop on dropped packet. (default: %(default)s)''',
-    )
-    recgroup.add_argument(
-        '--realtime', dest='realtime', action='store_true',
-        help='''Enable realtime scheduling if possible.
-                (default: %(default)s)''',
-    )
 
+def _add_ochannel_group(parser):
+    chgroup = parser.add_argument_group(title='output channel')
+    chgroup.add_argument(
+        '-c', '--channel', dest='chs', action=Extend, type=intstrtuple,
+        help='''Output channel specification, including names and mapping from
+                receiver channels. Each output channel must be specified here
+                and given a unique name. Specifications are given as a receiver
+                channel number and name pair, e.g. "0:ch0". The number and
+                colon are optional; if omitted, any unused receiver channels
+                will be assigned to output channels in the supplied name order.
+                (default: "ch0")''',
+    )
+    chgroup.add_argument(
+        '-i', '--dec', '--decimate', dest='decimations', action=Extend,
+        type=evalint,
+        help='''Integrate and decimate by an output channel by this factor
+                using a low-pass filter. (default: 1)''',
+    )
+    chgroup.add_argument(
+        '--scale', dest='scalings', action=Extend, type=evalfloat,
+        help='''Scale an output channel by this factor. (default: 1)''',
+    )
+    chgroup.add_argument(
+        '--type', dest='out_types', action=Extend, type=noneorstr,
+        help='''Output channel data type to convert to ('scXX' for complex
+                integer and 'fcXX' for complex float with XX bits). Use 'None'
+                to skip conversion and use the USRP or filter output type.
+                Conversion from float to integer will map a magnitude of 1.0
+                (after any scaling) to the maximum integer value.
+                (default: None)''',
+    )
+    return parser
+
+
+def _add_drf_group(parser):
+    drfgroup = parser.add_argument_group(title='digital_rf')
+    drfgroup.add_argument(
+        '-n', '--file_cadence_ms', dest='file_cadence_ms', type=evalint,
+        help='''Number of milliseconds of data per file.
+                (default: 1000)''',
+    )
+    drfgroup.add_argument(
+        '-N', '--subdir_cadence_s', dest='subdir_cadence_s', type=evalint,
+        help='''Number of seconds of data per subdirectory.
+                (default: 3600)''',
+    )
+    drfgroup.add_argument(
+        '--metadata', action=Extend, metavar='{KEY}={VALUE}',
+        help='''Key, value metadata pairs to include with data.
+                (default: "")''',
+    )
+    drfgroup.add_argument(
+        '--uuid', dest='uuid',
+        help='''Unique ID string for this data collection.
+                (default: random)''',
+    )
+    return parser
+
+
+def _add_time_group(parser):
     timegroup = parser.add_argument_group(title='time')
     timegroup.add_argument(
         '-s', '--starttime', dest='starttime',
@@ -912,71 +1035,148 @@ if __name__ == '__main__':
         help='''Repeat time of experiment cycle. Align to start of next cycle
                 if start time has passed. (default: 10)''',
     )
+    return parser
 
-    drfgroup = parser.add_argument_group(title='digital_rf')
-    drfgroup.add_argument(
-        '-n', '--file_cadence_ms', dest='file_cadence_ms', type=evalint,
-        help='''Number of milliseconds of data per file.
-                (default: 1000)''',
-    )
-    drfgroup.add_argument(
-        '-N', '--subdir_cadence_s', dest='subdir_cadence_s', type=evalint,
-        help='''Number of seconds of data per subdirectory.
-                (default: 3600)''',
-    )
-    drfgroup.add_argument(
-        '--metadata', action=Extend, metavar='{KEY}={VALUE}',
-        help='''Key, value metadata pairs to include with data.
-                (default: "")''',
-    )
-    drfgroup.add_argument(
-        '--uuid', dest='uuid',
-        help='''Unique ID string for this data collection.
-                (default: random)''',
+
+def _build_thor_parser(Parser, *args):
+    scriptname = os.path.basename(sys.argv[0])
+
+    formatter = RawDescriptionHelpFormatter(scriptname)
+    width = formatter._width
+
+    title = 'THOR (The Haystack Observatory Recorder)'
+    copyright = 'Copyright (c) 2017 Massachusetts Institute of Technology'
+    shortdesc = 'Record data from synchronized USRPs in DigitalRF format.'
+    desc = '\n'.join((
+        '*'*width,
+        '*{0:^{1}}*'.format(title, width-2),
+        '*{0:^{1}}*'.format(copyright, width-2),
+        '*{0:^{1}}*'.format('', width-2),
+        '*{0:^{1}}*'.format(shortdesc, width-2),
+        '*'*width,
+    ))
+
+    usage = (
+        '%(prog)s [-m MBOARD] [-d SUBDEV] [-c CH] [-y ANT] [-f FREQ]'
+        ' [-F OFFSET] \\\n'
+        '{0:8}[-g GAIN] [-b BANDWIDTH] [-r RATE] [options] DIR\n'.format('')
     )
 
-    op = parser.parse_args()
+    epi_pars = [
+        '''\
+        Arguments in the "mainboard", "receiver channel", and "output channel"
+        groups accept multiple values, allowing multiple mainboards and
+        channels to be specified. Multiple arguments can be provided by
+        repeating the argument flag, by passing a comma-separated list of
+        values, or both. Within each argument group, parameters will be grouped
+        in the order in which they are given to form the complete set of
+        parameters for each mainboard/channel. For any argument with fewer
+        values given than the number of mainboards/channels, its values will be
+        extended by repeatedly cycling through the values given up to the
+        needed number.
+        ''',
+        '''\
+        Arguments in other groups apply to all mainboards/channels (including
+        the receiver sample rate).
+        ''',
+        '''\
+        Example usage:
+        ''',
+    ]
+    epi_pars = [fill(dedent(s), width) for s in epi_pars]
 
-    if op.datadir is None:
-        op.datadir = op.outdir
-    del op.outdir
+    egtw = TextWrapper(
+        width=(width - 2), break_long_words=False, break_on_hyphens=False,
+        subsequent_indent=' ' * (len(scriptname) + 1),
+    )
+    egs = [
+        '''\
+        {0} -m 192.168.20.2 -d "A:A A:B" -c h,v -f 95e6 -r 100e6/24
+        /data/test
+        ''',
+        '''\
+        {0} -m 192.168.10.2 -d "A:0" -c ch1 -y "TX/RX" -f 20e6 -F 10e3 -g 20
+        -b 0 -r 1e6 /data/test
+        ''',
+    ]
+    egs = [' \\\n'.join(egtw.wrap(dedent(s.format(scriptname)))) for s in egs]
+    epi = '\n' + '\n\n'.join(epi_pars + egs) + '\n'
+
+    # parse options
+    parser = Parser(
+        description=desc, usage=usage, epilog=epi,
+        formatter_class=RawDescriptionHelpFormatter,
+    )
+
+    parser.add_argument(
+        '--version', action='version',
+        version='THOR 3.1, using digital_rf {0}'.format(drf.__version__),
+    )
+    parser.add_argument(
+        '-q', '--quiet', dest='verbose', action='store_false',
+        help='''Reduce text output to the screen. (default: False)''',
+    )
+
+    parser = _add_dir_group(parser)
+    parser = _add_mainboard_group(parser)
+    parser = _add_receiver_group(parser)
+    parser = _add_rchannel_group(parser)
+    parser = _add_ochannel_group(parser)
+    parser = _add_drf_group(parser)
+    parser = _add_time_group(parser)
+
+    parser.set_defaults(func=_run_thor)
+
+    return parser
+
+
+def _run_thor(args):
+    if args.datadir is None:
+        args.datadir = args.outdir
+    del args.outdir
+
+    # separate args.chs (num, name) tuples into args.channels and
+    # args.channel_names
+    if args.chs is not None:
+        args.channels, args.channel_names = map(list, zip(*args.chs))
+    del args.chs
 
     # remove redundant arguments in dev_args, stream_args, tune_args
-    if op.dev_args is not None:
+    if args.dev_args is not None:
         try:
-            dev_args_dict = dict([a.split('=') for a in op.dev_args])
+            dev_args_dict = dict([a.split('=') for a in args.dev_args])
         except ValueError:
             raise ValueError(
                 'Device arguments must be {KEY}={VALUE} pairs.'
             )
-        op.dev_args = [
+        args.dev_args = [
             '{0}={1}'.format(k, v) for k, v in dev_args_dict.iteritems()
         ]
-    if op.stream_args is not None:
+    if args.stream_args is not None:
         try:
-            stream_args_dict = dict([a.split('=') for a in op.stream_args])
+            stream_args_dict = dict([a.split('=') for a in args.stream_args])
         except ValueError:
             raise ValueError(
                 'Stream arguments must be {KEY}={VALUE} pairs.'
             )
-        op.stream_args = [
+        args.stream_args = [
             '{0}={1}'.format(k, v) for k, v in stream_args_dict.iteritems()
         ]
-    if op.tune_args is not None:
+    if args.tune_args is not None:
         try:
-            tune_args_dict = dict([a.split('=') for a in op.tune_args])
+            tune_args_dict = dict([a.split('=') for a in args.tune_args])
         except ValueError:
             raise ValueError(
                 'Tune request arguments must be {KEY}={VALUE} pairs.'
             )
-        op.tune_args = [
+        args.tune_args = [
             '{0}={1}'.format(k, v) for k, v in tune_args_dict.iteritems()
         ]
 
     # convert metadata strings to a dictionary
-    if op.metadata is not None:
+    if args.metadata is not None:
         metadata_dict = {}
-        for a in op.metadata:
+        for a in args.metadata:
             try:
                 k, v = a.split('=')
             except ValueError:
@@ -990,16 +1190,23 @@ if __name__ == '__main__':
                 metadata_dict.setdefault('metadata', []).append(v)
             else:
                 metadata_dict[k] = v
-        op.metadata = metadata_dict
+        args.metadata = metadata_dict
 
     # ignore test_settings option if no starttime is set (starting right now)
-    if op.starttime is None:
-        op.test_settings = False
+    if args.starttime is None:
+        args.test_settings = False
 
-    options = {k: v for k, v in op._get_kwargs() if v is not None}
+    options = {k: v for k, v in args._get_kwargs() if v is not None}
     runopts = {
         k: options.pop(k) for k in list(options.keys())
         if k in ('starttime', 'endtime', 'duration', 'period')
     }
+    del options['func']
     thor = Thor(**options)
     thor.run(**runopts)
+
+
+if __name__ == '__main__':
+    parser = _build_thor_parser(ArgumentParser)
+    args = parser.parse_args()
+    args.func(args)
