@@ -9,6 +9,7 @@
 """Module defining a Digital RF Source block."""
 import os
 import sys
+import traceback
 import warnings
 from collections import defaultdict
 from distutils.version import LooseVersion
@@ -545,17 +546,23 @@ class digital_rf_channel_sink(gr.sync_block):
             # return WORK_DONE
             return -1
 
-        # write metadata
-        if md_dicts:
-            self._DMDWriter.write(md_samples, md_dicts)
+        try:
+            # write metadata
+            if md_dicts:
+                self._DMDWriter.write(md_samples, md_dicts)
 
-        # write data using block writer
-        self._next_rel_sample = _py_rf_write_hdf5.rf_block_write(
-            self._Writer._channelObj,
-            in_data,
-            data_rel_samples,
-            data_blk_idxs,
-        )
+            # write data using block writer
+            self._next_rel_sample = _py_rf_write_hdf5.rf_block_write(
+                self._Writer._channelObj,
+                in_data,
+                data_rel_samples,
+                data_blk_idxs,
+            )
+        except (IOError, RuntimeError):
+            # just print the exception so we can return WORK_DONE to notify
+            # other blocks to shut down cleanly
+            traceback.print_exc()
+            return -1
 
         return nsamples
 

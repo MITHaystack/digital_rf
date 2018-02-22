@@ -513,9 +513,8 @@ int digital_rf_close_write_hdf5(Digital_rf_write_object *hdf5_data_object)
 		hdf5_data_object->hdf5_file = 0;
 		hdf5_data_object->dataset_index = 0;
 
-		/* now rename this closed file unless io has occurred */
-		if (!hdf5_data_object->has_failure)
-			digital_rf_close_hdf5_file(hdf5_data_object);
+		/* rename closed file to finalized name (or delete if errored) */
+		digital_rf_close_hdf5_file(hdf5_data_object);
 
 		/* finally free all resources in hdf5_data_object */
 		digital_rf_free_hdf5_data_object(hdf5_data_object);
@@ -820,7 +819,7 @@ uint64_t digital_rf_write_samples_to_file(Digital_rf_write_object *hdf5_data_obj
 
 	if (status < 0)
 	{
-		fprintf(stderr, "Failure at H5DWrite\n");
+		H5Eprint(H5E_DEFAULT, stderr);
 		hdf5_data_object->has_failure = 1;
 		free(rf_data_index_arr);
 		return(0);
@@ -1040,7 +1039,11 @@ int digital_rf_close_hdf5_file(Digital_rf_write_object *hdf5_data_object)
 	strcat(new_fullfilename, strstr(hdf5_data_object->basename, "rf"));
 
 	if( access( fullname, F_OK ) != -1 )
-		return(rename(fullname, new_fullfilename));
+		/* remove file if error has occurred, rename otherwise */
+		if (hdf5_data_object->has_failure)
+			return(remove(fullname));
+		else
+			return(rename(fullname, new_fullfilename));
 	else
 		return(0); /* file already closed */
 }
