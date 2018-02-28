@@ -323,6 +323,10 @@ class DigitalMetadataWriter:
             for key, val in keyval:
                 if val is not None:
                     grp.create_dataset(key, data=val)
+                else:
+                    # treat None as the empty string so there will always
+                    # be a dataset written when it is passed to write
+                    grp.create_dataset(key, data='')
 
     def _sample_group_generator(self, samples):
         """Generator that yields HDF5 group for each sample in `samples`.
@@ -1153,8 +1157,14 @@ class DigitalMetadataReader:
 
         """
         if isinstance(obj, h5py.Dataset):
-            # [()] casts a Dataset as a numpy array
-            ret_dict[name] = obj[()]
+            # [()] casts a Dataset as a numpy array (or python object if the
+            # Dataset is of object type)
+            val = obj[()]
+            if isinstance(val, (numpy.bool_, numpy.object_, numpy.flexible)):
+                # if value is numpy non-numeric scalar, get as python type
+                # (otherwise always keep as numpy type for consistency)
+                val = val.item()
+            ret_dict[name] = val
         else:
             # create a dictionary for this group
             ret_dict[name] = {}

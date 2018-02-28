@@ -8,6 +8,7 @@
 # ----------------------------------------------------------------------------
 """Module defining a Digital RF Source block."""
 import os
+import traceback
 
 import gnuradio.blocks
 import h5py
@@ -272,7 +273,17 @@ class digital_rf_channel_source(gr.sync_block):
             )
             tag_dict['rx_rate'] = self._sample_rate_pmt
         for k, v in tags.items():
-            tag_dict[k] = pmt.to_pmt(v)
+            try:
+                pmt_val = pmt.to_pmt(v)
+            except ValueError:
+                traceback.print_exc()
+                errstr = (
+                    "Can't add tag for '{0}' because its value of {1} failed"
+                    " to convert to a pmt value."
+                )
+                print(errstr.format(k, v))
+            else:
+                tag_dict[k] = pmt_val
         self._tag_queue[sample] = tag_dict
 
     def start(self):
