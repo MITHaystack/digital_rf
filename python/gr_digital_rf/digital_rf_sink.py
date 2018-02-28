@@ -333,7 +333,8 @@ class digital_rf_channel_sink(gr.sync_block):
         # stream tags to read (in addition to rx_time, handled specially)
         if LooseVersion(gr.version()) >= LooseVersion('3.7.12'):
             self._stream_tag_translators = {
-                pmt.intern('rx_freq'): translate_rx_freq,
+                # disable rx_freq until we figure out what to do with polyphase
+                # pmt.intern('rx_freq'): translate_rx_freq,
                 pmt.intern('metadata'): translate_metadata,
             }
         else:

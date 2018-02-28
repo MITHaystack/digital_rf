@@ -8,7 +8,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Record data from synchronized USRPs in Digital RF format."""
-from __future__ import print_function
+from __future__ import division, print_function
 
 import math
 import os
@@ -27,11 +27,108 @@ from textwrap import TextWrapper, dedent, fill
 
 import numpy as np
 import pytz
-from gnuradio import blocks, gr, uhd
-from gnuradio.filter import firdes, freq_xlating_fir_filter_ccf
+from gnuradio import blocks, filter as grfilter, gr, uhd
 
 import digital_rf as drf
 import gr_digital_rf as gr_drf
+
+
+def equiripple_lpf(
+    cutoff=0.45, transition_width=0.1, attenuation=80, pass_ripple=None,
+):
+    """Get taps for an equiripple low-pass filter.
+
+    All frequencies given must be normalized in the range [0, 1], with 1
+    corresponding to the Nyquist frequency (Fs/2).
+
+    Parameters
+    ----------
+
+    cutoff : float
+        Normalized cutoff frequency (beginning of transition band).
+
+    transition_width : float
+        Normalized width (in frequency) of transition region from pass band to
+        stop band.
+
+    attenuation : float
+        Attenuation of the stop band in dB.
+
+    pass_ripple : float | None
+        Maximum ripple in the pass band in dB. If None, the attenuation value
+        is used.
+
+
+    Returns
+    -------
+
+    taps : array_like
+        Type I (even order) FIR low-pass filter taps meeting the given
+        requirements.
+
+    """
+    if pass_ripple is None:
+        pass_ripple = attenuation
+
+    if cutoff <= 0:
+        errstr = 'Cutoff ({0}) must be strictly greater than zero.'
+        raise ValueError(errstr.format(cutoff))
+
+    if transition_width <= 0:
+        errstr = 'Transition width ({0}) must be strictly greater than zero.'
+        raise ValueError(errstr.format(transition_width))
+
+    if cutoff + transition_width >= 1:
+        errstr = (
+            'Cutoff ({0}) + transition width ({1}) must be strictly less than'
+            ' one, but it is {2}.'
+        ).format(cutoff, transition_width, cutoff + transition_width)
+        raise ValueError(errstr)
+
+    # pm_remez arguments
+    bands = [0, cutoff, cutoff + transition_width, 1]
+    ampl = [1, 1, 0, 0]
+    error_weight = [10**((pass_ripple - attenuation) / 20.0), 1]
+
+    # get estimate for the filter order (Oppenheim + Schafer 2nd ed, 7.104)
+    M = (((attenuation + pass_ripple) / 2.0 - 13)
+         / 2.324 / (np.pi * transition_width))
+    # round up to nearest even-order (Type I) filter
+    M = int(np.ceil(M / 2.0)) * 2
+
+    for attempts in range(20):
+        # get taps for order M
+        try:
+            taps = np.asarray(grfilter.pm_remez(
+                order=M, bands=bands, ampl=ampl, error_weight=error_weight,
+            ))
+        except RuntimeError:
+            M = M + 2
+            continue
+
+        # calculate frequency response and get error from ideal
+        nfft = 16 * len(taps)
+        h = np.fft.fft(taps, nfft)
+        w = np.fft.fftfreq(nfft, 0.5)
+
+        passband = h[(np.abs(w) >= bands[0]) & (np.abs(w) <= bands[1])]
+        stopband = h[(np.abs(w) >= bands[2]) & (np.abs(w) <= bands[3])]
+
+        act_ripple = -20*np.log10(np.max(np.abs(ampl[0] - np.abs(passband))))
+        act_atten = -20*np.log10(np.max(np.abs(ampl[2] - np.abs(stopband))))
+
+        if act_ripple >= pass_ripple and act_atten >= attenuation:
+            break
+        else:
+            M = M + 2
+    else:
+        errstr = (
+            'Could not calculate equiripple filter that meets requirements'
+            'after {0} attempts (final order {1}).'
+        )
+        raise RuntimeError(errstr.format(attempts, M))
+
+    return taps
 
 
 class Thor(object):
@@ -53,8 +150,11 @@ class Thor(object):
         dc_offsets=[False], iq_balances=[None],
         gains=[0], bandwidths=[0], antennas=[''],
         # output channel group (num: len of channel_names)
-        channel_names=['ch0'], channels=[None], decimations=[1],
-        scalings=[1.0], out_types=[None],
+        channel_names=['ch0'], channels=[None], ch_samplerates=[None],
+        ch_centerfreqs=[False], ch_scalings=[1.0], ch_nsubchannels=[1],
+        ch_lpf_cutoffs=[0.9], ch_lpf_transition_widths=[0.2],
+        ch_lpf_attenuations=[80.0], ch_lpf_pass_ripples=[None],
+        ch_out_types=[None],
         # digital_rf group (apply to all)
         file_cadence_ms=1000, subdir_cadence_s=3600, metadata={}, uuid=None,
     ):
@@ -69,6 +169,9 @@ class Thor(object):
                 print('Initialization: testing device settings.')
             u = self._usrp_setup()
             del u
+
+            # finalize options (for settings that depend on USRP setup)
+            self._finalize_options()
 
     @staticmethod
     def _parse_options(**kwargs):
@@ -87,13 +190,18 @@ class Thor(object):
                 raise ValueError(errstr.format(sd))
 
         # get USRP cpu_format based on output type and decimation requirements
-        if (all(ot is None or ot == 'sc16' for ot in op.out_types)
-                and all(d == 1 for d in op.decimations)
-                and all(s == 1 for s in op.scalings)):
+        processing_required = (
+            any(sr is not None for sr in op.ch_samplerates) or
+            any(cf is not None for cf in op.ch_centerfreqs) or
+            any(s != 1 for s in op.ch_scalings) or
+            any(nsch != 1 for nsch in op.ch_nsubchannels)
+        )
+        if (all(ot is None or ot == 'sc16' for ot in op.ch_out_types)
+                and not processing_required):
             # with only sc16 output and no processing, can use sc16 as cpu
             # format and disable conversion
             op.cpu_format = 'sc16'
-            op.out_specs = [dict(
+            op.ch_out_specs = [dict(
                 convert=None,
                 convert_kwargs=None,
                 dtype=np.dtype([('r', np.int16), ('i', np.int16)]),
@@ -130,7 +238,7 @@ class Thor(object):
             }
             supported_out_types[None] = supported_out_types['fc32']
             type_dicts = []
-            for ot in op.out_types:
+            for ot in op.ch_out_types:
                 try:
                     type_dict = supported_out_types[ot]
                 except KeyError:
@@ -140,9 +248,9 @@ class Thor(object):
                     raise ValueError(errstr)
                 else:
                     type_dicts.append(type_dict)
-            op.out_specs = type_dicts
+            op.ch_out_specs = type_dicts
         # replace out_types to fill in None values with type name
-        op.out_types = [os['name'] for os in op.out_specs]
+        op.ch_out_types = [os['name'] for os in op.ch_out_specs]
 
         # repeat mainboard arguments as necessary
         op.nmboards = len(op.mboards) if len(op.mboards) > 0 else 1
@@ -175,7 +283,10 @@ class Thor(object):
         # repeat output channel arguments as necessary
         op.nochs = len(op.channel_names)
         for och_arg in (
-            'channels', 'decimations', 'out_specs', 'out_types', 'scalings',
+            'channels', 'ch_centerfreqs', 'ch_lpf_attenuations',
+            'ch_lpf_cutoffs', 'ch_lpf_pass_ripples',
+            'ch_lpf_transition_widths', 'ch_nsubchannels', 'ch_out_specs',
+            'ch_out_types', 'ch_samplerates', 'ch_scalings',
         ):
             val = getattr(op, och_arg)
             rval = list(islice(cycle(val), 0, op.nochs))
@@ -210,6 +321,12 @@ class Thor(object):
                 ' correct the output channel specification.'
             )
             raise ValueError(errstr.format(unused_rchs))
+
+        # copy desired centerfreq from receiver to output channel if requested
+        op.ch_centerfreqs = [
+            op.centerfreqs[rch] if f in (None, True) else f
+            for f, rch in zip(op.ch_centerfreqs, op.channels)
+        ]
 
         # create device_addr string to identify the requested device(s)
         op.mboard_strs = []
@@ -254,10 +371,12 @@ class Thor(object):
                 DC offset: {dc_offsets}
                 IQ balance: {iq_balances}
                 Output channels: {channels}
-                Channel names: {channel_names}
-                Output decimation: {decimations}
-                Output scaling: {scalings}
-                Output type: {out_types}
+                Output channel names: {channel_names}
+                Output sample rate: {ch_samplerates}
+                Output frequency: {ch_centerfreqs}
+                Output scaling: {ch_scalings}
+                Output subchannels: {ch_nsubchannels}
+                Output type: {ch_out_types}
                 Data dir: {datadir}
                 Metadata: {metadata}
                 UUID: {uuid}
@@ -332,15 +451,13 @@ class Thor(object):
         u.set_samp_rate(float(op.samplerate))
         # read back actual value
         samplerate = u.get_samp_rate()
-        # calculate longdouble precision sample rate
+        # calculate longdouble precision/rational sample rate
         # (integer division of clock rate)
         cr = u.get_clock_rate()
         srdec = int(round(cr / samplerate))
         samplerate_ld = np.longdouble(cr) / srdec
         op.samplerate = samplerate_ld
-        sr_rat = Fraction(cr).limit_denominator() / srdec
-        op.samplerate_num = sr_rat.numerator
-        op.samplerate_den = sr_rat.denominator
+        op.samplerate_frac = Fraction(cr).limit_denominator() / srdec
 
         # set per-channel options
         # set command time so settings are synced
@@ -471,6 +588,61 @@ class Thor(object):
 
         return u
 
+    def _finalize_options(self):
+        op = self.op
+
+        op.ch_samplerates_frac = []
+        op.resampling_ratios = []
+        op.resampling_filter_taps = []
+        op.resampling_filter_delays = []
+        op.channelizer_filter_taps = []
+        op.channelizer_filter_delays = []
+        for ko, (osr, nsc) in enumerate(
+            zip(op.ch_samplerates, op.ch_nsubchannels)
+        ):
+            # get output sample rate fraction
+            # (op.samplerate_frac final value is set in _usrp_setup
+            #  so can't get output sample rate until after that is done)
+            if osr is None:
+                ch_samplerate_frac = op.samplerate_frac
+            else:
+                ch_samplerate_frac = Fraction(osr).limit_denominator()
+            op.ch_samplerates_frac.append(ch_samplerate_frac)
+
+            # get resampling ratio
+            ratio = ch_samplerate_frac / op.samplerate_frac
+            op.resampling_ratios.append(ratio)
+
+            # get resampling low-pass filter taps
+            if ratio == 1:
+                op.resampling_filter_taps.append(np.zeros(0))
+                op.resampling_filter_delays.append(0)
+            else:
+                taps = equiripple_lpf(
+                    cutoff=float(op.ch_lpf_cutoffs[ko] * ratio),
+                    transition_width=float(
+                        op.ch_lpf_transition_widths[ko] * ratio
+                    ),
+                    attenuation=op.ch_lpf_attenuations[ko],
+                    pass_ripple=op.ch_lpf_pass_ripples[ko],
+                )
+                op.resampling_filter_taps.append(taps)
+                op.resampling_filter_delays.append((len(taps) - 1) // 2)
+
+            # get channelizer low-pass filter taps
+            if nsc > 1:
+                taps = equiripple_lpf(
+                    cutoff=(op.ch_lpf_cutoffs[ko] / nsc),
+                    transition_width=(op.ch_lpf_transition_widths[ko] / nsc),
+                    attenuation=op.ch_lpf_attenuations[ko],
+                    pass_ripple=op.ch_lpf_pass_ripples[ko],
+                )
+                op.channelizer_filter_taps.append(taps)
+                op.channelizer_filter_delays.append((len(taps) - 1) // 2)
+            else:
+                op.channelizer_filter_taps.append(np.zeros(0))
+                op.channelizer_filter_delays.append(0)
+
     def run(self, starttime=None, endtime=None, duration=None, period=10):
         op = self.op
 
@@ -544,6 +716,9 @@ class Thor(object):
         # get UHD USRP source
         u = self._usrp_setup()
 
+        # finalize options (for settings that depend on USRP setup)
+        self._finalize_options()
+
         # force creation of the RX streamer ahead of time with a start/stop
         # (after setting time/clock sources, before setting the
         # device time)
@@ -606,58 +781,136 @@ class Thor(object):
             # mainboard number corresponding to this receiver's channel
             mbnum = op.mboardnum_bychan[kr]
 
-            # get output settings
-            ot_dict = op.out_specs[ko]
-            converter = ot_dict['convert']
-            osample_dtype = ot_dict['dtype']
-            scaling = conv_scaling = op.scalings[ko]
-            dec = op.decimations[ko]
-            samplerate_out = op.samplerate / dec
-            samplerate_out_fr = Fraction(
-                op.samplerate_num, op.samplerate_den * dec,
-            )
-            samplerate_num_out = samplerate_out_fr.numerator
-            samplerate_den_out = samplerate_out_fr.denominator
-            start_sample = int(np.uint64(ltts * samplerate_out))
-            if dec > 1:
-                # (integrate scaling into filter taps)
-                taps = firdes.low_pass_2(
-                    scaling, float(op.samplerate),
-                    float(samplerate_out / 2.0), float(0.2 * samplerate_out),
-                    80.0, window=firdes.WIN_BLACKMAN_HARRIS,
-                )
+            # output settings that get modified depending on processing
+            ch_samplerate_frac = op.ch_samplerates_frac[ko]
+            ch_centerfreq = op.ch_centerfreqs[ko]
+
+            # make resampling filter blocks if necessary
+            rs_ratio = op.resampling_ratios[ko]
+            scaling = op.ch_scalings[ko]
+            if rs_ratio != 1:
+                rs_taps = op.resampling_filter_taps[ko]
+
+                # integrate scaling into filter taps
+                rs_taps *= scaling
                 conv_scaling = 1.0
-                # create low-pass filter
-                lpf = freq_xlating_fir_filter_ccf(
-                    dec, taps, 0.0, float(op.samplerate)
+
+                # frequency shift filter taps to band-pass if necessary
+                if ch_centerfreq is not False:
+                    f_shift = ch_centerfreq - op.centerfreqs[kr]
+                    phase_inc = 2*np.pi*f_shift/op.samplerate
+                    rotator = np.exp(phase_inc*1j*np.arange(len(rs_taps)))
+                    rs_taps = (rs_taps * rotator).astype('complex64')
+
+                    # create band-pass filter (complex taps)
+                    resampler = grfilter.rational_resampler_ccc(
+                        interpolation=rs_ratio.numerator,
+                        decimation=rs_ratio.denominator,
+                        taps=rs_taps.tolist(),
+                    )
+                else:
+                    # create low-pass filter (float taps)
+                    resampler = grfilter.rational_resampler_ccf(
+                        interpolation=rs_ratio.numerator,
+                        decimation=rs_ratio.denominator,
+                        taps=rs_taps.tolist(),
+                    )
+
+                # skip first samples to account for filter delay so first
+                # sample going to output is first valid filtered sample
+                # (skip is in terms of output samples, so fix rate)
+                resampler_skiphead = blocks.skiphead(
+                    gr.sizeof_gr_complex,
+                    op.resampling_filter_delays[ko] // rs_ratio,
                 )
             else:
-                lpf = None
+                conv_scaling = scaling
+                resampler = None
 
+            # make frequency shift block if necessary
+            if ch_centerfreq is not False:
+                f_shift = ch_centerfreq - op.centerfreqs[kr]
+                phase_inc = -2*np.pi*f_shift/ch_samplerate_frac
+                rotator = blocks.rotator_cc(phase_inc)
+            else:
+                ch_centerfreq = op.centerfreqs[kr]
+                rotator = None
+
+            # make channelizer if necessary
+            nsc = op.ch_nsubchannels[ko]
+            if nsc > 1:
+                sc_taps = op.channelizer_filter_taps[ko]
+
+                # build a hierarchical block for the channelizer so output
+                # is a vector of channels as expected by digital_rf
+                channelizer = gr.hier_block2(
+                    'lpf',
+                    gr.io_signature(1, 1, gr.sizeof_gr_complex),
+                    gr.io_signature(1, 1, nsc*gr.sizeof_gr_complex),
+                )
+                s2ss = blocks.stream_to_streams(gr.sizeof_gr_complex, nsc)
+                filt = grfilter.pfb_channelizer_ccf(
+                    numchans=nsc, taps=sc_taps, oversample_rate=1.0,
+                )
+                s2v = blocks.streams_to_vector(gr.sizeof_gr_complex, nsc)
+                channelizer.connect(channelizer, s2ss)
+                for ksc in range(nsc):
+                    channelizer.connect((s2ss, ksc), (filt, ksc), (s2v, ksc))
+                channelizer.connect(s2v, channelizer)
+
+                # skip first samples to account for filter delay so first
+                # sample going to output is first valid filtered sample
+                # (skip is in terms of output samples, so fix rate)
+                channelizer_skiphead = blocks.skiphead(
+                    gr.sizeof_gr_complex*nsc,
+                    op.channelizer_filter_delays[ko] // nsc,
+                )
+
+                # modify output settings accordingly
+                ch_centerfreq = (
+                    ch_centerfreq
+                    + np.fft.fftfreq(nsc, 1 / float(ch_samplerate_frac))
+                )
+                ch_samplerate_frac = ch_samplerate_frac / nsc
+            else:
+                channelizer = None
+
+            # make conversion block if necessary
+            ot_dict = op.ch_out_specs[ko]
+            converter = ot_dict['convert']
             if converter is not None:
                 kw = ot_dict['convert_kwargs']
+                # increase vector length of input due to channelizer
+                kw['vlen'] *= nsc
                 # incorporate any scaling into type conversion block
                 kw['scale'] *= conv_scaling
                 convert = getattr(blocks, converter)(**kw)
             elif conv_scaling != 1:
-                convert = blocks.multiply_const_vcc(conv_scaling)
+                convert = blocks.multiply_const_cc(conv_scaling, nsc)
             else:
                 convert = None
+
+            # get start sample
+            ch_samplerate_ld = (
+                np.longdouble(ch_samplerate_frac.numerator)
+                / np.longdouble(ch_samplerate_frac.denominator)
+            )
+            start_sample = int(np.uint64(ltts * ch_samplerate_ld))
 
             # create digital RF sink
             dst = gr_drf.digital_rf_channel_sink(
                 channel_dir=os.path.join(op.datadir, op.channel_names[ko]),
-                dtype=osample_dtype,
+                dtype=op.ch_out_specs[ko]['dtype'],
                 subdir_cadence_secs=op.subdir_cadence_s,
                 file_cadence_millisecs=op.file_cadence_ms,
-                sample_rate_numerator=samplerate_num_out,
-                sample_rate_denominator=samplerate_den_out,
+                sample_rate_numerator=ch_samplerate_frac.numerator,
+                sample_rate_denominator=ch_samplerate_frac.denominator,
                 start=start_sample,
                 ignore_tags=False,
                 is_complex=True,
-                num_subchannels=1,
+                num_subchannels=nsc,
                 uuid_str=op.uuid,
-                center_frequencies=op.centerfreqs[kr],
+                center_frequencies=ch_centerfreq,
                 metadata=dict(
                     # receiver metadata for USRP
                     receiver=dict(
@@ -672,7 +925,9 @@ class Thor(object):
                         gain=op.gains[kr],
                         id=op.mboards_bychan[kr],
                         iq_balance=op.iq_balances[kr],
+                        lo_export=op.lo_exports[kr],
                         lo_offset=op.lo_offsets[kr],
+                        lo_source=op.lo_sources[kr],
                         otw_format=op.otw_format,
                         samp_rate=u.get_samp_rate(),
                         stream_args=','.join(op.stream_args),
@@ -680,8 +935,11 @@ class Thor(object):
                         time_source=u.get_time_source(mboard=mbnum),
                     ),
                     processing=dict(
-                        decimation=op.decimations[ko],
-                        scaling=op.scalings[ko],
+                        channelizer_filter_taps=op.channelizer_filter_taps[ko],
+                        decimation=op.resampling_ratios[ko].denominator,
+                        interpolation=op.resampling_ratios[ko].numerator,
+                        resampling_filter_taps=op.resampling_filter_taps[ko],
+                        scaling=op.ch_scalings[ko],
                     ),
                 ),
                 is_continuous=True,
@@ -693,8 +951,14 @@ class Thor(object):
             )
 
             connections = [(u, kr)]
-            if lpf is not None:
-                connections.append((lpf, 0))
+            if resampler is not None:
+                connections.append((resampler, 0))
+                connections.append((resampler_skiphead, 0))
+            if rotator is not None:
+                connections.append((rotator, 0))
+            if channelizer is not None:
+                connections.append((channelizer, 0))
+                connections.append((channelizer_skiphead, 0))
             if convert is not None:
                 connections.append((convert, 0))
             connections.append((dst, 0))
@@ -773,6 +1037,14 @@ def noneorstr(s):
         return s
 
 
+def noneorfloat(s):
+    """Turn empty or 'none' to None, else evaluate to float."""
+    if s.lower() in ('', 'none'):
+        return None
+    else:
+        return evalfloat(s)
+
+
 def noneorbool(s):
     """Turn empty or 'none' string to None, all others to boolean."""
     if s.lower() in ('', 'none'):
@@ -781,6 +1053,18 @@ def noneorbool(s):
         return True
     else:
         return False
+
+
+def noneorboolorfloat(s):
+    """Turn empty or 'none' to None, else evaluate to a boolean or float."""
+    if s.lower() in ('', 'none'):
+        return None
+    elif s.lower() in ('auto', 'true', 't', 'yes', 'y'):
+        return True
+    elif s.lower() in ('false', 'f', 'no', 'n'):
+        return False
+    else:
+        return evalfloat(s)
 
 
 def noneorboolorcomplex(s):
@@ -955,7 +1239,7 @@ def _add_rchannel_group(parser):
 def _add_ochannel_group(parser):
     chgroup = parser.add_argument_group(title='output channel')
     chgroup.add_argument(
-        '-c', '--channel', dest='chs', action=Extend, type=intstrtuple,
+        '+c', '-c', '--channel', dest='chs', action=Extend, type=intstrtuple,
         help='''Output channel specification, including names and mapping from
                 receiver channels. Each output channel must be specified here
                 and given a unique name. Specifications are given as a receiver
@@ -965,17 +1249,75 @@ def _add_ochannel_group(parser):
                 (default: "ch0")''',
     )
     chgroup.add_argument(
-        '-i', '--dec', '--decimate', dest='decimations', action=Extend,
+        '+r', '--ch_samplerate', dest='ch_samplerates', action=Extend,
+        type=noneorfloat,
+        help='''Output channel sample rate in Hz. If 'None'/'', use the
+                receiver sample rate. Filtering and resampling will be
+                performed to achieve the desired rate (set filter specs with
+                lpf_* options). Must be less than or equal to the receiver
+                sample rate. (default: None)''',
+    )
+    chgroup.add_argument(
+        '-i', '--dec', dest='decimations', action=Extend,
         type=evalint,
-        help='''Integrate and decimate by an output channel by this factor
-                using a low-pass filter. (default: 1)''',
+        help='''DEPRECATED: use +r/--ch_samplerate instead. If used,
+                all ch_samplerate arguments will be ignored!
+                Integrate and decimate by an output channel by this factor
+                using a low-pass filter (specifications supplied by lpf_*
+                options). (default: 1)''',
     )
     chgroup.add_argument(
-        '--scale', dest='scalings', action=Extend, type=evalfloat,
-        help='''Scale an output channel by this factor. (default: 1)''',
+        '+f', '--ch_centerfreq', dest='ch_centerfreqs', action=Extend,
+        type=noneorboolorfloat,
+        help='''Output channel center frequency in Hz. Can be 'True'/'auto' to
+                use the receiver channel target frequency (correcting for
+                actual tuner offset), 'False' to use the receiver channel
+                frequency unchanged, or a float value. (default: False)''',
     )
     chgroup.add_argument(
-        '--type', dest='out_types', action=Extend, type=noneorstr,
+        '+k', '--scale', dest='ch_scalings', action=Extend, type=evalfloat,
+        help='''Scale output channel by this factor. (default: 1)''',
+    )
+    chgroup.add_argument(
+        '+n', '--subchannels', dest='ch_nsubchannels', action=Extend,
+        type=evalint,
+        help='''Number of subchannels for channelizing the output. A polyphase
+                filter bank will be applied after the otherwise specified
+                resampling and frequency shifting to further decimate the
+                output and divide it into this many equally-spaced channels.
+                (default: 1)''',
+    )
+    chgroup.add_argument(
+        '--lpf_cutoff', dest='ch_lpf_cutoffs', action=Extend, type=evalfloat,
+        help='''Normalized low-pass filter cutoff frequency (start of
+                transition band), where a value of 1 indicates half the
+                *output* sampling rate. Value in Hz is therefore
+                (cutoff * out_sample_rate / 2.0). (default: 0.9)''',
+    )
+    chgroup.add_argument(
+        '--lpf_transition_width', dest='ch_lpf_transition_widths',
+        action=Extend, type=evalfloat,
+        help='''Normalized width (in frequency) of low-pass filter transition
+                region from pass band to stop band, where a value of 1
+                indicates half the *output* sampling rate. Value in Hz is
+                therefore (transition_width * out_sample_rate / 2.0).
+                (default: 0.2)''',
+    )
+    chgroup.add_argument(
+        '--lpf_attenuation', dest='ch_lpf_attenuations', action=Extend,
+        type=evalfloat,
+        help='''Minimum attenuation of the low-pass filter stop band in dB.
+                (default: 80)''',
+    )
+    chgroup.add_argument(
+        '--lpf_pass_ripple', dest='ch_lpf_pass_ripples', action=Extend,
+        type=noneorfloat,
+        help='''Maximum ripple of the low-pass filter pass band in dB. If
+                'None', use the same value as `lpf_attenuation`.
+                (default: None)''',
+    )
+    chgroup.add_argument(
+        '+t', '--type', dest='ch_out_types', action=Extend, type=noneorstr,
         help='''Output channel data type to convert to ('scXX' for complex
                 integer and 'fcXX' for complex float with XX bits). Use 'None'
                 to skip conversion and use the USRP or filter output type.
@@ -1104,7 +1446,7 @@ def _build_thor_parser(Parser, *args):
 
     # parse options
     parser = Parser(
-        description=desc, usage=usage, epilog=epi,
+        description=desc, usage=usage, epilog=epi, prefix_chars='-+',
         formatter_class=RawDescriptionHelpFormatter,
     )
 
@@ -1134,6 +1476,13 @@ def _run_thor(args):
     if args.datadir is None:
         args.datadir = args.outdir
     del args.outdir
+
+    # handle deprecated decimation argument, converting it to sample rate
+    if args.decimations is not None:
+        if args.samplerate is None:
+            args.samplerate = 1e6
+        args.ch_samplerates = [args.samplerate / d for d in args.decimations]
+    del args.decimations
 
     # separate args.chs (num, name) tuples into args.channels and
     # args.channel_names
