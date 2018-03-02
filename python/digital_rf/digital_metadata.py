@@ -96,7 +96,7 @@ def _recursive_items(d, prefix='', visited=None):
             yield name, v
 
 
-class DigitalMetadataWriter:
+class DigitalMetadataWriter(object):
     """Write data in Digital Metadata HDF5 format."""
 
     _min_version = packaging.version.parse('2.5')
@@ -492,7 +492,7 @@ class DigitalMetadataWriter:
         return ret_str
 
 
-class DigitalMetadataReader:
+class DigitalMetadataReader(object):
     """Read data in Digital Metadata HDF5 format."""
 
     _min_version = packaging.version.parse('2.0')

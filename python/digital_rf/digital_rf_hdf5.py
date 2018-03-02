@@ -19,7 +19,6 @@ from __future__ import print_function
 
 import collections
 import datetime
-import distutils.version
 import fractions
 import glob
 import os
@@ -292,7 +291,7 @@ def get_unix_time(
     return (dt, picosecond)
 
 
-class DigitalRFWriter:
+class DigitalRFWriter(object):
     """Write a channel of data in Digital RF HDF5 format."""
 
     def __init__(
@@ -830,7 +829,7 @@ class DigitalRFWriter:
         return sample_arr_uint64
 
 
-class DigitalRFReader:
+class DigitalRFReader(object):
     """Read data in Digital RF HDF5 format.
 
     This class allows random access to the rf data.
@@ -1803,7 +1802,7 @@ class DigitalRFReader:
         return retList
 
 
-class _channel_properties:
+class _channel_properties(object):
     """Properties for a Digital RF channel over one or more top-level dirs."""
 
     def __init__(self, channel_name, top_level_dir_meta_list=[]):
@@ -1853,7 +1852,7 @@ class _channel_properties:
         return ret_dict
 
 
-class _top_level_dir_properties:
+class _top_level_dir_properties(object):
     """A Digital RF channel in a specific top-level directory."""
 
     def __init__(self, top_level_dir, channel_name, access_mode):
