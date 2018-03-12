@@ -516,7 +516,7 @@ static PyObject * _py_rf_write_hdf5_get_unix_time(PyObject * self, PyObject * ar
  */
 {
 	// input arguments
-	unsigned long long unix_sample_index = 0;
+	uint64_t unix_sample_index = 0;
 	uint64_t sample_rate_numerator = 0;
 	uint64_t sample_rate_denominator = 0;
 
@@ -526,7 +526,6 @@ static PyObject * _py_rf_write_hdf5_get_unix_time(PyObject * self, PyObject * ar
 	int hour, minute, second;
 	uint64_t picosecond;
 	int result;
-	long double sample_rate;
 
 	// parse input arguments
 	if (!PyArg_ParseTuple(args, "KKK",
@@ -537,11 +536,10 @@ static PyObject * _py_rf_write_hdf5_get_unix_time(PyObject * self, PyObject * ar
 		return NULL;
 	}
 
-	sample_rate =  (long double)sample_rate_numerator / (long double)sample_rate_denominator;
-
 	// call underlying method
-	result = digital_rf_get_unix_time(unix_sample_index, sample_rate, &year, &month, &day,
-                                      &hour, &minute, &second, &picosecond);
+	result = digital_rf_get_unix_time_rational(
+		unix_sample_index, sample_rate_numerator, sample_rate_denominator,
+		&year, &month, &day, &hour, &minute, &second, &picosecond);
 	if (result != 0)
 		return(NULL);
 

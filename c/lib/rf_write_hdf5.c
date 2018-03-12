@@ -523,7 +523,6 @@ int digital_rf_close_write_hdf5(Digital_rf_write_object *hdf5_data_object)
 }
 
 
-
 int digital_rf_get_unix_time(uint64_t global_sample, long double sample_rate, int * year, int * month, int *day,
 		                     int * hour, int * minute, int * second, uint64_t * picosecond)
 /* get_unix_time converts a global_sample and a sample rate into year, month, day
@@ -535,7 +534,7 @@ int digital_rf_get_unix_time(uint64_t global_sample, long double sample_rate, in
 {
 	struct tm *gm;
 	time_t unix_second;
-	double unix_remainder;
+	long double unix_remainder;
 
 	/* set values down to second using gmtime */
 	unix_second = (time_t)(global_sample / sample_rate);
@@ -551,12 +550,47 @@ int digital_rf_get_unix_time(uint64_t global_sample, long double sample_rate, in
 
 	/* set picoseconds */
 	if (fmod(sample_rate, 1.0) == 0.0) /* use integer logic when sample rate can be converted to an integer */
-		unix_remainder = (double)(global_sample - (unix_second * (uint64_t)sample_rate));
+		unix_remainder = (long double)(global_sample - (unix_second * (uint64_t)sample_rate));
 	else
-		unix_remainder = fmod((long double)global_sample, sample_rate);
-	*picosecond = (uint64_t)floor((unix_remainder/sample_rate)*1.0E12 + 0.5);
+		unix_remainder = fmodl((long double)global_sample, sample_rate);
+	*picosecond = (uint64_t)floorl((unix_remainder/sample_rate)*1.0E12L + 0.5L);
 	return(0);
 }
+
+
+int digital_rf_get_unix_time_rational(uint64_t global_sample,
+	uint64_t sample_rate_numerator, uint64_t sample_rate_denominator,
+	int * year, int * month, int *day, int * hour, int * minute, int * second,
+	uint64_t * picosecond)
+/* get_unix_time_rational converts a global_sample and a sample rate into year,
+ *  month, day, hour, minute, second, picosecond
+ *
+ * 	Returns 0 if success, -1 if failure.
+ *
+ */
+{
+	struct tm *gm;
+	time_t unix_second;
+	uint64_t unix_remainder;
+
+	/* set values down to second using gmtime */
+	unix_second = (time_t)(global_sample * sample_rate_denominator / sample_rate_numerator);
+	gm = gmtime(&unix_second);
+	if (gm == NULL)
+		return(-1);
+	*year = gm->tm_year + 1900;
+	*month = gm->tm_mon + 1;
+	*day = gm->tm_mday;
+	*hour = gm->tm_hour;
+	*minute = gm->tm_min;
+	*second = gm->tm_sec;
+
+	/* set picoseconds */
+	unix_remainder = global_sample - (unix_second * sample_rate_numerator / sample_rate_denominator);
+	*picosecond = unix_remainder * 1000000000000 * sample_rate_denominator / sample_rate_numerator;
+	return(0);
+}
+
 
 
 /* Private Method implementations */

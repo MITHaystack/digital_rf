@@ -145,24 +145,27 @@ int main (int argc, char *argv[])
 	}
 
 	printf("Test of time library\n");
-	sample_rate_numerator = (uint64_t)1.0E9;
-	sample_rate_denominator = 1;
-	sample_rate = ((long double)sample_rate_numerator)/sample_rate_denominator;
-	global_index = (uint64_t)(1394368230 * sample_rate_numerator) + 1; /* should represent 2014-03-09 12:30:30  and 1E3 picoseconds*/
-	if (digital_rf_get_unix_time(global_index, sample_rate, &year, &month, &day,
-			                     &hour, &minute, &second,  &picosecond))
-	{
-		printf("Test failed at get_unix_time\n");
-		exit(-1);
-	}
-	printf("%04i-%02i-%02i %02i:%02i:%02i pico: %" PRIu64 "\n", year, month, day, hour, minute, second, picosecond);
-
-	/* change sample_rate to 66.67HZ so we can work with small files */
+	/* sample_rate of 66.67HZ so we can work with small files */
 	sample_rate_numerator = 200;
 	sample_rate_denominator = 3;
 	sample_rate = ((long double)sample_rate_numerator)/sample_rate_denominator;
 	global_index = (uint64_t)(1394368230 * sample_rate) + 1; /* should represent 2014-03-09 12:30:30  and 15E9 picoseconds*/
+	if (digital_rf_get_unix_time(global_index, sample_rate, &year, &month, &day,
+			                     &hour, &minute, &second, &picosecond))
+	{
+		printf("Test failed at get_unix_time\n");
+		exit(-1);
+	}
+	printf("%04i-%02i-%02i %02i:%02i:%02i pico: %" PRIu64 " (long double)\n", year, month, day, hour, minute, second, picosecond);
 
+	if (digital_rf_get_unix_time_rational(global_index, sample_rate_numerator,
+		sample_rate_denominator, &year, &month, &day, &hour, &minute, &second,
+		&picosecond))
+	{
+		printf("Test failed at get_unix_time_rational\n");
+		exit(-1);
+	}
+	printf("%04i-%02i-%02i %02i:%02i:%02i pico: %" PRIu64 "\n", year, month, day, hour, minute, second, picosecond);
 
 	printf("Test 0 - simple single write to multiple files, no compress, no checksum, 2 secs/subdir, 400 ms/file, - channel 0\n");
 	is_continuous = 1;
