@@ -16,12 +16,118 @@ import pytz
 import six
 
 __all__ = (
-    'epoch', 'parse_identifier_to_sample', 'parse_identifier_to_time',
-    'sample_to_datetime', 'samples_to_timedelta',
+    'datetime_to_timestamp', 'epoch', 'parse_identifier_to_sample',
+    'parse_identifier_to_time', 'sample_to_datetime', 'samples_to_timedelta',
+    'time_to_sample',
 )
 
 
 epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+
+
+def time_to_sample(time, samples_per_second):
+    """Get a sample index from a time using a given sample rate.
+
+    Parameters
+    ----------
+
+    time : datetime | float
+        Time corresponding to the desired sample index. If not given as a
+        datetime object, the numeric value is interpreted as a UTC timestamp
+        (seconds since epoch).
+
+    samples_per_second : numpy.longdouble
+        Sample rate in Hz.
+
+
+    Returns
+    -------
+
+    sample_index : int
+        Index to the identified sample given in the number of samples since
+        the epoch (time_since_epoch*sample_per_second).
+
+    """
+    if isinstance(time, datetime.datetime):
+        if time.tzinfo is None:
+            # assume UTC if timezone was not specified
+            time = pytz.utc.localize(time)
+        time = (time - epoch).total_seconds()
+    return int(np.uint64(time*samples_per_second))
+
+
+def sample_to_datetime(sample, samples_per_second):
+    """Get datetime corresponding to the given sample index.
+
+    Parameters
+    ----------
+
+    sample : int
+        Sample index in number of samples since epoch.
+
+    samples_per_second : numpy.longdouble
+        Sample rate in Hz.
+
+
+    Returns
+    -------
+
+    dt : datetime
+        Datetime corresponding to the given sample index.
+
+    """
+    return epoch + samples_to_timedelta(sample, samples_per_second)
+
+
+def samples_to_timedelta(samples, samples_per_second):
+    """Get timedelta for a duration in number of samples given a sample rate.
+
+    Parameters
+    ----------
+
+    samples : int
+        Duration in number of samples.
+
+    samples_per_second : numpy.longdouble
+        Sample rate in Hz.
+
+
+    Returns
+    -------
+
+    td : datetime.timedelta
+        Timedelta corresponding to the number of samples.
+
+    """
+    # splitting into secs/frac lets us get a more accurate datetime
+    secs = int(samples // samples_per_second)
+    frac = (samples % samples_per_second) / samples_per_second
+    microseconds = int(np.uint64(frac*1000000))
+
+    return datetime.timedelta(seconds=secs, microseconds=microseconds)
+
+
+def datetime_to_timestamp(dt):
+    """Return time stamp (seconds since epoch) for a given datetime object.
+
+    Parameters
+    ----------
+
+    dt : datetime
+        Time specified as a datetime object.
+
+
+    Returns
+    -------
+
+    ts : float
+        Time stamp (seconds since epoch of digital_rf.util.epoch).
+
+    """
+    if dt.tzinfo is None:
+        # assume UTC if timezone was not specified
+        dt = pytz.utc.localize(dt)
+    return (dt - epoch).total_seconds()
 
 
 def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
@@ -30,7 +136,7 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
     Parameters
     ----------
 
-    iden : None | int | float | string
+    iden : None | int | float | string | datetime
         If None or '', None is returned to indicate that the index should
         be automatically determined.
         If an integer, it is returned as the sample index.
@@ -75,21 +181,15 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
                 raise ValueError(
                     '"+" identifier must be followed by an integer or float.'
                 )
-            # convert datetime to float
-            dt = dateutil.parser.parse(iden)
-            if dt.tzinfo is None:
-                # assume UTC if timezone was not specified in the string
-                dt = pytz.utc.localize(dt)
-            iden = (dt - epoch).total_seconds()
+            # parse to datetime
+            iden = dateutil.parser.parse(iden)
 
-    if isinstance(iden, float):
+    if not isinstance(iden, six.integer_types):
         if samples_per_second is None:
             raise ValueError(
                 'samples_per_second required when time identifier is used.'
             )
-        idx = int(np.uint64(iden*samples_per_second))
-    else:
-        idx = int(iden)
+        idx = time_to_sample(iden, samples_per_second)
 
     if is_relative:
         if ref_index is None:
@@ -177,54 +277,3 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
         return td + ref_datetime
     else:
         return td + epoch
-
-
-def sample_to_datetime(sample, samples_per_second):
-    """Get datetime corresponding to the given sample index.
-
-    Parameters
-    ----------
-
-    sample : int
-        Sample index in number of samples since epoch.
-
-    samples_per_second : numpy.longdouble
-        Sample rate in Hz.
-
-
-    Returns
-    -------
-
-    dt : datetime
-        Datetime corresponding to the given sample index.
-
-    """
-    return epoch + samples_to_timedelta(sample, samples_per_second)
-
-
-def samples_to_timedelta(samples, samples_per_second):
-    """Get timedelta for a duration in number of samples given a sample rate.
-
-    Parameters
-    ----------
-
-    samples : int
-        Duration in number of samples.
-
-    samples_per_second : numpy.longdouble
-        Sample rate in Hz.
-
-
-    Returns
-    -------
-
-    td : datetime.timedelta
-        Timedelta corresponding to the number of samples.
-
-    """
-    # splitting into secs/frac lets us get a more accurate datetime
-    secs = int(samples // samples_per_second)
-    frac = (samples % samples_per_second) / samples_per_second
-    microseconds = int(np.uint64(frac*1000000))
-
-    return datetime.timedelta(seconds=secs, microseconds=microseconds)
