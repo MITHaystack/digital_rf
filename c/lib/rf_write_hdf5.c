@@ -72,7 +72,7 @@ Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t d
  *
  * 	Hdf5 format
  *
- * 	/rf_data - dataset of size (*, 1 + is_complex), datatype = dtype_id
+ * 	/rf_data - dataset of size (*,) or (*, num_subchannels), datatype = dtype_id
  * 	/rf_data_index - dataset of size (num of separate block of data, 2), datatype - uint_64, length at least 1
  *  /rf_data has 14 attributes: sequence_num (int), subdir_cadence_secs (int), uuid_str (string), sample_rate_numerator (uint_64),
  *      sample_rate_denominator (uint_64),
@@ -188,10 +188,14 @@ Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t d
 	hdf5_data_object->init_utc_timestamp = (uint64_t)(global_start_sample/hdf5_data_object->sample_rate);
 	hdf5_data_object->last_utc_timestamp = 0; /* no last write time yet */
 
+	if (hdf5_data_object->num_subchannels == 1)
+		hdf5_data_object->rank = 1;
+	else
+		hdf5_data_object->rank = 2;
+
 	if (is_complex)
 	{
 		hdf5_data_object->is_complex = 1;
-		hdf5_data_object->rank = 2;
 		/* create complex compound datatype */
 		hdf5_data_object->complex_dtype_id = H5Tcreate(H5T_COMPOUND, 2*H5Tget_size(hdf5_data_object->dtype_id));
 		/* create r column */
@@ -203,10 +207,6 @@ Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t d
 	else
 	{
 		hdf5_data_object->is_complex = 0;
-		if (hdf5_data_object->num_subchannels == 1)
-			hdf5_data_object->rank = 1;
-		else
-			hdf5_data_object->rank = 2;
 		hdf5_data_object->complex_dtype_id = (hid_t)0; /* make sure its not used by accident */
 	}
 
