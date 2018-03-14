@@ -515,6 +515,14 @@ class DigitalRFWriter(object):
         self._total_samples_written = int(0)
         self._total_gap_samples = int(0)
 
+    def __enter__(self):
+        """Enter method to enable context manager `with` statement."""
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Exit method to enable context manager `with` statement."""
+        self.close()
+
     def rf_write(self, arr, next_sample=None):
         """Write the next in-sequence samples from a given array.
 
@@ -929,6 +937,22 @@ class DigitalRFReader(object):
 
         # dictionary to store cached Digital Metadata reader for each channel
         self._channel_metadata_reader = {}
+
+    def __enter__(self):
+        """Enter method to enable context manager `with` statement."""
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Exit method to enable context manager `with` statement."""
+        self.close()
+
+    def close(self):
+        """Close reader object and any open associated HDF5 files.
+
+        This object cannot be used once it is closed.
+
+        """
+        self._channel_dict.clear()
 
     def get_channels(self):
         """Return an alphabetically sorted list of channels."""
