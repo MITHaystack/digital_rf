@@ -498,7 +498,7 @@ class DigitalRFWriter(object):
 
         # call the underlying C extension, which will call the C init method
         self._channelObj = _py_rf_write_hdf5.init(
-            directory, self.byteorder, self.realdtype.char,
+            directory, self.byteorder, self.realdtype.kind,
             self.realdtype.itemsize,
             self.subdir_cadence_secs, self.file_cadence_millisecs,
             self.start_global_index, self.sample_rate_numerator,

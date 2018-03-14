@@ -441,8 +441,9 @@ hid_t get_hdf5_data_type(char byteorder, char dtype_char, int bytecount)
  * Inputs:
  * 	char byteorder - char representing byteorder according to numpy.dtype
  * 		(< little-endian, > big-endian, | not applicable)
- * 	char dtype_char - i int, u - unsigned int, f - float, d - double
- * 	int bytecount - bytecount - ignored if f or d
+ * 	char dtype_char - i int, u - unsigned int, f - float
+ *      (also accepts d for double for legacy, ignoring bytecount, assuming 8)
+ * 	int bytecount - bytecount
  *
  * Returns hid_t HDF% datatype if recognized, -1 if not
  *
@@ -450,19 +451,19 @@ hid_t get_hdf5_data_type(char byteorder, char dtype_char, int bytecount)
 {
 	if (byteorder == '<')
 	{
-		if (dtype_char == 'f')
+		if (dtype_char == 'f' && bytecount == 4)
 			return(H5T_IEEE_F32LE);
+		else if (dtype_char == 'f' && bytecount == 8)
+			return(H5T_IEEE_F64LE);
 		else if (dtype_char == 'd')
 			return(H5T_IEEE_F64LE);
+		else if (dtype_char == 'i' && bytecount == 1)
+			return(H5T_STD_I8LE);
 		else if (dtype_char == 'i' && bytecount == 2)
-			return(H5T_STD_I16LE);
-		else if (dtype_char == 'h' && bytecount == 2)
 			return(H5T_STD_I16LE);
 		else if (dtype_char == 'i' && bytecount == 4)
 			return(H5T_STD_I32LE);
 		else if (dtype_char == 'i' && bytecount == 8)
-			return(H5T_STD_I64LE);
-		else if (dtype_char == 'l' && bytecount == 8)
 			return(H5T_STD_I64LE);
 		else if (dtype_char == 'u' && bytecount == 2)
 			return(H5T_STD_U16LE);
@@ -473,19 +474,19 @@ hid_t get_hdf5_data_type(char byteorder, char dtype_char, int bytecount)
 	}
 	else if (byteorder == '>')
 	{
-		if (dtype_char == 'f')
+		if (dtype_char == 'f' && bytecount == 4)
 			return(H5T_IEEE_F32BE);
+		else if (dtype_char == 'f' && bytecount == 8)
+			return(H5T_IEEE_F64BE);
 		else if (dtype_char == 'd')
 			return(H5T_IEEE_F64BE);
+		else if (dtype_char == 'i' && bytecount == 1)
+			return(H5T_STD_I8BE);
 		else if (dtype_char == 'i' && bytecount == 2)
-			return(H5T_STD_I16BE);
-		else if (dtype_char == 'h' && bytecount == 2)
 			return(H5T_STD_I16BE);
 		else if (dtype_char == 'i' && bytecount == 4)
 			return(H5T_STD_I32BE);
 		else if (dtype_char == 'i' && bytecount == 8)
-			return(H5T_STD_I64BE);
-		else if (dtype_char == 'l' && bytecount == 8)
 			return(H5T_STD_I64BE);
 		else if (dtype_char == 'u' && bytecount == 2)
 			return(H5T_STD_U16BE);
@@ -494,10 +495,10 @@ hid_t get_hdf5_data_type(char byteorder, char dtype_char, int bytecount)
 		else if (dtype_char == 'u' && bytecount == 8)
 			return(H5T_STD_U64BE);
 	}
-	else if (dtype_char == 'b')
+	else if (dtype_char == 'i')
 		return(H5T_NATIVE_CHAR);
-	else if (dtype_char == 'B')
-			return(H5T_NATIVE_UCHAR);
+	else if (dtype_char == 'u')
+		return(H5T_NATIVE_UCHAR);
 	// error if we got here
 	return(-1);
 }
