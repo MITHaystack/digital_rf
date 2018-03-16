@@ -376,7 +376,7 @@ class DigitalRFWriter(object):
             `compression_level` 0 (all defaults).
 
         marching_periods : bool, optional
-            If True, write a period to stdout for every subdirectory when
+            If True, write a period to stdout for every file when
             writing.
 
         """
