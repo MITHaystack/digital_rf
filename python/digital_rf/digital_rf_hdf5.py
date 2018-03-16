@@ -388,6 +388,7 @@ class DigitalRFWriter(object):
         # use numpy to get all needed info about this datatype
         # set self.realdtype
         dtype = numpy.dtype(dtype)
+        self.dtype = dtype
         if numpy.issubdtype(dtype, numpy.complexfloating):
             self.is_complex = True
             self.realdtype = numpy.dtype('f{0}'.format(dtype.itemsize/2))
@@ -411,12 +412,9 @@ class DigitalRFWriter(object):
                         'c{0}'.format(self.realdtype.itemsize*2)
                     )
                 except TypeError:
-                    self.dtype = None
-            else:
-                self.dtype = None
+                    pass
         else:
             self.structdtype = None
-            self.dtype = self.realdtype
         # set byteorder
         self.byteorder = self.realdtype.byteorder
         if self.byteorder == '=':
