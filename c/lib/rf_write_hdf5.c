@@ -419,7 +419,7 @@ char * digital_rf_get_last_file_written(Digital_rf_write_object *hdf5_data_objec
 
 	strcpy(fullpath, hdf5_data_object->directory);
 	strcat(fullpath, hdf5_data_object->sub_directory);
-	strcat(fullpath, hdf5_data_object->basename);
+	strcat(fullpath, strstr(hdf5_data_object->basename, "rf"));
 	if ((ret_str = (char *)malloc(sizeof(char) * (strlen(fullpath)+2)))==0)
 	{
 		fprintf(stderr, "malloc failure - unrecoverable\n");
