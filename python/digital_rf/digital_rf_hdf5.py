@@ -389,9 +389,11 @@ class DigitalRFWriter(object):
         # set self.realdtype
         dtype = numpy.dtype(dtype)
         self.dtype = dtype
+        self._dtype_is_complexfloating = False
         if numpy.issubdtype(dtype, numpy.complexfloating):
             self.is_complex = True
             self.realdtype = numpy.dtype('f{0}'.format(dtype.itemsize/2))
+            self._dtype_is_complexfloating = True
         elif dtype.names == ('r', 'i'):
             self.is_complex = True
             self.realdtype = dtype['r']
@@ -758,8 +760,9 @@ class DigitalRFWriter(object):
         arr = numpy.ascontiguousarray(arr)
         # cast array to the correct type (if possible)
         if (
-            numpy.issubdtype(arr.dtype, numpy.complexfloating) or  # complex
-            not self.is_complex  # real input (failing above)->real output
+            (self._dtype_is_complexfloating
+             and numpy.issubdtype(arr.dtype, numpy.complexfloating))  # cplx
+            or not self.is_complex  # real input (failing above)->real output
         ):
             # input dtype and storage format are the same
             # one of real->real, complex->complex
