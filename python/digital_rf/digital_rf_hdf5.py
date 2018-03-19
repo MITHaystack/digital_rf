@@ -1240,8 +1240,7 @@ class DigitalRFReader(object):
         raise IOError(errstr % channel_name)
 
     def read_metadata(
-        self, start_sample, end_sample, channel_name, columns=None,
-        method='ffill'
+        self, start_sample, end_sample, channel_name, method='ffill',
     ):
         """Read Digital Metadata accompanying a Digital RF channel.
 
@@ -1266,12 +1265,6 @@ class DigitalRFReader(object):
         channel_name : string
             Name of channel to read from, one of ``get_channels()``.
 
-        columns : None | string | list of strings
-            A string or list of strings giving the field/column name of
-            metadata to return. If None, all available columns will be read.
-            Using a string results in a different returned object than a one-
-            element list containing the string, see below.
-
         method : None | 'pad'/'ffill'
             If None, return only samples within the given range. If 'pad' or
             'ffill', the first sample no later than `start_sample` (if any)
@@ -1284,10 +1277,8 @@ class DigitalRFReader(object):
         OrderedDict
             The dictionary's keys are the sample index for each sample of
             metadata found between `start_sample` and `end_sample` (inclusive).
-            Each value is a metadata sample, given as either the column value
-            (if `columns` is a string) or a dictionary with column names as
-            keys and numpy objects as leaf values (if `columns` is None or
-            a list).
+            Each value is a metadata sample given as a dictionary with column
+            names as keys and numpy objects as leaf values.
 
         Notes
         -----
@@ -1314,7 +1305,7 @@ class DigitalRFReader(object):
         else:
             ret_dict = reader.read(
                 start_sample=start_sample, end_sample=end_sample,
-                columns=columns, method=method,
+                columns=None, method=method,
             )
 
         for d in ret_dict.values():
@@ -1456,9 +1447,10 @@ class DigitalRFReader(object):
             Name of channel to read from, one of ``get_channels()``.
 
         sub_channel : None | int, optional
-            If None, the return array will be 2-d and contain all subchannels
-            of data. If an integer, the return array will be 1-d and contain
-            the data of the subchannel given by that integer index.
+            If None, the return array will contain all subchannels of data and
+            be 2-d or 1-d depending on the number of subchannels. If an
+            integer, the return array will be 1-d and contain the data of the
+            subchannel given by that integer index.
 
 
         Returns
@@ -1518,9 +1510,10 @@ class DigitalRFReader(object):
             Name of channel to read from, one of ``get_channels()``.
 
         sub_channel : None | int, optional
-            If None, the return array will be 2-d and contain all subchannels
-            of data. If an integer, the return array will be 1-d and contain
-            the data of the subchannel given by that integer index.
+            If None, the return array will contain all subchannels of data and
+            be 2-d or 1-d depending on the number of subchannels. If an
+            integer, the return array will be 1-d and contain the data of the
+            subchannel given by that integer index.
 
 
         Returns
@@ -1594,9 +1587,10 @@ class DigitalRFReader(object):
             Name of channel to read from, one of ``get_channels()``.
 
         sub_channel : None | int, optional
-            If None, the return array will be 2-d and contain all subchannels
-            of data. If an integer, the return array will be 1-d and contain
-            the data of the subchannel given by that integer index.
+            If None, the return array will contain all subchannels of data and
+            be 2-d or 1-d depending on the number of subchannels. If an
+            integer, the return array will be 1-d and contain the data of the
+            subchannel given by that integer index.
 
 
         Returns
@@ -2074,7 +2068,7 @@ class _top_level_dir_properties(object):
                     if read_start_index >= read_stop_index:
                         continue
                     if not len_only:
-                        if sub_channel is None:
+                        if not sub_channel:
                             data = rf_data[
                                 read_start_index:read_stop_index
                             ]
