@@ -599,9 +599,13 @@ class DigitalRFWriter(object):
             )
             raise ValueError(errstr % (next_sample, self._next_avail_sample))
 
-        next_avail_sample = _py_rf_write_hdf5.rf_write(
-            self._channelObj, arr, next_sample,
-        )
+        try:
+            next_avail_sample = _py_rf_write_hdf5.rf_write(
+                self._channelObj, arr, next_sample,
+            )
+        except AttributeError:
+            # self._channelObj doesn't exist because writer has been closed
+            raise IOError('Writer has been closed, cannot write.')
 
         # update index attributes
         nwritten = arr.shape[0]
@@ -675,9 +679,13 @@ class DigitalRFWriter(object):
             raise ValueError(errstr)
 
         # data passed initial tests, try to write
-        next_avail_sample = _py_rf_write_hdf5.rf_block_write(
-            self._channelObj, arr, global_sample_arr, block_sample_arr,
-        )
+        try:
+            next_avail_sample = _py_rf_write_hdf5.rf_block_write(
+                self._channelObj, arr, global_sample_arr, block_sample_arr,
+            )
+        except AttributeError:
+            # self._channelObj doesn't exist because writer has been closed
+            raise IOError('Writer has been closed, cannot write.')
 
         # update index attributes
         nwritten = arr.shape[0]
@@ -728,6 +736,7 @@ class DigitalRFWriter(object):
 
         """
         _py_rf_write_hdf5.free(self._channelObj)
+        del self._channelObj
 
     def _cast_input_array(self, arr):
         """Cast input array to correct type and check for the correct shape.
