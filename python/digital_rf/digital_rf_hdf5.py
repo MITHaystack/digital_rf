@@ -510,6 +510,10 @@ class DigitalRFWriter(object):
         if not self._channelObj:
             raise ValueError('Failed to create DigitalRFWriter')
 
+        self._last_file_written = None
+        self._last_dir_written = None
+        self._last_utc_timestamp = None
+
         # set the next available sample to write at
         self._next_avail_sample = int(0)
         self._total_samples_written = int(0)
@@ -718,15 +722,24 @@ class DigitalRFWriter(object):
 
     def get_last_file_written(self):
         """Return the full path to the last file written."""
-        return _py_rf_write_hdf5.get_last_file_written(self._channelObj)
+        try:
+            return _py_rf_write_hdf5.get_last_file_written(self._channelObj)
+        except AttributeError:
+            return self._last_file_written
 
     def get_last_dir_written(self):
         """Return the full path to the last directory written."""
-        return _py_rf_write_hdf5.get_last_dir_written(self._channelObj)
+        try:
+            return _py_rf_write_hdf5.get_last_dir_written(self._channelObj)
+        except AttributeError:
+            return self._last_dir_written
 
     def get_last_utc_timestamp(self):
         """Return UTC timestamp of the time of the last data written."""
-        return _py_rf_write_hdf5.get_last_utc_timestamp(self._channelObj)
+        try:
+            return _py_rf_write_hdf5.get_last_utc_timestamp(self._channelObj)
+        except AttributeError:
+            return self._last_utc_timestamp
 
     def close(self):
         """Free memory of the underlying C object and close the last HDF5 file.
@@ -735,11 +748,13 @@ class DigitalRFWriter(object):
         been called.
 
         """
-        try:
+        if hasattr(self, '_channelObj'):
+            # store last written properties so we can use them after close
+            self._last_file_written = self.get_last_file_written()
+            self._last_dir_written = self.get_last_dir_written()
+            self._last_utc_timestamp = self.get_last_utc_timestamp()
+            # now free the channel object
             _py_rf_write_hdf5.free(self._channelObj)
-        except AttributeError:
-            pass
-        else:
             del self._channelObj
 
     def _cast_input_array(self, arr):
