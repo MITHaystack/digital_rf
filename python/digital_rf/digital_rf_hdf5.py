@@ -735,8 +735,12 @@ class DigitalRFWriter(object):
         been called.
 
         """
-        _py_rf_write_hdf5.free(self._channelObj)
-        del self._channelObj
+        try:
+            _py_rf_write_hdf5.free(self._channelObj)
+        except AttributeError:
+            pass
+        else:
+            del self._channelObj
 
     def _cast_input_array(self, arr):
         """Cast input array to correct type and check for the correct shape.
