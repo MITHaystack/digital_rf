@@ -415,6 +415,8 @@ class DigitalRFWriter(object):
                     )
                 except TypeError:
                     pass
+                else:
+                    self._dtype_is_complexfloating = True
         else:
             self.structdtype = None
         # set byteorder
