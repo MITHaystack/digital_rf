@@ -684,13 +684,17 @@ class DigitalRFWriter(object):
                 ' block_sample_arr ({1}).'
             ).format(len(global_sample_arr), len(block_sample_arr))
             raise ValueError(errstr)
-        block_steps = numpy.diff(block_sample_arr)
+        # view uint64 result as int64 as a hack to get negative results
+        # when it makes sense
+        block_steps = numpy.diff(block_sample_arr).view(dtype=numpy.int64)
         if numpy.any(block_steps < 1):
             errstr = (
                 'block_sample_arr ({0}) must have increasing values'
             ).format(block_sample_arr)
             raise ValueError(errstr)
-        global_steps = numpy.diff(global_sample_arr)
+        # view uint64 result as int64 as a hack to get negative results
+        # when it makes sense
+        global_steps = numpy.diff(global_sample_arr).view(dtype=numpy.int64)
         if numpy.any(global_steps < 1):
             errstr = (
                 'global_sample_arr ({0}) must have increasing values'
