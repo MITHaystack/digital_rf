@@ -215,6 +215,7 @@ static PyObject * _py_rf_write_hdf5_rf_block_write(PyObject * self, PyObject * a
 	uint64_t block_length;
 	uint64_t block_index;
 	uint64_t next_block_index;
+	uint64_t next_sample;
 	int result;
 	PyObject *retObj;
 
@@ -249,11 +250,9 @@ static PyObject * _py_rf_write_hdf5_rf_block_write(PyObject * self, PyObject * a
 			block_length = next_block_index - block_index;
 
 			data = PyArray_GETPTR2(pyNumArr, block_index, 0);
-			global_arr = PyArray_GETPTR1(pyGlobalArr, i);
-			/* always points to 0, which is what we want since we adjusted the data pointer */
-			block_arr = PyArray_GETPTR1(pyBlockArr, 0);
+			next_sample = *((uint64_t *)PyArray_GETPTR1(pyGlobalArr, i));
 
-			result = digital_rf_write_blocks_hdf5(hdf5_write_data_object, global_arr, block_arr, 1, data, block_length);
+			result = digital_rf_write_hdf5(hdf5_write_data_object, next_sample, data, block_length);
 			if (result)
 			{
 				PyErr_SetString(PyExc_RuntimeError, "Failed to write data\n");
