@@ -1539,6 +1539,13 @@ uint64_t * digital_rf_create_rf_data_index(Digital_rf_write_object *hdf5_data_ob
 		this_sample = global_index_arr[i];
 
 		/* more input data sanity checks */
+		if (this_index >= vector_len)
+		{
+			snprintf(error_str, BIG_HDF5_STR, "index %i (%" PRIu64 ") in data_index_arr is beyond end of data (len %" PRIu64 ")", i, this_index, vector_len);
+			fprintf(stderr, "%s", error_str);
+			*rows_to_write = -1;
+			return(NULL);
+		}
 		if (i>0 && prev_index >= this_index)
 		{
 			snprintf(error_str, BIG_HDF5_STR, "indices in data_index_arr out of order - index %i and %i\n", i-1,i);
@@ -1546,7 +1553,14 @@ uint64_t * digital_rf_create_rf_data_index(Digital_rf_write_object *hdf5_data_ob
 			*rows_to_write = -1;
 			return(NULL);
 		}
-		if (i>0 && ((this_index - prev_index) > (global_index_arr[i] - global_index_arr[i-1])))
+		if (i>0 && prev_sample >= this_sample)
+		{
+			snprintf(error_str, BIG_HDF5_STR, "indices in global_index_arr out of order - index %i and %i\n", i-1,i);
+			fprintf(stderr, "%s", error_str);
+			*rows_to_write = -1;
+			return(NULL);
+		}
+		if (i>0 && ((this_index - prev_index) > (this_sample - prev_sample)))
 		{
 			snprintf(error_str, BIG_HDF5_STR, "error - indices advancing faster than global index at index %i, illegal\n", i);
 			fprintf(stderr, "%s", error_str);
