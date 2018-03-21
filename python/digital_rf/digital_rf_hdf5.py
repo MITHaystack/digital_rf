@@ -386,14 +386,12 @@ class DigitalRFWriter(object):
         self.directory = directory
 
         # use numpy to get all needed info about this datatype
-        # set self.realdtype
+        # set self.realdtype and self.is_complex
         dtype = numpy.dtype(dtype)
-        self.dtype = dtype
         self._dtype_is_complexfloating = False
         if numpy.issubdtype(dtype, numpy.complexfloating):
             self.is_complex = True
             self.realdtype = numpy.dtype('f{0}'.format(dtype.itemsize/2))
-            self._dtype_is_complexfloating = True
         elif dtype.names == ('r', 'i'):
             self.is_complex = True
             self.realdtype = dtype['r']
@@ -414,10 +412,13 @@ class DigitalRFWriter(object):
                         'c{0}'.format(self.realdtype.itemsize*2)
                     )
                 except TypeError:
-                    pass
+                    self.dtype = self.structdtype
                 else:
                     self._dtype_is_complexfloating = True
+            else:
+                self.dtype = self.structdtype
         else:
+            self.dtype = self.realdtype
             self.structdtype = None
         # set byteorder
         self.byteorder = self.realdtype.byteorder
