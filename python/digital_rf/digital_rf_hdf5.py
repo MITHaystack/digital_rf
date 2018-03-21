@@ -684,6 +684,31 @@ class DigitalRFWriter(object):
                 ' block_sample_arr ({1}).'
             ).format(len(global_sample_arr), len(block_sample_arr))
             raise ValueError(errstr)
+        block_steps = numpy.diff(block_sample_arr)
+        if numpy.any(block_steps < 1):
+            errstr = (
+                'block_sample_arr ({0}) must have increasing values'
+            ).format(block_sample_arr)
+            raise ValueError(errstr)
+        global_steps = numpy.diff(global_sample_arr)
+        if numpy.any(global_steps < 1):
+            errstr = (
+                'global_sample_arr ({0}) must have increasing values'
+            ).format(global_sample_arr)
+            raise ValueError(errstr)
+        if block_sample_arr[-1] >= arr.shape[0]:
+            errstr = (
+                'block_sample_arr ({0}) has indices that reference past the'
+                'end of the supplied data (with length {1})'
+            ).format(block_sample_arr, arr.shape[0])
+            raise ValueError(errstr)
+        if numpy.any(block_steps > global_steps):
+            errstr = (
+                'Sample indices in global_sample_arr ({0}) would require'
+                'overwriting data given the size of the corresponding data'
+                'blocks in block_sample_arr ({1})'
+            ).format(global_sample_arr, block_sample_arr)
+            raise ValueError(errstr)
 
         # data passed initial tests, try to write
         try:
