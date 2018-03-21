@@ -41,37 +41,59 @@ Developer mailing list: openradar-developers@openradar.org
 Dependencies
 ============
 
-Build:
+The main package components are divided into subdirectories by language (C, Python, and MATLAB) and can be built and installed separately or all together. Their individual dependencies are listed below by component.
 
-* Cheetah (``python-cheetah``) [python]
-* cmake >= 3.0 (``cmake``)
-* hdf5 >= 1.8 (``libhdf5-dev``) [c, python]
-* MATLAB >= R2016a [matlab]
-* numpy (``python-numpy``) [python]
-* pkgconfig (``python-pkgconfig``) [python]
-* python == 2.7 (``python-dev``) [python]
+Build
+-----
 
-Runtime:
+all
+  * cmake >= 3.0 (``cmake``)
 
-* h5py (``python-h5py``) [python]
-* hdf5 >= 1.8 (``libhdf5``) [c, python]
-* MATLAB >= R2014b [matlab]
-* numpy (``python-numpy``) [python]
-* packaging (``python-packaging``) [python]
-* python == 2.7 (``python``) [python]
-* python-dateutil (``python-dateutil``) [python]
-* pytz (``python-tz``) [python]
-* six (``python-six``) [python]
+c
+  * hdf5 >= 1.8 (``libhdf5-dev``)
 
-Additional optional runtime dependencies:
+python
+  * Cheetah (``python-cheetah``)
+  * hdf5 >= 1.8 (``libhdf5-dev``)
+  * numpy (``python-numpy``)
+  * pkgconfig (``python-pkgconfig``)
+  * python == 2.7 (``python-dev``)
+  * setuptools (``python-setuptools``)
 
-* gnuradio (``gnuradio``) [python:gr_digital_rf]
-* gr-uhd (``libgnuradio-uhd``) [python:thor]
-* matplotlib (``python-matplotlib``) [python:tools]
-* pandas (``python-pandas``) [python:digital_metadata]
-* python-sounddevice (``pip install sounddevice``) [python:tools]
-* scipy (``python-scipy``) [python:tools]
-* watchdog (``python-watchdog``) [python:mirror,ringbuffer,watchdog]
+matlab
+  * cmake >= 3.0 (``cmake``)
+  * MATLAB >= R2016a
+
+Runtime
+-------
+
+c
+  * hdf5 >= 1.8 (``libhdf5``)
+
+python
+  * h5py (``python-h5py``)
+  * hdf5 >= 1.8 (``libhdf5``)
+  * numpy (``python-numpy``)
+  * packaging (``python-packaging``)
+  * python == 2.7 (``python``)
+  * python-dateutil (``python-dateutil``)
+  * pytz (``python-tz``)
+  * six (``python-six``)
+
+matlab
+  * MATLAB >= R2014b
+
+Runtime [optional feature]
+--------------------------
+
+python
+  * gnuradio [gr_digital_rf] (``gnuradio``)
+  * gr-uhd [thor] (``libgnuradio-uhd``)
+  * matplotlib [tools] (``python-matplotlib``)
+  * pandas [digital_metadata] (``python-pandas``)
+  * python-sounddevice [tools] (``pip install sounddevice``)
+  * scipy [tools] (``python-scipy``)
+  * watchdog [mirror, ringbuffer, watchdog] (``python-watchdog``)
 
 
 Installation

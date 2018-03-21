@@ -32,7 +32,7 @@ if(${ENABLE_MATLAB})
     if(NOT ${Matlab_FOUND})
         set(ENABLE_MATLAB OFF CACHE BOOL "MATLAB not found" FORCE)
         message(STATUS "\
-| MATLAB binary not found, disabling Digital RF Toolbox.\
+| MATLAB binary not found, disabling Digital RF MATLAB Toolbox.\
  Set 'Matlab_ROOT_DIR' to correct binary path to enable.\
 "
         )
