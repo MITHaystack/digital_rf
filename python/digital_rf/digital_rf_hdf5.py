@@ -1077,12 +1077,12 @@ class DigitalRFReader(object):
             raise ValueError(errstr % (start_sample, end_sample))
 
         if sub_channel is not None:
-            num_sub_channels = file_properties['num_subchannels']
-            if num_sub_channels - 1 < sub_channel:
+            num_subchannels = file_properties['num_subchannels']
+            if sub_channel >= num_subchannels:
                 errstr = (
                     'Data only has %i sub_channels, no sub_channel index %i'
                 )
-                raise ValueError(errstr % (num_sub_channels, sub_channel))
+                raise ValueError(errstr % (num_subchannels, sub_channel))
 
         # first get the names of all possible files with data
         subdir_cadence_secs = file_properties['subdir_cadence_secs']
@@ -2128,10 +2128,10 @@ class _top_level_dir_properties(object):
                     if read_start_index >= read_stop_index:
                         continue
                     if not len_only:
-                        if not sub_channel:
-                            data = rf_data[
-                                read_start_index:read_stop_index
-                            ]
+                        if sub_channel is None or (
+                            sub_channel == 0 and len(rf_data.shape) == 1
+                        ):
+                            data = rf_data[read_start_index:read_stop_index]
                         else:
                             data = rf_data[
                                 read_start_index:read_stop_index,
