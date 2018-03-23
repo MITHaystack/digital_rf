@@ -703,14 +703,14 @@ class DigitalRFWriter(object):
         if block_sample_arr[-1] >= arr.shape[0]:
             errstr = (
                 'block_sample_arr ({0}) has indices that reference past the'
-                'end of the supplied data (with length {1})'
+                ' end of the supplied data (with length {1})'
             ).format(block_sample_arr, arr.shape[0])
             raise ValueError(errstr)
         if numpy.any(block_steps > global_steps):
             errstr = (
                 'Sample indices in global_sample_arr ({0}) would require'
-                'overwriting data given the size of the corresponding data'
-                'blocks in block_sample_arr ({1})'
+                ' overwriting data given the size of the corresponding data'
+                ' blocks in block_sample_arr ({1})'
             ).format(global_sample_arr, block_sample_arr)
             raise ValueError(errstr)
 
@@ -989,10 +989,10 @@ class DigitalRFReader(object):
 
         if not self._channel_dict:
             errstr = (
-                'No channels found: top_level_directory_arg = {0}. '
-                'If path is correct, you may need to run '
-                'recreate_properties_file to re-create missing '
-                'drf_properties.h5 files.'
+                'No channels found: top_level_directory_arg = {0}.'
+                ' If path is correct, you may need to run'
+                ' recreate_properties_file to re-create missing'
+                ' drf_properties.h5 files.'
             )
             raise ValueError(errstr.format(top_level_directory_arg))
 
