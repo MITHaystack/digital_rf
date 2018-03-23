@@ -1180,9 +1180,9 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 
 	// double
 	#if defined(_WIN32)
-		float double_fill = HUGE_VAL * 0.;  /* NAN but works in C89 (MSVC++ 2008)*/
+		double double_fill = HUGE_VAL * 0.;  /* NAN but works in C89 (MSVC++ 2008)*/
 	#else
-		float double_fill = NAN;
+		double double_fill = NAN;
 	#endif
 	struct complex_double_fill_type { double r, i; };
 	struct complex_double_fill_type complex_double_fill = { double_fill, double_fill };
