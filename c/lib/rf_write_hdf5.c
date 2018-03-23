@@ -1170,7 +1170,7 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 	struct complex_ulong_fill_type complex_ulong_fill = { 0, 0 };
 
 	// float
-	#if defined(_WIN32)
+	#if defined(_MSC_VER) && _MSC_VER < 1900
 		float float_fill = (float) HUGE_VAL * 0.;  /* NAN but works in C89 (MSVC++ 2008)*/
 	#else
 		float float_fill = NAN;
@@ -1179,7 +1179,7 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 	struct complex_float_fill_type complex_float_fill = { float_fill, float_fill };
 
 	// double
-	#if defined(_WIN32)
+	#if defined(_MSC_VER) && _MSC_VER < 1900
 		double double_fill = HUGE_VAL * 0.;  /* NAN but works in C89 (MSVC++ 2008)*/
 	#else
 		double double_fill = NAN;
@@ -1207,7 +1207,11 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 	signType = H5Tget_sign(hdf5_data_object->dtype_id);
 	numBytes = (int)H5Tget_size(hdf5_data_object->dtype_id);
 
-	if (classType == H5T_FLOAT && hdf5_data_object->is_complex == 0)
+	if (classType == H5T_FLOAT && hdf5_data_object->is_complex == 0 && numBytes == 4)
+	{
+		H5Pset_fill_value(hdf5_data_object->dataset_prop, hdf5_data_object->dtype_id, &float_fill);
+	}
+	else if (classType == H5T_FLOAT && hdf5_data_object->is_complex == 0 && numBytes == 8)
 	{
 		H5Pset_fill_value(hdf5_data_object->dataset_prop, hdf5_data_object->dtype_id, &double_fill);
 	}
