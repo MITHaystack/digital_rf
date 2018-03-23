@@ -1170,12 +1170,20 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 	struct complex_ulong_fill_type complex_ulong_fill = { 0, 0 };
 
 	// float
-	float float_fill = (float) HUGE_VAL * 0;  /* NAN but works in C89 (MSVC++ 2008)*/
+	#if defined(_WIN32)
+		float float_fill = (float) HUGE_VAL * 0.;  /* NAN but works in C89 (MSVC++ 2008)*/
+	#else
+		float float_fill = NAN;
+	#endif
 	struct complex_float_fill_type { float r, i; };
 	struct complex_float_fill_type complex_float_fill = { float_fill, float_fill };
 
 	// double
-	double double_fill = HUGE_VAL * 0;  /* NAN but works in C89 (MSVC++ 2008)*/
+	#if defined(_WIN32)
+		float double_fill = HUGE_VAL * 0.;  /* NAN but works in C89 (MSVC++ 2008)*/
+	#else
+		float double_fill = NAN;
+	#endif
 	struct complex_double_fill_type { double r, i; };
 	struct complex_double_fill_type complex_double_fill = { double_fill, double_fill };
 
