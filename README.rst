@@ -91,6 +91,7 @@ python
   * gr-uhd [thor] (``libgnuradio-uhd``)
   * matplotlib [tools] (``python-matplotlib``)
   * pandas [digital_metadata] (``python-pandas``)
+  * pytest >= 3 [tests] (``python-pytest``)
   * python-sounddevice [tools] (``pip install sounddevice``)
   * scipy [tools] (``python-scipy``)
   * watchdog [mirror, ringbuffer, watchdog] (``python-watchdog``)

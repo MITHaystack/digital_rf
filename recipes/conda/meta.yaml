@@ -38,6 +38,8 @@ requirements:
     - watchdog
 
 test:
+  requires:
+    - pytest >=3.0
   imports:
     - digital_rf
     - digital_rf.digital_rf_hdf5
@@ -46,8 +48,7 @@ test:
     - python/tests/*.py
     - python/examples/*.py
   commands:
-    - python python/tests/test_digital_rf_hdf5.py
-    - rm -r /tmp/hdf5*
+    - pytest
     - python python/examples/example_write_digital_metadata.py
     - python python/examples/example_read_digital_metadata.py
     - rm -r /tmp/test_metadata/
