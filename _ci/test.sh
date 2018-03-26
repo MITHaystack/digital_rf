@@ -8,4 +8,5 @@ make test
 rm -r /tmp/hdf5
 
 # python tests
-pytest
+cd python
+python setup.py test
