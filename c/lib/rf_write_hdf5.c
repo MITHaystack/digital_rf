@@ -1139,27 +1139,27 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 
 	/* integer minimum values, first value is matching byte order, second is reversed byte order */
 
-	int minUnsignedInt = 0;
+	int64_t minUnsignedInt = 0;
 
 	/* char */
-	char minChar = -128;
-	struct complex_char_fill_type { char r, i; };
+	int8_t minChar = INT8_MIN;
+	struct complex_char_fill_type { int8_t r, i; };
 	struct complex_char_fill_type complex_char_fill = { minChar, minChar };
-	struct complex_uchar_fill_type { unsigned char r; unsigned char i; };
+	struct complex_uchar_fill_type { uint8_t r, i; };
 	struct complex_uchar_fill_type complex_uchar_fill = { 0, 0 };
 
 	/* short */
-	short minShort[2] = {INT16_MIN, 128};
-	struct complex_short_fill_type { short r, i; };
+	int16_t minShort[2] = {INT16_MIN, 128};
+	struct complex_short_fill_type { int16_t r, i; };
 	struct complex_short_fill_type complex_short_fill[2] = { {minShort[0], minShort[0]}, {minShort[1], minShort[1]} };
-	struct complex_ushort_fill_type { unsigned short r, i; };
+	struct complex_ushort_fill_type { uint16_t r, i; };
 	struct complex_ushort_fill_type complex_ushort_fill = { 0, 0 };
 
 	/* int */
-	int minInt[2] = {INT32_MIN, 128};
-	struct complex_int_fill_type { int r, i; };
+	int32_t minInt[2] = {INT32_MIN, 128};
+	struct complex_int_fill_type { int32_t r, i; };
 	struct complex_int_fill_type complex_int_fill[2] = { {minInt[0], minInt[0]}, {minInt[1], minInt[1]} };
-	struct complex_uint_fill_type { unsigned int r, i; };
+	struct complex_uint_fill_type { uint32_t r, i; };
 	struct complex_uint_fill_type complex_uint_fill = { 0, 0 };
 
 	/* int64 */
