@@ -189,11 +189,13 @@ To execute the C test suite, run the following from the build directory::
 
     make test
 
-The python tests found in the tests directory in the source tree can be run directly after ``digital_rf`` has been installed.
-
-Both the C and python tests create test files in '/tmp/hdf5*'. To cleanup afterward, run::
+The C and tests create test files in '/tmp/hdf5*'. To cleanup afterward, run::
 
     rm -r /tmp/hdf5*
+
+The python tests require ``pytest`` to run. From the source directory, you can simply run::
+
+    pytest
 
 
 Acknowledgments
