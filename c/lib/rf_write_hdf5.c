@@ -1171,7 +1171,7 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 
 	// float
 	#if defined(_MSC_VER) && _MSC_VER < 1900
-		float float_fill = (float) HUGE_VAL * 0.;  /* NAN but works in C89 (MSVC++ 2008)*/
+		float float_fill = (float) HUGE_VAL * 0.0f;  /* NAN but works in C89 (MSVC++ 2008)*/
 	#else
 		float float_fill = NAN;
 	#endif
@@ -1180,7 +1180,7 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 
 	// double
 	#if defined(_MSC_VER) && _MSC_VER < 1900
-		double double_fill = HUGE_VAL * 0.;  /* NAN but works in C89 (MSVC++ 2008)*/
+		double double_fill = HUGE_VAL * 0.0;  /* NAN but works in C89 (MSVC++ 2008)*/
 	#else
 		double double_fill = NAN;
 	#endif

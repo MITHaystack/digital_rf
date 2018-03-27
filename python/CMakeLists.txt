@@ -27,13 +27,12 @@ set(DRF_INSTALL_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX}
 
 # get compiler settings for digital_rf interface libraries (i.e. HDF5)
 # to pass to setup.py
-if(NOT TARGET digital_rf::digital_rf)
-    find_package(libdigital_rf REQUIRED)
-endif(NOT TARGET digital_rf::digital_rf)
+find_package(libdigital_rf REQUIRED)
 get_target_property(HDF5_LINK_LIBS
     digital_rf::digital_rf INTERFACE_LINK_LIBRARIES
 )
 set(HDF5_INCLUDE_DIRS)
+set(HDF5_LIBRARIES)
 foreach(LTGT ${HDF5_LINK_LIBS})
     list(APPEND HDF5_INCLUDE_DIRS $<TARGET_PROPERTY:${LTGT},INTERFACE_INCLUDE_DIRECTORIES>)
     list(APPEND HDF5_LIBRARIES $<TARGET_LINKER_FILE:${LTGT}>)

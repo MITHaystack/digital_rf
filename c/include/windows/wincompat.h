@@ -34,9 +34,6 @@ These may be OR'd together.  */
 #define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
 #endif
 
-#define floorl floor
-#define fmodl fmod
-
 /* prevent warnings as with _CRT_SECURE_NO_WARNINGS */
 #ifdef _MSC_VER
 #pragma warning (disable: 4996)
