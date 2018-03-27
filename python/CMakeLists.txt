@@ -27,7 +27,15 @@ set(DRF_INSTALL_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX}
 
 # get compiler settings for digital_rf interface libraries (i.e. HDF5)
 # to pass to setup.py
-find_package(libdigital_rf REQUIRED)
+if(NOT TARGET digital_rf::digital_rf)
+    find_package(libdigital_rf REQUIRED)
+else(NOT TARGET digital_rf::digital_rf)
+    # in the case that digital_rf::digital_rf refers to imported HDF5 targets,
+    # we need to import them here or else they might not be defined
+    # (could be fixed by setting IMPORTED_GLOBAL property on them when first
+    #  imported, but that requires CMake >= 3.11)
+    find_package(HDF5 REQUIRED)
+endif(NOT TARGET digital_rf::digital_rf)
 get_target_property(HDF5_LINK_LIBS
     digital_rf::digital_rf INTERFACE_LINK_LIBRARIES
 )
