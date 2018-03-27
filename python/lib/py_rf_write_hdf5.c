@@ -464,6 +464,8 @@ hid_t get_hdf5_data_type(char byteorder, char dtype_char, int bytecount)
 			return(H5T_STD_I32LE);
 		else if (dtype_char == 'i' && bytecount == 8)
 			return(H5T_STD_I64LE);
+		else if (dtype_char == 'u' && bytecount == 1)
+			return(H5T_STD_U8LE);
 		else if (dtype_char == 'u' && bytecount == 2)
 			return(H5T_STD_U16LE);
 		else if (dtype_char == 'u' && bytecount == 4)
@@ -487,6 +489,8 @@ hid_t get_hdf5_data_type(char byteorder, char dtype_char, int bytecount)
 			return(H5T_STD_I32BE);
 		else if (dtype_char == 'i' && bytecount == 8)
 			return(H5T_STD_I64BE);
+		else if (dtype_char == 'u' && bytecount == 1)
+			return(H5T_STD_U8BE);
 		else if (dtype_char == 'u' && bytecount == 2)
 			return(H5T_STD_U16BE);
 		else if (dtype_char == 'u' && bytecount == 4)
@@ -495,9 +499,9 @@ hid_t get_hdf5_data_type(char byteorder, char dtype_char, int bytecount)
 			return(H5T_STD_U64BE);
 	}
 	else if (dtype_char == 'i')
-		return(H5T_NATIVE_CHAR);
+		return(H5T_STD_I8LE);
 	else if (dtype_char == 'u')
-		return(H5T_NATIVE_UCHAR);
+		return(H5T_STD_U8LE);
 	// error if we got here
 	return(-1);
 }
