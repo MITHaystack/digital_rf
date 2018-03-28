@@ -106,6 +106,10 @@ Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t d
 	hdf5_data_object->index_prop = 0;
 	hdf5_data_object->next_index_avail = 0;
 
+	/* strip any trailing slash from directory (or else stat fails on windows) */
+	if (directory[strlen(directory) - 1] == '/' || directory[strlen(directory) - 1] == '\\')
+		directory[strlen(directory) - 1] = '\0';
+
 	/* set directory name */
 	if ((hdf5_data_object->directory = (char *)malloc(sizeof(char) * (strlen(directory)+2)))==0)
 	{
@@ -113,8 +117,6 @@ Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t d
 		exit(-1);
 	}
 	strcpy(hdf5_data_object->directory, directory);
-	if (hdf5_data_object->directory[strlen(hdf5_data_object->directory)] != '/')
-		strcat(hdf5_data_object->directory, "/");
 
 	if (digital_rf_check_hdf5_directory(hdf5_data_object->directory))
 	{
@@ -418,7 +420,9 @@ char * digital_rf_get_last_file_written(Digital_rf_write_object *hdf5_data_objec
 	}
 
 	strcpy(fullpath, hdf5_data_object->directory);
+	strcat(fullpath, "/");
 	strcat(fullpath, hdf5_data_object->sub_directory);
+	strcat(fullpath, "/");
 	strcat(fullpath, strstr(hdf5_data_object->basename, "rf"));
 	if ((ret_str = (char *)malloc(sizeof(char) * (strlen(fullpath)+2)))==0)
 	{
@@ -458,7 +462,9 @@ char * digital_rf_get_last_dir_written(Digital_rf_write_object *hdf5_data_object
 	}
 
 	strcpy(fullpath, hdf5_data_object->directory);
+	strcat(fullpath, "/");
 	strcat(fullpath, hdf5_data_object->sub_directory);
+	strcat(fullpath, "/");
 	if ((ret_str = (char *)malloc(sizeof(char) * (strlen(fullpath)+2)))==0)
 	{
 		fprintf(stderr, "malloc failure - unrecoverable\n");
@@ -760,7 +766,6 @@ uint64_t digital_rf_write_samples_to_file(Digital_rf_write_object *hdf5_data_obj
 
 	char subdir[BIG_HDF5_STR] = ""; 	/* to be set to the subdirectory to write to */
 	char basename[SMALL_HDF5_STR] = ""; /* to be set to the file basename to write to */
-	char subdir_with_trailing_slash[SMALL_HDF5_STR] = "";
 	uint64_t samples_left = 0;				/* to be set to the number of samples available to write to this file */
 	uint64_t max_samples_this_file;			/* to be set to the maximum total number of samples that can be in this file */
 
@@ -783,9 +788,7 @@ uint64_t digital_rf_write_samples_to_file(Digital_rf_write_object *hdf5_data_obj
 	if (result) return(0);
 
 	/* We need to see if we need to open a new file or expand an existing one */
-	strcpy(subdir_with_trailing_slash, subdir);
-	strcat(subdir_with_trailing_slash, "/"); /* allows us to compare subdir with sub_directory */
-	if (hdf5_data_object->sub_directory == NULL || strcmp(hdf5_data_object->sub_directory, subdir_with_trailing_slash)
+	if (hdf5_data_object->sub_directory == NULL || strcmp(hdf5_data_object->sub_directory, subdir)
 			|| strcmp(hdf5_data_object->basename, basename))
 		file_exists = 0;
 	else
@@ -925,7 +928,6 @@ int digital_rf_create_hdf5_file(Digital_rf_write_object *hdf5_data_object, char 
 	char datasetname[] = "rf_data";
 	char fullname[BIG_HDF5_STR] = "";
 	char finished_fullname[BIG_HDF5_STR] = "";
-	char subdir_with_trailing_slash[SMALL_HDF5_STR] = "";
 	char error_str[BIG_HDF5_STR] = "";
 	uint64_t num_rows = 0;
 	hsize_t  dims[2]  = {0, hdf5_data_object->num_subchannels};
@@ -967,12 +969,9 @@ int digital_rf_create_hdf5_file(Digital_rf_write_object *hdf5_data_object, char 
 
 	hdf5_data_object->present_seq++; /* indicates the creation of a new file */
 
-	strcpy(subdir_with_trailing_slash, subdir);
-	strcat(subdir_with_trailing_slash, "/"); /* allows us to compare subdir with sub_directory */
-
 	/* create new directory if needed */
 	if (hdf5_data_object->sub_directory == NULL || digital_rf_check_hdf5_directory(subdir)
-			|| strcmp(hdf5_data_object->sub_directory, subdir_with_trailing_slash))
+			|| strcmp(hdf5_data_object->sub_directory, subdir))
 	{
 		if (digital_rf_create_new_directory(hdf5_data_object, subdir))
 			return(-1);
@@ -980,13 +979,17 @@ int digital_rf_create_hdf5_file(Digital_rf_write_object *hdf5_data_object, char 
 
 
 	strcpy(fullname, hdf5_data_object->directory); /* previous check ensures these three commands succeed */
+	strcat(fullname, "/");
 	strcat(fullname, hdf5_data_object->sub_directory);
+	strcat(fullname, "/");
 	strcpy(hdf5_data_object->basename, basename);
 	strcat(fullname, hdf5_data_object->basename);
 
 	/* check if file exists with the finished name, fail if it does */
 	strcpy(finished_fullname, hdf5_data_object->directory);
+	strcat(finished_fullname, "/");
 	strcat(finished_fullname, hdf5_data_object->sub_directory);
+	strcat(finished_fullname, "/");
 	strcat(finished_fullname, strstr(hdf5_data_object->basename, "rf"));
 	if( access( finished_fullname, F_OK ) != -1 )
 	{
@@ -1065,11 +1068,15 @@ int digital_rf_close_hdf5_file(Digital_rf_write_object *hdf5_data_object)
 		return(0); /* nothing to close */
 
 	strcpy(fullname, hdf5_data_object->directory);
+	strcat(fullname, "/");
 	strcat(fullname, hdf5_data_object->sub_directory);
+	strcat(fullname, "/");
 	strcat(fullname, hdf5_data_object->basename);
 
 	strcpy(new_fullfilename, hdf5_data_object->directory);
+	strcat(new_fullfilename, "/");
 	strcat(new_fullfilename, hdf5_data_object->sub_directory);
+	strcat(new_fullfilename, "/");
 	strcat(new_fullfilename, strstr(hdf5_data_object->basename, "rf"));
 
 	if( access( fullname, F_OK ) != -1 )
@@ -1099,7 +1106,8 @@ int digital_rf_create_new_directory(Digital_rf_write_object *hdf5_data_object, c
 	char full_directory[BIG_HDF5_STR] = "";
 	int result;
 
-	strcpy(full_directory, hdf5_data_object->directory); /* directory ends with "/" */
+	strcpy(full_directory, hdf5_data_object->directory);
+	strcat(full_directory, "/");
 	strcat(full_directory, subdir);
 
 	#if defined(_WIN32)
@@ -1123,7 +1131,6 @@ int digital_rf_create_new_directory(Digital_rf_write_object *hdf5_data_object, c
 		exit(-1);
 	}
 	strcpy(hdf5_data_object->sub_directory, subdir);
-	strcat(hdf5_data_object->sub_directory, "/"); /* will always end with "/" */
 	return(0);
 }
 
@@ -1865,6 +1872,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 
 	/* find out if drf_properties.h5 exists */
 	strcpy(metadata_file, hdf5_data_object->directory);
+	strcat(metadata_file, "/");
 	strcat(metadata_file, "drf_properties.h5");
 	if( access( metadata_file, R_OK ) != -1 )
 	    metadata_exists = 1;
