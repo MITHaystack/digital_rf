@@ -116,13 +116,23 @@ class build_ext(_build_ext):
             if env_val is not None:
                 val_list = filter(None, env_val.split(';'))
                 used = set()
-                val_list = [
-                    v for v in val_list
-                    if v not in used and (used.add(v) or True)
-                ]
+                vals = []
+                for v in val_list:
+                    if v not in used:
+                        used.add(v)
+                        if k == 'define':
+                            items = v.split('=', 2)
+                            if items[0].startswith('-D'):
+                                items[0] = items[0][2:]
+                            if len(items) == 1:
+                                vals.append((items[0], None))
+                            else:
+                                vals.append(tuple(items))
+                        else:
+                            vals.append(v)
                 # update hdf5_config
-                hdf5_config[k] = val_list
-                print('INFO: {0}={1}'.format(e, val_list))
+                hdf5_config[k] = vals
+                print('INFO: {0}={1}'.format(e, vals))
 
         # update extension settings
         for c in (np_config, hdf5_config):

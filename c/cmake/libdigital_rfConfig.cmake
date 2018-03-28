@@ -1,5 +1,7 @@
 include(CMakeFindDependencyMacro)
-find_dependency(HDF5 REQUIRED)
+find_dependency(HDF5 REQUIRED COMPONENTS C)
+# HDF5 can have Threads::Threads target, otherwise undefined without Threads
+find_dependency(Threads QUIET)
 
 # use imported targets from HDF5_LIBRARIES or take the supplied library
 # path and turn it into an imported target if it is an hdf5 library
@@ -14,7 +16,8 @@ foreach(LIB IN LISTS HDF5_LIBRARIES)
         string(REGEX REPLACE "^lib(.*)" "\\1" TGT ${LIBNAME})
         # exclude non-hdf5 libraries (libs that HDF5 linked against)
         if(${TGT} MATCHES ".*hdf5.*")
-            add_library(digital_rf::${TGT} SHARED IMPORTED GLOBAL)
+            # unknown library type so we don't have to find dll on windows
+            add_library(digital_rf::${TGT} UNKNOWN IMPORTED)
             set_target_properties(digital_rf::${TGT} PROPERTIES
                 IMPORTED_LOCATION ${LIB}
             )
@@ -28,4 +31,6 @@ foreach(LIB IN LISTS HDF5_LIBRARIES)
     endif(TARGET ${LIB})
 endforeach(LIB)
 
-include("${CMAKE_CURRENT_LIST_DIR}/libdigital_rfTargets.cmake")
+if(NOT TARGET digital_rf::digital_rf)
+    include("${CMAKE_CURRENT_LIST_DIR}/libdigital_rfTargets.cmake")
+endif(NOT TARGET digital_rf::digital_rf)
