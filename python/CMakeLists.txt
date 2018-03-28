@@ -109,7 +109,7 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E env HDF5_INCLUDE_DIRS="${HDF5_INCLUDE_DIRS}"
         HDF5_LIBRARY_DIRS="" # overwrite default with empty, full path given
         HDF5_LIBRARIES="${HDF5_LIBRARIES}"
-		${PYTHON_EXECUTABLE} setup.py build
+        ${PYTHON_EXECUTABLE} setup.py build
     COMMAND ${PYTHON_EXECUTABLE} setup.py egg_info
     COMMAND ${CMAKE_COMMAND} -E touch ${PYBUILD_OUTPUT}
     DEPENDS ${PYSOURCES}
