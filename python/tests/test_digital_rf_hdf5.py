@@ -347,20 +347,20 @@ def data_file_list(sample_params):
     params = tuple(v for k, v in sorted(sample_params.items()))
     file_lists = {
         (1000, 3, 200, 10): [
-            '2014-03-09T12-30-30/rf@1394368230.000.h5',
-            '2014-03-09T12-30-30/rf@1394368231.000.h5',
-            '2014-03-09T12-30-30/rf@1394368232.000.h5',
-            '2014-03-09T12-30-30/rf@1394368233.000.h5',
-            '2014-03-09T12-30-30/rf@1394368234.000.h5',
-            '2014-03-09T12-30-30/rf@1394368236.000.h5',
-            '2014-03-09T12-30-30/rf@1394368237.000.h5',
-            '2014-03-09T12-30-30/rf@1394368238.000.h5',
-            '2014-03-09T12-30-30/rf@1394368239.000.h5',
-            '2014-03-09T12-30-40/rf@1394368240.000.h5',
-            '2014-03-09T12-30-40/rf@1394368241.000.h5',
-            '2014-03-09T12-30-40/rf@1394368242.000.h5',
-            '2014-03-09T12-30-40/rf@1394368243.000.h5',
-            '2014-03-09T12-30-40/rf@1394368244.000.h5',
+            os.path.join('2014-03-09T12-30-30', 'rf@1394368230.000.h5'),
+            os.path.join('2014-03-09T12-30-30', 'rf@1394368231.000.h5'),
+            os.path.join('2014-03-09T12-30-30', 'rf@1394368232.000.h5'),
+            os.path.join('2014-03-09T12-30-30', 'rf@1394368233.000.h5'),
+            os.path.join('2014-03-09T12-30-30', 'rf@1394368234.000.h5'),
+            os.path.join('2014-03-09T12-30-30', 'rf@1394368236.000.h5'),
+            os.path.join('2014-03-09T12-30-30', 'rf@1394368237.000.h5'),
+            os.path.join('2014-03-09T12-30-30', 'rf@1394368238.000.h5'),
+            os.path.join('2014-03-09T12-30-30', 'rf@1394368239.000.h5'),
+            os.path.join('2014-03-09T12-30-40', 'rf@1394368240.000.h5'),
+            os.path.join('2014-03-09T12-30-40', 'rf@1394368241.000.h5'),
+            os.path.join('2014-03-09T12-30-40', 'rf@1394368242.000.h5'),
+            os.path.join('2014-03-09T12-30-40', 'rf@1394368243.000.h5'),
+            os.path.join('2014-03-09T12-30-40', 'rf@1394368244.000.h5'),
         ],
     }
     return file_lists[params]
@@ -866,16 +866,17 @@ class TestDigitalRFChannel(object):
         self, chdir, data_file_list, drf_writer,
     ):
         """Test writer object's get_last_file_written method."""
+        last_file = os.path.normpath(drf_writer.get_last_file_written())
         last_file_full_path = str(chdir.join(data_file_list[-1]))
-        assert drf_writer.get_last_file_written() == last_file_full_path
+        assert last_file == last_file_full_path
 
     def test_writer_get_last_dir_written(
         self, chdir, data_file_list, drf_writer,
     ):
         """Test writer object's get_last_dir_written method."""
+        last_dir = os.path.normpath(drf_writer.get_last_dir_written())
         last_dir_full_path = chdir.join(data_file_list[-1]).dirname
-        assert (os.path.normpath(drf_writer.get_last_dir_written())
-                == last_dir_full_path)
+        assert last_dir == last_dir_full_path
 
     def test_writer_get_last_utc_timestamp(self, drf_writer):
         """Test writer object's get_last_utc_timestamp method."""
