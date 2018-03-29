@@ -31,7 +31,7 @@ requirements:
     - vc 14  # [win and py>=35]
   run:
     - dateutil
-    - gnuradio
+    - gnuradio  # [not win]
     - h5py
     - hdf5 1.8.18|1.8.18.*
     - matplotlib
@@ -52,7 +52,7 @@ test:
   imports:
     - digital_rf
     - digital_rf.digital_rf_hdf5
-    - gr_digital_rf
+    - gr_digital_rf  # [not win]
   source_files:
     - python/tests/*.py
     - python/examples/*.py
