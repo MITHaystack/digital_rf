@@ -6,23 +6,21 @@
 #
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
-"""example of digital_rf_metadata.write_digital_metadata
+"""A simple example of writing Digital Metadata with python.
 
-Now writes data into two levels of dictionaries/groups.  API allow any finite number
-of levels.
+Now writes data into two levels of dictionaries/groups. API allow any finite
+number of levels.
 
-$Id$
 """
-# standard python imports
 import os
+import shutil
+import tempfile
 
-# third party imports
 import numpy
 
-# Millstone imports
 import digital_rf
 
-metadata_dir = '/tmp/test_metadata'
+metadata_dir = os.path.join(tempfile.tempdir, 'example_metadata')
 subdirectory_cadence_seconds = 3600
 file_cadence_seconds = 60
 samples_per_second_numerator = 10
@@ -30,16 +28,17 @@ samples_per_second_denominator = 9
 file_name = 'rideout'
 stime = 1447082580
 
-os.system('mkdir %s' % (metadata_dir))
-os.system('rm -r %s/*' % (metadata_dir))
+shutil.rmtree(metadata_dir, ignore_errors=True)
+os.makedirs(metadata_dir)
 
-obj = digital_rf.DigitalMetadataWriter(metadata_dir, subdirectory_cadence_seconds, file_cadence_seconds,
-                                       samples_per_second_numerator, samples_per_second_denominator,
-                                       file_name)
+dmw = digital_rf.DigitalMetadataWriter(
+    metadata_dir, subdirectory_cadence_seconds, file_cadence_seconds,
+    samples_per_second_numerator, samples_per_second_denominator, file_name,
+)
 print('first create okay')
 
 data_dict = {}
-start_idx = int(numpy.uint64(stime * obj.get_samples_per_second()))
+start_idx = int(numpy.uint64(stime * dmw.get_samples_per_second()))
 # To save an array of data, make sure the first axis has the same length
 # as the samples index
 idx_arr = numpy.arange(70, dtype=numpy.int64) + start_idx
@@ -74,24 +73,25 @@ sub_dict['level2'] = level2_dict
 
 data_dict['sub_system'] = sub_dict
 
-# complex python object
+# complex python dmwect
 n = numpy.ones((10, 4), dtype=numpy.float64)
 n[5, :] = 17.0
 data_dict['numpy_obj'] = [n for i in range(70)]
 
 
-obj.write(idx_arr, data_dict)
+dmw.write(idx_arr, data_dict)
 print('first write_metadata okay')
 
 # write same data again after incrementating inx
 idx_arr += 70
 
-del(obj)
-obj = digital_rf.DigitalMetadataWriter(metadata_dir, subdirectory_cadence_seconds, file_cadence_seconds,
-                                       samples_per_second_numerator, samples_per_second_denominator,
-                                       file_name)
+del(dmw)
+dmw = digital_rf.DigitalMetadataWriter(
+    metadata_dir, subdirectory_cadence_seconds, file_cadence_seconds,
+    samples_per_second_numerator, samples_per_second_denominator, file_name,
+)
 print('second create okay')
 
 
-obj.write(idx_arr, data_dict)
+dmw.write(idx_arr, data_dict)
 print('second write_metadata okay')

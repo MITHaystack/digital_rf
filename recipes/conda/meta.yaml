@@ -60,7 +60,6 @@ test:
     - pytest
     - python python/examples/example_write_digital_metadata.py
     - python python/examples/example_read_digital_metadata.py
-    - rm -r /tmp/test_metadata/
 
 about:
   home: https://github.com/MITHaystack/digital_rf

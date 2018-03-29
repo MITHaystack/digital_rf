@@ -6,16 +6,16 @@
 #
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
-"""benchmark_rf_read_hdf5.py is a script to benchmark reading the Hdf5 files produced by benchmark_rf_write_hdf5.py
+"""Benchmark I/O of Digital RF read in different configurations.
 
-$Id$
+Assumes the benchmark write script has already been run.
+
 """
-# standard python imports
 import os
 import sys
+import tempfile
 import time
 
-# Millstone imports
 import digital_rf
 
 # constants
@@ -25,8 +25,8 @@ N_WRITES = int(1e9 / WRITE_BLOCK_SIZE)
 
 
 def test_read(channel_name, test_read_obj):
-    """test_read measures the speed of reading all the data back into numpy arrays for
-    a given channel_name and digital_rf.DigitalRFReader object
+    """test_read measures the speed of reading all the data back into numpy
+    arrays for a given channel_name and digital_rf.DigitalRFReader object
     """
     if sys.platform == 'darwin':
         os.system('purge')
@@ -48,7 +48,7 @@ def test_read(channel_name, test_read_obj):
             next_sample, next_sample + (FILE_SAMPLES - 1), channel_name)
         key = arr.keys()[0]
         if len(arr[key]) != FILE_SAMPLES:
-            raise IOError, '%i != %i' % (len(arr), FILE_SAMPLES)
+            raise IOError('%i != %i' % (len(arr), FILE_SAMPLES))
         next_sample += FILE_SAMPLES
         count += 1
         if count % 100 == 0:
@@ -58,21 +58,20 @@ def test_read(channel_name, test_read_obj):
     print('Total read time %i seconds, speed %1.2f MB/s' %
           (int(seconds), speedMB))
 
+
 t = time.time()
-test_read_obj = digital_rf.DigitalRFReader('/tmp/benchmark')
+datadir = os.path.join(tempfile.tempdir, 'benchmark_digital_rf')
+test_read_obj = digital_rf.DigitalRFReader(datadir)
 print('metadata analysis took %f seconds' % (time.time() - t))
 
 print("\nTest 0 - read Hdf5 files with no compress, no checksum - channel name = junk0")
 test_read('junk0', test_read_obj)
 
-
 print("\nTest 1 - read Hdf5 files with no compress, no checksum, chunked - channel name = junk1")
 test_read('junk1', test_read_obj)
 
-
 print("\nTest 2 -read Hdf5 files with no compress, but with level 9 checksum - channel name = junk2")
 test_read('junk2', test_read_obj)
-
 
 print("\nTest 3 - read Hdf5 files with compress, and with level 9 checksum - channel name = junk3")
 test_read('junk3', test_read_obj)

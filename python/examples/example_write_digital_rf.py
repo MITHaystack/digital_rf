@@ -6,20 +6,21 @@
 #
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
-"""example_digital_rf_hdf5.py is a simple example of writing Digital RF with python
+"""A simple example of writing Digital RF with python.
 
 Writes continuous complex short data.
 
-$Id$
 """
-# standard python imports
 import os
+import shutil
+import tempfile
 
-# third party imports
 import numpy
 
-# Millstone imports
 import digital_rf
+
+datadir = os.path.join(tempfile.tempdir, 'example_digital_rf')
+chdir = os.path.join(datadir, 'junk0')
 
 # writing parameters
 sample_rate_numerator = int(100)  # 100 Hz sample rate - typically MUCH faster
@@ -48,24 +49,29 @@ for i in range(len(arr_data)):
 start_global_index = int(numpy.uint64(1394368230 * sample_rate)) + 1
 
 # set up top level directory
-os.system("rm -rf /tmp/hdf5 ; mkdir /tmp/hdf5")
+shutil.rmtree(chdir, ignore_errors=True)
+os.makedirs(chdir)
 
-print("Writing complex short to multiple files and subdirectores in /tmp/hdf5 channel junk0")
-os.system("rm -rf /tmp/hdf5/junk0 ; mkdir /tmp/hdf5/junk0")
+print((
+    "Writing complex short to multiple files and subdirectores in {0}"
+    " channel junk0"
+).format(datadir))
 
 # init
-data_object = digital_rf.DigitalRFWriter("/tmp/hdf5/junk0", dtype_str, sub_cadence_secs,
-                                         file_cadence_millisecs, start_global_index,
-                                         sample_rate_numerator, sample_rate_denominator, uuid, compression_level, checksum,
-                                         is_complex, num_subchannels, is_continuous, marching_periods)
+dwo = digital_rf.DigitalRFWriter(
+    chdir, dtype_str, sub_cadence_secs, file_cadence_millisecs,
+    start_global_index, sample_rate_numerator, sample_rate_denominator, uuid,
+    compression_level, checksum, is_complex, num_subchannels, is_continuous,
+    marching_periods
+)
 # write
 for i in range(7):  # will write 700 samples - so creates two subdirectories
-    result = data_object.rf_write(arr_data)
-    print('Last file written = %s' % (data_object.get_last_file_written()))
-    print('Last dir written = %s' % (data_object.get_last_dir_written()))
+    result = dwo.rf_write(arr_data)
+    print('Last file written = %s' % (dwo.get_last_file_written()))
+    print('Last dir written = %s' % (dwo.get_last_dir_written()))
     print('UTC timestamp of last write is %i' %
-          (data_object.get_last_utc_timestamp()))
+          (dwo.get_last_utc_timestamp()))
 
 # close
-data_object.close()
+dwo.close()
 print("done test")
