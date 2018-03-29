@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0048 NEW)
 
+# can't do binary dir == source dir because of file copying
+if(CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
+    message(FATAL_ERROR "Must use a build/binary directory different from the\
+ source directory.")
+endif(CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
+
 # get the package version from digital_rf.prj
 file(READ digital_rf.prj.in DIGITAL_RF_PRJIN)
 string(REGEX REPLACE
@@ -64,4 +70,8 @@ if(${ENABLE_MATLAB})
     add_custom_target(digital_rf_toolbox ALL
         DEPENDS ${DIGITAL_RF_MLTBX}
     )
+    if(NOT TARGET build)
+        add_custom_target(build)
+    endif(NOT TARGET build)
+    add_dependencies(build digital_rf_toolbox)
 endif(${ENABLE_MATLAB})

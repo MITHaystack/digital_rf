@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0048 NEW)
 
+# can't do binary dir == source dir because of file copying
+if(CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
+    message(FATAL_ERROR "Must use a build/binary directory different from the\
+ source directory.")
+endif(CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
+
 # get the library version from the header file
 file(READ include/digital_rf_version.h DIGITAL_RF_VERSION_H)
 string(REGEX REPLACE
@@ -70,6 +76,10 @@ if(WIN32)
 endif(WIN32)
 add_library(digital_rf lib/rf_write_hdf5.c)
 add_library(digital_rf::digital_rf ALIAS digital_rf)
+if(NOT TARGET build)
+    add_custom_target(build)
+endif(NOT TARGET build)
+add_dependencies(build digital_rf)
 target_include_directories(digital_rf PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/digital_rf>

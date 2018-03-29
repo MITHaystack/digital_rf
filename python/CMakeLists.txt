@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0048 NEW)
 
+# can't do binary dir == source dir because of file copying
+if(CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
+    message(FATAL_ERROR "Must use a build/binary directory different from the\
+ source directory.")
+endif(CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
+
 find_package(PythonInterp REQUIRED)
 
 # get the package version from setup.py
@@ -37,6 +43,19 @@ separate_arguments(HDF5_DEFINE UNIX_COMMAND "${HDF5_DEFINITIONS}")
 set(ROOT_SRCS AUTHORS CHANGES LICENSE)
 foreach(SRCFILE ${ROOT_SRCS})
     configure_file(../${SRCFILE} ${SRCFILE} COPYONLY)
+endforeach(SRCFILE)
+
+# copy C source files from libdigital_rf into build directory
+set(C_SRCS
+    include/digital_rf.h
+    include/digital_rf_version.h
+    include/windows/inttypes.h
+    include/windows/stdint.h
+    include/windows/wincompat.h
+    lib/rf_write_hdf5.c
+)
+foreach(SRCFILE ${C_SRCS})
+    configure_file(../c/${SRCFILE} ${SRCFILE} COPYONLY)
 endforeach(SRCFILE)
 
 # get list of python source files by generating egg info
@@ -79,12 +98,23 @@ add_custom_target(gr_digital_rf_grc_xml_blocks ALL
     DEPENDS ${GENERATED_BLOCKS}
 )
 
+add_custom_target(digital_rf_source)
+add_dependencies(digital_rf_source gr_digital_rf_grc_xml_blocks)
+if(NOT TARGET source)
+    add_custom_target(source)
+endif(NOT TARGET source)
+add_dependencies(source digital_rf_source)
+
 add_custom_target(digital_rf_sdist
     COMMAND ${PYTHON_EXECUTABLE} setup.py sdist -d ${CMAKE_BINARY_DIR}/dist
     DEPENDS ${PYSOURCES}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
-add_dependencies(digital_rf_sdist gr_digital_rf_grc_xml_blocks)
+add_dependencies(digital_rf_sdist digital_rf_source)
+if(NOT TARGET sdist)
+    add_custom_target(sdist)
+endif(NOT TARGET sdist)
+add_dependencies(sdist digital_rf_sdist)
 
 # build and install python package with setup.py
 set(PYBUILD_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/build)
@@ -103,12 +133,20 @@ add_custom_command(
 add_custom_target(digital_rf_python ALL
     DEPENDS ${PYBUILD_OUTPUT}
 )
-add_dependencies(digital_rf_python gr_digital_rf_grc_xml_blocks)
+add_dependencies(digital_rf_python digital_rf_source)
+if(NOT TARGET build)
+    add_custom_target(build)
+endif(NOT TARGET build)
+add_dependencies(build digital_rf_python)
 add_custom_target(digital_rf_wheel
     COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wheel -d ${CMAKE_BINARY_DIR}/dist
     DEPENDS ${PYBUILD_OUTPUT}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
+if(NOT TARGET wheel)
+    add_custom_target(wheel)
+endif(NOT TARGET wheel)
+add_dependencies(wheel digital_rf_wheel)
 install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py install\
  --prefix=${DRF_INSTALL_PREFIX_PYTHON} --root=\$ENV{DESTDIR}/\
  --single-version-externally-managed\

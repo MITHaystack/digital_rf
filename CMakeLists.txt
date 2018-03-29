@@ -6,6 +6,12 @@ project(digital_rf_project LANGUAGES NONE)
 include(GNUInstallDirs)
 enable_testing()
 
+# create targets that sub-projects will add dependencies to
+add_custom_target(source)
+add_custom_target(sdist)
+add_custom_target(build)
+add_custom_target(wheel)
+
 # include sub-projects
 add_subdirectory(c)
 add_subdirectory(docs)
@@ -17,14 +23,6 @@ if(${ENABLE_MATLAB})
     add_custom_target(matlab)
     add_dependencies(matlab digital_rf_toolbox)
 endif(${ENABLE_MATLAB})
-
-# source distribution target
-add_custom_target(sdist)
-add_dependencies(sdist digital_rf_sdist)
-
-# wheel distribution target
-add_custom_target(wheel)
-add_dependencies(wheel digital_rf_wheel)
 
 # uninstall target
 configure_file(
