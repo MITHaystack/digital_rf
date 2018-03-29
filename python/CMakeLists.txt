@@ -34,6 +34,18 @@ set(DRF_INSTALL_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX}
 # get compiler settings for digital_rf interface libraries (i.e. HDF5)
 # to pass to setup.py
 find_package(HDF5 REQUIRED COMPONENTS C)
+# need to set HDF5_LIBRARY_DIRS ourselves because FindHDF5 dropped it
+foreach(LIB IN LISTS HDF5_LIBRARIES)
+    if(TARGET ${LIB})
+        list(APPEND HDF5_LIBRARY_DIRS $<TARGET_LINKER_FILE_DIR:${LIB}>)
+    else(TARGET ${LIB})
+        # name of library file with directory and extension stripped
+        get_filename_component(LIBDIR ${LIB} DIRECTORY)
+        list(APPEND HDF5_LIBRARY_DIRS ${LIBDIR})
+    endif(TARGET ${LIB})
+endforeach(LIB)
+# make the lists still be semicolon-separated after generator expansion
+string(REGEX REPLACE ";" "\\\\;" HDF5_LIBRARY_DIRS "${HDF5_LIBRARY_DIRS}")
 # no matter what the find_package sets, we only care about the "hdf5" library
 set(HDF5_LIBRARIES hdf5)
 # make list out of space-separated HDF5_DEFINITIONS
