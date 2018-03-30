@@ -64,7 +64,6 @@ foreach(LIB IN LISTS HDF5_LIBRARIES)
             if(HDF5_DEFINITIONS)
                 string(REGEX REPLACE "-D" " " HDF5_DEFINES ${HDF5_DEFINITIONS})
                 separate_arguments(HDF5_DEFINES UNIX_COMMAND "${HDF5_DEFINES}")
-                message(STATUS "${HDF5_DEFINES}")
                 set_property(TARGET digital_rf::${TGT} APPEND PROPERTY
                     INTERFACE_COMPILE_DEFINITIONS ${HDF5_DEFINES}
                 )
