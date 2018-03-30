@@ -14,7 +14,7 @@ matrix:
         - pip install -r python/dev_requirements.txt
       deploy:
         provider: script
-        script: _ci/pypi_upload.sh build/dist/*
+        script: .ci/pypi_upload.sh build/dist/*
         skip_cleanup: true
         on:
           tags: true
@@ -30,7 +30,7 @@ matrix:
         - pip install -r python/dev_requirements.txt
 
 install:
-  - _ci/build.sh
+  - .ci/build.sh
 
 script:
-  - _ci/test.sh
+  - .ci/test.sh
