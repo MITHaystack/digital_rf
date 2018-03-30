@@ -61,6 +61,14 @@ foreach(LIB IN LISTS HDF5_LIBRARIES)
                     INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS}
                 )
             endif(HDF5_INCLUDE_DIRS)
+            if(HDF5_DEFINITIONS)
+                string(REGEX REPLACE "-D" " " HDF5_DEFINES ${HDF5_DEFINITIONS})
+                separate_arguments(HDF5_DEFINES UNIX_COMMAND "${HDF5_DEFINES}")
+                message(STATUS "${HDF5_DEFINES}")
+                set_property(TARGET digital_rf::${TGT} APPEND PROPERTY
+                    INTERFACE_COMPILE_DEFINITIONS ${HDF5_DEFINES}
+                )
+            endif(HDF5_DEFINITIONS)
             list(APPEND HDF5_LIB_TARGETS digital_rf::${TGT})
         endif(${TGT} MATCHES ".*hdf5.*")
     endif(TARGET ${LIB})
