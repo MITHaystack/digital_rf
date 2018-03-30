@@ -1,0 +1,38 @@
+environment:
+  matrix:
+    - CONDA_INSTALL_LOCN: "C:\\Miniconda"
+      CONDA_PY: "27"
+
+    - CONDA_INSTALL_LOCN: "C:\\Miniconda-x64"
+      CONDA_PY: "27"
+
+    # - CONDA_INSTALL_LOCN: "C:\\Miniconda35"
+    #   CONDA_PY: "35"
+    #
+    # - CONDA_INSTALL_LOCN: "C:\\Miniconda35-x64"
+    #   CONDA_PY: "35"
+    #
+    # - CONDA_INSTALL_LOCN: "C:\\Miniconda36"
+    #   CONDA_PY: "36"
+    #
+    # - CONDA_INSTALL_LOCN: "C:\\Miniconda36-x64"
+    #   CONDA_PY: "36"
+
+install:
+  - set CPU_COUNT=2
+  - set PYTHONUNBUFFERED=1
+  - call "%CONDA_ROOT%\Scripts\activate.bat"
+  # add channels
+  - conda config --add channels conda-forge
+  # update conda
+  - conda update --yes --quiet conda
+  - conda info
+  # install test dependencies
+  - conda install --yes --quiet pytest
+
+build_script:
+  - conda build --no-test --quiet recipes/conda
+  - conda install --yes --use-local digital_rf
+
+test_script:
+  - pytest
