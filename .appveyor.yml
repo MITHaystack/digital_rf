@@ -23,21 +23,19 @@ install:
   - set PYTHONUNBUFFERED=1
   - call "%CONDA_INSTALL_LOCN%\Scripts\activate.bat"
   # update conda
-  - conda.exe update --yes --quiet conda
+  - conda update --yes --quiet conda
   # add channels
-  - conda.exe config --add channels conda-forge
-  # config settings
-  - conda.exe config --set auto_update_conda false
-  # update with conda-forge
-  - conda.exe update --yes --quiet conda
-  - conda.exe install --yes --quiet conda-env conda-build
-  - conda.exe info
+  - conda config --add channels conda-forge
+  - conda config --set auto_update_conda false
+  # install conda-build
+  - conda install --yes --quiet conda-build
+  - conda info
   # install test dependencies
-  - conda.exe install --yes --quiet pytest
+  - conda install --yes --quiet pytest
 
 build_script:
-  - conda.exe build --no-test --quiet recipes/conda
-  - conda.exe install --yes --use-local digital_rf
+  - conda build --no-test --quiet recipes/conda
+  - conda install --yes --use-local digital_rf
 
 test_script:
   - pytest
