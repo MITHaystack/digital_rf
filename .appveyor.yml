@@ -21,7 +21,7 @@ environment:
 install:
   - set CPU_COUNT=2
   - set PYTHONUNBUFFERED=1
-  - call "%CONDA_ROOT%\Scripts\activate.bat"
+  - call "%CONDA_INSTALL_LOCN%\Scripts\activate.bat"
   # add channels
   - conda config --add channels conda-forge
   # update conda
