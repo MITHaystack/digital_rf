@@ -11,4 +11,4 @@ make
 make digital_rf_sdist
 
 # install python package into virtual environment for testing
-python -m pip install python/
+python -m pip install dist/digital_rf-*.tar.gz
