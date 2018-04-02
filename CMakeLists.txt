@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0048 NEW)
 
-project(digital_rf_project LANGUAGES NONE)
+project(digital_rf_project LANGUAGES C)
 
 include(GNUInstallDirs)
 enable_testing()
