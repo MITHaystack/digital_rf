@@ -2,6 +2,11 @@ include AUTHORS
 include CHANGES
 include LICENSE
 include MANIFEST.md
+include pyproject.toml
+include README.rst
+include setup.py
+include setup.cfg
+
 include examples/beacon/*.py
 include examples/beacon/config/*.ini
 include examples/sounder/*.py
@@ -12,11 +17,13 @@ include examples/*.py
 include include/*.h
 include include/windows/*.h
 include tests/*.py
+
 # manually include data_files because setuptools doesn't do it automatically
 include grc/gr_digital_rf_digital_rf_channel_sink.xml
 include grc/gr_digital_rf_digital_rf_channel_source.xml
 include grc/gr_digital_rf_digital_rf_sink.xml
 include grc/gr_digital_rf_digital_rf_source.xml
+
 # versioneer
 include versioneer.py
 include digital_rf/_version.py
