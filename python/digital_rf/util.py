@@ -190,6 +190,8 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
                 'samples_per_second required when time identifier is used.'
             )
         idx = time_to_sample(iden, samples_per_second)
+    else:
+        idx = iden
 
     if is_relative:
         if ref_index is None:
