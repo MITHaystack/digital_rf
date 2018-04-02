@@ -27,6 +27,9 @@ def localpath(*args):
 with open(localpath('README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
+needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
+pytest_runner = ['pytest-runner'] if needs_pytest else []
+
 
 # subclass build_ext so we only add build settings for dependencies
 # at build time
@@ -197,6 +200,7 @@ setup(
         'h5py', 'numpy', 'packaging', 'python-dateutil', 'pytz', 'six',
         'watchdog',
     ],
+    setup_requires=pytest_runner,
     tests_require=['pytest>=3'],
     extras_require={
         'all': ['matplotlib', 'pandas', 'sounddevice', 'scipy'],
