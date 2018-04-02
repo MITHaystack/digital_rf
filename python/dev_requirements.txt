@@ -1,4 +1,5 @@
-# required python packages for build
+# required python packages for build from git source
 Cheetah
-numpy
 pkgconfig
+numpy
+setuptools
