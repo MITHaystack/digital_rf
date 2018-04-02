@@ -29,7 +29,8 @@ install:
   # config settings
   - conda.exe config --set auto_update_conda false
   # update with conda-forge
-  - conda.exe update --yes --quiet conda conda-env conda-build
+  - conda.exe update --yes --quiet conda
+  - conda.exe install --yes --quiet conda-env conda-build
   - conda.exe info
   # install test dependencies
   - conda.exe install --yes --quiet pytest
