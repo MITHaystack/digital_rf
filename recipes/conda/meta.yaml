@@ -1,4 +1,4 @@
-{% set rev = "master" %}
+{% set rev = "HEAD" %}
 
 package:
   name: digital_rf
