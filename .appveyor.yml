@@ -31,6 +31,8 @@ install:
   - conda install --yes --quiet conda-build
   # needed for building extensions in python 2.7 x64 with cmake
   - conda install --yes --quiet vs2008_express_vc_python_patch
+  - call setup_x64
+  # info for debugging
   - conda info
   # install test dependencies
   - conda install --yes --quiet pytest
