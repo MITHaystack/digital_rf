@@ -32,6 +32,7 @@
 #include <errno.h>
 
 #include "digital_rf.h"
+#include "hdf5.h"
 
 
 /* Public method implementations */
@@ -85,6 +86,9 @@ Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t d
 	/* local variables */
 	Digital_rf_write_object * hdf5_data_object;
 	hsize_t  chunk_dims[2];
+
+	/* check for HDF5 version consistency between compile and runtime linking (aborts if check fails)*/
+	H5check();
 
 	/* allocate overall object */
 	if ((hdf5_data_object = (Digital_rf_write_object *)malloc(sizeof(Digital_rf_write_object)))==0)
@@ -1203,6 +1207,11 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 	/* found out if the output endian differs from the host endian */
 	endian_flip = 0;
 	write_endian = H5Tget_order(hdf5_data_object->dtype_id);
+	if (write_endian == H5T_ORDER_ERROR)
+	{
+		H5Eprint(H5E_DEFAULT, stderr);
+		return(-1);
+	}
 	if (digital_rf_is_little_endian() && (write_endian == H5T_ORDER_BE))
 		endian_flip = 1;
 	else if ((!digital_rf_is_little_endian()) && (write_endian == H5T_ORDER_LE))
@@ -1210,9 +1219,18 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 
 	/* find out whether we are using integers or floats */
 	classType = H5Tget_class( hdf5_data_object->dtype_id );
-	/* find out if integer is signed, and the number of bytes */
-	signType = H5Tget_sign(hdf5_data_object->dtype_id);
+	if (classType == H5T_NO_CLASS)
+	{
+		H5Eprint(H5E_DEFAULT, stderr);
+		return(-1);
+	}
+	/* get number of bytes for type */
 	numBytes = (int)H5Tget_size(hdf5_data_object->dtype_id);
+	if (numBytes == 0)
+	{
+		H5Eprint(H5E_DEFAULT, stderr);
+		return(-1);
+	}
 
 	if (classType == H5T_FLOAT && hdf5_data_object->is_complex == 0 && numBytes == 4)
 	{
@@ -1232,6 +1250,13 @@ int digital_rf_set_fill_value(Digital_rf_write_object *hdf5_data_object)
 	}
 	else if (classType == H5T_INTEGER)
 	{
+		/* find out if integer is signed */
+		signType = H5Tget_sign(hdf5_data_object->dtype_id);
+		if (signType == H5T_SGN_ERROR)
+		{
+			H5Eprint(H5E_DEFAULT, stderr);
+			return(-1);
+		}
 		if (hdf5_data_object->is_complex == 0)
 		{
 			if (signType == H5T_SGN_NONE)

@@ -22,6 +22,7 @@
 #include <numpy/arrayobject.h>
 
 #include "digital_rf.h"
+#include "hdf5.h"
 
 
 // declarations
