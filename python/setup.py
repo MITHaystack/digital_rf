@@ -30,6 +30,16 @@ with open(localpath('README.rst'), encoding='utf-8') as f:
 needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
 pytest_runner = ['pytest-runner'] if needs_pytest else []
 
+# library files to include in a binary distribution
+# (rely on specifying this with environment variables when it's needed)
+external_libs = []
+external_libs_env = os.getenv('DRF_PACKAGE_EXTERNAL_LIBS', None)
+if sys.platform.startswith('win') and external_libs_env is not None:
+    external_lib_list = filter(None, external_libs_env.split(';'))
+    external_libs.extend([
+        ('Lib/site-packages/digital_rf', external_lib_list),
+    ])
+
 
 # subclass build_ext so we only add build settings for dependencies
 # at build time
@@ -221,7 +231,7 @@ setup(
             'grc/gr_digital_rf_digital_rf_sink.xml',
             'grc/gr_digital_rf_digital_rf_source.xml',
         ]),
-    ],
+    ] + external_libs,
     ext_modules=[
         # extension settings without external dependencies
         Extension(
