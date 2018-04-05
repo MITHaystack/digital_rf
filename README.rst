@@ -1,6 +1,6 @@
 .. -*- mode: rst -*-
 
-|GitHub|_ |PyPI|_ |Conda|_ |Travis|_
+|GitHub|_ |PyPI|_ |Conda|_ |Travis|_ |AppVeyor|_
 
 .. |GitHub| image:: https://badge.fury.io/gh/MITHaystack%2Fdigital_rf.svg
 .. _GitHub: https://badge.fury.io/gh/MITHaystack%2Fdigital_rf
@@ -13,6 +13,9 @@
 
 .. |Travis| image:: https://travis-ci.org/MITHaystack/digital_rf.svg?branch=master
 .. _Travis: https://travis-ci.org/MITHaystack/digital_rf
+
+.. |AppVeyor| image:: https://ci.appveyor.com/api/projects/status/vt741g5mjsh841ai?svg=true
+.. _AppVeyor: https://ci.appveyor.com/project/ryanvolz/digital-rf
 
 |DigitalRF|
 ===========
