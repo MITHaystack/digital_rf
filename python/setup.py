@@ -39,6 +39,22 @@ if sys.platform.startswith('win') and external_libs_env is not None:
     external_libs.extend([
         ('Lib/site-packages/digital_rf', external_lib_list),
     ])
+    if external_lib_list:
+        istr = (
+            'INFO: external libraries included by DRF_PACKAGE_EXTERNAL_LIBS:'
+            ' {0}'
+        ).format(external_lib_list)
+        print(istr)
+
+# h5py spec to require (helpful for Windows where we rely on the hdf5.dll
+# provided by h5py since we require h5py anyway, but in order to make sure
+# versions match we need to require a specific h5py version)
+h5py_spec_env = os.getenv('DRF_H5PY_SPEC', None)
+if h5py_spec_env is None:
+    h5py_spec = 'h5py'
+else:
+    h5py_spec = h5py_spec_env
+    print('INFO: h5py specified by DRF_H5PY_SPEC: {0}'.format(h5py_spec))
 
 
 # subclass build_ext so we only add build settings for dependencies
@@ -208,7 +224,7 @@ setup(
     keywords='hdf5 radio rf',
 
     install_requires=[
-        'h5py', 'numpy', 'packaging', 'python-dateutil', 'pytz', 'six',
+        h5py_spec, 'numpy', 'packaging', 'python-dateutil', 'pytz', 'six',
         'watchdog',
     ],
     setup_requires=pytest_runner,
