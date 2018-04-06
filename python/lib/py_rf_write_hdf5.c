@@ -29,6 +29,23 @@
 void init_py_rf_write_hdf5(void);
 hid_t get_hdf5_data_type(char byteorder, char dtype_char, int bytecount);
 
+
+void free_py_rf_write_hdf5(PyObject *capsule)
+/* free_py_rf_write_hdf5 frees all C references
+ *
+ * Input: PyObject pointer to _py_rf_write_hdf5 PyCapsule object
+ */
+{
+	Digital_rf_write_object * hdf5_write_data_object;
+
+	/* get C pointer to Digital_rf_write_object */
+	hdf5_write_data_object = (Digital_rf_write_object *)PyCapsule_GetPointer(capsule, NULL);
+
+	digital_rf_close_write_hdf5(hdf5_write_data_object);
+
+}
+
+
 static PyObject * _py_rf_write_hdf5_init(PyObject * self, PyObject * args)
 /* _py_rf_write_hdf5_init returns a pointer as a PyCObject to the Digital_rf_write_object struct created
  *
@@ -120,7 +137,7 @@ static PyObject * _py_rf_write_hdf5_init(PyObject * self, PyObject * args)
 	}
 
 	// create python wrapper around a pointer to return
-	retObj = PyCObject_FromVoidPtr(hdf5_write_data_object, NULL);
+	retObj = PyCapsule_New((void *)hdf5_write_data_object, NULL, free_py_rf_write_hdf5);
 
     //return pointer;
     return(retObj);
@@ -162,7 +179,7 @@ static PyObject * _py_rf_write_hdf5_rf_write(PyObject * self, PyObject * args)
 	}
 
 	/* get C pointer to Digital_rf_write_object */
-	hdf5_write_data_object = (Digital_rf_write_object *)PyCObject_AsVoidPtr(pyCObject);
+	hdf5_write_data_object = (Digital_rf_write_object *)PyCapsule_GetPointer(pyCObject, NULL);
 
 	/* get C pointer to numpy array data */
 	data = PyArray_DATA(pyNumArr);
@@ -231,7 +248,7 @@ static PyObject * _py_rf_write_hdf5_rf_block_write(PyObject * self, PyObject * a
 	}
 
 	/* get C pointer to Digital_rf_write_object */
-	hdf5_write_data_object = (Digital_rf_write_object *)PyCObject_AsVoidPtr(pyCObject);
+	hdf5_write_data_object = (Digital_rf_write_object *)PyCapsule_GetPointer(pyCObject, NULL);
 
 	/* get lengths */
 	vector_length = (uint64_t)(PyArray_DIMS(pyNumArr)[0]);
@@ -308,7 +325,7 @@ static PyObject * _py_rf_write_hdf5_get_last_file_written(PyObject * self, PyObj
 	}
 
 	/* get C pointer to Digital_rf_write_object */
-	hdf5_write_data_object = (Digital_rf_write_object *)PyCObject_AsVoidPtr(pyCObject);
+	hdf5_write_data_object = (Digital_rf_write_object *)PyCapsule_GetPointer(pyCObject, NULL);
 
 	last_file_written = digital_rf_get_last_file_written(hdf5_write_data_object);
 
@@ -345,7 +362,7 @@ static PyObject * _py_rf_write_hdf5_get_last_dir_written(PyObject * self, PyObje
 	}
 
 	/* get C pointer to Digital_rf_write_object */
-	hdf5_write_data_object = (Digital_rf_write_object *)PyCObject_AsVoidPtr(pyCObject);
+	hdf5_write_data_object = (Digital_rf_write_object *)PyCapsule_GetPointer(pyCObject, NULL);
 
 	last_dir_written = digital_rf_get_last_dir_written(hdf5_write_data_object);
 
@@ -382,7 +399,7 @@ static PyObject * _py_rf_write_hdf5_get_last_utc_timestamp(PyObject * self, PyOb
 	}
 
 	/* get C pointer to Digital_rf_write_object */
-	hdf5_write_data_object = (Digital_rf_write_object *)PyCObject_AsVoidPtr(pyCObject);
+	hdf5_write_data_object = (Digital_rf_write_object *)PyCapsule_GetPointer(pyCObject, NULL);
 
 	last_timestamp = digital_rf_get_last_write_time(hdf5_write_data_object);
 
@@ -391,45 +408,6 @@ static PyObject * _py_rf_write_hdf5_get_last_utc_timestamp(PyObject * self, PyOb
 	return(retObj);
 
 }
-
-
-
-static PyObject * _py_rf_write_hdf5_free(PyObject * self, PyObject * args)
-/* _py_rf_write_hdf5_free frees all C references
- *
- * Inputs: python list with
- * 	1. PyCObject containing pointer to data structure
- *
- *  Returns 1 if success, 0 if not
- */
-{
-	// input arguments
-	PyObject * pyCObject;
-
-	// local variables
-	Digital_rf_write_object * hdf5_write_data_object;
-	PyObject *retObj;
-
-	// parse input arguments
-	if (!PyArg_ParseTuple(args, "O",
-			  &pyCObject))
-	{
-		return(NULL);
-	}
-
-	/* get C pointer to Digital_rf_write_object */
-	hdf5_write_data_object = (Digital_rf_write_object *)PyCObject_AsVoidPtr(pyCObject);
-
-	digital_rf_close_write_hdf5(hdf5_write_data_object);
-
-
-	/* success */
-	retObj = Py_BuildValue("i", 1);
-	return(retObj);
-
-}
-
-
 
 
 
@@ -566,7 +544,6 @@ static PyMethodDef _py_rf_write_hdf5Methods[] =
 	  {"init",           	           _py_rf_write_hdf5_init,          		METH_VARARGS},
 	  {"rf_write",           	       _py_rf_write_hdf5_rf_write,          	METH_VARARGS},
 	  {"rf_block_write",           	   _py_rf_write_hdf5_rf_block_write,    	METH_VARARGS},
-	  {"free",           	           _py_rf_write_hdf5_free,              	METH_VARARGS},
 	  {"get_last_file_written",        _py_rf_write_hdf5_get_last_file_written, METH_VARARGS},
 	  {"get_last_dir_written",         _py_rf_write_hdf5_get_last_dir_written,  METH_VARARGS},
 	  {"get_last_utc_timestamp",       _py_rf_write_hdf5_get_last_utc_timestamp,METH_VARARGS},
@@ -575,10 +552,47 @@ static PyMethodDef _py_rf_write_hdf5Methods[] =
 };
 
 
-void init_py_rf_write_hdf5()
+#if PY_MAJOR_VERSION >= 3
+	#define MOD_ERROR_VAL NULL
+	#define MOD_SUCCESS_VAL(val) val
+	#define MOD_INIT(name) PyMODINIT_FUNC PyInit_##name(void)
+	#define MOD_DEF(ob, name, doc, methods) \
+		static struct PyModuleDef moduledef = { \
+			PyModuleDef_HEAD_INIT, \
+			name,     /* m_name */ \
+			doc,      /* m_doc */ \
+			-1,       /* m_size */ \
+			methods,  /* m_methods */ \
+			NULL,     /* m_reload */ \
+			NULL,     /* m_traverse */ \
+			NULL,     /* m_clear */ \
+			NULL,     /* m_free */ \
+		}; \
+		ob = PyModule_Create(&moduledef);
+#else
+	#define MOD_ERROR_VAL
+	#define MOD_SUCCESS_VAL(val)
+	#define MOD_INIT(name) void init##name(void)
+	#define MOD_DEF(ob, name, doc, methods) \
+		ob = Py_InitModule3(name, methods, doc);
+#endif
+
+MOD_INIT(_py_rf_write_hdf5)
 {
-    PyImport_AddModule("_py_rf_write_hdf5");
-    Py_InitModule("_py_rf_write_hdf5", _py_rf_write_hdf5Methods);
+	PyObject *m;
+
+	MOD_DEF(
+		m,  /* module object */
+		"_py_rf_write_hdf5",  /* module name */
+		"Python extension for the Digital RF rf_write_hdf5 C library",  /* module doc */
+		_py_rf_write_hdf5Methods  /* module methods */
+	)
+
+	if (m == NULL)
+		return MOD_ERROR_VAL;
+
 	// needed to initialize numpy C api and not have segfaults
 	import_array();
+
+	return MOD_SUCCESS_VAL(m);
 }

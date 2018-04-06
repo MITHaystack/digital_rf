@@ -786,7 +786,6 @@ class DigitalRFWriter(object):
             self._last_dir_written = self.get_last_dir_written()
             self._last_utc_timestamp = self.get_last_utc_timestamp()
             # now free the channel object
-            _py_rf_write_hdf5.free(self._channelObj)
             del self._channelObj
 
     def _cast_input_array(self, arr):
