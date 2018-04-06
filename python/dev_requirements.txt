@@ -1,5 +1,5 @@
 # required python packages for build from git source
-Cheetah
 pkgconfig
+mako
 numpy
 setuptools
