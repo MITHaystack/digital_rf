@@ -28,12 +28,13 @@ depends_lib  \
     port:boost \
     port:gnutls \
     port:gnuradio \
-    port:py27-cheetah \
     port:python27 \
+    port:py27-mako \
     port:py27-numpy \
     port:py27-pkgconfig \
     port:hdf5 \
     port:py27-packaging \
+    port:py27-setuptools \
     port:py27-six \
     port:py27-tz \
     port:py27-watchdog

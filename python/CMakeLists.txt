@@ -88,22 +88,25 @@ foreach(SRCFILE ${PYSOURCES})
 endforeach(SRCFILE)
 
 # build requires generating some of the gnuradio-companion blocks
-macro(gen_block_xml _generator _xml_block)
+macro(gen_block_xml _generator _tmpl _xmlout)
     set(generator ${CMAKE_CURRENT_SOURCE_DIR}/${_generator})
-    set(xml_block ${CMAKE_CURRENT_BINARY_DIR}/${_xml_block})
-    list(APPEND GENERATED_BLOCKS ${xml_block})
+    set(tmpl ${CMAKE_CURRENT_SOURCE_DIR}/${_tmpl})
+    set(xmlout ${CMAKE_CURRENT_BINARY_DIR}/${_xmlout})
+    list(APPEND GENERATED_BLOCKS ${xmlout})
     add_custom_command(
-        OUTPUT ${xml_block}
-        COMMAND ${PYTHON_EXECUTABLE} ${generator} ${xml_block}
-        DEPENDS ${generator}
+        OUTPUT ${xmlout}
+        COMMAND ${PYTHON_EXECUTABLE} ${generator} ${tmpl} ${xmlout}
+        DEPENDS ${generator} ${tmpl}
     )
 endmacro(gen_block_xml)
 gen_block_xml(
-    grc/gen_gr_digital_rf_digital_rf_sink.py
+    grc/gen_gr_digital_rf_digital_rf_sourcesink.py
+    grc/gr_digital_rf_digital_rf_sink.xml.tmpl
     grc/gr_digital_rf_digital_rf_sink.xml
 )
 gen_block_xml(
-    grc/gen_gr_digital_rf_digital_rf_source.py
+    grc/gen_gr_digital_rf_digital_rf_sourcesink.py
+    grc/gr_digital_rf_digital_rf_source.xml.tmpl
     grc/gr_digital_rf_digital_rf_source.xml
 )
 add_custom_target(gr_digital_rf_grc_xml_blocks ALL

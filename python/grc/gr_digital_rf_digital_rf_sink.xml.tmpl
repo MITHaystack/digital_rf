@@ -1,12 +1,3 @@
-# ----------------------------------------------------------------------------
-# Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
-# All rights reserved.
-#
-# Distributed under the terms of the BSD 3-clause license.
-#
-# The full license is in the LICENSE file, distributed with this software.
-# ----------------------------------------------------------------------------
-MAIN_TMPL = """\
 <?xml version="1.0"?>
 <!--
   Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
@@ -22,31 +13,37 @@ MAIN_TMPL = """\
     <category>Digital RF</category>
     <import>import numpy as np; import gr_digital_rf</import>
     <make>\\
-    \#set \$allchannels = #echo '[{0}]'.format(', '.join(['$channel{0}()'.format(n) for n in range($max_num_channels)]))
-    \#set \$channels = \$allchannels[:\$nchan()]
+<%
+    allchannels_list = [
+        '$channel{n}()'.format(n=n) for n in range(max_num_channels)
+    ]
+    allchannels = '[{0}]'.format(', '.join(allchannels_list))
+%>
+    #set $allchannels = ${allchannels}
+    #set $channels = $allchannels[:$nchan()]
     gr_digital_rf.digital_rf_sink(
-        \$top_level_dir,
-        channels=\$channels,
-        dtype=\$input.dtype,
-        subdir_cadence_secs=\$subdir_cadence_s,
-        file_cadence_millisecs=\$file_cadence_ms,
-        sample_rate_numerator=\$sample_rate_numerator,
-        sample_rate_denominator=\$sample_rate_denominator,
-        start=\$start, ignore_tags=\$ignore_tags,
-        is_complex=\$input.complex, num_subchannels=\$vlen,
-        uuid_str=None if \$uuid=='' else \$uuid,
-        center_frequencies=None if \$center_freqs=='' else \$center_freqs,
-        metadata=\$metadata,
-        is_continuous=\$is_continuous, compression_level=\$compression_level,
-        checksum=\$checksum, marching_periods=\$marching_periods,
-        stop_on_skipped=\$stop_on_skipped, debug=\$debug,
-        min_chunksize=None if \$min_chunksize==0 else \$min_chunksize,
+        $top_level_dir,
+        channels=$channels,
+        dtype=$input.dtype,
+        subdir_cadence_secs=$subdir_cadence_s,
+        file_cadence_millisecs=$file_cadence_ms,
+        sample_rate_numerator=$sample_rate_numerator,
+        sample_rate_denominator=$sample_rate_denominator,
+        start=$start, ignore_tags=$ignore_tags,
+        is_complex=$input.complex, num_subchannels=$vlen,
+        uuid_str=None if $uuid=='' else $uuid,
+        center_frequencies=None if $center_freqs=='' else $center_freqs,
+        metadata=$metadata,
+        is_continuous=$is_continuous, compression_level=$compression_level,
+        checksum=$checksum, marching_periods=$marching_periods,
+        stop_on_skipped=$stop_on_skipped, debug=$debug,
+        min_chunksize=None if $min_chunksize==0 else $min_chunksize,
     )
     </make>
 
-    <callback>set_debug(\$debug)</callback>
-    <callback>set_ignore_tags(\$ignore_tags)</callback>
-    <callback>set_stop_on_skipped(\$stop_on_skipped)</callback>
+    <callback>set_debug($debug)</callback>
+    <callback>set_ignore_tags($ignore_tags)</callback>
+    <callback>set_stop_on_skipped($stop_on_skipped)</callback>
 
     <param>
         <name>Directory</name>
@@ -59,14 +56,22 @@ MAIN_TMPL = """\
         <value>1</value>
         <type>int</type>
         <hide>part</hide>
-        #for $n in range(1, $max_num_channels+1)
+    % for n in range(1, max_num_channels+1):
         <option>
-            <name>$n</name>
-            <key>$n</key>
+            <name>${n}</name>
+            <key>${n}</key>
         </option>
-        #end for
+    % endfor
     </param>
-    $channel_params
+% for n in range(max_num_channels):
+    <param>
+        <name>Ch${n}</name>
+        <key>channel${n}</key>
+        <value>ch${n}</value>
+        <type>string</type>
+        <hide>${"#if $nchan() > {0} then 'none' else 'all'#".format(n)}</hide>
+    </param>
+% endfor
     <param>
         <name>Input Type</name>
         <key>input</key>
@@ -168,21 +173,21 @@ MAIN_TMPL = """\
         <key>start</key>
         <value></value>
         <type>string</type>
-        <hide>\#if \$start() then 'none' else 'part'\#</hide>
+        <hide>#if $start() then 'none' else 'part'#</hide>
     </param>
     <param>
         <name>UUID</name>
         <key>uuid</key>
         <value></value>
         <type>string</type>
-        <hide>\#if \$uuid() then 'none' else 'part'\#</hide>
+        <hide>#if $uuid() then 'none' else 'part'#</hide>
     </param>
     <param>
         <name>Ignore Tags</name>
         <key>ignore_tags</key>
         <value>False</value>
         <type>bool</type>
-        <hide>\#if \$ignore_tags() then 'none' else 'part'\#</hide>
+        <hide>#if $ignore_tags() then 'none' else 'part'#</hide>
         <option>
             <name>Yes</name>
             <key>True</key>
@@ -305,20 +310,20 @@ MAIN_TMPL = """\
         <tab>Advanced</tab>
     </param>
 
-    <check>\$vlen > 0</check>
-    <check>\$subdir_cadence_s > 0</check>
-    <check>\$file_cadence_ms > 0</check>
-    <check>\$subdir_cadence_s*1000 % \$file_cadence_ms == 0</check>
-    <check>\$sample_rate_numerator > 0</check>
-    <check>\$sample_rate_denominator > 0</check>
-    <check>\$compression_level >= 0 and 9 >= \$compression_level</check>
-    <check>\$min_chunksize >= 0</check>
+    <check>$vlen > 0</check>
+    <check>$subdir_cadence_s > 0</check>
+    <check>$file_cadence_ms > 0</check>
+    <check>$subdir_cadence_s*1000 % $file_cadence_ms == 0</check>
+    <check>$sample_rate_numerator > 0</check>
+    <check>$sample_rate_denominator > 0</check>
+    <check>$compression_level >= 0 and 9 >= $compression_level</check>
+    <check>$min_chunksize >= 0</check>
 
     <sink>
         <name>in</name>
-        <type>\$input.type</type>
-        <vlen>\$vlen</vlen>
-        <nports>\$nchan</nports>
+        <type>$input.type</type>
+        <vlen>$vlen</vlen>
+        <nports>$nchan</nports>
     </sink>
 
     <doc>
@@ -484,39 +489,3 @@ False:
 
     </doc>
 </block>
-"""
-
-
-CHANNEL_PARAMS_TMPL = """\
-    <param>
-        <name>Ch${n}</name>
-        <key>channel${n}</key>
-        <value>ch${n}</value>
-        <type>string</type>
-        <hide>\#if \$nchan() > $n then 'none' else 'all'#</hide>
-    </param>
-"""
-
-
-def parse_tmpl(_tmpl, **kwargs):
-    from Cheetah import Template
-    return str(Template.Template(_tmpl, kwargs))
-
-
-max_num_channels = 10
-
-
-if __name__ == '__main__':
-    import sys
-    for fname in sys.argv[1:]:
-        channel_params = ''.join(
-            [parse_tmpl(CHANNEL_PARAMS_TMPL, n=n)
-                for n in range(max_num_channels)]
-        )
-        open(fname, 'w').write(
-            parse_tmpl(
-                MAIN_TMPL,
-                channel_params=channel_params,
-                max_num_channels=max_num_channels,
-            )
-        )

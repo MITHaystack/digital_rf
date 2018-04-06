@@ -1,12 +1,3 @@
-# ----------------------------------------------------------------------------
-# Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
-# All rights reserved.
-#
-# Distributed under the terms of the BSD 3-clause license.
-#
-# The full license is in the LICENSE file, distributed with this software.
-# ----------------------------------------------------------------------------
-MAIN_TMPL = """\
 <?xml version="1.0"?>
 <!--
   Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
@@ -20,29 +11,43 @@ MAIN_TMPL = """\
     <name>Digital RF Source</name>
     <key>gr_digital_rf_digital_rf_source</key>
     <category>Digital RF</category>
-    <flags>\#if \$throttle() then 'throttle' else ''\#</flags>
+    <flags>#if $throttle() then 'throttle' else ''#</flags>
     <import>import gr_digital_rf</import>
     <make>\\
-    \#set \$allchannels = #echo '[{0}]'.format(', '.join(['$channel{0}()'.format(n) for n in range($max_num_channels)]))
-    \#set \$channels = \$allchannels[:\$nchan()]
-    \#set \$allstart = #echo '[{0}]'.format(', '.join(['$start{0}()'.format(n) for n in range($max_num_channels)]))
-    \#set \$start = \$allstart[:\$nchan()]
-    \#set \$allend = #echo '[{0}]'.format(', '.join(['$end{0}()'.format(n) for n in range($max_num_channels)]))
-    \#set \$end = \$allend[:\$nchan()]
+<%
+    allchannels_list = [
+        '$channel{n}()'.format(n=n) for n in range(max_num_channels)
+    ]
+    allchannels = '[{0}]'.format(', '.join(allchannels_list))
+    allstart_list = [
+        '$start{n}()'.format(n=n) for n in range(max_num_channels)
+    ]
+    allstart = '[{0}]'.format(', '.join(allstart_list))
+    allend_list = [
+        '$end{n}()'.format(n=n) for n in range(max_num_channels)
+    ]
+    allend = '[{0}]'.format(', '.join(allend_list))
+%>
+    #set $allchannels = ${allchannels}
+    #set $channels = $allchannels[:$nchan()]
+    #set $allstart = ${allstart}
+    #set $start = $allstart[:$nchan()]
+    #set $allend = ${allend}
+    #set $end = $allend[:$nchan()]
     gr_digital_rf.digital_rf_source(
-        \$top_level_dir,
-        channels=\$channels,
-        start=\$start,
-        end=\$end,
-        repeat=\$repeat,
-        throttle=\$throttle,
-        gapless=\$gapless,
-        min_chunksize=None if \$min_chunksize==0 else \$min_chunksize,
+        $top_level_dir,
+        channels=$channels,
+        start=$start,
+        end=$end,
+        repeat=$repeat,
+        throttle=$throttle,
+        gapless=$gapless,
+        min_chunksize=None if $min_chunksize==0 else $min_chunksize,
     )
     </make>
 
-    <callback>set_gapless(\$gapless)</callback>
-    <callback>set_repeat(\$repeat)</callback>
+    <callback>set_gapless($gapless)</callback>
+    <callback>set_repeat($repeat)</callback>
 
     <param>
         <name>Directory</name>
@@ -54,7 +59,7 @@ MAIN_TMPL = """\
         <key>repeat</key>
         <value>False</value>
         <type>bool</type>
-        <hide>\#if \$repeat() then 'none' else 'part'\#</hide>
+        <hide>#if $repeat() then 'none' else 'part'#</hide>
         <option>
             <name>Yes</name>
             <key>True</key>
@@ -69,7 +74,7 @@ MAIN_TMPL = """\
         <key>throttle</key>
         <value>False</value>
         <type>bool</type>
-        <hide>\#if \$throttle() then 'none' else 'part'\#</hide>
+        <hide>#if $throttle() then 'none' else 'part'#</hide>
         <option>
             <name>Yes</name>
             <key>True</key>
@@ -100,14 +105,36 @@ MAIN_TMPL = """\
         <value>1</value>
         <type>int</type>
         <hide>part</hide>
-        #for $n in range(1, $max_num_channels+1)
+    % for n in range(1, max_num_channels+1):
         <option>
-            <name>$n</name>
-            <key>$n</key>
+            <name>${n}</name>
+            <key>${n}</key>
         </option>
-        #end for
+    % endfor
     </param>
-    $channel_params
+% for n in range(max_num_channels):
+    <param>
+        <name>Ch${n}</name>
+        <key>channel${n}</key>
+        <value></value>
+        <type>string</type>
+        <hide>${"#if $nchan() > {0} then 'none' else 'all'#".format(n)}</hide>
+    </param>
+    <param>
+        <name>Ch${n}: start</name>
+        <key>start${n}</key>
+        <value></value>
+        <type>string</type>
+        <hide>${"#if $nchan() > {0} then 'part' else 'all'#".format(n)}</hide>
+    </param>
+    <param>
+        <name>Ch${n}: end</name>
+        <key>end${n}</key>
+        <value></value>
+        <type>string</type>
+        <hide>${"#if $nchan() > {0} then 'part' else 'all'#".format(n)}</hide>
+    </param>
+% endfor
     <param>
         <name>Minimum Chunk Size</name>
         <key>min_chunksize</key>
@@ -133,20 +160,20 @@ MAIN_TMPL = """\
         <tab>Advanced</tab>
     </param>
 
-    <check>\$nchan > 0</check>
-    <check>\$min_chunksize >= 0</check>
+    <check>$nchan > 0</check>
+    <check>$min_chunksize >= 0</check>
 
     <source>
         <name>out</name>
         <type></type>
         <vlen></vlen>
-        <nports>\$nchan</nports>
+        <nports>$nchan</nports>
     </source>
     <source>
         <name>properties</name>
         <type>message</type>
         <optional>True</optional>
-        <hide>\$hide_msg_port</hide>
+        <hide>$hide_msg_port</hide>
     </source>
 
     <doc>
@@ -250,53 +277,3 @@ for each of the channel's accompanying Digital Metadata samples:
 
     </doc>
 </block>
-"""
-
-
-CHANNEL_PARAMS_TMPL = """\
-    <param>
-        <name>Ch${n}</name>
-        <key>channel${n}</key>
-        <value></value>
-        <type>string</type>
-        <hide>\#if \$nchan() > $n then 'none' else 'all'#</hide>
-    </param>
-    <param>
-        <name>Ch${n}: start</name>
-        <key>start${n}</key>
-        <value></value>
-        <type>string</type>
-        <hide>\#if \$nchan() > $n then 'part' else 'all'#</hide>
-    </param>
-    <param>
-        <name>Ch${n}: end</name>
-        <key>end${n}</key>
-        <value></value>
-        <type>string</type>
-        <hide>\#if \$nchan() > $n then 'part' else 'all'#</hide>
-    </param>
-"""
-
-
-def parse_tmpl(_tmpl, **kwargs):
-    from Cheetah import Template
-    return str(Template.Template(_tmpl, kwargs))
-
-
-max_num_channels = 10
-
-
-if __name__ == '__main__':
-    import sys
-    for fname in sys.argv[1:]:
-        channel_params = ''.join(
-            [parse_tmpl(CHANNEL_PARAMS_TMPL, n=n)
-                for n in range(max_num_channels)]
-        )
-        open(fname, 'w').write(
-            parse_tmpl(
-                MAIN_TMPL,
-                channel_params=channel_params,
-                max_num_channels=max_num_channels,
-            )
-        )

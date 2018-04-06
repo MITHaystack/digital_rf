@@ -56,8 +56,8 @@ c
   * hdf5 >= 1.8 (``libhdf5-dev``)
 
 python
-  * Cheetah (``python-cheetah``)
   * hdf5 >= 1.8 (``libhdf5-dev``)
+  * mako (``python-mako``)
   * numpy (``python-numpy``)
   * pkgconfig (``python-pkgconfig``)
   * python == 2.7 (``python-dev``)

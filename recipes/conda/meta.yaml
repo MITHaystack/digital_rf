@@ -18,9 +18,9 @@ build:
 
 requirements:
   build:
-    - cheetah
     - cmake >=3.0
     - hdf5 1.8.18|1.8.18.*
+    - mako
     - numpy 1.8.*
     - pkgconfig
     - python >=2.7,<3
