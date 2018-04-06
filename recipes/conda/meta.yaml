@@ -13,36 +13,37 @@ build:
   detect_binary_files_with_prefix: True
   features:
     - vc9  # [win and py27]
-    - vc10  # [win and py34]
     - vc14  # [win and py>=35]
 
 requirements:
   build:
     - cmake >=3.0
-    - hdf5 1.8.18|1.8.18.*
+    - hdf5 1.10.1
     - mako
-    - numpy 1.8.*
+    - numpy 1.8.*  # [not (win and (py35 or py36))]
+    - numpy 1.9.*  # [win and py35]
+    - numpy 1.11.*  # [win and py36]
     - pkgconfig
-    - python >=2.7,<3
+    - python
     - setuptools
     - toolchain
     - vc 9  # [win and py27]
-    - vc 10  # [win and py34]
     - vc 14  # [win and py>=35]
   run:
-    - dateutil
-    - gnuradio  # [not win]
+    - gnuradio  # [not win and py27]
     - h5py
-    - hdf5 1.8.18|1.8.18.*
+    - hdf5 1.10.1
     - matplotlib
-    - numpy >=1.8
+    - numpy >=1.8  # [not (win and (py35 or py36))]
+    - numpy >=1.9  # [win and py35]
+    - numpy >=1.11  # [win and py36]
     - packaging
     - pandas
-    - python >=2.7,<3
+    - python
+    - python-dateutil
     - pytz
     - scipy
     - vc 9  # [win and py27]
-    - vc 10  # [win and py34]
     - vc 14  # [win and py>=35]
     - watchdog
 
@@ -52,7 +53,7 @@ test:
   imports:
     - digital_rf
     - digital_rf.digital_rf_hdf5
-    - gr_digital_rf  # [not win]
+    - gr_digital_rf  # [not win and py27]
   source_files:
     - python/tests/*.py
     - python/examples/*.py

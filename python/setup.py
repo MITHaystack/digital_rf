@@ -35,7 +35,7 @@ pytest_runner = ['pytest-runner'] if needs_pytest else []
 external_libs = []
 external_libs_env = os.getenv('DRF_PACKAGE_EXTERNAL_LIBS', None)
 if sys.platform.startswith('win') and external_libs_env is not None:
-    external_lib_list = filter(None, external_libs_env.split(';'))
+    external_lib_list = list(filter(None, external_libs_env.split(';')))
     external_libs.extend([
         ('Lib/site-packages/digital_rf', external_lib_list),
     ])
@@ -140,7 +140,7 @@ class build_ext(_build_ext):
         for k, e in hdf5_env_config.items():
             env_val = os.getenv(e, None)
             if env_val is not None:
-                val_list = filter(None, env_val.split(';'))
+                val_list = list(filter(None, env_val.split(';')))
                 used = set()
                 vals = []
                 for v in val_list:
@@ -218,6 +218,9 @@ setup(
         'Programming Language :: C',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Topic :: Scientific/Engineering',
     ],
 
@@ -253,19 +256,19 @@ setup(
         Extension(
             name='digital_rf._py_rf_write_hdf5',
             sources=['lib/py_rf_write_hdf5.c', 'lib/rf_write_hdf5.c'],
-            include_dirs=filter(None, [
+            include_dirs=list(filter(None, [
                 localpath('include'),
                 (localpath('include/windows')
                  if sys.platform.startswith('win') else None),
-            ]),
+            ])),
             library_dirs=[],
-            libraries=filter(None, [
+            libraries=list(filter(None, [
                 'm' if not sys.platform.startswith('win') else None,
-            ]),
-            define_macros=filter(None, [
+            ])),
+            define_macros=list(filter(None, [
                 (('digital_rf_EXPORTS', None)
                  if sys.platform.startswith('win') else None),
-            ]),
+            ])),
         ),
     ],
     entry_points={

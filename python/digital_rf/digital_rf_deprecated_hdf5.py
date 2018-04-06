@@ -24,6 +24,7 @@ import warnings
 # third party imports
 import numpy
 import h5py
+import six
 
 
 class read_hdf5:
@@ -65,7 +66,7 @@ class read_hdf5:
         """
 
         # first, make top_level_directory_arg a list if a string
-        if type(top_level_directory_arg) == types.StringType:
+        if type(top_level_directory_arg) in six.string_types:
             top_level_arg = [top_level_directory_arg]
         else:
             top_level_arg = top_level_directory_arg
@@ -111,7 +112,7 @@ class read_hdf5:
             channels_found = self._get_channels_in_dir(top_level_dir)
             for channel in channels_found:
                 channel_name = os.path.basename(channel)
-                if channel_dict.has_key(channel_name):
+                if channel_name in channel_dict:
                     channel_dict[channel_name].append(top_level_dir)
                 else:
                     channel_dict[channel_name] = [top_level_dir]
@@ -129,7 +130,7 @@ class read_hdf5:
 
         # update all channels
         for channel_name in channel_dict.keys():
-            if not self._channel_dict.has_key(channel_name):
+            if channel_name not in self._channel_dict:
                 # a new channel is found - create it
                 top_level_dir_metadata_list = []
                 for top_level_dir in channel_dict[channel_name]:
@@ -215,7 +216,7 @@ class read_hdf5:
             for metadata_file in metadata_files:
                 basename = os.path.basename(metadata_file)
                 if basename in metadata_basename_list:
-                    raise IOError, 'found repeated metadata file names in channel %s' % (channel_name)
+                    raise IOError('found repeated metadata file names in channel %s' % (channel_name))
                 # verify its a good file
                 try:
                     f = h5py.File(metadata_file, 'r')
@@ -226,7 +227,7 @@ class read_hdf5:
                 metadata_file_list.append(metadata_file)
 
         if len(metadata_file_list) == 0:
-            raise IOError, 'No metadata files found in channel %s' % (channel_name)
+            raise IOError('No metadata files found in channel %s' % (channel_name))
 
         # open right metadata file
         if timestamp is None:
@@ -241,7 +242,7 @@ class read_hdf5:
                 else:
                     break
             if rightFile is None:
-                raise IOError, 'All metadata files found in channel %s after timestamp' % (channel_name, timestamp)
+                raise IOError('All metadata files found in channel %s after timestamp' % (channel_name, timestamp))
             return(h5py.File(rightFile, 'r'))
 
 
@@ -326,7 +327,7 @@ class read_hdf5:
         This is possible because metadata on which this call is based might be out of date.
         """
         if vector_length < 1:
-            raise IOError, 'Number of samples requested must be greater than 0, not %i' % (vector_length)
+            raise IOError('Number of samples requested must be greater than 0, not %i' % (vector_length))
 
         # make sure everything is a long
         unix_sample = int(unix_sample)
@@ -341,7 +342,7 @@ class read_hdf5:
             # make sure we don't request beyond the metadata
             last_top_level_metadata = channel_metadata.top_level_dir_meta_list[-1]
             if last_top_level_metadata.unix_start_sample + last_top_level_metadata.sample_extent < unix_sample + vector_length:
-                raise IOError, 'request in _read_vector beyond existing Metadata using full metadata'
+                raise IOError('request in _read_vector beyond existing Metadata using full metadata')
 
         for top_level_dir in channel_metadata.top_level_dir_meta_list:
             # note - even with partial metadata, the edges of top_level_dir are absolutely correct
@@ -361,11 +362,11 @@ class read_hdf5:
                 first_unix_sample = unix_sample
 
         if ret_array is None:
-            raise IOError, 'No data found for channel %s between %i and %i' % (channel_name, unix_sample,
-                                                                               unix_sample + vector_length)
+            raise IOError('No data found for channel %s between %i and %i' % (channel_name, unix_sample,
+                                                                               unix_sample + vector_length))
 
         if len(ret_array) != vector_length:
-            raise IOError, 'Requested %i samples, but only found %i' % (vector_length, len(ret_array))
+            raise IOError('Requested %i samples, but only found %i' % (vector_length, len(ret_array)))
 
         return(ret_array)
 
@@ -390,7 +391,7 @@ class read_hdf5:
         z = self.read_vector_raw(unix_sample, vector_length, channel_name)
 
         if z.shape[1] < subchannel + 1:
-            raise ValueError, 'Returned data has only %i subchannels, does not have subchannel %i' % (z.shape[1], subchannel)
+            raise ValueError('Returned data has only %i subchannels, does not have subchannel %i' % (z.shape[1], subchannel))
 
         if z.dtype == numpy.complex64:
             return(z[:,subchannel])
@@ -399,9 +400,9 @@ class read_hdf5:
 
         slice = (z[:,subchannel])
         if not hasattr(slice.dtype, 'names'):
-            raise ValueError, 'Single valued channels cannot be cast to complex'
+            raise ValueError('Single valued channels cannot be cast to complex')
         elif slice.dtype.names is None:
-            raise ValueError, 'Single valued channels cannot be cast to complex'
+            raise ValueError('Single valued channels cannot be cast to complex')
         slice = numpy.array(slice['r'] + slice['i']*1.0j, dtype=numpy.complex64)
         return(slice)
 
@@ -440,8 +441,8 @@ class read_hdf5:
             ret_array = self._combine_blocks(ret_array, this_array, top_level_dir.samples_per_file)
 
         if len(ret_array) == 0:
-            raise IOError, 'No data found for channel %s between %i and %i' % (channel_name, start_unix_sample,
-                                                                               stop_unix_sample)
+            raise IOError('No data found for channel %s between %i and %i' % (channel_name, start_unix_sample,
+                                                                               stop_unix_sample))
 
         return(ret_array)
 
@@ -462,7 +463,7 @@ class read_hdf5:
             return(second_array)
 
         if len(first_array) != second_start_sample - first_start_sample:
-            raise IOError, '_combine_continuous_vectors trying to combine two non-continuous vectors'
+            raise IOError('_combine_continuous_vectors trying to combine two non-continuous vectors')
 
         return(numpy.concatenate((first_array, second_array)))
 
@@ -480,8 +481,8 @@ class read_hdf5:
             return(second_array)
         is_contiguous = False
         if first_array[-1][0] + first_array[-1][1] > second_array[0][0]:
-            raise IOError, 'overlapping data found in top level directories %i %i' % \
-                (first_array[-1][0] + first_array[-1][1], second_array[0][0])
+            raise IOError('overlapping data found in top level directories %i %i' % \
+                (first_array[-1][0] + first_array[-1][1], second_array[0][0]))
         if first_array[-1][0] + first_array[-1][1] == second_array[0][0]:
             is_contiguous = True
         if is_contiguous:
@@ -508,7 +509,7 @@ class read_hdf5:
         access_mode = self._top_level_dir_dict[top_level_dir]
         # for now only local access
         if access_mode not in ('local'):
-            raise ValueError, 'access_mode %s not yet implemented' % (access_mode)
+            raise ValueError('access_mode %s not yet implemented' % (access_mode))
 
         if access_mode == 'local':
             potential_channels = glob.glob(os.path.join(top_level_dir, '*', sub_directory_glob))
@@ -562,7 +563,7 @@ class _channel_metadata:
         """
         for top_level_meta in self.top_level_dir_meta_list:
             top_level_meta.update(complete_update)
-            if not self.metadata_dict.has_key('uuid_str'):
+            if 'uuid_str' not in self.metadata_dict:
                 for key in top_level_meta.metadata_dict.keys():
                     self.metadata_dict[key] = top_level_meta.metadata_dict[key]
         self.reset_indices()
@@ -589,9 +590,9 @@ class _channel_metadata:
                 remove_list.append(i)
 
         if len(remove_list) == 0:
-            raise ValueError, 'No directory %s found in this channel' % (top_level_dir)
+            raise ValueError('No directory %s found in this channel' % (top_level_dir))
         elif len(remove_list) > 1:
-            raise ValueError, 'More than one directory %s found in this channel' % (top_level_dir)
+            raise ValueError('More than one directory %s found in this channel' % (top_level_dir))
 
         self.top_level_dir_meta_list.pop(remove_list[0])
 
@@ -623,7 +624,7 @@ class _channel_metadata:
                 this_unix_start_sample = record.unix_start_sample
                 this_sample_extent = record.sample_extent
                 if last_unix_start_sample + last_sample_extent > this_unix_start_sample:
-                    raise IOError, 'Overlapping samples found in top level dir %s' % (record.top_level_dir)
+                    raise IOError('Overlapping samples found in top level dir %s' % (record.top_level_dir))
                 last_unix_start_sample = this_unix_start_sample
                 last_sample_extent = this_sample_extent
 
@@ -738,7 +739,7 @@ class _top_level_dir_metadata:
                 continue
             this_extent = int(self.sub_directory_recarray['sample_extent'][i])
             if this_extent == 0:
-                raise _MissingMetadata, 'this_extent == 0'
+                raise _MissingMetadata('this_extent == 0')
 
             # now check that subdirectories with metadata are still up to date
             base_subdirectory = self.sub_directory_recarray['subdirectory'][i]
@@ -785,7 +786,7 @@ class _top_level_dir_metadata:
                     continue
                 this_extent = int(self.sub_directory_recarray['sample_extent'][i])
                 if this_extent == 0:
-                    raise IOError, 'Metadata not found in recarray'
+                    raise IOError('Metadata not found in recarray')
                 if this_start_sample + this_extent <= start_unix_sample:
                     continue
 
@@ -831,9 +832,9 @@ class _top_level_dir_metadata:
 
             # verify success
             if ret_array is None:
-                raise IOError, 'No valid data found'
+                raise IOError('No valid data found')
             if len(ret_array) != stop_unix_sample - start_unix_sample:
-                raise IOError, 'Wanted len %i, but got len %i' % (stop_unix_sample - start_unix_sample, len(ret_array))
+                raise IOError('Wanted len %i, but got len %i' % (stop_unix_sample - start_unix_sample, len(ret_array)))
 
             return((ret_array, start_unix_sample))
 
@@ -942,8 +943,8 @@ class _top_level_dir_metadata:
                 if self.samples_per_file == 0:
                     self.samples_per_file = int(samples_per_file)
                 elif self.samples_per_file != int(samples_per_file):
-                    raise IOError, 'Samples per file changed from %i to %i with subdirectory %s' % \
-                        (self.samples_per_file, samples_per_file, base_subdirectory)
+                    raise IOError('Samples per file changed from %i to %i with subdirectory %s' % \
+                        (self.samples_per_file, samples_per_file, base_subdirectory))
                 continue
 
 
@@ -971,8 +972,8 @@ class _top_level_dir_metadata:
                 this_sample_extent = record['sample_extent']
                 if last_unix_start_sample + last_sample_extent > this_unix_start_sample:
                     if this_sample_extent != 0: # otherwise not trustworthy
-                        raise IOError, 'Overlapping samples found in subdirectory %s - last_unix_start_sample=%i, last_sample_extent=%i, this_unix_start_sample=%i' \
-                            % (record['subdirectory'], last_unix_start_sample, last_sample_extent, this_unix_start_sample)
+                        raise IOError('Overlapping samples found in subdirectory %s - last_unix_start_sample=%i, last_sample_extent=%i, this_unix_start_sample=%i' \
+                            % (record['subdirectory'], last_unix_start_sample, last_sample_extent, this_unix_start_sample))
                 last_unix_start_sample = this_unix_start_sample
                 last_sample_extent = this_sample_extent
 
@@ -985,9 +986,9 @@ class _top_level_dir_metadata:
         """
         result = numpy.argwhere(self.sub_directory_recarray['subdirectory'] == subdirectory)
         if len(result) == 0:
-            raise IOError, 'subdirectory %s not found' % (subdirectory)
+            raise IOError('subdirectory %s not found' % (subdirectory))
         if len(result) > 1:
-            raise ValueError, 'got unexpected result %s' % (str(result))
+            raise ValueError('got unexpected result %s' % (str(result)))
         return((self.sub_directory_recarray['file_count'][result[0][0]],
                 self.sub_directory_recarray['last_timestamp'][result[0][0]]))
 
@@ -1008,7 +1009,7 @@ class _top_level_dir_metadata:
             return(second_array)
 
         if len(first_array) != second_start_sample - first_start_sample:
-            raise IOError, '_combine_continuous_vectors trying to combine two non-continuous vectors'
+            raise IOError('_combine_continuous_vectors trying to combine two non-continuous vectors')
 
         return(numpy.concatenate((first_array, second_array)))
 
@@ -1023,7 +1024,7 @@ class _top_level_dir_metadata:
         """
         # for now only local access
         if self.access_mode not in ('local'):
-            raise ValueError, 'access_mode %s not yet implemented' % (access_mode)
+            raise ValueError('access_mode %s not yet implemented' % (access_mode))
         subdirectory_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self._sub_directory_glob))
         subdirectory_list.sort()
         if not verify_files:
@@ -1048,8 +1049,8 @@ class _top_level_dir_metadata:
             return(second_array)
         is_contiguous = False
         if first_array[-1][0] + first_array[-1][1] > second_array[0][0]:
-            raise IOError, 'overlapping data found in top level directories %i %i' % \
-                (first_array[-1][0] + first_array[-1][1], second_array[0][0])
+            raise IOError('overlapping data found in top level directories %i %i' % \
+                (first_array[-1][0] + first_array[-1][1], second_array[0][0]))
         if first_array[-1][0] + first_array[-1][1] == second_array[0][0]:
             is_contiguous = True
         if is_contiguous:
@@ -1141,7 +1142,7 @@ class _top_level_dir_metadata:
                                                    stop_unix_sample - start_unix_sample)
                         if samples_left_to_read < stop_unix_sample - start_unix_sample:
                             f.close()
-                            raise IOError, 'Gap found in first file %s read' % (file_to_search)
+                            raise IOError('Gap found in first file %s read' % (file_to_search))
                     else:
                         samples_left_to_read = min(samples_per_file - file_start_index, stop_unix_sample - start_unix_sample)
                     rf_data = f['/rf_data'][file_start_index:file_start_index + samples_left_to_read]
@@ -1180,14 +1181,14 @@ class _top_level_dir_metadata:
             first_file_sample = rf_data_index[0,0]
             if first_file_sample != start_unix_sample + len(ret_array):
                 f.close()
-                raise IOError, 'gap found at file %s -expected index %i, got %i' % (file_to_search, start_unix_sample + len(ret_array),
-                                                                                    first_file_sample)
+                raise IOError('gap found at file %s -expected index %i, got %i' % (file_to_search, start_unix_sample + len(ret_array),
+                                                                                    first_file_sample))
             # verify no gaps over this read
             if len(rf_data_index) > 1:
                 samples_in_this_file = rf_data_index[1,1] - rf_data_index[0,1]
                 if samples_in_this_file < (stop_unix_sample - start_unix_sample) - len(ret_array):
                     f.close()
-                    raise IOError, 'not enough samples in file %s before data gap' % (file_to_search)
+                    raise IOError('not enough samples in file %s before data gap' % (file_to_search))
 
             samples_to_read = min(samples_per_file, (stop_unix_sample - start_unix_sample) - len(ret_array))
             rf_data = f['/rf_data'][0:samples_to_read]
@@ -1215,7 +1216,7 @@ class _top_level_dir_metadata:
         """
         # only the same channel can be compared
         if self.channel_name != other.channel_name:
-            raise ValueError, 'Cannot compare mismatched channel names %s and %s' % (self.channel_name, other.channel_name)
+            raise ValueError('Cannot compare mismatched channel names %s and %s' % (self.channel_name, other.channel_name))
 
         if self.unix_start_sample != 0 and other.unix_start_sample != 0:
             return(cmp(self.unix_start_sample, other.unix_start_sample))
@@ -1223,18 +1224,18 @@ class _top_level_dir_metadata:
         # use subdirectory names instead
         # for now only local access
         if self.access_mode not in ('local'):
-            raise ValueError, 'access_mode %s not yet implemented' % (access_mode)
+            raise ValueError('access_mode %s not yet implemented' % (access_mode))
 
         first_subdirectory_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self._sub_directory_glob))
         first_subdirectory_list.sort()
         if len(first_subdirectory_list) == 0:
-            raise ValueError, 'Cannot compare top level directory because it has no data' % (self.top_level_dir)
+            raise ValueError('Cannot compare top level directory because it has no data' % (self.top_level_dir))
         first_subdirectory = os.path.basename(first_subdirectory_list[0])
 
         second_subdirectory_list = glob.glob(os.path.join(other.top_level_dir, other.channel_name, self._sub_directory_glob))
         second_subdirectory_list.sort()
         if len(second_subdirectory_list) == 0:
-            raise ValueError, 'Cannot compare top level directory because it has no data' % (other.top_level_dir)
+            raise ValueError('Cannot compare top level directory because it has no data' % (other.top_level_dir))
         second_subdirectory = os.path.basename(second_subdirectory_list[0])
 
         return(cmp(first_subdirectory, second_subdirectory))
@@ -1322,7 +1323,7 @@ class _sub_directory_metadata:
         Raises IOError if no self.metadata
         """
         if len(self.metadata) == 0:
-            raise IOError, 'Must call update before calling get_summary_metadata, or subdirectory %s empty' % (self.subdirectory)
+            raise IOError('Must call update before calling get_summary_metadata, or subdirectory %s empty' % (self.subdirectory))
 
         first_unix_sample = int(self.metadata['unix_sample_index'][0])
         last_unix_sample = int(self.metadata['unix_sample_index'][-1]) + ((self.samples_per_file - int(self.metadata['file_index'][-1])) - 1)
@@ -1341,12 +1342,12 @@ class _sub_directory_metadata:
 
         # for now only local access
         if self.access_mode not in ('local'):
-            raise ValueError, 'access_mode %s not yet implemented' % (access_mode)
+            raise ValueError('access_mode %s not yet implemented' % (access_mode))
 
         rf_file_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self.subdirectory,
                                               self._rf_file_glob))
         if len(rf_file_list) == 0:
-            raise IOError, 'subdirectory %s empty' % (self.subdirectory)
+            raise IOError('subdirectory %s empty' % (self.subdirectory))
 
         rf_file_list.sort()
         if len(rf_file_list) != file_count:
@@ -1366,7 +1367,7 @@ class _sub_directory_metadata:
         """
         # for now only local access
         if self.access_mode not in ('local'):
-            raise ValueError, 'access_mode %s not yet implemented' % (access_mode)
+            raise ValueError('access_mode %s not yet implemented' % (access_mode))
 
         rf_file_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self.subdirectory,
                                               self._rf_file_glob))
@@ -1523,7 +1524,7 @@ class _sub_directory_metadata:
         samples_to_read = stop_unix_sample - start_unix_sample
         for i in range(first_index, len(self.metadata)):
             if self.metadata['unix_sample_index'][i] >= stop_unix_sample:
-                raise IOError, 'Did not get expected read - debug'
+                raise IOError('Did not get expected read - debug')
 
             this_hdf5_file = self.metadata['rf_basename'][i]
             full_hdf5_file = os.path.join(self.top_level_dir, self.channel_name, self.subdirectory, this_hdf5_file)
@@ -1591,8 +1592,8 @@ class _sub_directory_metadata:
                                               self._rf_file_glob))
 
         if len(rf_file_list) == 0:
-            raise IOError, 'No valid rf files found in subdirectory %s' % \
-                (os.path.join(self.top_level_dir, self.channel_name, self.subdirectory))
+            raise IOError('No valid rf files found in subdirectory %s' % \
+                (os.path.join(self.top_level_dir, self.channel_name, self.subdirectory)))
 
         rf_file_list.sort()
 
@@ -1610,8 +1611,8 @@ class _sub_directory_metadata:
                                               self._rf_file_glob))
 
         if len(rf_file_list) == 0:
-            raise IOError, 'No valid rf files found in subdirectory %s' % \
-                (os.path.join(self.top_level_dir, self.channel_name, self.subdirectory))
+            raise IOError('No valid rf files found in subdirectory %s' % \
+                (os.path.join(self.top_level_dir, self.channel_name, self.subdirectory)))
 
         rf_file_list.sort()
 
@@ -1624,14 +1625,14 @@ class _sub_directory_metadata:
 
         new_rows = self._get_new_rows(os.path.basename(rf_file_list[index]))
         if (new_rows is None and index == -2) or (new_rows is None and len(rf_file_list) == 1):
-            raise IOError, 'Unable to read rf file %s - one possible error is an empty file, which can be removed via <find . -size 0 -exec rm {} \;>' % \
-                (rf_file_list[index])
+            raise IOError('Unable to read rf file %s - one possible error is an empty file, which can be removed via <find . -size 0 -exec rm {} \;>' % \
+                (rf_file_list[index]))
         elif new_rows is None and index == -1:
             index = -2
             new_rows = self._get_new_rows(os.path.basename(rf_file_list[index]))
             if new_rows is None:
-                raise IOError, 'Unable to read rf file %s - one possible error is an empty file, which can be removed via <find . -size 0 -exec rm {} \;>' % \
-                    (rf_file_list[index])
+                raise IOError('Unable to read rf file %s - one possible error is an empty file, which can be removed via <find . -size 0 -exec rm {} \;>' % \
+                    (rf_file_list[index]))
         try:
             return(new_rows['unix_sample_index'][-1] + self.metadata_dict['samples_per_file'] - new_rows['file_index'][-1])
         except:
@@ -1640,8 +1641,8 @@ class _sub_directory_metadata:
                 index = -2
                 new_rows = self._get_new_rows(os.path.basename(rf_file_list[index]))
                 if new_rows is None:
-                    raise IOError, 'Unable to read rf file %s - one possible error is an empty file, which can be removed via <find . -size 0 -exec rm {} \;>' % \
-                        (rf_file_list[index])
+                    raise IOError('Unable to read rf file %s - one possible error is an empty file, which can be removed via <find . -size 0 -exec rm {} \;>' % \
+                        (rf_file_list[index]))
                 return(new_rows['unix_sample_index'][-1] + self.metadata_dict['samples_per_file'] - new_rows['file_index'][-1])
             else:
                 raise
@@ -1723,7 +1724,7 @@ class _sub_directory_metadata:
             first_index -= 1
         offset = start_unix_sample - int(self.cont_metadata['unix_sample_index'][first_index])
         if self.cont_metadata['sample_extent'][first_index] - offset < stop_unix_sample - start_unix_sample:
-            raise IOError, 'gap found between samples %i and %i' % (start_unix_sample, stop_unix_sample)
+            raise IOError('gap found between samples %i and %i' % (start_unix_sample, stop_unix_sample))
 
 
 
@@ -1748,8 +1749,8 @@ class _sub_directory_metadata:
         if self.samples_per_file is None:
             self.samples_per_file = int(samples_per_file)
         elif self.samples_per_file != int(samples_per_file):
-            raise IOError, 'Illegal change in samples_per_file from %i to %i in file %s' % (self.samples_per_file, int(samples_per_file),
-                                                                                            fullname)
+            raise IOError('Illegal change in samples_per_file from %i to %i in file %s' % (self.samples_per_file, int(samples_per_file),
+                                                                                            fullname))
 
         # create recarray
         new_rows = numpy.zeros((len(rf_data_index),),dtype=self.data_t)
@@ -1801,8 +1802,8 @@ class _sub_directory_metadata:
             return(second_array)
         is_contiguous = False
         if first_array[-1][0] + first_array[-1][1] > second_array[0][0]:
-            raise IOError, 'overlapping data found in top level directories %i, %i' % \
-                (first_array[-1][0] + first_array[-1][1], second_array[0][0])
+            raise IOError('overlapping data found in top level directories %i, %i' % \
+                (first_array[-1][0] + first_array[-1][1], second_array[0][0]))
         if first_array[-1][0] + first_array[-1][1] == second_array[0][0]:
             is_contiguous = True
         if is_contiguous:
@@ -1836,11 +1837,11 @@ class _sub_directory_metadata:
             else:
                 num_samples = this_index - last_index
                 if num_samples < 1:
-                    raise ValueError, 'bug in self.metadata'
+                    raise ValueError('bug in self.metadata')
             cont_meta[-1][1] += num_samples
             if this_sample - last_sample == num_samples:
                 if this_index != 0:
-                    raise ValueError, 'bug 2 in self.metadata'
+                    raise ValueError('bug 2 in self.metadata')
             else:
                 cont_meta.append([this_sample, 0])
             last_sample = this_sample
@@ -1884,7 +1885,7 @@ class _sub_directory_metadata:
         """
         # for now only local access
         if self.access_mode not in ('local'):
-            raise ValueError, 'access_mode %s not yet implemented' % (access_mode)
+            raise ValueError('access_mode %s not yet implemented' % (access_mode))
 
         return(os.path.getmtime(fullfile) - time.timezone)
 
