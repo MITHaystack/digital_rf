@@ -11,19 +11,22 @@
 
 $Id$
 """
-# standard python imports
-import datetime
-import time
-import glob
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import argparse
-import os
-import sys
-import socket
-import urlparse
-import subprocess
-import shutil
+import datetime
+import glob
 import multiprocessing
+import os
+import shutil
+import socket
+import subprocess
+import sys
+import time
 import traceback
+
+from six.moves import urllib
 
 
 def archive_subdirectory_local_local(args):
@@ -205,8 +208,8 @@ def archive_subdirectory_local_remote(args):
                     file_count += len(glob.glob(os.path.join(source,
                                                              channel, subdir, '*')))
                 except subprocess.CalledProcessError:
-                    raise IOError, 'Failed to copy entire subdirectory with cmd <%s>' % (
-                        cmd)
+                    raise IOError('Failed to copy entire subdirectory with cmd <%s>' % (
+                        cmd))
                 return(file_count)
 
     if verbose:
@@ -223,8 +226,8 @@ def archive_subdirectory_local_remote(args):
     try:
         subprocess.check_call(cmd.split())
     except subprocess.CalledProcessError:
-        raise IOError, 'Failed to create remote subdirectory dir with cmd <%s>' % (
-            cmd)
+        raise IOError('Failed to create remote subdirectory dir with cmd <%s>' % (
+            cmd))
     try:
         os.system('rm -rf %s' % (subdir_local))
     except:
@@ -264,8 +267,8 @@ def archive_subdirectory_local_remote(args):
                 subprocess.check_output(cmd.split())
                 file_count += 0
             except subprocess.CalledProcessError:
-                raise IOError, 'Failed to copy archive_file with cmd <%s>' % (
-                    cmd)
+                raise IOError('Failed to copy archive_file with cmd <%s>' % (
+                    cmd))
             if src_file != archive_file:
                 os.remove(src_file)
         elif ts > endDT:
@@ -288,7 +291,7 @@ def _is_h5_file_compressed(filename):
     return(False)
 
 
-class archive:
+class archive(object):
     """archive is a class to archive a digital rf data set
     """
 
@@ -372,7 +375,7 @@ class archive:
 
         if self.check_only:
             if self._dest_type != 'local' or self._source_type != 'local':
-                raise ValueError, 'check_only flag only valid for local source and destination'
+                raise ValueError('check_only flag only valid for local source and destination')
 
         if self.verbose:
             # set up a timer
@@ -386,10 +389,10 @@ class archive:
         # verify all channels exist if specified
         if self.channels:
             for channel in self.channels:
-                if not self._chan_dict.has_key(channel):
-                    raise IOError, 'Requested channel %s not found' % (channel)
+                if channel not in self._chan_dict:
+                    raise IOError('Requested channel %s not found' % (channel))
         else:
-            self.channels = self._chan_dict.keys()  # archive all channels
+            self.channels = list(self._chan_dict.keys())  # archive all channels
 
         self._hostname = self._get_hostname()
         self._top_level_dest_dir = self.get_top_level_dest_dir()
@@ -409,8 +412,8 @@ class archive:
                 if self.check_only:
                     sys.exit(-1)
             if needed_GB > avail_GB:
-                raise IOError, "aborting because needed GB %f greater than available GB %f" % (
-                    needed_GB, avail_GB)
+                raise IOError("aborting because needed GB %f greater than available GB %f" % (
+                    needed_GB, avail_GB))
 
         self._create_top_level_dest_dirs()
 
@@ -437,7 +440,7 @@ class archive:
                 return(self._archive_channel_local_remote(channel))
 
         else:
-            raise ValueError, 'nyi'
+            raise ValueError('nyi')
 
     def _archive_channel_local_local(self, channel):
         """_archive_channel_local_local archives local input data to a local destination
@@ -500,8 +503,8 @@ class archive:
         try:
             subprocess.check_call(cmd.split())
         except subprocess.CalledProcessError:
-            raise IOError, 'Failed to create remote channel dir with cmd <%s>' % (
-                cmd)
+            raise IOError('Failed to create remote channel dir with cmd <%s>' % (
+                cmd))
         try:
             os.system('rm -rf %s' % (channel_local))
         except:
@@ -516,8 +519,8 @@ class archive:
             try:
                 subprocess.check_call(cmd.split())
             except subprocess.CalledProcessError:
-                raise IOError, 'Failed to copy properties file with cmd <%s>' % (
-                    cmd)
+                raise IOError('Failed to copy properties file with cmd <%s>' % (
+                    cmd))
 
         # build iterable of arguments
         args_list = []
@@ -546,7 +549,7 @@ class archive:
         if self._source_type == 'local':
             return(socket.gethostname())
         else:
-            o = urlparse.urlparse(self.source)
+            o = urllib.parse.urlparse(self.source)
             return(o.netloc)
 
     def _create_top_level_dest_dirs(self):
@@ -557,8 +560,8 @@ class archive:
         full_path = os.path.join(self.dest, self._top_level_dest_dir)
         if self._dest_type == 'local':
             if not os.path.isdir(self.dest):
-                raise IOError, '%s does not exist or is not a directory' % (
-                    self.dest)
+                raise IOError('%s does not exist or is not a directory' % (
+                    self.dest))
             if not os.access(full_path, os.W_OK):
                 os.mkdir(full_path)
                 os.mkdir(os.path.join(full_path, self._rf_dir))
@@ -582,8 +585,8 @@ class archive:
                 try:
                     subprocess.check_call(cmd.split())
                 except subprocess.CalledProcessError:
-                    raise IOError, 'Failed to create remote top level dir with cmd <%s>' % (
-                        cmd)
+                    raise IOError('Failed to create remote top level dir with cmd <%s>' % (
+                        cmd))
                 try:
                     os.system('rm -rf %s' % (localDir))
                 except:
@@ -691,7 +694,7 @@ class archive:
             dt = datetime.datetime.strptime(basename, '%Y-%m-%dT%H-%M-%S')
             channel_path = os.path.dirname(subdirectory)
             channel = os.path.basename(channel_path)
-            if not ret_dict.has_key(channel):
+            if channel not in ret_dict:
                 ret_dict[channel] = [[], []]
             ret_dict[channel][0].append((basename, dt))
 
@@ -702,7 +705,7 @@ class archive:
             basename = os.path.basename(properties_file)
             channel_path = os.path.dirname(properties_file)
             channel = os.path.basename(channel_path)
-            if ret_dict.has_key(channel):
+            if channel in ret_dict:
                 ret_dict[channel][1].append(basename)
 
         return(ret_dict)
@@ -763,7 +766,7 @@ if __name__ == '__main__':
 
     # verify gzip in range
     if args.gzip < 0 or args.gzip > 9:
-        raise ValueError, 'gzip must be 0 (no compression), or 1-9, not %i' % (gzip)
+        raise ValueError('gzip must be 0 (no compression), or 1-9, not %i' % (gzip))
 
     # call main class
     archive(startDT, endDT, args.source, args.dest, args.pool, args.channel, args.is_metadata,

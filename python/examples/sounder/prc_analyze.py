@@ -16,6 +16,9 @@ Coded continuous wave meteor radar, Atmos. Meas. Tech., 9, 829-839,
 doi:10.5194/amt-9-829-2016, 2016.
 
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import datetime
 import glob
 import itertools
@@ -24,10 +27,9 @@ import os
 import time
 from argparse import ArgumentParser
 
+import digital_rf as drf
 import numpy as np
 import scipy.signal
-
-import digital_rf as drf
 
 
 def create_pseudo_random_code(clen=10000, seed=0):

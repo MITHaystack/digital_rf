@@ -15,25 +15,27 @@ Create sound output for a set of digital_rf data. The user can either output
 directly to sounddevice or through a wave file save out.
 
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-import sys
-import string
-import os
-import optparse
 import datetime
+import optparse
+import os
+import string
+import sys
+
 import dateutil
-import pytz
-
-import scipy
-import scipy.signal
-import scipy.io.wavfile
-
+import digital_rf as drf
 import numpy
 import numpy.fft
+import pytz
+import scipy
+import scipy.io.wavfile
+import scipy.signal
 import sounddevice as sd
-import digital_rf as drf
 
-class SoundDRF:
+
+class SoundDRF(object):
     def __init__(self, control):
         """ Initializes the SoundDRF class."""
 
@@ -46,11 +48,11 @@ class SoundDRF:
         self.dio = drf.DigitalRFReader(self.control.path)
 
         if self.control.verbose:
-            print 'channel bounds:', self.dio.get_bounds(self.channel)
+            print('channel bounds:', self.dio.get_bounds(self.channel))
 
         self.bounds = self.dio.get_bounds(self.channel)
 
-        print 'bounds ', self.bounds
+        print('bounds ', self.bounds)
 
     def makeasound(self):
         """
@@ -61,12 +63,12 @@ class SoundDRF:
         sr = self.dio.get_properties(self.channel)['samples_per_second']
 
         if self.control.verbose:
-            print 'sample rate: ', sr
+            print('sample rate: ', sr)
 
         bound = self.dio.get_bounds(self.channel)
 
         if self.control.verbose:
-            print 'data bounds: ', bound
+            print('data bounds: ', bound)
 
         if self.control.start:
             dtst0 = dateutil.parser.parse(self.control.start)
@@ -86,8 +88,8 @@ class SoundDRF:
 
         if self.control.verbose:
 
-            print 'start sample st0: ', st0
-            print 'end sample et0: ', et0
+            print('start sample st0: ', st0)
+            print('end sample et0: ', et0)
 
         decimate = int(self.control.timedilation * sr /
                        self.control.audiosampling)
@@ -99,26 +101,26 @@ class SoundDRF:
         total_samples = blocks * samples_per_stripe
 
         if total_samples > (et0 - st0):
-            print 'Insufficient samples for %d samples per stripe and %d blocks between %ld and %ld' % (samples_per_stripe, blocks, st0, et0)
+            print('Insufficient samples for %d samples per stripe and %d blocks between %ld and %ld' % (samples_per_stripe, blocks, st0, et0))
             return
 
-        stripe_stride = (et0 - st0) / blocks
-        reads_per_block = int(stripe_stride / samples_per_stripe)
+        stripe_stride = (et0 - st0) // blocks
+        reads_per_block = stripe_stride // samples_per_stripe
 
         start_sample = st0
 
-        print 'first ', start_sample
+        print('first ', start_sample)
 
         audiostuff = numpy.zeros((blocks, reads_per_block * dsamps), dtype=numpy.float)
         if self.control.verbose:
-            print 'processing info : ', blocks, reads_per_block, samples_per_stripe,
+            print('processing info : ', blocks, reads_per_block, samples_per_stripe, end=' ')
 
         for iblock in range(blocks):
 
             for iread in range(reads_per_block):
 
                 if self.control.verbose:
-                    print 'read vector :', self.channel, start_sample, samples_per_stripe
+                    print('read vector :', self.channel, start_sample, samples_per_stripe)
 
                 d_vec = self.dio.read_vector(
                     start_sample, samples_per_stripe, self.channel)
@@ -149,9 +151,9 @@ class SoundDRF:
                 try:
                     scipy.io.wavfile.write(fname+str(i)+ext,
                                            self.control.audiosampling, audiostuff_norm[i])
-                    print 'Wrote {} file.'.format(fname+str(i)+ext)
+                    print('Wrote {} file.'.format(fname+str(i)+ext))
                 except:
-                    print 'Failed to write {}.'.format(fname+str(i)+ext)
+                    print('Failed to write {}.'.format(fname+str(i)+ext))
         else:
             for i in range(blocks):
                 sd.play(audiostuff_norm[i], self.control.audiosampling)
@@ -213,7 +215,7 @@ if __name__ == "__main__":
 (options, args) = parse_command_line()
 
 if options.path == None:
-    print "Please provide an input source with the -p option!"
+    print("Please provide an input source with the -p option!")
     sys.exit(1)
 
 # Activate the SoundDRF

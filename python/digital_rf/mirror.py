@@ -7,6 +7,8 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Module for mirroring Digital RF files from on directory to another."""
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import filecmp
 import os

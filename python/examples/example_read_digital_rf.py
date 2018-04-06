@@ -11,6 +11,9 @@
 Assumes the example Digital RF write script has already been run.
 
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import os
 import tempfile
 
@@ -40,7 +43,7 @@ print((
 
 # read data - the first 3 reads of four should succeed, the fourth read
 # will be beyond the available data
-start_sample = cont_data_arr.keys()[0]
+start_sample = list(cont_data_arr.keys())[0]
 for i in range(4):
     try:
         result = dro.read_vector(start_sample, 200, 'junk0')

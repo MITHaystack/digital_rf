@@ -7,6 +7,8 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Module for watching a directory and deleting the oldest Digital RF files."""
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import datetime
 import os
@@ -880,7 +882,7 @@ def _run_ringbuffer(args):
             args.size = sizenum*suffixes[suf]
         else:
             raise ValueError('Size suffix not recognized. Use one of:\n'
-                             '{0}'.format(suffixes.keys()))
+                             '{0}'.format(list(suffixes.keys())))
     elif args.count is None and args.duration is None:
         args.size = -200e6
 

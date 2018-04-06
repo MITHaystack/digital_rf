@@ -17,6 +17,9 @@ Coded continuous wave meteor radar, Atmos. Meas. Tech., 9, 829-839,
 doi:10.5194/amt-9-829-2016, 2016.
 
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import math
 from argparse import ArgumentParser
 

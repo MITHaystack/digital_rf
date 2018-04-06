@@ -15,28 +15,28 @@ jitter code from Juha Vierinen.
 
 
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-
-import os
-import sys
-import datetime as dt
 import argparse
-import scipy as sp
+import datetime as dt
 import math
-import scipy.fftpack as scfft
-import scipy.signal as sig
-import scipy.constants as s_const
+import os
+import shutil
+import sys
+
+import digital_rf as drf
 import ephem
-import pdb
-#plotting
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import matplotlib.dates as md
+import matplotlib.pyplot as plt
+import scipy as sp
+import scipy.constants as s_const
+import scipy.fftpack as scfft
+import scipy.signal as sig
 from mpl_toolkits.basemap import Basemap
-import shutil
-# Millstone imports
-import digital_rf as drf
+
 
 TLE_def = ('CASSIOPE','1 39265U 13055A   17015.93102647 +.00001768 +00000-0 +52149-4 0  9992',
                           '2 39265 080.9701 172.4450 0693099 333.2926 023.4045 14.21489964169876')
@@ -92,19 +92,19 @@ def ephem_doponly(maindir,tleoff=10.):
     sitepath = os.path.expanduser(os.path.join(maindir, 'metadata/config/site'))
     sitemeta = drf.DigitalMetadataReader(sitepath)
     sdict = sitemeta.read_latest()
-    sdict1 = sdict[sdict.keys()[0]]
+    sdict1 = list(sdict.values())[0]
 
     infopath = os.path.expanduser(os.path.join(maindir, 'metadata/info'))
     infometa = drf.DigitalMetadataReader(infopath)
     idict = infometa.read_latest()
-    idict1 = idict[idict.keys()[0]]
+    idict1 = list(idict.values())[0]
 
     passpath = os.path.expanduser(os.path.join(maindir, 'metadata/pass/'))
     passmeta = drf.DigitalMetadataReader(passpath)
     pdict = passmeta.read_latest()
-    pdict1 = pdict[pdict.keys()[0]]
+    pdict1 = list(pdict.values())[0]
     rtime = (pdict1['rise_time']-ut0)*e2p
-    tsave = pdict.keys()[0]
+    tsave = list(pdict.keys())[0]
 
     Dop_bw = pdict1['doppler_bandwidth']
     t = sp.arange(0,(Dop_bw.shape[0]+1)*10, 10.)+rtime
@@ -226,7 +226,7 @@ def open_file(maindir):
         end_indx = sp.minimum(curdict['eind'], end_indx)
 
         dmetadict = drfObj.read_metadata(start_indx, end_indx, ichan)
-        dmetakeys = dmetadict.keys()
+        dmetakeys = list(dmetadict.keys())
 
         curdict['sps'] = dmetadict[dmetakeys[0]]['samples_per_second']
         curdict['fo'] = dmetadict[dmetakeys[0]]['center_frequencies'].ravel()[0]
@@ -247,7 +247,7 @@ def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100,timewin=[0,0],tleof
     bw_search1 = 20e3
     drfObj, chandict, start_indx, end_indx = open_file(maindir)
 
-    chans = chandict.keys()
+    chans = list(chandict.keys())
     sps = chandict[chans[0]]['sps']
     start_indx = start_indx + timewin[0]*sps
     end_indx = end_indx - timewin[1]*sps
@@ -259,8 +259,8 @@ def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100,timewin=[0,0],tleof
     bw_indx0 = int(bw_search0/del_f)
     bw_indx1 = int(bw_search1/del_f)
 
-    fidx0 = sp.arange(-bw_indx0/2, bw_indx0/2, dtype=int) + window/2
-    fidx1 = sp.arange(-bw_indx1/2, bw_indx1/2, dtype=int) + window/2
+    fidx0 = sp.arange(-bw_indx0//2, bw_indx0//2, dtype=int) + window//2
+    fidx1 = sp.arange(-bw_indx1//2, bw_indx1//2, dtype=int) + window//2
 
     res0 = sp.zeros([n_measure, window], dtype=float)
     res1 = sp.zeros([n_measure, window], dtype=float)
@@ -370,7 +370,7 @@ def calc_resid(maindir,e,window=2**13,n_measure=500,timewin=[0,0]):
 
     drfObj, chandict, start_indx, end_indx = open_file(maindir)
 
-    chans = chandict.keys()
+    chans = list(chandict.keys())
     sps = chandict[chans[0]]['sps']
     start_indx = start_indx + timewin[0]*sps
     end_indx = end_indx - timewin[1]*sps
@@ -381,8 +381,8 @@ def calc_resid(maindir,e,window=2**13,n_measure=500,timewin=[0,0]):
 
     bw_indx0 = int(bw_search0/del_f)
     bw_indx1 = int(bw_search1/del_f)
-    fidx0 = sp.arange(-bw_indx0/2, bw_indx0/2, dtype=int) + window/2
-    fidx1 = sp.arange(-bw_indx1/2, bw_indx1/2, dtype=int) + window/2
+    fidx0 = sp.arange(-bw_indx0//2, bw_indx0//2, dtype=int) + window//2
+    fidx1 = sp.arange(-bw_indx1//2, bw_indx1//2, dtype=int) + window//2
 
     res0 = sp.zeros([n_measure, window], dtype=float)
     res1 = sp.zeros([n_measure, window], dtype=float)
@@ -479,7 +479,7 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
 
     drfObj, chandict, start_indx, end_indx = open_file(maindir)
 
-    chans = chandict.keys()
+    chans = list(chandict.keys())
     sps = chandict[chans[0]]['sps']
     start_indx = start_indx + timewin[0]*sps
     end_indx = end_indx - timewin[1]*sps
@@ -512,7 +512,7 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
 
     std0 = sp.zeros(len(start_vec))
     std1 = sp.zeros(len(start_vec))
-    fi = window/2
+    fi = window//2
     subchan = 0
     outspec0 = sp.zeros((len(tvec), window))
     outspec1 = sp.zeros((len(tvec), window))
@@ -631,7 +631,7 @@ def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window
 
     drfObj, chandict, start_indx, end_indx = open_file(maindir)
 
-    chans = chandict.keys()
+    chans = list(chandict.keys())
     sps = chandict[chans[0]]['sps']
     start_indx = start_indx + timewin[0]*sps
     end_indx = end_indx - timewin[1]*sps
@@ -646,7 +646,7 @@ def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window
     datenums = md.date2num(dates)
     xfmt = md.DateFormatter('%Y-%m-%d %H:%M:%S')
 
-    soff = window/sfactor
+    soff = window//sfactor
     idx = sp.arange(window)
     n_t1 = sp.arange(0, incoh_int)* soff
     IDX, N_t1 = sp.meshgrid(idx, n_t1)
@@ -970,7 +970,7 @@ def save_output(maindirmeta, outdict, e):
         file_name='Outputparams',
         )
     # get rid of doppler residual
-    if 'doppler_residual' in outdict['resid'].keys():
+    if 'doppler_residual' in outdict['resid']:
         del outdict['resid']['doppler_residual']
     mdo.write(e['tsave'], outdict)
 
@@ -1000,7 +1000,7 @@ def readoutput(maindirmeta):
     except IOError:
         return None
     metadict = dmeta.read_latest()
-    outdict = metadict[metadict.keys()[0]]
+    outdict = list(metadict.values())[0]
 
     return outdict
 
@@ -1120,7 +1120,7 @@ if __name__ == '__main__':
     args_commd = parse_command_line()
 
     if args_commd.path is None:
-        print "Please provide an input source with the -p option!"
+        print("Please provide an input source with the -p option!")
         sys.exit(1)
 
     analyzebeacons(args_commd)

@@ -15,7 +15,8 @@ Reading/writing functionality is available from two classes: DigitalRFReader
 and DigitalRFWriter.
 
 """
-from __future__ import print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import collections
 import datetime
@@ -30,11 +31,13 @@ import warnings
 import h5py
 import numpy
 import packaging.version
+
 import six
 
 # local imports
 from . import _py_rf_write_hdf5, digital_metadata, list_drf
 from ._version import get_versions
+
 __version__ = get_versions()['version']
 del get_versions
 
@@ -110,7 +113,7 @@ def updatese_properties_file(channel_dir):
     attr_dict = {i: None for i in attr_list}
     with h5py.File(mdata_file, 'r') as fi:
         md_attr = fi.attrs
-        md_attr_keys = md_attr.keys()
+        md_attr_keys = list(md_attr.keys())
         for i_attr in attr_list:
             if i_attr in md_attr_keys:
                 attr_dict[i_attr] = md_attr[i_attr]
@@ -138,7 +141,7 @@ def updatese_properties_file(channel_dir):
         errstr = 'No subdirectories in form YYYY-MM-DDTHH-MM-SS found in %s'
         raise IOError(errstr % str(channel_dir))
 
-    this_subdir = subdirs[len(subdirs) / 2]
+    this_subdir = subdirs[len(subdirs) // 2]
 
     rf_file_glob = list_drf.GLOB_DRFFILE.replace('*', 'rf', 1)
     rf_files = glob.glob(os.path.join(this_subdir, rf_file_glob))
@@ -148,7 +151,7 @@ def updatese_properties_file(channel_dir):
 
     with h5py.File(rf_files[0], 'r') as fi:
         md = fi['rf_data'].attrs
-        md_keys = md.keys()
+        md_keys = list(md.keys())
         for i_attr in attr_list:
             if i_attr in md_keys and attr_dict[i_attr] is None:
                 attr_dict[i_attr] = md[i_attr]
@@ -214,7 +217,7 @@ def recreate_properties_file(channel_dir):
         errstr = 'No subdirectories in form YYYY-MM-DDTHH-MM-SS found in %s'
         raise IOError(errstr % str(channel_dir))
 
-    this_subdir = subdirs[len(subdirs) / 2]
+    this_subdir = subdirs[len(subdirs) // 2]
 
     rf_file_glob = list_drf.GLOB_DRFFILE.replace('*', 'rf', 1)
     rf_files = glob.glob(os.path.join(this_subdir, rf_file_glob))
@@ -391,7 +394,7 @@ class DigitalRFWriter(object):
         self._dtype_is_complexfloating = False
         if numpy.issubdtype(dtype, numpy.complexfloating):
             self.is_complex = True
-            self.realdtype = numpy.dtype('f{0}'.format(dtype.itemsize/2))
+            self.realdtype = numpy.dtype('f{0}'.format(dtype.itemsize // 2))
         elif dtype.names == ('r', 'i'):
             self.is_complex = True
             self.realdtype = dtype['r']
@@ -403,7 +406,7 @@ class DigitalRFWriter(object):
         # set self.dtype and self.structdtype
         if self.is_complex:
             self.structdtype = numpy.dtype(
-                [('r', self.realdtype), ('i', self.realdtype)]
+                [(str('r'), self.realdtype), (str('i'), self.realdtype)]
             )
             if numpy.issubdtype(self.realdtype, numpy.floating):
                 # if floats, try to get equivalent complex type
@@ -1282,7 +1285,7 @@ class DigitalRFReader(object):
         except KeyError:
             pass
         if top_level_dir is None:
-            top_level_dirs = self._top_level_dir_dict.keys()
+            top_level_dirs = list(self._top_level_dir_dict.keys())
         else:
             top_level_dirs = [top_level_dir]
         for this_top_level_dir in top_level_dirs:
@@ -1924,7 +1927,7 @@ class _channel_properties(object):
         ret_dict = {}
 
         for top_level_dir in self.top_level_dir_meta_list:
-            if len(top_level_dir.properties.keys()) > 0:
+            if len(list(top_level_dir.properties.keys())) > 0:
                 return top_level_dir.properties
 
         return ret_dict

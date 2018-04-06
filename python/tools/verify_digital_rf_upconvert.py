@@ -11,17 +11,15 @@
 
 $Id$
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-# standard python imports
-import sys
 import argparse
+import sys
 import traceback
 
-# third party imports
-import numpy
-
-# Millstone imports
 import digital_rf
+import numpy
 from digital_rf import digital_rf_deprecated_hdf5  # for reading old formatter
 
 read_len = 1000000  # default read len

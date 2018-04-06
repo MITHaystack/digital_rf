@@ -11,23 +11,22 @@
 
 $Id$
 """
-# standard python imports
-import datetime
-import time
-import calendar
-import argparse
-import os
-import sys
-import shutil
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-# third party imports
+import argparse
+import calendar
+import datetime
+import os
+import shutil
+import sys
+import time
+
+import digital_rf
 import numpy
 
-# Millstone imports
-import digital_rf
 
-
-class archive:
+class archive(object):
     """archive is a class to archive a digital rf data set
     """
 
@@ -85,7 +84,7 @@ class archive:
 
         self.metadata_dir = os.path.basename(self.source)
         if len(self.metadata_dir) == 0:
-            raise ValueError, 'No metadata dir found in %s' % (self.source)
+            raise ValueError('No metadata dir found in %s' % (self.source))
 
         self._dest_type = 'local'
         hyphen = self.dest.find(':')

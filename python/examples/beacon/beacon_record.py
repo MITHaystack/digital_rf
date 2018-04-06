@@ -13,23 +13,27 @@ Satellite and recording parameters are specified in .ini configuration files.
 Example configurations are included along with this script.
 
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-import sys
-import os
-import traceback
-import subprocess
-import string
-import time
 import datetime
-import dateutil.parser
-import pytz
 import math
-import numpy
-import ephem
 import optparse
-import ConfigParser
+import os
+import string
+import subprocess
+import sys
+import time
+import traceback
 
+import dateutil.parser
+import ephem
+import numpy
+import pytz
 from digital_rf import DigitalMetadataWriter
+
+from six.moves import configparser
+
 
 class ExceptionString(Exception):
     """ Simple exception handling string """
@@ -95,15 +99,15 @@ def satellite_rise_and_set(opt, obsLat, obsLong, obsElev, objName, tle1, tle2, s
     obsLoc.date = startDate
 
     if opt.debug:
-        print 'dbg location: ', obsLoc
+        print('dbg location: ', obsLoc)
 
-        print 'dbg tle1: ', tle1
-        print 'dbg tle2: ', tle2
+        print('dbg tle1: ', tle1)
+        print('dbg tle2: ', tle2)
 
     satObj = ephem.readtle(objName,tle1,tle2)
 
     if opt.debug:
-        print 'dbg object: ', satObj
+        print('dbg object: ', satObj)
 
     satObj.compute(obsLoc) # computes closest next rise time to given date
 
@@ -156,9 +160,9 @@ def satellite_values_at_time(opt, obsLat, obsLong, obsElev, objName, tle1, tle2,
     satObj.compute(obsLoc)
 
     if opt.debug:
-        print "\tLatitude: %s, Longitude %s, Range: %gm, Range Velocity: %gm/s" % (satObj.sublat, satObj.sublong, satObj.range, satObj.range_velocity)
-        print "\tAzimuth: %s, Altitude: %s, Elevation: %gm" % ( satObj.az, satObj.alt, satObj.elevation)
-        print "\tRight Ascention: %s, Declination: %s" % (satObj.ra, satObj.dec)
+        print("\tLatitude: %s, Longitude %s, Range: %gm, Range Velocity: %gm/s" % (satObj.sublat, satObj.sublong, satObj.range, satObj.range_velocity))
+        print("\tAzimuth: %s, Altitude: %s, Elevation: %gm" % ( satObj.az, satObj.alt, satObj.elevation))
+        print("\tRight Ascention: %s, Declination: %s" % (satObj.ra, satObj.dec))
 
     return (satObj.sublat, satObj.sublong, satObj.range, satObj.range_velocity, satObj.az, satObj.alt, satObj.ra, satObj.dec, satObj.elevation)
 
@@ -236,7 +240,7 @@ def satellite_bandwidth(opt, obsLat, obsLong, obsElev, objName, tle1, tle2, satR
     dopplerBandwidth = []
 
     if opt.debug:
-        print 'satellite_bandwidth ', currTime, satSet, interval
+        print('satellite_bandwidth ', currTime, satSet, interval)
 
     while((currTime.triple())[2] < (satSet.triple())[2]): # the 2nd index of the returned tuple has the fraction of the day
         try:
@@ -248,14 +252,14 @@ def satellite_bandwidth(opt, obsLat, obsLong, obsElev, objName, tle1, tle2, satR
             currTime = ephem.date(currTime)
         except Exception as eobj:
             exp_str = str(ExceptionString(eobj))
-            print "exception: %s." % (exp_str)
+            print("exception: %s." % (exp_str))
             exc_type, exc_value, exc_traceback = sys.exc_info()
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-            print lines
+            print(lines)
 
     if opt.debug:
-        print '# DF:', numpy.array(dopplerFrequencies) / 1e6, ' MHz'
-        print '# OB:', numpy.array(dopplerBandwidth) / 1e3, ' kHz'
+        print('# DF:', numpy.array(dopplerFrequencies) / 1e6, ' MHz')
+        print('# OB:', numpy.array(dopplerBandwidth) / 1e3, ' kHz')
 
     return (numpy.array(dopplerBandwidth), numpy.array(dopplerFrequencies))
 
@@ -313,8 +317,8 @@ def __read_config__(inifile):
 
     objects = {}
 
-    print "# loading config ", inifile
-    cparse = ConfigParser.ConfigParser()
+    print("# loading config ", inifile)
+    cparse = configparser.ConfigParser()
     cparse.read(inifile)
 
     for s in cparse.sections():
@@ -335,8 +339,8 @@ def get_next_object(opt, site, objects, ctime):
         obj_info = objects[obj]
 
         if opt.debug:
-            print "# object ", obj_id, " @ ", ctime
-            print "# obj_info", obj_info
+            print("# object ", obj_id, " @ ", ctime)
+            print("# obj_info", obj_info)
 
         site_name = site['site']['name']
         site_tag = site['site']['tag']
@@ -358,18 +362,18 @@ def get_next_object(opt, site, objects, ctime):
         rise_list[sat_rise] = obj
 
     if opt.debug:
-        print ' rise list : ', rise_list
+        print(' rise list : ', rise_list)
 
-    keys = rise_list.keys()
+    keys = list(rise_list.keys())
 
     if opt.debug:
-        print ' rise keys : ', keys
+        print(' rise keys : ', keys)
 
     keys.sort()
 
     if opt.debug:
-        print ' sorted : ', keys
-        print ' selected : ', rise_list[keys[0]]
+        print(' sorted : ', keys)
+        print(' selected : ', rise_list[keys[0]])
 
     return rise_list[keys[0]]
 
@@ -403,9 +407,9 @@ def ephemeris_passes(opt, st0, et0):
     site = __read_config__(opt.site)
 
     if opt.verbose:
-        print "# got objects ", objects
-        print "# got radio site ", site
-        print "\n"
+        print("# got objects ", objects)
+        print("# got radio site ", site)
+        print("\n")
 
     ctime = st0
     etime = et0
@@ -420,8 +424,8 @@ def ephemeris_passes(opt, st0, et0):
         obj_info = objects[obj]
 
         if opt.debug:
-            print "# object ", obj_id, " @ ", ctime
-            print "# obj_info", obj_info
+            print("# object ", obj_id, " @ ", ctime)
+            print("# obj_info", obj_info)
 
         site_name = site['site']['name']
         site_tag = site['site']['tag']
@@ -446,7 +450,7 @@ def ephemeris_passes(opt, st0, et0):
                 (obj_bandwidth, obj_doppler) = satellite_bandwidth(opt, obs_lat, obs_long, obs_elev, obj_name, obj_tle1, obj_tle2, sat_rise, sat_set, op.interval, obj_freqs)
                 last_sat_rise = sat_rise
                 if opt.debug:
-                    print "time : ", c_ephem_time, sat_set, (sat_set - c_ephem_time)*60*60*24
+                    print("time : ", c_ephem_time, sat_set, (sat_set - c_ephem_time)*60*60*24)
                 ctime = ctime + (sat_set - c_ephem_time)*60*60*24
 
                 if opt.el_mask:
@@ -454,21 +458,21 @@ def ephemeris_passes(opt, st0, et0):
                     el_mask = numpy.float(opt.el_mask)
 
                     if opt.debug:
-                        print '# el_val ', el_val, ' el_mask ', el_mask
+                        print('# el_val ', el_val, ' el_mask ', el_mask)
 
                     if el_val < el_mask: # check mask here!
                         continue
 
                 # This should really go out as digital metadata into the recording location
 
-                print "# Site : %s " % (site_name)
-                print "# Site tag : %s " % (site_tag)
-                print "# Object Name: %s" % (obj_name)
-                print "# observer @ latitude : %s, longitude : %s, elevation : %s m" % (obs_lat, obs_long, obs_elev)
+                print("# Site : %s " % (site_name))
+                print("# Site tag : %s " % (site_tag))
+                print("# Object Name: %s" % (obj_name))
+                print("# observer @ latitude : %s, longitude : %s, elevation : %s m" % (obs_lat, obs_long, obs_elev))
 
-                print "# GMT -- Rise Time: %s, Transit Time: %s, Set Time: %s" % (sat_rise, sat_transit, sat_set)
-                print "# Azimuth: %f deg, Elevation: %f deg, Altitude: %g km" % (numpy.rad2deg(az), numpy.rad2deg(el), alt/1000.0)
-                print "# Frequencies: %s MHz, Bandwidth: %s kHz" % ( obj_freqs / 1.0e6, obj_bandwidth[numpy.argmax(obj_bandwidth)] / 1.0e3)
+                print("# GMT -- Rise Time: %s, Transit Time: %s, Set Time: %s" % (sat_rise, sat_transit, sat_set))
+                print("# Azimuth: %f deg, Elevation: %f deg, Altitude: %g km" % (numpy.rad2deg(az), numpy.rad2deg(el), alt/1000.0))
+                print("# Frequencies: %s MHz, Bandwidth: %s kHz" % ( obj_freqs / 1.0e6, obj_bandwidth[numpy.argmax(obj_bandwidth)] / 1.0e3))
 
                 pass_md = {'obj_id':obj_id,
                            'rise_time':sat_rise,
@@ -524,11 +528,11 @@ def ephemeris_passes(opt, st0, et0):
                             cmd_line2 = cmd_line2
 
                         if opt.debug:
-                            print cmd_line0, cmd_line1, cmd_line2, cmd_fname
+                            print(cmd_line0, cmd_line1, cmd_line2, cmd_fname)
 
                         cmd_lines.append((cmd_line0 + cmd_line1 + cmd_line2, cmd_fname, pass_md, obj_info))
 
-                        print "\n"
+                        print("\n")
 
                     elif site['radio']['type'] == 'n200_tvrx2':
 
@@ -547,11 +551,11 @@ def ephemeris_passes(opt, st0, et0):
                             cmd_line2 = cmd_line2
 
                         if opt.debug:
-                            print cmd_line0, cmd_line1, cmd_line2, cmd_fname
+                            print(cmd_line0, cmd_line1, cmd_line2, cmd_fname)
 
                         cmd_lines.append((cmd_line0 + cmd_line1 + cmd_line2, cmd_fname, pass_md, obj_info))
 
-                print "\n"
+                print("\n")
 
                 if opt.foreground:
                     dtstart0 = dateutil.parser.parse(offset_rise_time)
@@ -560,18 +564,18 @@ def ephemeris_passes(opt, st0, et0):
                     stop0 = int((dtstop0 - datetime.datetime(1970,1,1,tzinfo=pytz.utc)).total_seconds())
 
                     if opt.verbose:
-                        print "# waiting for %s @ %s " % (obj_id, offset_rise_time)
+                        print("# waiting for %s @ %s " % (obj_id, offset_rise_time))
 
                     while time.time() < start0 - 30:
                         time.sleep(op.interval)
                         if opt.verbose:
-                            print "#    %d sec" % (start0 - time.time())
+                            print("#    %d sec" % (start0 - time.time()))
 
                     for cmd_tuple in cmd_lines:
 
                         cmd, cmd_fname, pass_md, info_md = cmd_tuple
 
-                        print "# Executing command %s " % (cmd)
+                        print("# Executing command %s " % (cmd))
 
                         # write the digital metadata
                         start_idx = int(start0)
@@ -592,10 +596,10 @@ def ephemeris_passes(opt, st0, et0):
                             md_site_obj = DigitalMetadataWriter(mdata_dir + '/config/%s' % (k), 3600, 60, 1, 1, k)
 
                             if opt.debug:
-                                print site[k]
+                                print(site[k])
 
                             if opt.verbose:
-                                print "# writing metadata config / %s " % (k)
+                                print("# writing metadata config / %s " % (k))
 
                             md_site_obj.write(start_idx,site[k])
 
@@ -608,10 +612,10 @@ def ephemeris_passes(opt, st0, et0):
                         md_info_obj = DigitalMetadataWriter(mdata_dir + '/info', 3600, 60, 1, 1, 'info')
 
                         if opt.verbose:
-                            print "# writing metadata info"
+                            print("# writing metadata info")
 
                         if opt.debug:
-                            print info_md
+                            print(info_md)
 
                         md_info_obj.write(start_idx,info_md)
 
@@ -624,10 +628,10 @@ def ephemeris_passes(opt, st0, et0):
                         md_pass_obj = DigitalMetadataWriter(mdata_dir + '/pass', 3600, 60, 1, 1, 'pass')
 
                         if opt.verbose:
-                            print "# writing metadata pass"
+                            print("# writing metadata pass")
 
                         if opt.debug:
-                            print pass_md
+                            print(pass_md)
 
                         md_pass_obj.write(start_idx,pass_md)
 
@@ -638,24 +642,24 @@ def ephemeris_passes(opt, st0, et0):
                             subprocess.call(cmd,shell=True)
                         except Exception as eobj:
                             exp_str = str(ExceptionString(eobj))
-                            print "exception: %s." % (exp_str)
+                            print("exception: %s." % (exp_str))
                             exc_type, exc_value, exc_traceback = sys.exc_info()
                             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-                            print lines
+                            print(lines)
 
-                    print "# wait..."
+                    print("# wait...")
                     while time.time() < stop0 + 1:
                         time.sleep(op.interval)
                         if opt.verbose:
-                            print "# complete in %d sec" % (stop0 - time.time())
+                            print("# complete in %d sec" % (stop0 - time.time()))
 
 
         except Exception as eobj:
             exp_str = str(ExceptionString(eobj))
-            print "exception: %s." % (exp_str)
+            print("exception: %s." % (exp_str))
             exc_type, exc_value, exc_traceback = sys.exc_info()
             lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-            print lines
+            print(lines)
             #sys.exit(1)
             # advance 10 minutes
             ctime = ctime + 60 * op.interval

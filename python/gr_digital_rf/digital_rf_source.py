@@ -7,17 +7,20 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Module defining a Digital RF Source block."""
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import os
 import traceback
 
 import gnuradio.blocks
 import h5py
-import pmt
 import numpy as np
-import six
+import pmt
+from digital_rf import DigitalRFReader, util
 from gnuradio import gr
 
-from digital_rf import DigitalRFReader, util
+import six
 
 H5T_LOOKUP = {
     # (class, itemsize, is_complex): {name, dtype, fillvalue}
@@ -40,19 +43,23 @@ H5T_LOOKUP = {
         name='f64', dtype=np.float64, fillvalue=np.nan,
     ),
     (h5py.h5t.INTEGER, 1, True): dict(
-        name='sc8', dtype=np.dtype([('r', np.int8), ('i', np.int8)]),
+        name='sc8',
+        dtype=np.dtype([(str('r'), np.int8), (str('i'), np.int8)]),
         fillvalue=(np.iinfo(np.int8).min,)*2,
     ),
     (h5py.h5t.INTEGER, 2, True): dict(
-        name='sc16', dtype=np.dtype([('r', np.int16), ('i', np.int16)]),
+        name='sc16',
+        dtype=np.dtype([(str('r'), np.int16), (str('i'), np.int16)]),
         fillvalue=(np.iinfo(np.int16).min,)*2,
     ),
     (h5py.h5t.INTEGER, 4, True): dict(
-        name='sc32', dtype=np.dtype([('r', np.int32), ('i', np.int32)]),
+        name='sc32',
+        dtype=np.dtype([(str('r'), np.int32), (str('i'), np.int32)]),
         fillvalue=(np.iinfo(np.int32).min,)*2,
     ),
     (h5py.h5t.INTEGER, 8, True): dict(
-        name='sc64', dtype=np.dtype([('r', np.int64), ('i', np.int64)]),
+        name='sc64',
+        dtype=np.dtype([(str('r'), np.int64), (str('i'), np.int64)]),
         fillvalue=(np.iinfo(np.int64).min,)*2,
     ),
     (h5py.h5t.FLOAT, 4, True): dict(

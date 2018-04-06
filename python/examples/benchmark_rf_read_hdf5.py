@@ -11,6 +11,9 @@
 Assumes the benchmark write script has already been run.
 
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import os
 import sys
 import tempfile
@@ -21,7 +24,7 @@ import digital_rf
 # constants
 WRITE_BLOCK_SIZE = 1000
 FILE_SAMPLES = 1000000
-N_WRITES = int(1e9 / WRITE_BLOCK_SIZE)
+N_WRITES = int(1e9 // WRITE_BLOCK_SIZE)
 
 
 def test_read(channel_name, test_read_obj):
@@ -46,7 +49,7 @@ def test_read(channel_name, test_read_obj):
     while next_sample < end_index - FILE_SAMPLES:
         arr = test_read_obj.read(
             next_sample, next_sample + (FILE_SAMPLES - 1), channel_name)
-        key = arr.keys()[0]
+        key = list(arr.keys())[0]
         if len(arr[key]) != FILE_SAMPLES:
             raise IOError('%i != %i' % (len(arr), FILE_SAMPLES))
         next_sample += FILE_SAMPLES

@@ -14,7 +14,8 @@ Reading/writing functionality is available from two classes:
 DigitalMetadataReader and DigitalMetadataWriter.
 
 """
-from __future__ import print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import collections
 import copy
@@ -26,23 +27,25 @@ import os
 import re
 import time
 import traceback
-import urllib2
 from collections import defaultdict
 
 # third party imports
 import h5py
-try:
-    import pandas
-except ImportError:
-    pass
 import numpy
 import packaging.version
+
 import six
-from six.moves import zip
+from six.moves import urllib, zip
 
 # local imports
 from . import list_drf
 from ._version import get_versions
+
+try:
+    import pandas
+except ImportError:
+    pass
+
 __version__ = get_versions()['version']
 del get_versions
 
@@ -269,7 +272,7 @@ class DigitalMetadataWriter(object):
 
         if isinstance(data, dict):
             if self._fields is None:
-                self._set_fields(data.keys())
+                self._set_fields(list(data.keys()))
 
             keyval_iterators = []
             for key, val in _recursive_items(data):
@@ -287,7 +290,7 @@ class DigitalMetadataWriter(object):
             keyvals = zip(*keyval_iterators)
         elif len(data) == N:
             if self._fields is None:
-                self._set_fields(data[0].keys())
+                self._set_fields(list(data[0].keys()))
 
             keyvals = (_recursive_items(d) for d in data)
         else:
@@ -393,7 +396,7 @@ class DigitalMetadataWriter(object):
         """
         # build recarray and self._fields
         recarray = numpy.recarray(
-            (len(field_names),), dtype=[('column', '|S128')],
+            (len(field_names),), dtype=[(str('column'), '|S128')],
         )
         self._fields = field_names
         self._fields.sort()  # for reproducability, use alphabetic order
@@ -532,10 +535,10 @@ class DigitalMetadataReader(object):
             # put properties file in /tmp/dmd_properties_%i.h5 % (pid)
             url = os.path.join(self._metadata_dir, 'dmd_properties.h5')
             try:
-                f = urllib2.urlopen(url)
-            except (urllib2.URLError, urllib2.HTTPError):
+                f = urllib.request.urlopen(url)
+            except (urllib.error.URLError, urllib.error.HTTPError):
                 url = os.path.join(self._metadata_dir, 'metadata.h5')
-                f = urllib2.urlopen(url)
+                f = urllib.request.urlopen(url)
             tmp_file = os.path.join(
                 '/tmp', 'dmd_properties_%i.h5' % (os.getpid()),
             )
@@ -653,7 +656,7 @@ class DigitalMetadataReader(object):
         ):
             try:
                 with h5py.File(path, 'r') as f:
-                    groups = f.keys()
+                    groups = list(f.keys())
                     groups.sort()
                     first_sample = int(groups[0])
             except IOError:
@@ -679,7 +682,7 @@ class DigitalMetadataReader(object):
         ):
             try:
                 with h5py.File(path, 'r') as f:
-                    groups = f.keys()
+                    groups = list(f.keys())
                     groups.sort()
                     last_sample = int(groups[-1])
             except IOError:
@@ -942,7 +945,7 @@ class DigitalMetadataReader(object):
             columns=columns, method=method,
         )
         dict_of_lists = defaultdict(lambda: [numpy.nan]*len(res))
-        dict_of_lists[u'index'] = res.keys()
+        dict_of_lists[u'index'] = list(res.keys())
         for k, sample_dict in enumerate(res.values()):
             for key, val in _recursive_items(sample_dict):
                 dict_of_lists[key][k] = val
@@ -1102,7 +1105,7 @@ class DigitalMetadataReader(object):
         try:
             with h5py.File(this_file, 'r') as f:
                 # get sorted numpy array of all samples in file
-                keys = f.keys()
+                keys = list(f.keys())
                 idxs = numpy.fromiter(keys, numpy.int64, count=len(keys))
                 idxs.sort()
                 if is_edge:

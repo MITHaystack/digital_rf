@@ -7,6 +7,9 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Module defining a Digital RF Source block."""
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import os
 import sys
 import traceback
@@ -17,12 +20,12 @@ from itertools import chain, tee
 
 import numpy as np
 import pmt
-import six
-from gnuradio import gr
-from six.moves import zip
-
 from digital_rf import (DigitalMetadataWriter, DigitalRFWriter,
                         _py_rf_write_hdf5, util)
+from gnuradio import gr
+
+import six
+from six.moves import zip
 
 
 def parse_time_pmt(val, samples_per_second):
@@ -267,7 +270,7 @@ class digital_rf_channel_sink(gr.sync_block):
         if is_complex and (not np.issubdtype(dtype, np.complexfloating) and
                            not dtype.names):
             realdtype = dtype
-            dtype = np.dtype([('r', realdtype), ('i', realdtype)])
+            dtype = np.dtype([(str('r'), realdtype), (str('i'), realdtype)])
 
         if num_subchannels == 1:
             in_sig = [dtype]

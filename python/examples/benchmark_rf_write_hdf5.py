@@ -9,18 +9,20 @@
 """Benchmark I/O of Digital RF write in different configurations.
 
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import os
 import shutil
 import tempfile
 import time
 
-import numpy
-
 import digital_rf
+import numpy
 
 # constants
 WRITE_BLOCK_SIZE = 1000
-N_WRITES = int(1e9 / WRITE_BLOCK_SIZE)
+N_WRITES = int(1e9 // WRITE_BLOCK_SIZE)
 SAMPLE_RATE_NUMERATOR = int(1E9)
 SAMPLE_RATE_DENOMINATOR = 1
 sample_rate = (numpy.longdouble(numpy.uint64(SAMPLE_RATE_NUMERATOR)) /

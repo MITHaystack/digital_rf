@@ -13,21 +13,24 @@ It uses h5py to read old format.  Maintain to support upconversion to digital rf
 
 $Id$
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-# standard python imports
-import os, os.path, sys
-import types
+import datetime
+import functools
 import glob
-import datetime, time
+import os
+import os.path
+import time
 import warnings
 
-# third party imports
-import numpy
 import h5py
+import numpy
+
 import six
 
 
-class read_hdf5:
+class read_hdf5(object):
     """The class read_hdf5 is an object used to read digital rf v1 Hdf5 files as specified
     in the http://www.haystack.mit.edu/pipermail/rapid-dev/2014-February/000273.html email thread.
 
@@ -119,8 +122,8 @@ class read_hdf5:
 
         # next throw away any metadata where the entire channel not longer exists
         remove_keys = []
-        for channel_name in self._channel_dict.keys():
-            if channel_name not in channel_dict.keys():
+        for channel_name in self._channel_dict:
+            if channel_name not in channel_dict:
                 # channel no longer exists
                 remove_keys.append(channel_name)
         if len(remove_keys):
@@ -172,7 +175,7 @@ class read_hdf5:
     def get_channels(self):
         """get_channels returns a alphabetically sorted list of channels in this read_hdf5 object
         """
-        channels = self._channel_dict.keys()
+        channels = list(self._channel_dict.keys())
         channels.sort()
         return(channels)
 
@@ -523,7 +526,7 @@ class read_hdf5:
 
 
 
-class _channel_metadata:
+class _channel_metadata(object):
     """The _channel_metadata is a private class to hold and access metadata about a particular digital_rf channel.
     A channel can extend over one of more top level directories.
     """
@@ -629,8 +632,8 @@ class _channel_metadata:
                 last_sample_extent = this_sample_extent
 
 
-
-class _top_level_dir_metadata:
+@functools.total_ordering
+class _top_level_dir_metadata(object):
     """The _top_level_dir_metadata is a private class to hold and access metadata about a particular digital_rf channel in
     a particular top level directory.
     """
@@ -874,7 +877,7 @@ class _top_level_dir_metadata:
                 # get estimate of first sample without IO
                 subDirDT = datetime.datetime.strptime(os.path.basename(base_subdirectory), '%Y-%m-%dT%H-%M-%S')
                 total_secs = (subDirDT - dt1970).total_seconds()
-                if len(self.metadata_dict.keys()) == 0:
+                if len(list(self.metadata_dict.keys())) == 0:
                     # force it to be created
                     new_sub_dir_meta.get_last_sample()
                     self.metadata_dict = new_sub_dir_meta.metadata_dict
@@ -926,7 +929,7 @@ class _top_level_dir_metadata:
                 new_sub_dir_meta = _sub_directory_metadata(self.top_level_dir, self.channel_name,
                                                            self.access_mode, base_subdirectory)
                 new_sub_dir_meta.update()
-                if len(self.metadata_dict.keys()) == 0:
+                if len(list(self.metadata_dict.keys())) == 0:
                     self.metadata_dict = new_sub_dir_meta.metadata_dict
                 if not self.sub_directory_dict is None:
                     self.sub_directory_dict[base_subdirectory] = new_sub_dir_meta
@@ -1071,9 +1074,9 @@ class _top_level_dir_metadata:
             start_unix_sample, stop_unix_sample - only samples between (start_unix_sample, stop_unix_sample)
                 (excludes stop_unix_sample) will be returned, so only return files that might contain that range
         """
-        seconds_per_file =  1 + int(self.metadata_dict['samples_per_file'][0] / self.metadata_dict['sample_rate'][0])
-        start_integer_sec = int(start_unix_sample/self.metadata_dict['sample_rate'][0])
-        stop_integer_sec = int(stop_unix_sample/self.metadata_dict['sample_rate'][0])
+        seconds_per_file =  1 + int(self.metadata_dict['samples_per_file'][0] // self.metadata_dict['sample_rate'][0])
+        start_integer_sec = int(start_unix_sample//self.metadata_dict['sample_rate'][0])
+        stop_integer_sec = int(stop_unix_sample//self.metadata_dict['sample_rate'][0])
         seconds_list = range(start_integer_sec - seconds_per_file, stop_integer_sec + 1)
 
         # now glob for these files in all directories until no more found
@@ -1083,12 +1086,12 @@ class _top_level_dir_metadata:
         first_index = first_index[0]
         if first_index == len(self.sub_directory_recarray['unix_start_sample']):
             first_index -= 1
-        first_index_sec = int(self.sub_directory_recarray['unix_start_sample'][first_index]/self.metadata_dict['sample_rate'][0])
+        first_index_sec = int(self.sub_directory_recarray['unix_start_sample'][first_index]//self.metadata_dict['sample_rate'][0])
         if first_index > 0 and start_integer_sec - seconds_per_file < first_index_sec:
             first_index -= 1
         for i in range(first_index, len(self.sub_directory_recarray)):
             files_this_subdir = 0 # one method to determine when to break
-            this_dir_start_sec = int(self.sub_directory_recarray['unix_start_sample'][i]/self.metadata_dict['sample_rate'][0])
+            this_dir_start_sec = int(self.sub_directory_recarray['unix_start_sample'][i]//self.metadata_dict['sample_rate'][0])
             if this_dir_start_sec > stop_integer_sec + seconds_per_file:
                 # another break test
                 break
@@ -1211,15 +1214,15 @@ class _top_level_dir_metadata:
         return((self._last_file['/rf_data'][start_index: start_index+samples_to_read], start_unix_sample))
 
 
-    def __cmp__(self, other):
-        """__cmp__ compares two _top_level_dir_metadata objects
+    def __eq__(self, other):
+        """__eq__ compares two _top_level_dir_metadata objects for equality
         """
         # only the same channel can be compared
         if self.channel_name != other.channel_name:
             raise ValueError('Cannot compare mismatched channel names %s and %s' % (self.channel_name, other.channel_name))
 
         if self.unix_start_sample != 0 and other.unix_start_sample != 0:
-            return(cmp(self.unix_start_sample, other.unix_start_sample))
+            return(self.unix_start_sample == other.unix_start_sample)
 
         # use subdirectory names instead
         # for now only local access
@@ -1238,7 +1241,43 @@ class _top_level_dir_metadata:
             raise ValueError('Cannot compare top level directory because it has no data' % (other.top_level_dir))
         second_subdirectory = os.path.basename(second_subdirectory_list[0])
 
-        return(cmp(first_subdirectory, second_subdirectory))
+        return(first_subdirectory == second_subdirectory)
+
+
+    def __ne__(self, other):
+        """__ne__ compares two _top_level_dir_metadata objects for inequality
+        """
+        return not (self == other)
+
+
+    def __lt__(self, other):
+        """__lt__ compares two _top_level_dir_metadata objects
+        """
+        # only the same channel can be compared
+        if self.channel_name != other.channel_name:
+            raise ValueError('Cannot compare mismatched channel names %s and %s' % (self.channel_name, other.channel_name))
+
+        if self.unix_start_sample != 0 and other.unix_start_sample != 0:
+            return(self.unix_start_sample < other.unix_start_sample)
+
+        # use subdirectory names instead
+        # for now only local access
+        if self.access_mode not in ('local'):
+            raise ValueError('access_mode %s not yet implemented' % (access_mode))
+
+        first_subdirectory_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self._sub_directory_glob))
+        first_subdirectory_list.sort()
+        if len(first_subdirectory_list) == 0:
+            raise ValueError('Cannot compare top level directory because it has no data' % (self.top_level_dir))
+        first_subdirectory = os.path.basename(first_subdirectory_list[0])
+
+        second_subdirectory_list = glob.glob(os.path.join(other.top_level_dir, other.channel_name, self._sub_directory_glob))
+        second_subdirectory_list.sort()
+        if len(second_subdirectory_list) == 0:
+            raise ValueError('Cannot compare top level directory because it has no data' % (other.top_level_dir))
+        second_subdirectory = os.path.basename(second_subdirectory_list[0])
+
+        return(first_subdirectory < second_subdirectory)
 
 
     def __del__(self):
@@ -1252,7 +1291,7 @@ class _top_level_dir_metadata:
 
 
 
-class _sub_directory_metadata:
+class _sub_directory_metadata(object):
     """The _sub_directory_metadata is a private class to hold and access metadata about a particular digital_rf channel in
     a particular subdirectory.
     """
@@ -1412,7 +1451,7 @@ class _sub_directory_metadata:
             added_rows = self._get_new_rows(rf_file_basename)
             if added_rows is None:
                 continue
-            if len(self.metadata_dict.keys()) == 0:
+            if len(list(self.metadata_dict.keys())) == 0:
                 self.metadata_dict = self._get_rf_metadata(rf_file_basename)
             self.metadata = numpy.concatenate((self.metadata, added_rows))
 
@@ -1604,7 +1643,7 @@ class _sub_directory_metadata:
     def get_last_sample(self):
         """get_last_sample returns the last sample in a subdirectory.
         """
-        if len(self.metadata) > 0 and len(self.metadata_dict.keys()):
+        if len(self.metadata) > 0 and len(list(self.metadata_dict.keys())):
             return(self.metadata['unix_sample_index'][-1] + self.metadata_dict['samples_per_file'] - self.metadata['file_index'][-1])
 
         rf_file_list = glob.glob(os.path.join(self.top_level_dir, self.channel_name, self.subdirectory,
@@ -1616,7 +1655,7 @@ class _sub_directory_metadata:
 
         rf_file_list.sort()
 
-        if len(self.metadata_dict.keys()) == 0:
+        if len(list(self.metadata_dict.keys())) == 0:
             self.metadata_dict = self._get_rf_metadata(os.path.basename(rf_file_list[0]))
 
         index = -1

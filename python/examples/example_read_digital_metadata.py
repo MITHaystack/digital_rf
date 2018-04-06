@@ -11,12 +11,14 @@
 Assumes the example Digital Metadata write script has already been run.
 
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import os
 import tempfile
 
-import numpy
-
 import digital_rf
+import numpy
 
 metadata_dir = os.path.join(tempfile.tempdir, 'example_metadata')
 stime = 1447082580

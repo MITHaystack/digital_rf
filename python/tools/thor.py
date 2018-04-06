@@ -8,16 +8,16 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Record data from synchronized USRPs in Digital RF format."""
-from __future__ import division, print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import math
 import os
 import re
 import sys
 import time
-from argparse import (
-    Action, ArgumentParser, Namespace, RawDescriptionHelpFormatter,
-)
+from argparse import (Action, ArgumentParser, Namespace,
+                      RawDescriptionHelpFormatter)
 from ast import literal_eval
 from datetime import datetime, timedelta
 from fractions import Fraction
@@ -25,12 +25,12 @@ from itertools import chain, cycle, islice, repeat
 from subprocess import call
 from textwrap import TextWrapper, dedent, fill
 
-import numpy as np
-import pytz
-from gnuradio import blocks, filter as grfilter, gr, uhd
-
 import digital_rf as drf
 import gr_digital_rf as gr_drf
+import numpy as np
+import pytz
+from gnuradio import filter as grfilter
+from gnuradio import blocks, gr, uhd
 
 
 def equiripple_lpf(
@@ -204,7 +204,7 @@ class Thor(object):
             op.ch_out_specs = [dict(
                 convert=None,
                 convert_kwargs=None,
-                dtype=np.dtype([('r', np.int16), ('i', np.int16)]),
+                dtype=np.dtype([(str('r'), np.int16), (str('i'), np.int16)]),
                 name='sc16',
             )]
         else:
@@ -214,19 +214,23 @@ class Thor(object):
                 'sc8': dict(
                     convert='float_to_char',
                     convert_kwargs=dict(vlen=2, scale=float(2**7-1)),
-                    dtype=np.dtype([('r', np.int8), ('i', np.int8)]),
+                    dtype=np.dtype([(str('r'), np.int8), (str('i'), np.int8)]),
                     name='sc8',
                 ),
                 'sc16': dict(
                     convert='float_to_short',
                     convert_kwargs=dict(vlen=2, scale=float(2**15-1)),
-                    dtype=np.dtype([('r', np.int16), ('i', np.int16)]),
+                    dtype=np.dtype(
+                        [(str('r'), np.int16), (str('i'), np.int16)]
+                    ),
                     name='sc16',
                 ),
                 'sc32': dict(
                     convert='float_to_int',
                     convert_kwargs=dict(vlen=2, scale=float(2**31-1)),
-                    dtype=np.dtype([('r', np.int32), ('i', np.int32)]),
+                    dtype=np.dtype(
+                        [(str('r'), np.int32), (str('i'), np.int32)]
+                    ),
                     name='sc32',
                 ),
                 'fc32': dict(
@@ -244,7 +248,7 @@ class Thor(object):
                 except KeyError:
                     errstr = (
                         'Output type {0} is not supported. Must be one of {1}.'
-                    ).format(ot, supported_out_types.keys())
+                    ).format(ot, list(supported_out_types.keys()))
                     raise ValueError(errstr)
                 else:
                     type_dicts.append(type_dict)
@@ -395,7 +399,7 @@ class Thor(object):
             stream_args=uhd.stream_args(
                 cpu_format=op.cpu_format,
                 otw_format=op.otw_format,
-                channels=range(op.nrchs),
+                channels=list(range(op.nrchs)),
                 args=','.join(op.stream_args)
             ),
         )
@@ -1499,7 +1503,7 @@ def _run_thor(args):
                 'Device arguments must be {KEY}={VALUE} pairs.'
             )
         args.dev_args = [
-            '{0}={1}'.format(k, v) for k, v in dev_args_dict.iteritems()
+            '{0}={1}'.format(k, v) for k, v in dev_args_dict.items()
         ]
     if args.stream_args is not None:
         try:
@@ -1509,7 +1513,7 @@ def _run_thor(args):
                 'Stream arguments must be {KEY}={VALUE} pairs.'
             )
         args.stream_args = [
-            '{0}={1}'.format(k, v) for k, v in stream_args_dict.iteritems()
+            '{0}={1}'.format(k, v) for k, v in stream_args_dict.items()
         ]
     if args.tune_args is not None:
         try:
@@ -1519,7 +1523,7 @@ def _run_thor(args):
                 'Tune request arguments must be {KEY}={VALUE} pairs.'
             )
         args.tune_args = [
-            '{0}={1}'.format(k, v) for k, v in tune_args_dict.iteritems()
+            '{0}={1}'.format(k, v) for k, v in tune_args_dict.items()
         ]
 
     # convert metadata strings to a dictionary

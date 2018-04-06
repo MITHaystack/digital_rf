@@ -12,13 +12,15 @@ Now writes data into two levels of dictionaries/groups. API allow any finite
 number of levels.
 
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import os
 import shutil
 import tempfile
 
-import numpy
-
 import digital_rf
+import numpy
 
 metadata_dir = os.path.join(tempfile.tempdir, 'example_metadata')
 subdirectory_cadence_seconds = 3600

@@ -13,19 +13,18 @@ Use verify_digital_rf_upconvert.py if you want to test the conversion.
 
 $Id$
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
-# standard python imports
 import argparse
 import glob
 import math
 import os
 import warnings
 
+import digital_rf
 import h5py
 import numpy as np
-
-# Millstone imports
-import digital_rf
 from digital_rf import digital_rf_deprecated_hdf5  # for reading old formatter
 
 read_len = 1000000  # default read len
@@ -158,7 +157,7 @@ if __name__ == '__main__':
                     fname = os.path.basename(filepath)
                     t = np.longdouble(fname.split('@', 1)[1][:-3])
                     s = int((t * sample_rate_numerator)
-                            / sample_rate_denominator)
+                            // sample_rate_denominator)
                     mdo.write(samples=s, data=md)
 
         # create a drf 2 writer

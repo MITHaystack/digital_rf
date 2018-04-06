@@ -8,28 +8,28 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Transmit waveforms with synchronized USRPs."""
-from __future__ import print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import math
 import os
 import re
 import sys
 import time
-from argparse import (
-    Action, ArgumentParser, Namespace, RawDescriptionHelpFormatter,
-)
+from argparse import (Action, ArgumentParser, Namespace,
+                      RawDescriptionHelpFormatter)
 from datetime import datetime, timedelta
 from fractions import Fraction
 from itertools import chain, cycle, islice, repeat
 from subprocess import call
 from textwrap import TextWrapper, dedent, fill
 
+import digital_rf as drf
 import numpy as np
 import pytz
 from gnuradio import analog, blocks, gr, uhd
-from six.moves import configparser
 
-import digital_rf as drf
+from six.moves import configparser
 
 
 def evalint(s):
@@ -325,7 +325,7 @@ class Tx(object):
             stream_args=uhd.stream_args(
                 cpu_format='fc32',
                 otw_format='sc16',
-                channels=range(op.nchs),
+                channels=list(range(op.nchs)),
                 args=','.join(op.stream_args)
             )
         )
@@ -916,7 +916,7 @@ if __name__ == '__main__':
                 'Device arguments must be {KEY}={VALUE} pairs.'
             )
         op.dev_args = [
-            '{0}={1}'.format(k, v) for k, v in dev_args_dict.iteritems()
+            '{0}={1}'.format(k, v) for k, v in dev_args_dict.items()
         ]
     if op.stream_args is not None:
         try:
@@ -926,7 +926,7 @@ if __name__ == '__main__':
                 'Stream arguments must be {KEY}={VALUE} pairs.'
             )
         op.stream_args = [
-            '{0}={1}'.format(k, v) for k, v in stream_args_dict.iteritems()
+            '{0}={1}'.format(k, v) for k, v in stream_args_dict.items()
         ]
     if op.tune_args is not None:
         try:
@@ -936,7 +936,7 @@ if __name__ == '__main__':
                 'Tune request arguments must be {KEY}={VALUE} pairs.'
             )
         op.tune_args = [
-            '{0}={1}'.format(k, v) for k, v in tune_args_dict.iteritems()
+            '{0}={1}'.format(k, v) for k, v in tune_args_dict.items()
         ]
 
     # ignore test_settings option if no starttime is set (starting right now)
