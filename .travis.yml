@@ -1,41 +1,42 @@
 language: python
 
-python:
-  - "2.7"
-  - "3.5"
-  - "3.6"
-
-# Note: TWINE_USERNAME and TWINE_PASSWORD are set in Travis settings
-
 matrix:
   fast_finish: true
   include:
     - os: linux
-      before_install:
-        - sudo apt-get update -qq
-        - sudo apt-get install -qq cmake libhdf5-dev
-        - pip install -U pip
-        - pip install -U -r python/dev_requirements.txt
-      deploy:
-        provider: script
-        script: .ci/pypi_upload.sh build/dist/*
-        skip_cleanup: true
-        on:
-          tags: true
+      python: 2.7
+    - os: linux
+      python: 3.5
+    - os: linux
+      python: 3.6
     - os: osx
       language: generic
-      before_install:
-        # because osx image lacks python support, make virtualenv manually
-        - virtualenv env -p python2
-        - source env/bin/activate
-        # have to uninstall oclint to be able to install gcc (required by hdf5)
-        - brew cask uninstall oclint
-        - brew install hdf5
-        - pip install -U pip
-        - pip install -U -r python/dev_requirements.txt
+      env:
+        - PYTHON_VERSION=2.7
+    - os: osx
+      language: generic
+      env:
+        - PYTHON_VERSION=3.5
+    - os: osx
+      language: generic
+      env:
+        - PYTHON_VERSION=3.6
+
+before_install:
+  - .ci/travis_setup.sh
 
 install:
   - .ci/build.sh
 
 script:
   - .ci/test.sh
+
+# Note: TWINE_USERNAME and TWINE_PASSWORD are set in Travis settings
+deploy:
+  provider: script
+  script: .ci/pypi_upload.sh build/dist/*
+  skip_cleanup: true
+  on:
+    python: 2.7
+    condition: $TRAVIS_OS_NAME == 'linux'
+    tags: true
