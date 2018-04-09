@@ -473,9 +473,10 @@ class DigitalMetadataWriter(object):
             f.attrs['file_cadence_secs'] = self._file_cadence_secs
             f.attrs['sample_rate_numerator'] = self._sample_rate_numerator
             f.attrs['sample_rate_denominator'] = self._sample_rate_denominator
-            f.attrs['file_name'] = self._file_name
+            # use numpy.string_ to store as fixed-length ascii strings
+            f.attrs['file_name'] = numpy.string_(self._file_name)
             f.attrs['digital_metadata_version'] = \
-                self._digital_metadata_version
+                numpy.string_(self._digital_metadata_version)
 
     def __str__(self):
         """String summary of the DigitalMetadataWriter's parameters."""
@@ -598,12 +599,20 @@ class DigitalMetadataReader(object):
                         self._sample_rate_denominator
                     ))
                 )
-            self._file_name = f.attrs['file_name']
+            fname = f.attrs['file_name']
+            if isinstance(fname, bytes):
+                # for convenience and forward-compatibility with h5py>=2.9
+                fname = fname.decode('ascii')
+            self._file_name = fname
             try:
                 version = f.attrs['digital_metadata_version']
             except KeyError:
                 # version is before 2.3 when attribute was added
                 version = '2.0'
+            else:
+                if isinstance(version, bytes):
+                    # for convenience and forward-compatibility with h5py>=2.9
+                    version = version.decode('ascii')
             self._digital_metadata_version = version
             self._check_compatible_version()
             try:
@@ -621,7 +630,11 @@ class DigitalMetadataReader(object):
                     return
             self._fields = []
             for i in range(len(fields_dataset)):
-                self._fields.append(fields_dataset[i]['column'])
+                field = fields_dataset[i]['column']
+                if isinstance(field, bytes):
+                    # for convenience and forward-compatibility with h5py>=2.9
+                    field = field.decode('ascii')
+                self._fields.append(field)
 
         if not self._local:
             os.remove(tmp_file)

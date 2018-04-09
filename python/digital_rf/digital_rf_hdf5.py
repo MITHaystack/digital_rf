@@ -1244,7 +1244,19 @@ class DigitalRFReader(object):
             )
             if os.access(fullfile, os.R_OK):
                 with h5py.File(fullfile, 'r') as f:
-                    md = {k: v.item() for k, v in f['rf_data'].attrs.items()}
+                    md = {}
+                    for key, val in f['rf_data'].attrs.items():
+                        try:
+                            # get python type if a numpy scalar or 1-D array
+                            val = val.item()
+                        except AttributeError:
+                            pass
+                        if isinstance(val, bytes):
+                            # we know byte strings are ascii encoded,
+                            # h5py (>=2.9) will decode all string attributes,
+                            # decode here for consistency with on older h5py
+                            val = val.decode('ascii')
+                        md[key] = val
                     sample_properties.update(md)
                     return sample_properties
 
@@ -2008,8 +2020,21 @@ class _top_level_dir_properties(object):
             if properties_file is None:
                 raise IOError('drf_properties.h5 not found')
             f = h5py.File(properties_file, 'r')
-            for key in f.attrs.keys():
-                ret_dict[key] = f.attrs[key].item()
+            for key, val in f.attrs.items():
+                try:
+                    # get scalar python type if a numpy scalar or 1-D array
+                    val = val.item()
+                except AttributeError:
+                    pass
+                if isinstance(val, bytes):
+                    # we know byte strings are ascii encoded,
+                    # h5py (>=2.9) will decode all string attributes but
+                    # ascii arrays (even single-element) will always be bytes,
+                    # DRF 2.0 writes string attributes as single-element
+                    # arrays but >=2.1 writes them as scalars like h5py,
+                    # decode here for consistency with h5py (>=2.9) scalars
+                    val = val.decode('ascii')
+                ret_dict[key] = val
             f.close()
 
         else:
