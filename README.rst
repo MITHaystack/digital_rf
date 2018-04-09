@@ -60,7 +60,7 @@ python
   * mako (``python-mako``)
   * numpy (``python-numpy``)
   * pkgconfig (``python-pkgconfig``)
-  * python == 2.7 (``python-dev``)
+  * python 2.7 or 3.5+ (``python-dev``)
   * setuptools (``python-setuptools``)
 
 matlab
@@ -78,7 +78,7 @@ python
   * hdf5 >= 1.8 (``libhdf5``)
   * numpy (``python-numpy``)
   * packaging (``python-packaging``)
-  * python == 2.7 (``python``)
+  * python 2.7 or 3.5+ (``python``)
   * python-dateutil (``python-dateutil``)
   * pytz (``python-tz``)
   * six (``python-six``)
