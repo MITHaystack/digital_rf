@@ -1370,13 +1370,12 @@ void digital_rf_write_metadata(Digital_rf_write_object *hdf5_data_object)
 {
 	/* local variables */
 	hid_t       attribute_id, dataspace_id;  /* identifiers */
-	hid_t       str_dataspace, str_type, str_attribute;
-	hsize_t     dims = 1;
+	hid_t       str_type, str_attribute;
 	time_t      computer_time;
 	int64_t    u_computer_time;
 	uint64_t result;
 
-	dataspace_id = H5Screate_simple(1, &dims, NULL);
+	dataspace_id = H5Screate(H5S_SCALAR);
 
 	/* sequence_num */
 	attribute_id = H5Acreate2 (hdf5_data_object->dataset, "sequence_num", H5T_NATIVE_INT, dataspace_id,
@@ -1477,35 +1476,33 @@ void digital_rf_write_metadata(Digital_rf_write_object *hdf5_data_object)
 	H5Aclose(attribute_id);
 
 	/* uuid_str */
-	str_dataspace  = H5Screate(H5S_SCALAR);
     str_type = H5Tcopy(H5T_C_S1);
 	H5Tset_size(str_type, strlen(hdf5_data_object->uuid_str)+1);
-    str_attribute = H5Acreate2(hdf5_data_object->dataset, "uuid_str", str_type, str_dataspace, H5P_DEFAULT, H5P_DEFAULT);
+    str_attribute = H5Acreate2(hdf5_data_object->dataset, "uuid_str", str_type, dataspace_id, H5P_DEFAULT, H5P_DEFAULT);
     H5Awrite(str_attribute, str_type, hdf5_data_object->uuid_str);
     H5Aclose(str_attribute);
 
     /* epoch */
 	H5Tset_size(str_type, strlen(DIGITAL_RF_EPOCH)+1);
-	str_attribute = H5Acreate2(hdf5_data_object->dataset, "epoch", str_type, str_dataspace, H5P_DEFAULT, H5P_DEFAULT);
+	str_attribute = H5Acreate2(hdf5_data_object->dataset, "epoch", str_type, dataspace_id, H5P_DEFAULT, H5P_DEFAULT);
 	H5Awrite(str_attribute, str_type, DIGITAL_RF_EPOCH);
 	H5Aclose(str_attribute);
 
 	/* digital_rf_time_description */
 	H5Tset_size(str_type, strlen(DIGITAL_RF_TIME_DESCRIPTION)+1);
-	str_attribute = H5Acreate2(hdf5_data_object->dataset, "digital_rf_time_description", str_type, str_dataspace, H5P_DEFAULT, H5P_DEFAULT);
+	str_attribute = H5Acreate2(hdf5_data_object->dataset, "digital_rf_time_description", str_type, dataspace_id, H5P_DEFAULT, H5P_DEFAULT);
 	H5Awrite(str_attribute, str_type, DIGITAL_RF_TIME_DESCRIPTION);
 	H5Aclose(str_attribute);
 
 	/* digital_rf_version */
 	H5Tset_size(str_type, strlen(DIGITAL_RF_VERSION)+1);
-	str_attribute = H5Acreate2(hdf5_data_object->dataset, "digital_rf_version", str_type, str_dataspace, H5P_DEFAULT, H5P_DEFAULT);
+	str_attribute = H5Acreate2(hdf5_data_object->dataset, "digital_rf_version", str_type, dataspace_id, H5P_DEFAULT, H5P_DEFAULT);
 	H5Awrite(str_attribute, str_type, DIGITAL_RF_VERSION);
 	H5Aclose(str_attribute);
 
     /* free resources used */
 	H5Tclose(str_type);
     H5Sclose(dataspace_id);
-    H5Sclose(str_dataspace);
 
 
 }
@@ -1891,7 +1888,6 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 	int metadata_exists = 0;
 	hid_t hdf5_file, str_type, str_attribute;
 	hid_t attribute_id, dataspace_id;  /* identifiers */
-	hsize_t  dims = 1;
 	uint64_t result;
 	int int_result;
 
@@ -1906,7 +1902,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 
 	if (metadata_exists == 0)
 	{
-		dataspace_id = H5Screate_simple(1, &dims, NULL);
+		dataspace_id = H5Screate(H5S_SCALAR);
 		hdf5_file = H5Fcreate (metadata_file, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
 		if (hdf5_file < 0)
 		{
