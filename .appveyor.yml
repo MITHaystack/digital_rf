@@ -42,4 +42,4 @@ build_script:
   - conda install --yes --use-local digital_rf
 
 test_script:
-  - pytest
+  - pytest --maxfail=10

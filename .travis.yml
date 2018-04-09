@@ -25,18 +25,38 @@ matrix:
         - PYTHON_VERSION=3.6
 
 before_install:
-  - .ci/travis_setup.sh
+  - source .ci/travis_setup.sh
+  # install non-python build requirements and switch to virtualenv if necessary
+  - setup_environment
+  # install python build requirements
+  - python -m pip install -U -r python/dev_requirements.txt
 
 install:
-  - .ci/build.sh
+  - mkdir build
+  - cd build
+  # build libraries
+  - cmake ..
+  - make
+  # make python source distribution (for upload to PyPI)
+  - make digital_rf_sdist
+  # install python package into virtual environment for testing
+  - python -m pip install dist/digital_rf-*.tar.gz
+  # install python test requirements
+  - python -m pip install -U pytest
 
 script:
-  - .ci/test.sh
+  # c tests
+  - make test
+  - rm -r /tmp/hdf5
+  # python tests
+  - pytest --maxfail=10 ./python/
 
 # Note: TWINE_USERNAME and TWINE_PASSWORD are set in Travis settings
 deploy:
   provider: script
-  script: .ci/pypi_upload.sh build/dist/*
+  script:
+    - python -m pip install twine
+    - python -m twine upload dist/*
   skip_cleanup: true
   on:
     python: 2.7
