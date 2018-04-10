@@ -7,8 +7,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Module defining a Digital RF Source block."""
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function
 
 import os
 import sys
@@ -270,7 +269,7 @@ class digital_rf_channel_sink(gr.sync_block):
         if is_complex and (not np.issubdtype(dtype, np.complexfloating) and
                            not dtype.names):
             realdtype = dtype
-            dtype = np.dtype([(str('r'), realdtype), (str('i'), realdtype)])
+            dtype = np.dtype([('r', realdtype), ('i', realdtype)])
 
         if num_subchannels == 1:
             in_sig = [dtype]
