@@ -11,13 +11,12 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import argparse
 import math
 import os
 import re
 import sys
 import time
-from argparse import (Action, ArgumentParser, Namespace,
-                      RawDescriptionHelpFormatter)
 from ast import literal_eval
 from datetime import datetime, timedelta
 from fractions import Fraction
@@ -137,12 +136,13 @@ class Thor(object):
     def __init__(
         self, datadir, verbose=True,
         # mainboard group (num: len of mboards)
-        mboards=[], subdevs=['A:A'],
+        mboards=[], subdevs=['A:A'], clock_sources=['external'],
+        time_sources=['external'],
         # receiver group (apply to all)
         samplerate=1e6,
         dev_args=['recv_buff_size=100000000', 'num_recv_frames=512'],
         stream_args=[], tune_args=[],
-        sync=True, sync_source='external',
+        sync=True, wait_for_lock=True,
         stop_on_dropped=False, realtime=False, test_settings=True,
         # receiver channel group (num: matching channels from mboards/subdevs)
         centerfreqs=[100e6],
@@ -176,7 +176,7 @@ class Thor(object):
     @staticmethod
     def _parse_options(**kwargs):
         """Put all keyword options in a namespace and normalize them."""
-        op = Namespace(**kwargs)
+        op = argparse.Namespace(**kwargs)
 
         # check that subdevice specifications are unique per-mainboard
         for sd in op.subdevs:
@@ -258,7 +258,10 @@ class Thor(object):
 
         # repeat mainboard arguments as necessary
         op.nmboards = len(op.mboards) if len(op.mboards) > 0 else 1
-        op.subdevs = list(islice(cycle(op.subdevs), 0, op.nmboards))
+        for mb_arg in ('subdevs', 'clock_sources', 'time_sources'):
+            val = getattr(op, mb_arg)
+            mbval = list(islice(cycle(val), 0, op.nmboards))
+            setattr(op, mb_arg, mbval)
 
         # get number of receiver channels by total number of subdevices over
         # all mainboards
@@ -361,6 +364,8 @@ class Thor(object):
             opstr = dedent('''\
                 Main boards: {mboard_strs}
                 Subdevices: {subdevs}
+                Clock sources: {clock_sources}
+                Time sources: {time_sources}
                 Sample rate: {samplerate}
                 Device arguments: {dev_args}
                 Stream arguments: {stream_args}
@@ -404,29 +409,50 @@ class Thor(object):
             ),
         )
 
-        # set clock and time source if synced
-        if op.sync:
-            try:
-                u.set_clock_source(op.sync_source, uhd.ALL_MBOARDS)
-                u.set_time_source(op.sync_source, uhd.ALL_MBOARDS)
-            except RuntimeError:
-                errstr = (
-                    "Setting sync_source to '{0}' failed. Must be one of {1}."
-                    " If setting is valid, check that the source (REF, PPS) is"
-                    " operational."
-                ).format(op.sync_source, u.get_clock_sources(0))
-                raise ValueError(errstr)
+        # set mainboard options
+        for mb_num in range(op.nmboards):
+            u.set_subdev_spec(op.subdevs[mb_num], mb_num)
+            # set clock and time source if synced
+            if op.sync:
+                try:
+                    u.set_clock_source(op.clock_sources[mb_num], mb_num)
+                except RuntimeError:
+                    errstr = (
+                        "Setting mainboard {0} clock_source to '{1}' failed."
+                        " Must be one of {2}. If setting is valid, check that"
+                        " the source (REF) is operational."
+                    ).format(
+                        mb_num, op.clock_sources[mb_num],
+                        u.get_clock_sources(mb_num),
+                    )
+                    raise ValueError(errstr)
+                try:
+                    u.set_time_source(op.time_sources[mb_num], mb_num)
+                except RuntimeError:
+                    errstr = (
+                        "Setting mainboard {0} time_source to '{1}' failed."
+                        " Must be one of {2}. If setting is valid, check that"
+                        " the source (PPS) is operational."
+                    ).format(
+                        mb_num, op.time_sources[mb_num],
+                        u.get_time_sources(mb_num),
+                    )
+                    raise ValueError(errstr)
 
         # check for ref lock
         mbnums_with_ref = [
             mb_num for mb_num in range(op.nmboards)
             if 'ref_locked' in u.get_mboard_sensor_names(mb_num)
         ]
-        if mbnums_with_ref:
+        if op.wait_for_lock and mbnums_with_ref:
             if op.verbose:
                 sys.stdout.write('Waiting for reference lock...')
                 sys.stdout.flush()
             timeout = 0
+            if op.wait_for_lock is True:
+                timeout_thresh = 30
+            else:
+                timeout_thresh = op.wait_for_lock
             while not all(
                 u.get_mboard_sensor('ref_locked', mb_num).to_bool()
                 for mb_num in mbnums_with_ref
@@ -436,20 +462,24 @@ class Thor(object):
                     sys.stdout.flush()
                 time.sleep(1)
                 timeout += 1
-                if timeout > 30:
+                if timeout > timeout_thresh:
                     if op.verbose:
                         sys.stdout.write('failed\n')
                         sys.stdout.flush()
-                    raise RuntimeError(
-                        'Failed to lock to 10 MHz reference.'
-                    )
+                    unlocked_mbs = [
+                        mb_num for mb_num in mbnums_with_ref
+                        if u.get_mboard_sensor('ref_locked', mb_num).to_bool()
+                    ]
+                    errstr = (
+                        'Failed to lock to 10 MHz reference on mainboards {0}.'
+                        ' To skip waiting for lock, set `wait_for_lock` to'
+                        ' False (pass --nolock on the command line).'
+                    ).format(unlocked_mbs)
+                    raise RuntimeError(errstr)
             if op.verbose:
                 sys.stdout.write('locked\n')
                 sys.stdout.flush()
 
-        # set mainboard options
-        for mb_num in range(op.nmboards):
-            u.set_subdev_spec(op.subdevs[mb_num], mb_num)
         # set global options
         # sample rate
         u.set_samp_rate(float(op.samplerate))
@@ -1083,7 +1113,7 @@ def noneorboolorcomplex(s):
         return complex(eval(s, {}, {}))
 
 
-class Extend(Action):
+class Extend(argparse.Action):
     """Action to split comma-separated arguments and add to a list."""
 
     def __init__(self, option_strings, dest, type=None, **kwargs):
@@ -1131,6 +1161,16 @@ def _add_mainboard_group(parser):
         '-d', '--subdevice', dest='subdevs', action=Extend,
         help='''USRP subdevice string. (default: "A:A")''',
     )
+    mbgroup.add_argument(
+        '--clock_source', dest='clock_sources', action=Extend,
+        help='''Clock source (e.g. 10 MHz REF) for mainboard.
+                (default: external)''',
+    )
+    mbgroup.add_argument(
+        '--time_source', dest='time_sources', action=Extend,
+        help='''Time source (e.g. PPS) for mainboard.
+                (default: external)''',
+    )
     return parser
 
 
@@ -1155,14 +1195,19 @@ def _add_receiver_group(parser):
         help='''Tune request arguments, e.g. "mode_n=integer,int_n_step=100e3".
                 (default: '')''',
     )
+    # kept for backward compatibility,
+    # replaced by clock_source/time_source in 2.6
     recgroup.add_argument(
         '--sync_source', dest='sync_source',
-        help='''Clock and time source for all mainboards.
-                (default: external)''',
+        help=argparse.SUPPRESS,
     )
     recgroup.add_argument(
         '--nosync', dest='sync', action='store_false',
-        help='''No syncing with external clock. (default: False)''',
+        help='''No syncing with reference clock or time. (default: False)''',
+    )
+    recgroup.add_argument(
+        '--nolock', dest='wait_for_lock', action='store_false',
+        help='''Don't wait for reference clock to lock. (default: False)''',
     )
     recgroup.add_argument(
         '--stop_on_dropped', dest='stop_on_dropped', action='store_true',
@@ -1261,14 +1306,11 @@ def _add_ochannel_group(parser):
                 lpf_* options). Must be less than or equal to the receiver
                 sample rate. (default: None)''',
     )
+    # deprecated by ch_samplerate in 2.6
+    # if used, all ch_samplerate arguments will be ignored
     chgroup.add_argument(
         '-i', '--dec', dest='decimations', action=Extend,
-        type=evalint,
-        help='''DEPRECATED: use +r/--ch_samplerate instead. If used,
-                all ch_samplerate arguments will be ignored!
-                Integrate and decimate by an output channel by this factor
-                using a low-pass filter (specifications supplied by lpf_*
-                options). (default: 1)''',
+        type=evalint, help=argparse.SUPPRESS,
     )
     chgroup.add_argument(
         '+f', '--ch_centerfreq', dest='ch_centerfreqs', action=Extend,
@@ -1387,7 +1429,7 @@ def _add_time_group(parser):
 def _build_thor_parser(Parser, *args):
     scriptname = os.path.basename(sys.argv[0])
 
-    formatter = RawDescriptionHelpFormatter(scriptname)
+    formatter = argparse.RawDescriptionHelpFormatter(scriptname)
     width = formatter._width
 
     title = 'THOR (The Haystack Observatory Recorder)'
@@ -1451,7 +1493,7 @@ def _build_thor_parser(Parser, *args):
     # parse options
     parser = Parser(
         description=desc, usage=usage, epilog=epi, prefix_chars='-+',
-        formatter_class=RawDescriptionHelpFormatter,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument(
@@ -1487,6 +1529,15 @@ def _run_thor(args):
             args.samplerate = 1e6
         args.ch_samplerates = [args.samplerate / d for d in args.decimations]
     del args.decimations
+
+    # handle deprecated sync_source argument, converting it to clock_sources
+    # and time_sources
+    if args.sync_source is not None:
+        if args.clock_sources is None:
+            args.clock_sources = [args.sync_source]
+        if args.time_sources is None:
+            args.time_sources = [args.sync_source]
+    del args.sync_source
 
     # separate args.chs (num, name) tuples into args.channels and
     # args.channel_names
@@ -1560,6 +1611,6 @@ def _run_thor(args):
 
 
 if __name__ == '__main__':
-    parser = _build_thor_parser(ArgumentParser)
+    parser = _build_thor_parser(argparse.ArgumentParser)
     args = parser.parse_args()
     args.func(args)
