@@ -135,13 +135,13 @@ class Thor(object):
     def __init__(
         self, datadir, verbose=True,
         # mainboard group (num: len of mboards)
-        mboards=[], subdevs=['A:A'], clock_sources=['external'],
-        time_sources=['external'],
+        mboards=[], subdevs=['A:A'], clock_rates=[None],
+        clock_sources=[''], time_sources=[''],
         # receiver group (apply to all)
         samplerate=1e6,
         dev_args=['recv_buff_size=100000000', 'num_recv_frames=512'],
         stream_args=[], tune_args=[],
-        sync=True, wait_for_lock=True,
+        time_sync=True, wait_for_lock=True,
         stop_on_dropped=False, realtime=False, test_settings=True,
         # receiver channel group (num: matching channels from mboards/subdevs)
         centerfreqs=[100e6],
@@ -257,7 +257,9 @@ class Thor(object):
 
         # repeat mainboard arguments as necessary
         op.nmboards = len(op.mboards) if len(op.mboards) > 0 else 1
-        for mb_arg in ('subdevs', 'clock_sources', 'time_sources'):
+        for mb_arg in (
+            'subdevs', 'clock_rates', 'clock_sources', 'time_sources',
+        ):
             val = getattr(op, mb_arg)
             mbval = list(islice(cycle(val), 0, op.nmboards))
             setattr(op, mb_arg, mbval)
@@ -363,6 +365,7 @@ class Thor(object):
             opstr = dedent('''\
                 Main boards: {mboard_strs}
                 Subdevices: {subdevs}
+                Clock rates: {clock_rates}
                 Clock sources: {clock_sources}
                 Time sources: {time_sources}
                 Sample rate: {samplerate}
@@ -411,32 +414,48 @@ class Thor(object):
         # set mainboard options
         for mb_num in range(op.nmboards):
             u.set_subdev_spec(op.subdevs[mb_num], mb_num)
-            # set clock and time source if synced
-            if op.sync:
+
+            # set master clock rate
+            clock_rate = op.clock_rates[mb_num]
+            if clock_rate is not None:
+                op.set_clock_rate(clock_rate, mb_num)
+            op.clock_rates[mb_num] = u.get_clock_rate(mb_num)
+
+            # set clock source
+            clock_source = op.clock_sources[mb_num]
+            if not clock_source and op.wait_for_lock:
+                clock_source = 'external'
+            if clock_source:
                 try:
-                    u.set_clock_source(op.clock_sources[mb_num], mb_num)
+                    u.set_clock_source(clock_source, mb_num)
                 except RuntimeError:
                     errstr = (
                         "Setting mainboard {0} clock_source to '{1}' failed."
                         " Must be one of {2}. If setting is valid, check that"
                         " the source (REF) is operational."
                     ).format(
-                        mb_num, op.clock_sources[mb_num],
-                        u.get_clock_sources(mb_num),
+                        mb_num, clock_source, u.get_clock_sources(mb_num),
                     )
                     raise ValueError(errstr)
+            op.clock_sources[mb_num] = u.get_clock_source(mb_num)
+
+            # set time source
+            time_source = op.time_sources[mb_num]
+            if not time_source and op.time_sync:
+                time_source = 'external'
+            if time_source:
                 try:
-                    u.set_time_source(op.time_sources[mb_num], mb_num)
+                    u.set_time_source(time_source, mb_num)
                 except RuntimeError:
                     errstr = (
                         "Setting mainboard {0} time_source to '{1}' failed."
                         " Must be one of {2}. If setting is valid, check that"
                         " the source (PPS) is operational."
                     ).format(
-                        mb_num, op.time_sources[mb_num],
-                        u.get_time_sources(mb_num),
+                        mb_num, time_source, u.get_time_sources(mb_num),
                     )
                     raise ValueError(errstr)
+            op.time_sources[mb_num] = u.get_time_source(mb_num)
 
         # check for ref lock
         mbnums_with_ref = [
@@ -486,7 +505,7 @@ class Thor(object):
         samplerate = u.get_samp_rate()
         # calculate longdouble precision/rational sample rate
         # (integer division of clock rate)
-        cr = u.get_clock_rate()
+        cr = u.get_clock_rate(0)
         srdec = int(round(cr / samplerate))
         samplerate_ld = np.longdouble(cr) / srdec
         op.samplerate = samplerate_ld
@@ -765,7 +784,7 @@ class Thor(object):
 
         # set device time
         tt = time.time()
-        if op.sync:
+        if op.time_sync:
             # wait until time 0.2 to 0.5 past full second, then latch
             # we have to trust NTP to be 0.2 s accurate
             while tt - math.floor(tt) < 0.2 or tt - math.floor(tt) > 0.3:
@@ -952,8 +971,8 @@ class Thor(object):
                         antenna=op.antennas[kr],
                         bandwidth=op.bandwidths[kr],
                         center_freq=op.centerfreqs[kr],
-                        clock_rate=u.get_clock_rate(mboard=mbnum),
-                        clock_source=u.get_clock_source(mboard=mbnum),
+                        clock_rate=op.clock_rates[mbnum],
+                        clock_source=op.clock_sources[mbnum],
                         dc_offset=op.dc_offsets[kr],
                         gain=op.gains[kr],
                         id=op.mboards_bychan[kr],
@@ -965,7 +984,7 @@ class Thor(object):
                         samp_rate=u.get_samp_rate(),
                         stream_args=','.join(op.stream_args),
                         subdev=op.subdevs_bychan[kr],
-                        time_source=u.get_time_source(mboard=mbnum),
+                        time_source=op.time_sources[mbnum],
                     ),
                     processing=dict(
                         channelizer_filter_taps=op.channelizer_filter_taps[ko],
@@ -1161,14 +1180,21 @@ def _add_mainboard_group(parser):
         help='''USRP subdevice string. (default: "A:A")''',
     )
     mbgroup.add_argument(
-        '--clock_source', dest='clock_sources', action=Extend,
-        help='''Clock source (e.g. 10 MHz REF) for mainboard.
-                (default: external)''',
+        '--clock_rate', dest='clock_rates', action=Extend, type=noneorfloat,
+        help='''Master clock rate for mainboard. Can be 'None'/'' to use
+                device default or a value in Hz. (default: None)''',
     )
     mbgroup.add_argument(
-        '--time_source', dest='time_sources', action=Extend,
-        help='''Time source (e.g. PPS) for mainboard.
-                (default: external)''',
+        '--clock_source', dest='clock_sources', action=Extend, type=noneorstr,
+        help='''Clock source (i.e. 10 MHz REF) for mainboard. Can be 'None'/''
+                to use default (do not set if --nolock, otherwise 'external')
+                or a string like 'external' or 'internal'. (default: '')''',
+    )
+    mbgroup.add_argument(
+        '--time_source', dest='time_sources', action=Extend, type=noneorstr,
+        help='''Time source (i.e. PPS) for mainboard. Can be 'None'/''
+                to use default (do not set if --nosync, otherwise 'external')
+                or a string like 'external' or 'internal'. (default: '')''',
     )
     return parser
 
@@ -1201,8 +1227,8 @@ def _add_receiver_group(parser):
         help=argparse.SUPPRESS,
     )
     recgroup.add_argument(
-        '--nosync', dest='sync', action='store_false',
-        help='''No syncing with reference clock or time. (default: False)''',
+        '--nosync', dest='time_sync', action='store_false',
+        help='''Skip syncing with reference time. (default: False)''',
     )
     recgroup.add_argument(
         '--nolock', dest='wait_for_lock', action='store_false',
