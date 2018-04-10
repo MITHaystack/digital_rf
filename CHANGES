@@ -1,3 +1,24 @@
+2.6.0 -
+-------
+
+The main impetus for this release is a complete reorganization of the build system to enable Digital RF to run with Python 3 and on Windows. Major changes include:
+
+- Python 3.5+ compatibility (excluding 'gr_digital_rf' since GNU Radio does not support Python 3 yet).
+- Windows compatibility, including conda packages.
+- Automated CI testing with revamped Python tests using 'pytest'.
+- Python package available on PyPI (for 'pip' install), including binary wheels for Linux, OSX, and Windows.
+- Python 'gr_digital_rf' packaged with 'digital_rf' since we no longer require GNU Radio to build (dropping Digital RF C Sink support).
+- New 'thor' options:
+  - Output channel settings including rational resampling, frequency shifting, and channelizing
+  - Clock source (10 MHz ref) and time source (PPS) split out from sync_source
+  - Clock lock check with nolock option to skip
+  - LO source/export
+  - Tuning arguments
+  - DC offset and IQ balance
+- Updated sounder example transmit script with some 'thor' features.
+- Matlab reader fixes for recent data format and packaging as a Matlab Toolbox.
+- Various bug fixes and improvements (see commit log for full list of changes).
+
 2.5.4 - August 18, 2017
 -----------------------
 
