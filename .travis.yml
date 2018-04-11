@@ -33,7 +33,7 @@ before_install:
 
 install:
   - mkdir build
-  - cd build
+  - pushd build
   # build libraries
   - cmake ..
   - make
@@ -50,13 +50,13 @@ script:
   - rm -r /tmp/hdf5
   # python tests
   - pytest --maxfail=10 ./python/
+  # return to base working directory
+  - popd
 
 # Note: TWINE_USERNAME and TWINE_PASSWORD are set in Travis settings
 deploy:
   provider: script
-  script:
-    - python -m pip install twine
-    - python -m twine upload dist/*
+  script: .ci/pypi_upload.sh build/dist/*
   skip_cleanup: true
   on:
     python: 2.7
