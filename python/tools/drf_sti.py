@@ -36,6 +36,7 @@ import time
 import datetime
 import dateutil
 import pytz
+import ipdb
 
 import digital_rf as drf
 matplotlib.rc('axes', hold=False)
@@ -171,8 +172,10 @@ class DataPlotter:
 
                 d_vec = self.dio.read_vector(
                     start_sample, samples_per_stripe, self.channel)
-                data = d_vec[:, self.sub_channel]
-
+                if d_vec.ndim>1:
+                    data = d_vec[:, self.sub_channel]
+                else:
+                    data = d_vec.copy()
                 if self.control.decimation > 1:
                     data = scipy.signal.decimate(data, self.control.decimation)
                     sample_freq = sr / self.control.decimation
