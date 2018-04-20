@@ -10,41 +10,36 @@ source:
 
 build:
   number: 0
-  detect_binary_files_with_prefix: True
-  features:
-    - vc9  # [win and py27]
-    - vc14  # [win and py>=35]
+  run_exports:
+    # can't use pin_subpackage here because GIT_DESCRIBE_* variables are undefined when evaluating it
+    - digital_rf >={{ GIT_DESCRIBE_TAG[:1] }},<{{ (GIT_DESCRIBE_TAG[:1]|int + 1)|string }}
 
 requirements:
   build:
+    - {{ compiler('c') }}
     - cmake >=3.0
-    - hdf5 1.10.1
+
+  host:
+    - hdf5
     - mako
-    - numpy 1.8.*  # [not (win and (py35 or py36))]
-    - numpy 1.9.*  # [win and py35]
-    - numpy 1.11.*  # [win and py36]
+    - numpy
     - pkgconfig
     - python
     - setuptools
-    - toolchain
-    - vc 9  # [win and py27]
-    - vc 14  # [win and py>=35]
+
   run:
-    - gnuradio  # [not win and py27]
+    - gnuradio  # [(not win) and py27]
     - h5py
-    - hdf5 1.10.1
+    - {{ pin_compatible('hdf5', min_pin='x.x.x', max_pin='x.x.x') }}  # needed until hdf5 package has run_exports
     - matplotlib
-    - numpy >=1.8  # [not (win and (py35 or py36))]
-    - numpy >=1.9  # [win and py35]
-    - numpy >=1.11  # [win and py36]
+    - numpy
     - packaging
     - pandas
     - python
     - python-dateutil
     - pytz
     - scipy
-    - vc 9  # [win and py27]
-    - vc 14  # [win and py>=35]
+    - six
     - watchdog
 
 test:
@@ -61,6 +56,8 @@ test:
     - pytest
     - python python/examples/example_write_digital_metadata.py
     - python python/examples/example_read_digital_metadata.py
+    - conda inspect linkages -p $PREFIX digital_rf  # [not win]
+    - conda inspect objects -p $PREFIX digital_rf  # [osx]
 
 about:
   home: https://github.com/MITHaystack/digital_rf
