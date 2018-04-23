@@ -1,5 +1,13 @@
 environment:
-  CONDA_INSTALL_LOCN: "C:\\Miniconda36-x64"
+  matrix:
+    - CONDA_INSTALL_LOCN: "C:\\Miniconda-x64"
+      CONDA_PY: "27"
+
+    - CONDA_INSTALL_LOCN: "C:\\Miniconda35-x64"
+      CONDA_PY: "35"
+
+    - CONDA_INSTALL_LOCN: "C:\\Miniconda36-x64"
+      CONDA_PY: "36"
 
 install:
   - set CPU_COUNT=2
@@ -18,6 +26,10 @@ install:
   # info for debugging
   - conda info
 
+build_script:
+  - conda build --no-test --quiet recipes/conda
+  - if errorlevel 1 exit 1
+
 test_script:
-  - conda build recipes/conda
+  - conda build --test recipes/conda
   - if errorlevel 1 exit 1
