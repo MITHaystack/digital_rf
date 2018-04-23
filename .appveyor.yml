@@ -20,6 +20,8 @@ install:
 
 build_script:
   - conda build --no-test --quiet recipes/conda
+  - if errorlevel 1 exit 1
 
 test_script:
   - conda build --test recipes/conda
+  - if errorlevel 1 exit 1
