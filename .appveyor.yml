@@ -1,22 +1,5 @@
 environment:
-  matrix:
-    - CONDA_INSTALL_LOCN: "C:\\Miniconda"
-      CONDA_PY: "27"
-
-    - CONDA_INSTALL_LOCN: "C:\\Miniconda-x64"
-      CONDA_PY: "27"
-
-    - CONDA_INSTALL_LOCN: "C:\\Miniconda35"
-      CONDA_PY: "35"
-
-    - CONDA_INSTALL_LOCN: "C:\\Miniconda35-x64"
-      CONDA_PY: "35"
-
-    - CONDA_INSTALL_LOCN: "C:\\Miniconda36"
-      CONDA_PY: "36"
-
-    - CONDA_INSTALL_LOCN: "C:\\Miniconda36-x64"
-      CONDA_PY: "36"
+  CONDA_INSTALL_LOCN: "C:\\Miniconda36-x64"
 
 install:
   - set CPU_COUNT=2
@@ -34,12 +17,9 @@ install:
   - call setup_x64
   # info for debugging
   - conda info
-  # install test dependencies
-  - conda install --yes --quiet pytest
 
 build_script:
   - conda build --no-test --quiet recipes/conda
-  - conda install --yes --use-local digital_rf
 
 test_script:
-  - pytest --maxfail=10
+  - conda build --test recipes/conda

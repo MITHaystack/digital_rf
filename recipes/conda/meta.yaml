@@ -50,10 +50,9 @@ test:
     - digital_rf.digital_rf_hdf5
     - gr_digital_rf  # [not win and py27]
   source_files:
-    - python/tests/*.py
     - python/examples/*.py
   commands:
-    - pytest
+    - pytest --maxfail=10
     - python python/examples/example_write_digital_metadata.py
     - python python/examples/example_read_digital_metadata.py
     - conda inspect linkages -p $PREFIX digital_rf  # [not win]
