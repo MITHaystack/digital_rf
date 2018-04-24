@@ -1,2 +1,2 @@
-// library version, increment only on C interface changes
-#define DIGITAL_RF_VERSION "2.1.0"
+// library version, increment to match package version when C interface changes
+#define DIGITAL_RF_VERSION "2.6.0"
