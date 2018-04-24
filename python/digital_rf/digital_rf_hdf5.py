@@ -45,9 +45,6 @@ __all__ = (
     'DigitalRFReader', 'DigitalRFWriter',
 )
 
-# constants
-_min_version = '2.0'  # the version digital rf must be to be successfully read
-
 
 def updatese_properties_file(channel_dir):
     """Helper function to re-create top-level drf_properties.h5 in channel dir.
@@ -1947,6 +1944,9 @@ class _channel_properties(object):
 class _top_level_dir_properties(object):
     """A Digital RF channel in a specific top-level directory."""
 
+    _min_version = packaging.version.parse('2.0')
+    _max_version = packaging.version.parse(__version__)
+
     def __init__(self, top_level_dir, channel_name, access_mode):
         """Create a new _top_level_dir_properties object.
 
@@ -1979,15 +1979,21 @@ class _top_level_dir_properties(object):
             # channels and the reader will not try to read them, so we can
             # assume at least 2.0)
             version = '2.0'
-        if (
-            packaging.version.parse(version) <
-            packaging.version.parse(_min_version)
-        ):
+        version = packaging.version.parse(version)
+        if (version < self._min_version):
             errstr = (
-                'Digital RF files being read version %s,'
-                ' less than required version %s'
-            )
-            raise IOError(errstr % (version, _min_version))
+                'The Digital RF files being read are version {0}, which is'
+                ' less than the required version ({1}).'
+            ).format(version.base_version, self._min_version.base_version)
+            raise IOError(errstr)
+        elif (version > self._max_version):
+            warnstr = (
+                'The Digital RF files being read are version {0}, which is'
+                ' higher than the maximum supported version ({1}) for this'
+                ' digital_rf package. If you encounter errors, you will have'
+                ' upgrade to at least version {0} of digital_rf.'
+            ).format(version.base_version, self._max_version.base_version)
+            warnings.warn(warnstr, RuntimeWarning)
         self._cachedFilename = None  # full name of last file opened
         self._cachedFile = None  # h5py.File object of last file opened
 

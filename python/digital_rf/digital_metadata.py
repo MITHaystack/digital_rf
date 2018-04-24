@@ -26,6 +26,7 @@ import os
 import re
 import time
 import traceback
+import warnings
 from collections import defaultdict
 
 # third party imports
@@ -103,7 +104,7 @@ class DigitalMetadataWriter(object):
 
     _min_version = packaging.version.parse('2.5')
     _max_version = packaging.version.parse(__version__)
-    # increment when format changes are made, must be <= __version__
+    # increment to package version when format changes are made
     _writer_version = packaging.version.parse('2.5')
 
     def __init__(
@@ -455,7 +456,7 @@ class DigitalMetadataWriter(object):
             pass
         else:
             errstr = (
-                'Existing Digital Metadata files are version %s, which is'
+                'This existing Digital Metadata files are version %s, which is'
                 ' not in the range required (%s to %s).'
             )
             raise IOError(errstr % (version.base_version,
@@ -499,6 +500,7 @@ class DigitalMetadataReader(object):
     """Read data in Digital Metadata HDF5 format."""
 
     _min_version = packaging.version.parse('2.0')
+    _max_version = packaging.version.parse(__version__)
 
     def __init__(self, metadata_dir, accept_empty=True):
         """Initialize reader to metadata channel directory.
@@ -1189,14 +1191,20 @@ class DigitalMetadataReader(object):
     def _check_compatible_version(self):
         version = packaging.version.parse(self._digital_metadata_version)
 
-        if version >= self._min_version:
-            pass
-        else:
+        if version < self._min_version:
             errstr = (
-                'Digital Metadata files being read are version {0}, which is'
-                ' less than the required version ({1}).'
+                'The Digital Metadata files being read are version {0}, which'
+                ' is less than the required version ({1}).'
             ).format(version.base_version, self._min_version.base_version)
             raise IOError(errstr)
+        elif version > self._max_version:
+            warnstr = (
+                'The Digital Metadata files being read are version {0}, which'
+                ' is higher than the maximum supported version ({1}) for this'
+                ' digital_rf package. If you encounter errors, you will have'
+                ' upgrade to at least version {0} of digital_rf.'
+            ).format(version.base_version, self._max_version.base_version)
+            warnings.warn(warnstr, RuntimeWarning)
 
     def __str__(self):
         """String summary of the DigitalMetadataReader's parameters."""
