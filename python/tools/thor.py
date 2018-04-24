@@ -191,7 +191,7 @@ class Thor(object):
         # get USRP cpu_format based on output type and decimation requirements
         processing_required = (
             any(sr is not None for sr in op.ch_samplerates) or
-            any(cf is not None for cf in op.ch_centerfreqs) or
+            any(cf is not False for cf in op.ch_centerfreqs) or
             any(s != 1 for s in op.ch_scalings) or
             any(nsch != 1 for nsch in op.ch_nsubchannels)
         )
