@@ -15,8 +15,7 @@ Create sound output for a set of digital_rf data. The user can either output
 directly to sounddevice or through a wave file save out.
 
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function
 
 import datetime
 import optparse

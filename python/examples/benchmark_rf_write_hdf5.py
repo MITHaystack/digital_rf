@@ -9,8 +9,7 @@
 """Benchmark I/O of Digital RF write in different configurations.
 
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function
 
 import os
 import shutil

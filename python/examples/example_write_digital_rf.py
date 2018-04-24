@@ -11,8 +11,7 @@
 Writes continuous complex short data.
 
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function
 
 import os
 import shutil
@@ -42,7 +41,7 @@ vector_length = 100  # number of samples written for each call - typically MUCH 
 
 # create short data in r/i to test using that to write
 arr_data = numpy.ones((vector_length, num_subchannels),
-                      dtype=[(str('r'), numpy.int16), (str('i'), numpy.int16)])
+                      dtype=[('r', numpy.int16), ('i', numpy.int16)])
 for i in range(len(arr_data)):
     arr_data[i]['r'] = 2 * i
     arr_data[i]['i'] = 3 * i

@@ -12,8 +12,7 @@ Now writes data into two levels of dictionaries/groups. API allow any finite
 number of levels.
 
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function
 
 import os
 import shutil

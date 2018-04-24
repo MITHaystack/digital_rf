@@ -13,8 +13,7 @@ Use verify_digital_rf_upconvert.py if you want to test the conversion.
 
 $Id$
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function
 
 import argparse
 import glob

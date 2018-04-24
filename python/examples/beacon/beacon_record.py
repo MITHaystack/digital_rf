@@ -13,8 +13,7 @@ Satellite and recording parameters are specified in .ini configuration files.
 Example configurations are included along with this script.
 
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function
 
 import datetime
 import math

@@ -15,8 +15,7 @@ Reading/writing functionality is available from two classes: DigitalRFReader
 and DigitalRFWriter.
 
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function
 
 import collections
 import datetime
@@ -406,7 +405,7 @@ class DigitalRFWriter(object):
         # set self.dtype and self.structdtype
         if self.is_complex:
             self.structdtype = numpy.dtype(
-                [(str('r'), self.realdtype), (str('i'), self.realdtype)]
+                [('r', self.realdtype), ('i', self.realdtype)]
             )
             if numpy.issubdtype(self.realdtype, numpy.floating):
                 # if floats, try to get equivalent complex type

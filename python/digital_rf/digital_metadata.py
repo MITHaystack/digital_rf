@@ -14,8 +14,7 @@ Reading/writing functionality is available from two classes:
 DigitalMetadataReader and DigitalMetadataWriter.
 
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function
 
 import collections
 import copy
@@ -396,7 +395,7 @@ class DigitalMetadataWriter(object):
         """
         # build recarray and self._fields
         recarray = numpy.recarray(
-            (len(field_names),), dtype=[(str('column'), '|S128')],
+            (len(field_names),), dtype=[('column', '|S128')],
         )
         self._fields = field_names
         self._fields.sort()  # for reproducability, use alphabetic order

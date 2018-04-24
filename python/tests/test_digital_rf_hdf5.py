@@ -7,8 +7,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Tests for the digital_rf.digital_rf_hdf5 module."""
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function
 
 import datetime
 import itertools
@@ -59,21 +58,21 @@ _df_ids = list(''.join(p) for p in itertools.product(
 def data_params(request):
     dtypes = dict(
         s8=np.dtype('i1'),
-        sc8=np.dtype([(str('r'), 'i1'), (str('i'), 'i1')]),
+        sc8=np.dtype([('r', 'i1'), ('i', 'i1')]),
         u8=np.dtype('u1'),
-        uc8=np.dtype([(str('r'), 'u1'), (str('i'), 'u1')]),
+        uc8=np.dtype([('r', 'u1'), ('i', 'u1')]),
         s16=np.dtype('i2'),
-        sc16=np.dtype([(str('r'), 'i2'), (str('i'), 'i2')]),
+        sc16=np.dtype([('r', 'i2'), ('i', 'i2')]),
         u16=np.dtype('u2'),
-        uc16=np.dtype([(str('r'), 'u2'), (str('i'), 'u2')]),
+        uc16=np.dtype([('r', 'u2'), ('i', 'u2')]),
         s32=np.dtype('i4'),
-        sc32=np.dtype([(str('r'), 'i4'), (str('i'), 'i4')]),
+        sc32=np.dtype([('r', 'i4'), ('i', 'i4')]),
         u32=np.dtype('u4'),
-        uc32=np.dtype([(str('r'), 'u4'), (str('i'), 'u4')]),
+        uc32=np.dtype([('r', 'u4'), ('i', 'u4')]),
         s64=np.dtype('i8'),
-        sc64=np.dtype([(str('r'), 'i8'), (str('i'), 'i8')]),
+        sc64=np.dtype([('r', 'i8'), ('i', 'i8')]),
         u64=np.dtype('u8'),
-        uc64=np.dtype([(str('r'), 'u8'), (str('i'), 'u8')]),
+        uc64=np.dtype([('r', 'u8'), ('i', 'u8')]),
         f32=np.dtype('f4'),
         fc32=np.dtype('c8'),
         f64=np.dtype('f8'),
@@ -467,7 +466,7 @@ class TestDigitalRFChannel(object):
             drf_writer_factory(directory=str(chdir), dtype='c7')
         with pytest.raises(RuntimeError):
             drf_writer_factory(directory=str(chdir), dtype='S8')
-        dtype = np.dtype([(str('notr'), 'i2'), (str('noti'), 'i2')])
+        dtype = np.dtype([('notr', 'i2'), ('noti', 'i2')])
         with pytest.raises(ValueError):
             drf_writer_factory(directory=str(chdir), dtype=dtype)
 
@@ -597,7 +596,7 @@ class TestDigitalRFChannel(object):
                 next_rel_index = dwo.rf_write(np.ones(
                     shape,
                     dtype=np.dtype(
-                        [(str('r'), base_type), (str('i'), base_type)]
+                        [('r', base_type), ('i', base_type)]
                     ),
                 ))
                 # test upcast from interleaved format
@@ -622,7 +621,7 @@ class TestDigitalRFChannel(object):
                 with pytest.raises(TypeError):
                     dwo.rf_write(np.ones(
                         shape,
-                        dtype=np.dtype([(str('r'), dtype), (str('i'), dtype)]),
+                        dtype=np.dtype([('r', dtype), ('i', dtype)]),
                     ))
 
             # fail at overwriting

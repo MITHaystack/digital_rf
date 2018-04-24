@@ -13,8 +13,7 @@ It uses h5py to read old format.  Maintain to support upconversion to digital rf
 
 $Id$
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import absolute_import, division, print_function
 
 import datetime
 import functools
