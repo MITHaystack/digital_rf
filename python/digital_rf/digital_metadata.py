@@ -103,7 +103,9 @@ class DigitalMetadataWriter(object):
     """Write data in Digital Metadata HDF5 format."""
 
     _min_version = packaging.version.parse('2.5')
-    _max_version = packaging.version.parse(__version__)
+    _max_version = packaging.version.parse(
+        packaging.version.parse(__version__).base_version
+    )
     # increment to package version when format changes are made
     _writer_version = packaging.version.parse('2.5')
 
@@ -500,7 +502,9 @@ class DigitalMetadataReader(object):
     """Read data in Digital Metadata HDF5 format."""
 
     _min_version = packaging.version.parse('2.0')
-    _max_version = packaging.version.parse(__version__)
+    _max_version = packaging.version.parse(
+        packaging.version.parse(__version__).base_version
+    )
 
     def __init__(self, metadata_dir, accept_empty=True):
         """Initialize reader to metadata channel directory.

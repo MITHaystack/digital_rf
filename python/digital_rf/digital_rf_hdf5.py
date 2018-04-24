@@ -1955,7 +1955,9 @@ class _top_level_dir_properties(object):
     """A Digital RF channel in a specific top-level directory."""
 
     _min_version = packaging.version.parse('2.0')
-    _max_version = packaging.version.parse(__version__)
+    _max_version = packaging.version.parse(
+        packaging.version.parse(__version__).base_version
+    )
 
     def __init__(self, top_level_dir, channel_name, access_mode):
         """Create a new _top_level_dir_properties object.
