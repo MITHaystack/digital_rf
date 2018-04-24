@@ -278,6 +278,7 @@ setup(
         'tools/digital_metadata_archive.py',
         'tools/digital_rf_archive.py',
         'tools/digital_rf_upconvert.py',
+        'tools/digital_rf_update_properties.py',
         'tools/drf_cross_sti.py',
         'tools/drf_plot.py',
         'tools/drf_sti.py',
