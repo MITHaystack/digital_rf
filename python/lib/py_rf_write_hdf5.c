@@ -30,6 +30,14 @@ void init_py_rf_write_hdf5(void);
 hid_t get_hdf5_data_type(char byteorder, char dtype_char, int bytecount);
 
 
+static PyObject * _py_rf_write_hdf5_get_version(PyObject * self, PyObject * args)
+/* _py_rf_write_hdf5_get_version returns the library version as a string */
+{
+	PyObject *retObj = Py_BuildValue("s", digital_rf_get_version());
+	return(retObj);
+}
+
+
 void free_py_rf_write_hdf5(PyObject *capsule)
 /* free_py_rf_write_hdf5 frees all C references
  *
@@ -548,6 +556,7 @@ static PyMethodDef _py_rf_write_hdf5Methods[] =
 	  {"get_last_dir_written",         _py_rf_write_hdf5_get_last_dir_written,  METH_VARARGS},
 	  {"get_last_utc_timestamp",       _py_rf_write_hdf5_get_last_utc_timestamp,METH_VARARGS},
 	  {"get_unix_time",           	   _py_rf_write_hdf5_get_unix_time,     	METH_VARARGS},
+	  {"get_version",                  _py_rf_write_hdf5_get_version,           METH_NOARGS},
       {NULL,      NULL}        /* Sentinel */
 };
 

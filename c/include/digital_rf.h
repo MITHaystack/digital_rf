@@ -123,6 +123,7 @@ EXPORT int digital_rf_write_blocks_hdf5(
 
 
 #ifdef __cplusplus
+	extern "C" EXPORT const char * digital_rf_get_version(void);
 	extern "C" EXPORT int digital_rf_get_unix_time(
 		uint64_t, long double, int*, int*, int*, int*, int*, int*, uint64_t*);
 	extern "C" EXPORT int digital_rf_get_unix_time_rational(
@@ -136,6 +137,7 @@ EXPORT int digital_rf_write_blocks_hdf5(
 	extern "C" EXPORT int digital_rf_close_write_hdf5(Digital_rf_write_object*);
 
 #else
+	EXPORT const char * digital_rf_get_version(void);
 	EXPORT int digital_rf_get_unix_time(uint64_t global_sample,
 		long double sample_rate, int * year, int * month, int *day, int * hour,
 		int * minute, int * second, uint64_t * picosecond);

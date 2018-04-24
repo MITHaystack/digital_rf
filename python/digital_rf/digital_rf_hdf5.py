@@ -46,6 +46,9 @@ __all__ = (
 )
 
 
+libdigital_rf_version = _py_rf_write_hdf5.get_version()
+
+
 def updatese_properties_file(channel_dir):
     """Helper function to re-create top-level drf_properties.h5 in channel dir.
 
@@ -293,6 +296,8 @@ def get_unix_time(
 class DigitalRFWriter(object):
     """Write a channel of data in Digital RF HDF5 format."""
 
+    _writer_version = libdigital_rf_version
+
     def __init__(
         self, directory, dtype, subdir_cadence_secs,
         file_cadence_millisecs, start_global_index, sample_rate_numerator,
@@ -528,6 +533,11 @@ class DigitalRFWriter(object):
     def __exit__(self, exc_type, exc_value, traceback):
         """Exit method to enable context manager `with` statement."""
         self.close()
+
+    @classmethod
+    def get_version(cls):
+        """Return the version string of the Digital RF writer."""
+        return cls._writer_version
 
     def rf_write(self, arr, next_sample=None):
         """Write the next in-sequence samples from a given array.

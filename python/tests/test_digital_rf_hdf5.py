@@ -16,6 +16,7 @@ import os
 import digital_rf
 import h5py
 import numpy as np
+import packaging.version
 import pytest
 
 ###############################################################################
@@ -883,6 +884,13 @@ class TestDigitalRFChannel(object):
     def test_writer_get_last_utc_timestamp(self, drf_writer):
         """Test writer object's get_last_utc_timestamp method."""
         assert drf_writer.get_last_utc_timestamp()
+
+    @pytest.mark.firstonly(
+        'data_params', 'file_params', 'hdf_filter_params', 'sample_params',
+    )
+    def test_writer_get_version(self, drf_writer):
+        """Test writer object's get_version method."""
+        assert packaging.version.Version(drf_writer.get_version())
 
     def test_reader_get_channels(self, channel, drf_reader):
         """Test reader object's get_channels method."""

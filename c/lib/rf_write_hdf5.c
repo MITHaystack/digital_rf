@@ -36,6 +36,15 @@
 
 
 /* Public method implementations */
+const char * digital_rf_get_version(void)
+/*  digital_rf_get_version returns the version number string of the library */
+{
+	const char * digital_rf_version = DIGITAL_RF_VERSION;
+	return(digital_rf_version);
+}
+
+
+
 Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t dtype_id, uint64_t subdir_cadence_secs,
 													  uint64_t file_cadence_millisecs, uint64_t global_start_sample,
 													  uint64_t sample_rate_numerator,
