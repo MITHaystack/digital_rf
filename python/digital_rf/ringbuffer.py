@@ -157,7 +157,8 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
             self._remove_from_queue(rec)
 
         if self.verbose:
-            print('Expired {0}'.format(rec.path))
+            now = datetime.datetime.utcnow().replace(microsecond=0)
+            print('{0} | Expired {1}'.format(now, rec.path))
 
         # delete file
         if not self.dryrun:
@@ -198,7 +199,8 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
             self._add_to_queue(rec)
 
             if self.verbose:
-                print('Added {0}'.format(rec.path))
+                now = datetime.datetime.utcnow().replace(microsecond=0)
+                print('{0} | Added {1}'.format(now, rec.path))
             # expire oldest files until size constraint is met
             self._expire(rec.group)
 
@@ -232,7 +234,8 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
             self._remove_from_queue(rec)
 
         if self.verbose:
-            print('Removed {0}'.format(rec.path))
+            now = datetime.datetime.utcnow().replace(microsecond=0)
+            print('{0} | Removed {1}'.format(now, rec.path))
 
     def add_files(self, paths, sort=True):
         """Create file records from paths and add to ringbuffer."""
@@ -388,7 +391,8 @@ class SizeExpirer(object):
                 self.active_size += rec.size
 
                 if self.verbose:
-                    print('Updated {0}'.format(rec.path))
+                    now = datetime.datetime.utcnow().replace(microsecond=0)
+                    print('{0} | Updated {1}'.format(now, rec.path))
 
 
 class TimeExpirer(object):
@@ -672,11 +676,14 @@ class DigitalRFRingbuffer(object):
         """Start ringbuffer process."""
         self._start_time = datetime.datetime.utcnow().replace(microsecond=0)
 
-        print('{0} | Starting observer.'.format(self._start_time))
-        sys.stdout.flush()
-
         # start observer to add new files
         self.observer.start()
+
+        if self.dryrun:
+            print('DRY RUN (files will not be deleted):')
+        now = datetime.datetime.utcnow().replace(microsecond=0)
+        print('{0} | Starting {1}:'.format(now, self))
+        sys.stdout.flush()
 
         # add files that already existed before the observer started
         # (do it in another thread so we can get to join())
@@ -899,11 +906,7 @@ def _run_ringbuffer(args):
     kwargs = vars(args).copy()
     del kwargs['func']
     ringbuffer = DigitalRFRingbuffer(**kwargs)
-    if args.dryrun:
-        print('DRY RUN (files will not be deleted):')
-    print(ringbuffer)
     print('Type Ctrl-C to quit.')
-    sys.stdout.flush()
     ringbuffer.run()
 
 

@@ -369,6 +369,11 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
 
     def start(self):
         """Start watching and enable handlers."""
+        now = datetime.datetime.utcnow().replace(microsecond=0)
+        msg = '{0} | Starting watchdog observer(s).'
+        print(msg.format(now))
+        sys.stdout.flush()
+
         # start observing directories
         self.root_observer.start()
         # start observer before adding path so it can find closest root
@@ -450,26 +455,42 @@ def _run_watch(args):
     # subclass DigitalRFEventHandler to just print events
     class DigitalRFPrint(DigitalRFEventHandler):
 
+        def __init__(self, dir, **kwargs):
+            self.root_dir = dir
+            super(DigitalRFPrint, self).__init__(**kwargs)
+
         def on_created(self, event):
-            print('Created {0}'.format(event.src_path))
+            now = datetime.datetime.utcnow().replace(microsecond=0)
+            path = os.path.relpath(event.src_path, self.root_dir)
+            print('{0} | Created {1}'.format(now, path))
 
         def on_deleted(self, event):
-            print('Deleted {0}'.format(event.src_path))
+            now = datetime.datetime.utcnow().replace(microsecond=0)
+            path = os.path.relpath(event.src_path, self.root_dir)
+            print('{0} | Deleted {1}'.format(now, path))
 
         def on_modified(self, event):
-            print('Modified {0}'.format(event.src_path))
+            now = datetime.datetime.utcnow().replace(microsecond=0)
+            path = os.path.relpath(event.src_path, self.root_dir)
+            print('{0} | Modified {1}'.format(now, path))
 
         def on_moved(self, event):
-            print('Moved {0} to {1}'.format(event.src_path, event.dest_path))
+            msg = '{0} | Moved {1} to {2}'
+            now = datetime.datetime.utcnow().replace(microsecond=0)
+            src_path = os.path.relpath(event.src_path, self.root_dir)
+            dest_path = os.path.relpath(event.dest_path, self.root_dir)
+            print(msg.format(now, src_path, dest_path))
 
     kwargs = vars(args).copy()
     del kwargs['func']
-    del kwargs['dir']
     event_handler = DigitalRFPrint(**kwargs)
     observer = DirWatcher(args.dir)
     observer.schedule(event_handler, args.dir, recursive=True)
-    print('Monitoring {0}:'.format(args.dir))
+    print('Type Ctrl-C to quit.')
     observer.start()
+    now = datetime.datetime.utcnow().replace(microsecond=0)
+    print('{0} | Monitoring {1}:'.format(now, args.dir))
+    sys.stdout.flush()
     try:
         while True:
             time.sleep(1)

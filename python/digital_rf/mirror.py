@@ -9,6 +9,7 @@
 """Module for mirroring Digital RF files from on directory to another."""
 from __future__ import absolute_import, division, print_function
 
+import datetime
 import filecmp
 import os
 import shutil
@@ -97,7 +98,8 @@ class DigitalRFMirrorHandler(DigitalRFEventHandler):
             if (not os.path.exists(dest_path)
                     or not filecmp.cmp(src_path, dest_path)):
                 if self.verbose:
-                    print('Mirroring {0}'.format(src_path))
+                    now = datetime.datetime.utcnow().replace(microsecond=0)
+                    print('{0} | Mirroring {1}'.format(now, src_path))
                 else:
                     sys.stdout.write('.')
                     sys.stdout.flush()
@@ -251,6 +253,12 @@ class DigitalRFMirror(object):
         # start observer to mirror new and modified files
         self.observer.start()
 
+        now = datetime.datetime.utcnow().replace(microsecond=0)
+        print('{0} | Mirroring ({1}) {2} to {3}:'.format(
+            now, self.method, self.src, self.dest,
+        ))
+        sys.stdout.flush()
+
         if os.path.isdir(self.src):
             # don't need to pause dispatching because mirror ordering is not
             # critical and duplicate events are not harmful (we will either
@@ -292,6 +300,7 @@ class DigitalRFMirror(object):
                     print(
                         'Found stopped thread, reinitializing and restarting.'
                     )
+                    sys.stdout.flush()
                     # make a new observer and start it ASAP
                     # (if we missed some events, can't help it)
                     self._init_observer()
@@ -365,9 +374,6 @@ def _run_mirror(args):
     kwargs = vars(args).copy()
     del kwargs['func']
     mirror = DigitalRFMirror(**kwargs)
-    print('Mirroring ({0}) {1} to {2}.'.format(
-        args.method, args.src, args.dest,
-    ))
     print('Type Ctrl-C to quit.')
     mirror.run()
 
