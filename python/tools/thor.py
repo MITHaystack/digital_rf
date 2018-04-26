@@ -418,7 +418,7 @@ class Thor(object):
             # set master clock rate
             clock_rate = op.clock_rates[mb_num]
             if clock_rate is not None:
-                op.set_clock_rate(clock_rate, mb_num)
+                u.set_clock_rate(clock_rate, mb_num)
             op.clock_rates[mb_num] = u.get_clock_rate(mb_num)
 
             # set clock source
