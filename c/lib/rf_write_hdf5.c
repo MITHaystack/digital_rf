@@ -512,12 +512,21 @@ int digital_rf_close_write_hdf5(Digital_rf_write_object *hdf5_data_object)
 	if (hdf5_data_object != NULL)
 	{
 		/* close file */
-		H5Dclose (hdf5_data_object->dataset);
-		hdf5_data_object->dataset = 0;
-		H5Dclose (hdf5_data_object->index_dataset);
-		hdf5_data_object->index_dataset = 0;
-		H5Sclose (hdf5_data_object->dataspace);
-		hdf5_data_object->dataspace = 0;
+		if (hdf5_data_object->dataset)
+		{
+			H5Dclose (hdf5_data_object->dataset);
+			hdf5_data_object->dataset = 0;
+		}
+		if (hdf5_data_object->index_dataset)
+		{
+			H5Dclose (hdf5_data_object->index_dataset);
+			hdf5_data_object->index_dataset = 0;
+		}
+		if (hdf5_data_object->dataspace)
+		{
+			H5Sclose (hdf5_data_object->dataspace);
+			hdf5_data_object->dataspace = 0;
+		}
 		if (hdf5_data_object->filespace)
 		{
 			H5Sclose (hdf5_data_object->filespace);
@@ -528,8 +537,11 @@ int digital_rf_close_write_hdf5(Digital_rf_write_object *hdf5_data_object)
 			H5Sclose (hdf5_data_object->memspace);
 			hdf5_data_object->memspace = 0;
 		}
-		H5Fclose (hdf5_data_object->hdf5_file);
-		hdf5_data_object->hdf5_file = 0;
+		if (hdf5_data_object->hdf5_file)
+		{
+			H5Fclose (hdf5_data_object->hdf5_file);
+			hdf5_data_object->hdf5_file = 0;
+		}
 		hdf5_data_object->dataset_index = 0;
 
 		/* rename closed file to finalized name (or delete if errored) */
