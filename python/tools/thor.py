@@ -801,14 +801,14 @@ class Thor(object):
             u.set_time_now(uhd.time_spec(tt), uhd.ALL_MBOARDS)
 
         # set launch time
-        # (at least 1 second out so USRP start time can be set properly and
+        # (at least 2 seconds out so USRP start time can be set properly and
         #  there is time to set up flowgraph)
         if st is not None:
             lt = st
         else:
             now = pytz.utc.localize(datetime.utcnow())
-            # launch on integer second by default for convenience (ceil + 1)
-            lt = now.replace(microsecond=0) + timedelta(seconds=2)
+            # launch on integer second by default for convenience (ceil + 2)
+            lt = now.replace(microsecond=0) + timedelta(seconds=3)
         ltts = (lt - drf.util.epoch).total_seconds()
         # adjust launch time forward so it falls on an exact sample since epoch
         lt_rsamples = np.ceil(ltts * op.samplerate)
