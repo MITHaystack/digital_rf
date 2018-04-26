@@ -2065,6 +2065,9 @@ class _top_level_dir_properties(object):
                             sub_channel == 0 and len(rf_data.shape) == 1
                         ):
                             data = rf_data[read_start_index:read_stop_index]
+                            # always return a 1-D array if possible
+                            # (so older data is 1-D along with 2.6+ data)
+                            data = data.squeeze()
                         else:
                             data = rf_data[
                                 read_start_index:read_stop_index,
