@@ -1019,13 +1019,24 @@ class Thor(object):
             # make channel connections in flowgraph
             fg.connect(*connections)
 
-        # start the flowgraph once we are near the launch time
-        # (start too soon and device buffers might not yet be flushed)
-        # (start too late and device might not be able to start in time)
-        while ((lt - pytz.utc.localize(datetime.utcnow()))
-                > timedelta(seconds=1.2)):
-            time.sleep(0.1)
+        # start the flowgraph, samples should start at launch time
         fg.start()
+
+        # check that we get samples after launch
+        while not u.nitems_written(0):
+            if (
+                (pytz.utc.localize(datetime.utcnow())) - lt
+                    > timedelta(seconds=5)
+            ):
+                fg.stop()
+                # need to wait for the flowgraph to clean up,
+                # otherwise it won't exit
+                fg.wait()
+                errstr = (
+                    'No samples streamed after launch. Exiting with failure.'
+                )
+                raise RuntimeError(errstr)
+            time.sleep(1)
 
         # wait until end time or until flowgraph stops
         if et is None and duration is not None:
