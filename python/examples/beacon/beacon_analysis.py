@@ -274,10 +274,10 @@ def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100,timewin=[0,0],tleof
     subchan = 0
     for i_t, c_st in enumerate(start_vec):
         #pull out data
-        z00 = drfObj.read_vector(c_st, window, chans[0])[:, subchan]
-        z01 = drfObj.read_vector(c_st+window, window, chans[0])[:, subchan]
-        z10 = drfObj.read_vector(c_st, window, chans[1])[:, subchan]
-        z11 = drfObj.read_vector(c_st+window, window, chans[1])[:, subchan]
+        z00 = drfObj.read_vector(c_st, window, chans[0], subchan)
+        z01 = drfObj.read_vector(c_st+window, window, chans[0], subchan)
+        z10 = drfObj.read_vector(c_st, window, chans[1], subchan)
+        z11 = drfObj.read_vector(c_st+window, window, chans[1], subchan)
 
         F0 = scfft.fftshift(scfft.fft(z00*wfun))
         F1 = scfft.fftshift(scfft.fft(z01*wfun))
@@ -399,10 +399,10 @@ def calc_resid(maindir,e,window=2**13,n_measure=500,timewin=[0,0]):
     for i_t, c_st in enumerate(start_vec):
         t_cur = tvec[i_t]
         #pull out data
-        z00 = drfObj.read_vector(c_st, window, chans[0])[:, subchan]
-        z01 = drfObj.read_vector(c_st+window, window, chans[0])[:, subchan]
-        z10 = drfObj.read_vector(c_st, window, chans[1])[:, subchan]
-        z11 = drfObj.read_vector(c_st+window, window, chans[1])[:, subchan]
+        z00 = drfObj.read_vector(c_st, window, chans[0], subchan)
+        z01 = drfObj.read_vector(c_st+window, window, chans[0], subchan)
+        z10 = drfObj.read_vector(c_st, window, chans[1], subchan)
+        z11 = drfObj.read_vector(c_st+window, window, chans[1], subchan)
         # determine the doppler shift from the sat motion
         # d["e"]["vel2"] is a function derived from the interp1d function
         tphase = sp.float64(t_cur+toff)
@@ -521,10 +521,10 @@ def calc_TEC(maindir, window=4096, incoh_int=100, sfactor=4, offset=0.,timewin=[
         update_progress(float(i_t)/float(len(start_vec)))
         t_cur = tvec[i_t]
 
-        z00 = drfObj.read_vector(c_st, Nr, chans[0])[Msamp, subchan]
-        z01 = drfObj.read_vector(c_st+soff, Nr, chans[0])[Msamp, subchan]
-        z10 = drfObj.read_vector(c_st, Nr, chans[1])[Msamp, subchan]
-        z11 = drfObj.read_vector(c_st+soff, Nr, chans[1])[Msamp, subchan]
+        z00 = drfObj.read_vector(c_st, Nr, chans[0], subchan)[Msamp]
+        z01 = drfObj.read_vector(c_st+soff, Nr, chans[0], subchan)[Msamp]
+        z10 = drfObj.read_vector(c_st, Nr, chans[1], subchan)[Msamp]
+        z11 = drfObj.read_vector(c_st+soff, Nr, chans[1], subchan)[Msamp]
 
         tphase = sp.float64(t_cur+toff)
         doppler0 = -1.0*(150.0/400.0)*resid["doppler_residual"](t_cur) - e["dop1"](tphase)
@@ -658,8 +658,8 @@ def plotsti_vel(maindir, savename='chancomp.png',timewin=[0,0], offset=0, window
     sti1 = sp.zeros_like(sti0)
     for i_t, c_st in enumerate(start_vec):
 
-        z0 = drfObj.read_vector(c_st, Nr, chans[0])[:, subchan]
-        z1 = drfObj.read_vector(c_st, Nr, chans[1])[:, subchan]
+        z0 = drfObj.read_vector(c_st, Nr, chans[0], subchan)
+        z1 = drfObj.read_vector(c_st, Nr, chans[1], subchan)
         for idec in dec_vec:
             z0 = sig.decimate(z0, idec)
             z1 = sig.decimate(z1, idec)

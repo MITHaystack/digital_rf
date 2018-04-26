@@ -121,9 +121,8 @@ class SoundDRF(object):
                 if self.control.verbose:
                     print('read vector :', self.channel, start_sample, samples_per_stripe)
 
-                d_vec = self.dio.read_vector(
-                    start_sample, samples_per_stripe, self.channel)
-                data = d_vec[:, self.sub_channel]
+                data = self.dio.read_vector(
+                    start_sample, samples_per_stripe, self.channel, self.sub_channel)
 
 
                 if self.control.freqshift:

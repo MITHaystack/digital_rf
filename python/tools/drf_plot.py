@@ -1053,9 +1053,8 @@ if __name__ == "__main__":
                     )
                     cfreq = 0.0
 
-            d = drf.read_vector(sstart, dlen, chans[chidx])
+            d = drf.read_vector(sstart, dlen, chans[chidx], subchan)
 
-            d = d[:, subchan]
             print d.shape
 
             print "d", d[0:10]

@@ -237,11 +237,9 @@ class DataPlotter:
                     if self.control.verbose:
                         print 'read vector :', self.channel, start_sample, samples_per_stripe
 
-                    xd_vec = self.dio[xidx].read_vector(start_sample, samples_per_stripe, self.channel[xidx])
-                    xdata = xd_vec[:,self.sub_channel[xidx]]
+                    xdata = self.dio[xidx].read_vector(start_sample, samples_per_stripe, self.channel[xidx], self.sub_channel[xidx])
 
-                    yd_vec = self.dio[yidx].read_vector(start_sample, samples_per_stripe, self.channel[yidx])
-                    ydata = yd_vec[:,self.sub_channel[yidx]]
+                    ydata = self.dio[yidx].read_vector(start_sample, samples_per_stripe, self.channel[yidx], self.sub_channel[yidx])
 
                     if self.control.decimation > 1:
                         xdata = scipy.signal.decimate(xdata,self.control.decimation)

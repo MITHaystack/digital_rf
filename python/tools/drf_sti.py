@@ -171,11 +171,7 @@ class DataPlotter:
                     print 'read vector :', self.channel, start_sample, samples_per_stripe
 
                 d_vec = self.dio.read_vector(
-                    start_sample, samples_per_stripe, self.channel)
-                if d_vec.ndim>1:
-                    data = d_vec[:, self.sub_channel]
-                else:
-                    data = d_vec.copy()
+                    start_sample, samples_per_stripe, self.channel, self.sub_channel)
                 if self.control.decimation > 1:
                     data = scipy.signal.decimate(data, self.control.decimation)
                     sample_freq = sr / self.control.decimation
