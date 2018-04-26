@@ -943,9 +943,8 @@ class DigitalRFReader(object):
 
         sub_channel : None | int, optional
             If None, the return array will contain all subchannels of data and
-            be 2-d or 1-d depending on the number of subchannels. If an
-            integer, the return array will be 1-d and contain the data of the
-            subchannel given by that integer index.
+            be 2-d. If an integer, the return array will be 1-d and contain the
+            data of the subchannel given by that integer index.
 
 
         Returns
@@ -1458,7 +1457,7 @@ class DigitalRFReader(object):
         This method returns the vector of the data beginning at `start_sample`
         with length `vector_length` for the given channel. The data is returned
         in its HDF5-native type (e.g. complex integer-typed data has a
-        stuctured dtype with 'r' and 'i' fields) and includes all subchannels.
+        stuctured dtype with 'r' and 'i' fields).
 
         This method calls `read` and converts the data appropriately. It will
         raise an IOError error if the returned vector would include any missing
@@ -1489,8 +1488,8 @@ class DigitalRFReader(object):
         -------
 
         array
-            An array of shape (`vector_length`, N) where N is the number of
-            subchannels.
+            An array of shape (`vector_length`,) or (`vector_length`, N) where
+            N is the number of subchannels.
 
 
         See Also
@@ -1525,6 +1524,8 @@ class DigitalRFReader(object):
             raise IOError(errstr % (start_sample, vector_length, channel_name))
 
         key, z = data_dict.popitem()
+        # always return 1-D if possible
+        z = z.squeeze()
 
         if len(z) != vector_length:
             errstr = 'Requested %i samples, but got %i'
@@ -2061,13 +2062,8 @@ class _top_level_dir_properties(object):
                     if read_start_index >= read_stop_index:
                         continue
                     if not len_only:
-                        if sub_channel is None or (
-                            sub_channel == 0 and len(rf_data.shape) == 1
-                        ):
+                        if sub_channel is None:
                             data = rf_data[read_start_index:read_stop_index]
-                            # always return a 1-D array if possible
-                            # (so older data is 1-D along with 2.6+ data)
-                            data = data.squeeze()
                         else:
                             data = rf_data[
                                 read_start_index:read_stop_index,

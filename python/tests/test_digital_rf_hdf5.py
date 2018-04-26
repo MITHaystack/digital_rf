@@ -811,7 +811,7 @@ class TestDigitalRFChannel(object):
             drf_writer.rf_write(data)
 
     def test_writer_output_files_write(
-        self, bounds, chdir, data, data_file_list,
+        self, bounds, chdir, data, data_file_list, num_subchannels,
     ):
         """Test output files created by writer object in write test."""
         # check that the correct subdirs and filenames are produced
@@ -838,10 +838,13 @@ class TestDigitalRFChannel(object):
                     else:
                         bstop = int(data_index[blk + 1, 1])
                     blk_data = rdata[bstart:bstop]
+                    assert len(blk_data.shape) == 2
                     dstart = sstart - bounds[0]
                     dstop = sstart + (bstop - bstart) - bounds[0]
                     test_data = data[dstart:dstop]
-                    np.testing.assert_equal(blk_data, test_data)
+                    np.testing.assert_equal(
+                        blk_data, test_data.reshape((-1, num_subchannels)),
+                    )
 
     def test_writer_get_total_samples_written(
         self, data_block_slices, drf_writer,
@@ -1107,9 +1110,12 @@ class TestDigitalRFChannel(object):
             assert len(data_dict) == 1
             sample, rdata = list(data_dict.items())[0]
             assert sample == sstart
+            assert len(rdata.shape) == 2
             bstart = sstart - bounds[0]
             bstop = sstop - bounds[0]
-            np.testing.assert_equal(rdata, data[bstart:bstop])
+            np.testing.assert_equal(
+                rdata, data.reshape((-1, num_subchannels))[bstart:bstop, :],
+            )
 
         # test reading a single subchannel (the first)
         for sstart, sstop in data_block_slices:
@@ -1130,7 +1136,9 @@ class TestDigitalRFChannel(object):
         for (sstart, rdata) in data_dict.items():
             bstart = sstart - bounds[0]
             bstop = sstart + len(rdata) - bounds[0]
-            np.testing.assert_equal(rdata, data[bstart:bstop])
+            np.testing.assert_equal(
+                rdata, data.reshape((-1, num_subchannels))[bstart:bstop, :],
+            )
 
         # test read where data doesn't exist
         data_dict = drf_reader.read(bounds[0] - 100, bounds[0] - 1, channel)
@@ -1304,7 +1312,7 @@ class TestDigitalRFChannel(object):
     )
     def test_reader_multiple_topleveldirs(
         self, bounds, data, data_block_slices, drf_writer_factory,
-        is_continuous, start_global_index, tmpdir_factory,
+        is_continuous, num_subchannels, start_global_index, tmpdir_factory,
     ):
         """Test reader object with multiple top-level directories."""
         # write data blocks alternately in multiple top-level directories
@@ -1338,4 +1346,7 @@ class TestDigitalRFChannel(object):
                     assert sample == sstart
                     bstart = sstart - bounds[0]
                     bstop = sstop - bounds[0]
-                    np.testing.assert_equal(rdata, data[bstart:bstop])
+                    np.testing.assert_equal(
+                        rdata,
+                        data.reshape((-1, num_subchannels))[bstart:bstop],
+                    )

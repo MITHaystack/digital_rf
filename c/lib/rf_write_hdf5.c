@@ -82,7 +82,7 @@ Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t d
  *
  * 	Hdf5 format
  *
- * 	/rf_data - dataset of size (*,) or (*, num_subchannels), datatype = dtype_id
+ * 	/rf_data - dataset of size (*, num_subchannels), datatype = dtype_id
  * 	/rf_data_index - dataset of size (num of separate block of data, 2), datatype - uint_64, length at least 1
  *  /rf_data has 14 attributes: sequence_num (int), subdir_cadence_secs (int), uuid_str (string), sample_rate_numerator (uint_64),
  *      sample_rate_denominator (uint_64),
@@ -190,6 +190,7 @@ Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t d
 	hdf5_data_object->sample_rate_denominator = sample_rate_denominator;
 	hdf5_data_object->sample_rate =  (long double)sample_rate_numerator / (long double)sample_rate_denominator;
 	hdf5_data_object->dtype_id = dtype_id;
+	hdf5_data_object->rank = 2;
 	hdf5_data_object->global_index = 0; /* index of next sample to write */
 	hdf5_data_object->present_seq = -1; /* present file seq number, -1 because no file open */
 	hdf5_data_object->dataset_index = 0; /* where in the dataset the next write should occur */
@@ -202,11 +203,6 @@ Digital_rf_write_object * digital_rf_create_write_hdf5(char * directory, hid_t d
 	/* init_utc_timestamp - stored as attribute to allow conversion to astronomical times */
 	hdf5_data_object->init_utc_timestamp = (uint64_t)(global_start_sample/hdf5_data_object->sample_rate);
 	hdf5_data_object->last_utc_timestamp = 0; /* no last write time yet */
-
-	if (hdf5_data_object->num_subchannels == 1)
-		hdf5_data_object->rank = 1;
-	else
-		hdf5_data_object->rank = 2;
 
 	if (is_complex)
 	{
