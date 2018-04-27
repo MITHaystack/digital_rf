@@ -26,7 +26,7 @@
 
 The Digital RF project encompasses a standardized HDF5 format for reading and writing of radio frequency data and the software for doing so. The format is designed to be self-documenting for data archive and to allow rapid random access for data processing. For details on the format, refer to the 'documents' directory in the source tree.
 
-This suite of software includes libraries for reading and writing data in the Digital RF HDF5 format in C (``libdigital_rf``), Python (``digital_rf``) with blocks for GNU Radio (``gr_digital_rf``), and MATLAB. It also contains the `thor` UHD radio recorder script, Python tools for managing and processing Digital RF data, example scripts that demonstrate basic usage, and example applications that encompass a complete data recording and processing chain for various use cases.
+This suite of software includes libraries for reading and writing data in the Digital RF HDF5 format in C (``libdigital_rf``), Python (``digital_rf``) with blocks for GNU Radio (``gr_digital_rf``), and MATLAB. It also contains the ``thor.py`` UHD radio recorder script, Python tools for managing and processing Digital RF data, example scripts that demonstrate basic usage, and example applications that encompass a complete data recording and processing chain for various use cases.
 
 
 Important Links
@@ -107,7 +107,21 @@ If you're just getting started with Digital RF, we recommend using the Python pa
 
     pip install digital_rf
 
-If you're interested in the C library or development, see below for ways to install the full project package.
+This will install the ``digital_rf`` and ``gr_digital_rf`` Python packages and GNU Radio Companion (GRC) blocks. If you're interested in the C library or development, see below for ways to install the full project package.
+
+If you plan on using Digital RF with GNU Radio, make sure to run the `pip` command in the same Python environment that your GNU Radio installation uses so that GNU Radio can find the packages. Depending on your GNU Radio installation, it may be necessary to add the Digital RF blocks to your GRC blocks path by creating or editing the GRC configuration file
+
+:Unix (local): $HOME/.gnuradio/config.conf
+:Windows (local): %APPDATA%/.gnuradio/config.conf
+:Unix (global): /etc/gnuradio/conf.d/grc.conf
+:Custom (global): {INSTALL_PREFIX}/etc/gnuradio/conf.d/grc.conf
+
+to contain::
+
+    [grc]
+    local_blocks_path = {PIP_PREFIX}/share/gnuradio/grc/blocks
+
+(replacing ``{PIP_PREFIX}`` with the pip installation prefix, "/usr/local" for example).
 
 
 Using source code package
@@ -142,7 +156,7 @@ The MATLAB toolbox is not created by default. If you have MATLAB R2016a or highe
 
     make matlab
 
-The toolbox package will then be found at `build/matlab/digital_rf.mltbx`.
+The toolbox package will then be found at "build/matlab/digital_rf.mltbx".
 
 
 Using Conda package
@@ -150,7 +164,7 @@ Using Conda package
 
 Alternatively, you can install digital_rf using our Conda_ binary package. Our package is compatible with the `conda-forge <https://conda-forge.github.io/>`_ distribution of community-maintained packages.
 
-In an existing Conda environment, run the following to install digital_rf and its dependencies::
+In an existing Conda environment, run the following to install ``digital_rf`` and its dependencies::
 
     conda config --add channels ryanvolz
     conda config --add channels conda-forge
@@ -165,7 +179,7 @@ Python and C examples can be found in the examples directory in the source tree.
     make examples
 
 
-The following Python commands will load and read data located in a directory '/data/test'.
+The following Python commands will load and read data located in a directory "/data/test".
 
 Load the module and create a reader object::
 
@@ -192,7 +206,7 @@ To execute the C test suite, run the following from the build directory::
 
     make test
 
-The C and tests create test files in '/tmp/hdf5*'. To cleanup afterward, run::
+The C and tests create test files in "/tmp/hdf5*". To cleanup afterward, run::
 
     rm -r /tmp/hdf5*
 
