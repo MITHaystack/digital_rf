@@ -32,13 +32,10 @@ This suite of software includes libraries for reading and writing data in the Di
 Important Links
 ===============
 
-Official source code repo: https://github.com/MITHaystack/digital_rf
-
-Issue tracker: https://github.com/MITHaystack/digital_rf/issues
-
-User mailing list for help/questions: openradar-users@openradar.org
-
-Developer mailing list: openradar-developers@openradar.org
+:Official source code repo: https://github.com/MITHaystack/digital_rf
+:Issue tracker: https://github.com/MITHaystack/digital_rf/issues
+:User mailing list for help/questions: openradar-users@openradar.org
+:Developer mailing list: openradar-developers@openradar.org
 
 
 Dependencies
