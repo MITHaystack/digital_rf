@@ -7,47 +7,35 @@
 #
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
-"""
-
-drf_sti_summary.py
-$Id$
-
-Create a spectral time intensity summary plot for a data set.
-
-"""
+"""Create a spectral time intensity summary plot for a data set."""
 
 
-import traceback
-import sys
-import string
+import datetime
 import optparse
 import os
+import string
+import sys
+import time
+import traceback
 
-import matplotlib.pyplot
-import matplotlib.mlab
+import dateutil
+import digital_rf as drf
 import matplotlib.gridspec
-
+import matplotlib.mlab
+import matplotlib.pyplot
+import numpy
+import numpy.fft
+import pytz
 import scipy
 import scipy.signal
 
-import numpy
-import numpy.fft
-import time
-import datetime
-import dateutil
-import pytz
-import ipdb
-
-import digital_rf as drf
 matplotlib.rc('axes', hold=False)
 
 
-class DataPlotter:
+class DataPlotter(object):
 
     def __init__(self, control):
-        """__init__: Initializes a data plotter for STI plotting.
-
-        """
+        """Initialize a data plotter for STI plotting."""
         self.control = control
         ch = string.split(self.control.channel, ':')
         self.channel = ch[0]
@@ -78,23 +66,18 @@ class DataPlotter:
             self.subplots.append(ax)
 
     def plot(self):
+        """Iterate over the data set and plot the STI into the subplot panels.
+
+        Each panel is divided into a provided number of bins of a given
+        integration length. Strides between the panels are made between
+        integrations.
+
         """
-
-            Iterate over the data set and plot the STI into the subplot panels. Each
-            panel is divided into a provided number of bins of a given integration
-            length. Strides between the panels are made between integrations.
-
-        """
-
         # initialize outside the loop to avoid memory leak
-
-        plot_a = None
 
         # initial plotting scales
         vmin = 0
         vmax = 0
-        pmin = 0
-        pmax = 0
 
         sr = self.dio.get_properties(self.channel)['samples_per_second']
 
@@ -102,7 +85,6 @@ class DataPlotter:
             print 'sample rate: ', sr
 
         # initial time info
-        display_lag = 60
         b = self.dio.get_bounds(self.channel)
 
         if self.control.verbose:
@@ -170,7 +152,7 @@ class DataPlotter:
                 if self.control.verbose:
                     print 'read vector :', self.channel, start_sample, samples_per_stripe
 
-                d_vec = self.dio.read_vector(
+                data = self.dio.read_vector(
                     start_sample, samples_per_stripe, self.channel, self.sub_channel)
                 if self.control.decimation > 1:
                     data = scipy.signal.decimate(data, self.control.decimation)
@@ -351,6 +333,7 @@ def parse_command_line(str_input=None):
 
     return (options, args)
 
+
 #
 # MAIN PROGRAM
 #
@@ -364,7 +347,7 @@ if __name__ == "__main__":
     # Parse the Command Line for configuration
     (options, args) = parse_command_line()
 
-    if options.path == None:
+    if options.path is None:
         print "Please provide an input source with the -p option!"
         sys.exit(1)
 
