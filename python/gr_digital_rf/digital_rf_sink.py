@@ -157,10 +157,11 @@ class digital_rf_channel_sink(gr.sync_block):
             number of samples since the epoch (time_since_epoch*sample_rate).
             If a float, it is interpreted as a UTC timestamp (seconds since
             epoch).
-            If a string, two forms are permitted:
+            If a string, three forms are permitted:
                 1) a string which can be evaluated to an integer/float and
                     interpreted as above,
                 2) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
+                3) 'now' ('nowish'), indicating the current time (rounded up)
 
         ignore_tags : bool, optional
             If True, do not use 'rx_time' tags to set the sample index and do
@@ -671,10 +672,11 @@ class digital_rf_sink(gr.hier_block2):
             number of samples since the epoch (time_since_epoch*sample_rate).
             If a float, it is interpreted as a UTC timestamp (seconds since
             epoch).
-            If a string, two forms are permitted:
+            If a string, three forms are permitted:
                 1) a string which can be evaluated to an integer/float and
                     interpreted as above,
                 2) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
+                3) 'now' ('nowish'), indicating the current time (rounded up)
 
         ignore_tags : bool, optional
             If True, do not use 'rx_time' tags to set the sample index and do

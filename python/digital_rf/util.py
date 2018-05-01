@@ -145,13 +145,14 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
         If an integer, it is returned as the sample index.
         If a float, it is interpreted as a UTC timestamp (seconds since epoch)
         and the corresponding sample index is returned.
-        If a string, three forms are permitted:
+        If a string, four forms are permitted:
             1) a string which can be evaluated to an integer/float and
                 interpreted as above,
             2) a string beginning with '+' and followed by an integer
                 (float) expression, interpreted as samples (seconds) from
                 `ref_index`, and
             3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
+            4) 'now' ('nowish'), indicating the current time (rounded up)
 
     samples_per_second : numpy.longdouble, required for float and time `iden`
         Sample rate in Hz used to convert a time to a sample index.
@@ -184,8 +185,17 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
                 raise ValueError(
                     '"+" identifier must be followed by an integer or float.'
                 )
-            # parse to datetime
-            iden = dateutil.parser.parse(iden)
+            if iden.lower().startswith('now'):
+                dt = pytz.utc.localize(datetime.datetime.utcnow())
+                if iden.lower().endswith('ish'):
+                    dt = (
+                        dt.replace(microsecond=0)
+                        + datetime.timedelta(seconds=1)
+                    )
+                iden = dt
+            else:
+                # parse to datetime
+                iden = dateutil.parser.parse(iden)
 
     if not isinstance(iden, six.integer_types):
         if samples_per_second is None:
@@ -219,13 +229,14 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
         and the corresponding datetime is returned.
         If an integer, it is interpreted as a sample index when
         `samples_per_second` is not None and a UTC timestamp otherwise.
-        If a string, three forms are permitted:
+        If a string, four forms are permitted:
             1) a string which can be evaluated to an integer/float and
                 interpreted as above,
             2) a string beginning with '+' and followed by an integer
                 (float) expression, interpreted as samples (seconds) from
                 `ref_time`, and
             3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
+            4) 'now' ('nowish'), indicating the current time (rounded up)
 
     samples_per_second : numpy.longdouble, required for integer `iden`
         Sample rate in Hz used to convert a sample index to a time.
@@ -257,11 +268,19 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
                 raise ValueError(
                     '"+" identifier must be followed by an integer or float.'
                 )
-            # parse string to datetime
-            dt = dateutil.parser.parse(iden)
-            if dt.tzinfo is None:
-                # assume UTC if timezone was not specified in the string
-                dt = pytz.utc.localize(dt)
+            if iden.lower().startswith('now'):
+                dt = pytz.utc.localize(datetime.datetime.utcnow())
+                if iden.lower().endswith('ish'):
+                    dt = (
+                        dt.replace(microsecond=0)
+                        + datetime.timedelta(seconds=1)
+                    )
+            else:
+                # parse string to datetime
+                dt = dateutil.parser.parse(iden)
+                if dt.tzinfo is None:
+                    # assume UTC if timezone was not specified in the string
+                    dt = pytz.utc.localize(dt)
             return dt
 
     if isinstance(iden, float) or samples_per_second is None:

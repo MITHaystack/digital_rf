@@ -115,13 +115,14 @@ class digital_rf_channel_source(gr.sync_block):
             number of samples since the epoch (time_since_epoch*sample_rate).
             If a float, it is interpreted as a UTC timestamp (seconds since
             epoch).
-            If a string, three forms are permitted:
+            If a string, four forms are permitted:
                 1) a string which can be evaluated to an integer/float and
                     interpreted as above,
                 2) a string beginning with '+' and followed by an integer
                     (float) expression, interpreted as samples (seconds) from
                     the start of the data, and
                 3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
+                4) 'now' ('nowish'), indicating the current time (rounded up)
 
         end : None | int | float | string, optional
             A value giving the end of the channel's playback.
@@ -497,13 +498,14 @@ class digital_rf_source(gr.hier_block2):
             number of samples since the epoch (time_since_epoch*sample_rate).
             If a float, it is interpreted as a UTC timestamp (seconds since
             epoch).
-            If a string, three forms are permitted:
+            If a string, four forms are permitted:
                 1) a string which can be evaluated to an integer/float and
                     interpreted as above,
                 2) a string beginning with '+' and followed by an integer
                     (float) expression, interpreted as samples (seconds) from
                     the start of the data, and
                 3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
+                4) 'now' ('nowish'), indicating the current time (rounded up)
 
         end : None | string | int | iterable of previous, optional
             Can be a single value or an iterable of values corresponding to

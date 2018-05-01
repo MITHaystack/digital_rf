@@ -111,7 +111,7 @@
         <name>properties</name>
         <type>message</type>
         <optional>True</optional>
-        <hide>\$hide_msg_port</hide>
+        <hide>$hide_msg_port</hide>
     </source>
 
     <doc>
@@ -138,13 +138,14 @@ Start : string
     If an integer, it is interpreted as a sample index giving the
     number of samples since the epoch (t_since_epoch*sample_rate).
     If a float, it is interpreted as a timestamp (seconds since epoch).
-    If a string, three forms are permitted:
+    If a string, four forms are permitted:
         1) a string which can be evaluated to an integer/float and
             interpreted as above,
         2) a string beginning with '+' and followed by an integer
             (float) expression, interpreted as samples (seconds) from
             the start of the data, and
         3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
+        4) 'now' ('nowish'), indicating the current time (rounded up)
 
 End : string
     A value giving the end of the channel's playback.
