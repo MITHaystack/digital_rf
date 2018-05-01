@@ -30,6 +30,23 @@ set(DRF_INSTALL_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX}
     CACHE PATH
     "Installation prefix for python package, defaults to CMAKE_INSTALL_PREFIX"
 )
+# variable to allow for different install location for python data
+set(DRF_DATA_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX}
+    CACHE PATH
+    "Data installation prefix for python package, defaults to\
+ CMAKE_INSTALL_PREFIX"
+)
+# variable to allow for different install location for python scripts
+if(WIN32)
+    set(SCRIPT_DIR "Scripts")
+else(WIN32)
+    set(SCRIPT_DIR "bin")
+endif(WIN32)
+set(DRF_SCRIPT_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX}/${SCRIPT_DIR}
+    CACHE PATH
+    "Script installation prefix for python package, defaults to\
+ {CMAKE_INSTALL_PREFIX}/bin"
+)
 
 # get compiler settings for digital_rf interface libraries (i.e. HDF5)
 # to pass to setup.py
@@ -163,7 +180,10 @@ if(NOT TARGET wheel)
 endif(NOT TARGET wheel)
 add_dependencies(wheel digital_rf_wheel)
 install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py install\
- --prefix=${DRF_INSTALL_PREFIX_PYTHON} --root=\$ENV{DESTDIR}/\
+ --prefix=${DRF_INSTALL_PREFIX_PYTHON}\
+ --install-data=${DRF_DATA_PREFIX_PYTHON}\
+ --install-scripts=${DRF_SCRIPT_PREFIX_PYTHON}\
+ --root=\$ENV{DESTDIR}/\
  --single-version-externally-managed\
  --record=${CMAKE_CURRENT_BINARY_DIR}/install_${PROJECT_NAME}_manifest.txt\
  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})\
