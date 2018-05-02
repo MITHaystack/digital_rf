@@ -26,26 +26,16 @@ project(digital_rf LANGUAGES C VERSION ${digital_rf_VERSION})
 include(GNUInstallDirs)
 
 # variable to allow for different install location for python package
-set(DRF_INSTALL_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX}
-    CACHE PATH
-    "Installation prefix for python package, defaults to CMAKE_INSTALL_PREFIX"
+set(DRF_INSTALL_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX} CACHE PATH
+    "Installation prefix for python package"
 )
 # variable to allow for different install location for python data
-set(DRF_DATA_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX}
-    CACHE PATH
-    "Data installation prefix for python package, defaults to\
- CMAKE_INSTALL_PREFIX"
+set(DRF_DATA_PREFIX_PYTHON CACHE PATH
+    "Data installation prefix for python package"
 )
 # variable to allow for different install location for python scripts
-if(WIN32)
-    set(SCRIPT_DIR "Scripts")
-else(WIN32)
-    set(SCRIPT_DIR "bin")
-endif(WIN32)
-set(DRF_SCRIPT_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX}/${SCRIPT_DIR}
-    CACHE PATH
-    "Script installation prefix for python package, defaults to\
- {CMAKE_INSTALL_PREFIX}/bin"
+set(DRF_SCRIPT_PREFIX_PYTHON CACHE PATH
+    "Script installation prefix for python package"
 )
 
 # get compiler settings for digital_rf interface libraries (i.e. HDF5)
@@ -179,15 +169,17 @@ if(NOT TARGET wheel)
     add_custom_target(wheel)
 endif(NOT TARGET wheel)
 add_dependencies(wheel digital_rf_wheel)
-install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py install\
- --prefix=${DRF_INSTALL_PREFIX_PYTHON}\
- --install-data=${DRF_DATA_PREFIX_PYTHON}\
- --install-scripts=${DRF_SCRIPT_PREFIX_PYTHON}\
- --root=\$ENV{DESTDIR}/\
+file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/drf_install_python.cmake
+    CONTENT "execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py install\
+$<$<BOOL:${DRF_INSTALL_PREFIX_PYTHON}>: --prefix=${DRF_INSTALL_PREFIX_PYTHON}>\
+$<$<BOOL:${DRF_DATA_PREFIX_PYTHON}>: --install-data=${DRF_DATA_PREFIX_PYTHON}>\
+$<$<BOOL:${DRF_SCRIPT_PREFIX_PYTHON}>: --install-scripts=${DRF_SCRIPT_PREFIX_PYTHON}>\
+$<$<BOOL:$ENV{DESTDIR}>: --root=$ENV{DESTDIR}>\
  --single-version-externally-managed\
  --record=${CMAKE_CURRENT_BINARY_DIR}/install_${PROJECT_NAME}_manifest.txt\
  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})\
 ")
+install(SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/drf_install_python.cmake)
 
 # uninstall target
 configure_file(
