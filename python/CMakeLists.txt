@@ -25,15 +25,13 @@ project(digital_rf LANGUAGES C VERSION ${digital_rf_VERSION})
 
 include(GNUInstallDirs)
 
-# variable to allow for different install location for python package
-set(DRF_INSTALL_PREFIX_PYTHON ${CMAKE_INSTALL_PREFIX} CACHE PATH
+# variables to allow for different install locations for python package
+set(DRF_INSTALL_PREFIX_PYTHON CACHE PATH
     "Installation prefix for python package"
 )
-# variable to allow for different install location for python data
 set(DRF_DATA_PREFIX_PYTHON CACHE PATH
     "Data installation prefix for python package"
 )
-# variable to allow for different install location for python scripts
 set(DRF_SCRIPT_PREFIX_PYTHON CACHE PATH
     "Script installation prefix for python package"
 )
@@ -86,8 +84,8 @@ execute_process(
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 )
 file(READ ${EGG_INFO_OUTPUT}/SOURCES.txt PYSOURCES)
-STRING(REGEX REPLACE ";" "\\\\;" PYSOURCES "${PYSOURCES}")
-STRING(REGEX REPLACE "\n" ";" PYSOURCES "${PYSOURCES}")
+string(REGEX REPLACE ";" "\\\\;" PYSOURCES "${PYSOURCES}")
+string(REGEX REPLACE "\n" ";" PYSOURCES "${PYSOURCES}")
 
 # copy python source files to build directory so we can run setup.py from there
 foreach(SRCFILE ${PYSOURCES})
@@ -169,6 +167,17 @@ if(NOT TARGET wheel)
     add_custom_target(wheel)
 endif(NOT TARGET wheel)
 add_dependencies(wheel digital_rf_wheel)
+# make sure paths on Windows use a double backslash in order to survive
+# setup.py (distutils) parsing when used later
+if(WIN32)
+    macro(NORMALIZE_PATH PATHVARNAME)
+        file(TO_NATIVE_PATH "${${PATHVARNAME}}" ${PATHVARNAME})
+        string(REPLACE "\\" "\\\\" ${PATHVARNAME} "${${PATHVARNAME}}")
+    endmacro()
+    NORMALIZE_PATH(DRF_INSTALL_PREFIX_PYTHON)
+    NORMALIZE_PATH(DRF_DATA_PREFIX_PYTHON)
+    NORMALIZE_PATH(DRF_SCRIPT_PREFIX_PYTHON)
+endif(WIN32)
 file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/drf_install_python.cmake
     CONTENT "execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py install\
 $<$<BOOL:${DRF_INSTALL_PREFIX_PYTHON}>: --prefix=${DRF_INSTALL_PREFIX_PYTHON}>\
