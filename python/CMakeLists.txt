@@ -183,7 +183,7 @@ file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/drf_install_python.cmake
 $<$<BOOL:${DRF_INSTALL_PREFIX_PYTHON}>: --prefix=${DRF_INSTALL_PREFIX_PYTHON}>\
 $<$<BOOL:${DRF_DATA_PREFIX_PYTHON}>: --install-data=${DRF_DATA_PREFIX_PYTHON}>\
 $<$<BOOL:${DRF_SCRIPT_PREFIX_PYTHON}>: --install-scripts=${DRF_SCRIPT_PREFIX_PYTHON}>\
- --root=$ENV{DESTDIR}/\
+ --root=\$ENV{DESTDIR}/\
  --single-version-externally-managed\
  --record=${CMAKE_CURRENT_BINARY_DIR}/install_${PROJECT_NAME}_manifest.txt\
  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})\
