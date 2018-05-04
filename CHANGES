@@ -1,5 +1,5 @@
-2.6.0 -
--------
+2.6.0 - May 4, 2018
+-------------------
 
 The main impetus for this release is a complete reorganization of the build system to enable Digital RF to run with Python 3 and on Windows. Major changes include:
 
