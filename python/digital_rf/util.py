@@ -55,8 +55,15 @@ def time_to_sample(time, samples_per_second):
         if time.tzinfo is None:
             # assume UTC if timezone was not specified
             time = pytz.utc.localize(time)
-        time = (time - epoch).total_seconds()
-    return int(np.uint64(time*samples_per_second))
+        td = time - epoch
+        tsec = int(td.total_seconds())
+        tfrac = 1e-6*td.microseconds
+        tidx = int(np.uint64(
+            tsec*samples_per_second + tfrac*samples_per_second
+        ))
+        return tidx
+    else:
+        return int(np.uint64(time*samples_per_second))
 
 
 def sample_to_datetime(sample, samples_per_second):
