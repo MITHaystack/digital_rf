@@ -167,6 +167,14 @@ In an existing Conda environment, run the following to install ``digital_rf`` an
     conda config --add channels conda-forge
     conda install digital_rf
 
+Using MacPorts
+--------------
+
+Digital RF can be installed though MacPorts, using the port install command::
+
+    sudo ports install digital_rf
+
+This will install and build all of the needed dependencies using MacPorts.
 
 Example Usage
 =============
