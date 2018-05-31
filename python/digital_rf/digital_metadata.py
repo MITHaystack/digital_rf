@@ -54,6 +54,14 @@ __all__ = (
 )
 
 
+# disable file locking in HDF5 >= 1.10 (not present in earlier versions)
+# through only way possible: setting an environment variable
+# this allows reading and writing metadata using the same file, which should be
+# safe since we don't allow multiple or partial writes to the same sample index
+# and is something we've allowed in practice with HDF5 1.8 and earlier
+os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
+
+
 def _recursive_items(d, prefix='', visited=None):
     """Generator of (key, value) pairs for a dict, recursing into sub-dicts.
 
