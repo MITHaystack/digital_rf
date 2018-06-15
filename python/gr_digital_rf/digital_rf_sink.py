@@ -797,7 +797,7 @@ class digital_rf_sink(gr.hier_block2):
             chsink = digital_rf_channel_sink(channel_dir, **options)
             self._channels.append(chsink)
 
-        in_sig_dtypes = [sink.in_sig()[0] for sink in self._channels]
+        in_sig_dtypes = [list(sink.in_sig())[0] for sink in self._channels]
         in_sig = gr.io_signaturev(
             len(in_sig_dtypes), len(in_sig_dtypes),
             [s.itemsize for s in in_sig_dtypes],
