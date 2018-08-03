@@ -32,7 +32,7 @@
         start=$start, ignore_tags=$ignore_tags,
         is_complex=$input.complex, num_subchannels=$vlen,
         uuid_str=None if $uuid=='' else $uuid,
-        center_frequencies=None if $center_freqs=='' else $center_freqs,
+        center_frequencies=None if $center_freqs is () else $center_freqs,
         metadata=$metadata,
         is_continuous=$is_continuous, compression_level=$compression_level,
         checksum=$checksum, marching_periods=$marching_periods,
