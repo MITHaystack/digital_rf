@@ -1,3 +1,14 @@
+2.6.1 - August 7, 2018
+----------------------
+
+This is primarily a bugfix release. Changes include:
+
+- Add raster and vector tools to gr_digital_rf for working with periodic data.
+- Disable file locking with HDF5 >= 1.10 for digital_metadata, which restores behavior so it matches that of HDF5 1.8.
+- Fix error using digital_rf_sink with GNU Radio 3.7.12, which changed the type of its input and output signature objects.
+- Fix the digital_rf_sink block in GRC to correctly pass an empty center frequency.
+
+
 2.6.0 - May 4, 2018
 -------------------
 
