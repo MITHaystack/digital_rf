@@ -1,0 +1,207 @@
+<?xml version="1.0"?>
+<!--
+  Copyright (c) 2018 Massachusetts Institute of Technology (MIT)
+  All rights reserved.
+
+  Distributed under the terms of the BSD 3-clause license.
+
+  The full license is in the LICENSE file, distributed with this software.
+-->
+<block>
+    <name>Raster Chunk</name>
+    <key>gr_digital_rf_raster_chunk</key>
+    <category>Raster</category>
+    <import>import numpy as np; import gr_digital_rf</import>
+    <make>\
+    gr_digital_rf.raster_chunk(
+        dtype=$input.dtype,
+        vlen=$vlen,
+        raster_length=$raster_length,
+        nperseg=$nperseg,
+        noverlap=$noverlap,
+        max_raster_length=None if $max_raster_length==0 else $max_raster_length,
+        max_noverlap=None if $max_noverlap==0 else $max_noverlap,
+    )
+    </make>
+
+    <callback>set_raster_length($raster_length)</callback>
+    <callback>set_noverlap($noverlap)</callback>
+
+    <param>
+        <name>Input Type</name>
+        <key>input</key>
+        <value>fc32</value>
+        <type>enum</type>
+        <hide>part</hide>
+        <option>
+            <name>Complex int8</name>
+            <key>sc8</key>
+            <opt>type:sc8</opt>
+            <opt>dtype:np.int8</opt>
+            <opt>complex:True</opt>
+        </option>
+        <option>
+            <name>Complex int16</name>
+            <key>sc16</key>
+            <opt>type:sc16</opt>
+            <opt>dtype:np.int16</opt>
+            <opt>complex:True</opt>
+        </option>
+        <option>
+            <name>Complex float32</name>
+            <key>fc32</key>
+            <opt>type:fc32</opt>
+            <opt>dtype:np.complex64</opt>
+            <opt>complex:True</opt>
+        </option>
+        <option>
+            <name>Complex float64</name>
+            <key>fc64</key>
+            <opt>type:fc64</opt>
+            <opt>dtype:np.complex128</opt>
+            <opt>complex:True</opt>
+        </option>
+        <option>
+            <name>int8</name>
+            <key>s8</key>
+            <opt>type:s8</opt>
+            <opt>dtype:np.int8</opt>
+            <opt>complex:False</opt>
+        </option>
+        <option>
+            <name>int16</name>
+            <key>s16</key>
+            <opt>type:s16</opt>
+            <opt>dtype:np.int16</opt>
+            <opt>complex:False</opt>
+        </option>
+        <option>
+            <name>float32</name>
+            <key>f32</key>
+            <opt>type:f32</opt>
+            <opt>dtype:np.float32</opt>
+            <opt>complex:False</opt>
+        </option>
+        <option>
+            <name>float64</name>
+            <key>f64</key>
+            <opt>type:f64</opt>
+            <opt>dtype:np.float64</opt>
+            <opt>complex:False</opt>
+        </option>
+    </param>
+    <param>
+        <name>Vec Length</name>
+        <key>vlen</key>
+        <value>1</value>
+        <type>int</type>
+        <hide>#if $vlen() > 1 then 'none' else 'part'#</hide>
+    </param>
+    <param>
+        <name>Raster Length</name>
+        <key>raster_length</key>
+        <value>10000</value>
+        <type>int</type>
+    </param>
+    <param>
+        <name>Chunk Length</name>
+        <key>nperseg</key>
+        <value>1</value>
+        <type>int</type>
+    </param>
+    <param>
+        <name>Num Overlapping</name>
+        <key>noverlap</key>
+        <value>0</value>
+        <type>int</type>
+        <hide>part</hide>
+    </param>
+    <param>
+        <name>Max Raster Length</name>
+        <key>max_raster_length</key>
+        <value>0</value>
+        <type>int</type>
+        <hide>part</hide>
+    </param>
+    <param>
+        <name>Max Num Overlapping</name>
+        <key>max_noverlap</key>
+        <value>0</value>
+        <type>int</type>
+        <hide>part</hide>
+    </param>
+
+    <check>$vlen > 0</check>
+    <check>$noverlap >= 0</check>
+    <check>$nperseg > $noverlap</check>
+    <check>$raster_length >= $nperseg</check>
+    <check>$max_raster_length * ($max_raster_length - $raster_length) >= 0</check>
+    <check>$max_noverlap * ($max_noverlap - $noverlap) >= 0</check>
+
+    <sink>
+        <name>in</name>
+        <type>$input.type</type>
+        <vlen>$vlen</vlen>
+    </sink>
+
+    <source>
+        <name>out</name>
+        <type>$input.type</type>
+        <vlen>$nperseg</vlen>
+    </source>
+
+    <doc>
+Chunk periodic rasters into fixed-size vectors with optional overlap.
+
+The input data is provided as samples with length 'Vec Length' and type
+'Input Type'. It is then divided into raster windows with a number of
+samples equal to 'Raster Length'. Each raster window is then broken
+into chunks of 'Chunk Length' samples with an overlap of
+'Num Overlapping' samples. The output may be zero-padded at the
+end to ensure that all of the samples in the raster window are
+included in an output chunk. Each chunk is output as a vector whose
+total length is 'Chunk Length' times 'Vec Length'.
+
+The advantage of a raster of data is that its size can be changed in
+a running flowgraph, but it can be useful to interface raster data
+with fixed-size vectors (such as for FFTs).
+
+
+Parameters
+--------------------
+
+Input Type : numpy.dtype
+    Data type of the input and output data.
+
+Vec Length : int
+    Vector length of the *input* data (NOT the output vector length).
+
+Raster Length : int
+    Length of the raster window.
+
+Chunk Length : int
+    Fixed length of each output chunk. If the input data is itself a
+    vector, then each output vector will have a length of
+    'Chunk Length' times 'Vec Length'.
+
+Num Overlapping : int
+    Number of samples to overlap for each output chunk.
+
+
+Other Parameters
+--------------------------
+
+Max Raster Length : int
+    Maximum possible raster length, to allow for changes while the
+    block is running. Knowing the maximum length allows for allocation
+    of appropriately-sized buffers. If None, four times the initial
+    `raster_length` will be used.
+
+Max Num Overlapping : int
+    Maximum possible number of overlap samples, to allow for changes
+    while the block is running. Knowing the maximum number allows for
+    allocation of appropriately-sized buffers. If None, two thirds of
+    `nperseg` will be used.
+
+    </doc>
+</block>

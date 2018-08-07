@@ -249,6 +249,11 @@ setup(
             'grc/gr_digital_rf_digital_rf_channel_source.xml',
             'grc/gr_digital_rf_digital_rf_sink.xml',
             'grc/gr_digital_rf_digital_rf_source.xml',
+            'grc/gr_digital_rf_raster_aggregate.xml',
+            'grc/gr_digital_rf_raster_chunk.xml',
+            'grc/gr_digital_rf_raster_select.xml',
+            'grc/gr_digital_rf_raster_tag.xml',
+            'grc/gr_digital_rf_vector_aggregate.xml',
         ]),
     ] + external_libs,
     ext_modules=[

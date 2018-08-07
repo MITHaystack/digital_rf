@@ -1,0 +1,185 @@
+<?xml version="1.0"?>
+<!--
+  Copyright (c) 2018 Massachusetts Institute of Technology (MIT)
+  All rights reserved.
+
+  Distributed under the terms of the BSD 3-clause license.
+
+  The full license is in the LICENSE file, distributed with this software.
+-->
+<block>
+    <name>Raster Tag</name>
+    <key>gr_digital_rf_raster_tag</key>
+    <category>Raster</category>
+    <import>import numpy as np; import gr_digital_rf</import>
+    <make>\
+    gr_digital_rf.raster_tag(
+        dtype=$input.dtype,
+        vlen=$vlen,
+        raster_length=$raster_length,
+        tags=$tags,
+        max_raster_length=None if $max_raster_length==0 else $max_raster_length,
+    )
+    </make>
+
+    <callback>set_raster_length($raster_length)</callback>
+    <callback>set_tags($tags)</callback>
+
+    <param>
+        <name>Input Type</name>
+        <key>input</key>
+        <value>fc32</value>
+        <type>enum</type>
+        <hide>part</hide>
+        <option>
+            <name>Complex int8</name>
+            <key>sc8</key>
+            <opt>type:sc8</opt>
+            <opt>dtype:np.int8</opt>
+            <opt>complex:True</opt>
+        </option>
+        <option>
+            <name>Complex int16</name>
+            <key>sc16</key>
+            <opt>type:sc16</opt>
+            <opt>dtype:np.int16</opt>
+            <opt>complex:True</opt>
+        </option>
+        <option>
+            <name>Complex float32</name>
+            <key>fc32</key>
+            <opt>type:fc32</opt>
+            <opt>dtype:np.complex64</opt>
+            <opt>complex:True</opt>
+        </option>
+        <option>
+            <name>Complex float64</name>
+            <key>fc64</key>
+            <opt>type:fc64</opt>
+            <opt>dtype:np.complex128</opt>
+            <opt>complex:True</opt>
+        </option>
+        <option>
+            <name>int8</name>
+            <key>s8</key>
+            <opt>type:s8</opt>
+            <opt>dtype:np.int8</opt>
+            <opt>complex:False</opt>
+        </option>
+        <option>
+            <name>int16</name>
+            <key>s16</key>
+            <opt>type:s16</opt>
+            <opt>dtype:np.int16</opt>
+            <opt>complex:False</opt>
+        </option>
+        <option>
+            <name>float32</name>
+            <key>f32</key>
+            <opt>type:f32</opt>
+            <opt>dtype:np.float32</opt>
+            <opt>complex:False</opt>
+        </option>
+        <option>
+            <name>float64</name>
+            <key>f64</key>
+            <opt>type:f64</opt>
+            <opt>dtype:np.float64</opt>
+            <opt>complex:False</opt>
+        </option>
+    </param>
+    <param>
+        <name>Vec Length</name>
+        <key>vlen</key>
+        <value>1</value>
+        <type>int</type>
+        <hide>#if $vlen() > 1 then 'none' else 'part'#</hide>
+    </param>
+    <param>
+        <name>Raster Length</name>
+        <key>raster_length</key>
+        <value>10000</value>
+        <type>int</type>
+    </param>
+    <param>
+        <name>Tags</name>
+        <key>tags</key>
+        <value>[(0, 'raster_start', True)]</value>
+        <type>raw</type>
+        <hide>part</hide>
+    </param>
+    <param>
+        <name>Max Raster Length</name>
+        <key>max_raster_length</key>
+        <value>0</value>
+        <type>int</type>
+        <hide>part</hide>
+    </param>
+
+    <check>$raster_length > 0</check>
+    <check>$max_raster_length >= 0</check>
+    <check>$max_raster_length * ($max_raster_length - $raster_length) >= 0</check>
+
+    <sink>
+        <name>in</name>
+        <type>$input.type</type>
+        <vlen>1</vlen>
+    </sink>
+
+    <source>
+        <name>out</name>
+        <type>$input.type</type>
+        <vlen>1</vlen>
+    </source>
+
+    <doc>
+Add tags within a periodic raster window.
+
+The input data is provided as samples with length 'Vec Length' and type
+'Input Type'. It is then divided into raster windows with a number of
+samples equal to 'Raster Length'. The specified tags are periodically
+added to the output stream relative to the raster window at the given
+indices.
+
+The advantage of a raster of data is that its size can be changed in
+a running flowgraph. The added tags can be for informational purposes,
+or they could be used to trigger processing or plotting of the raster
+windows.
+
+
+Parameters
+--------------------
+
+Input Type : numpy.dtype
+    Data type of the input and output data.
+
+Vec Length : int
+    Vector length of the *input* data (NOT the output vector length).
+
+Raster Length : int
+    Length of the raster window.
+
+Tags : list of tuples
+    Tags to be added to the output relative to the specified raster
+    window. Each tag is represented by a tuple item in the `tags` list
+    with the following format:
+
+        tag_item : (int, str, any) tuple
+            The first entry gives the index of the tag relative to the
+            start of each raster window. The second entry gives the
+            name of the tag. The third and final entry gives the tag's
+            value as a python object, to be converted to a pmt value
+            with :func:``pmt.to_pmt``.
+
+
+Other Parameters
+--------------------------
+
+Max Raster Length : int
+    Maximum possible raster length, to allow for changes while the
+    block is running. Knowing the maximum length allows for allocation
+    of appropriately-sized buffers. If None, four times the initial
+    `raster_length` will be used.
+
+    </doc>
+</block>
