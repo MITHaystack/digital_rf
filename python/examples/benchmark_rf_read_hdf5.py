@@ -62,7 +62,7 @@ def test_read(channel_name, test_read_obj):
 
 
 t = time.time()
-datadir = os.path.join(tempfile.tempdir, 'benchmark_digital_rf')
+datadir = os.path.join(tempfile.gettempdir(), 'benchmark_digital_rf')
 test_read_obj = digital_rf.DigitalRFReader(datadir)
 print('metadata analysis took %f seconds' % (time.time() - t))
 

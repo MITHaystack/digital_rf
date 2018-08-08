@@ -41,7 +41,7 @@ for i in range(WRITE_BLOCK_SIZE):
     data_int16[i][0] = (j % 32768) * (j + 8192) * (j % 13)
     data_int16[i][1] = (k % 32768) * (k + 8192) * (k % 13)
 
-datadir = os.path.join(tempfile.tempdir, 'benchmark_digital_rf')
+datadir = os.path.join(tempfile.gettempdir(), 'benchmark_digital_rf')
 print('creating top level dir {0}'.format(datadir))
 shutil.rmtree(datadir, ignore_errors=True)
 os.makedirs(datadir)

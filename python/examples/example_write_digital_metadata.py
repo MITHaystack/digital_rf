@@ -21,7 +21,7 @@ import tempfile
 import digital_rf
 import numpy
 
-metadata_dir = os.path.join(tempfile.tempdir, 'example_metadata')
+metadata_dir = os.path.join(tempfile.gettempdir(), 'example_metadata')
 subdirectory_cadence_seconds = 3600
 file_cadence_seconds = 60
 samples_per_second_numerator = 10

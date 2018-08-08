@@ -20,7 +20,7 @@ import tempfile
 import digital_rf
 import numpy
 
-datadir = os.path.join(tempfile.tempdir, 'example_digital_rf')
+datadir = os.path.join(tempfile.gettempdir(), 'example_digital_rf')
 chdir = os.path.join(datadir, 'junk0')
 
 # writing parameters

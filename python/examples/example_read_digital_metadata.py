@@ -19,7 +19,7 @@ import tempfile
 import digital_rf
 import numpy
 
-metadata_dir = os.path.join(tempfile.tempdir, 'example_metadata')
+metadata_dir = os.path.join(tempfile.gettempdir(), 'example_metadata')
 stime = 1447082580
 
 try:

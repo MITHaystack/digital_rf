@@ -18,7 +18,7 @@ import tempfile
 
 import digital_rf
 
-datadir = os.path.join(tempfile.tempdir, 'example_digital_rf')
+datadir = os.path.join(tempfile.gettempdir(), 'example_digital_rf')
 try:
     dro = digital_rf.DigitalRFReader(datadir)
 except ValueError:
