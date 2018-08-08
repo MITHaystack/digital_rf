@@ -1869,6 +1869,8 @@ class _top_level_dir_properties(object):
         self.top_level_dir = top_level_dir
         self.channel_name = channel_name
         self.access_mode = access_mode
+        self._cachedFilename = None  # full name of last file opened
+        self._cachedFile = None  # h5py.File object of last file opened
         # expect that _read_properties() will not raise error since we
         # already checked for existence of drf_properties.h5 before init
         self.properties = self._read_properties()
@@ -1896,8 +1898,6 @@ class _top_level_dir_properties(object):
                 ' upgrade to at least version {0} of digital_rf.'
             ).format(version.base_version, self._max_version.base_version)
             warnings.warn(warnstr, RuntimeWarning)
-        self._cachedFilename = None  # full name of last file opened
-        self._cachedFile = None  # h5py.File object of last file opened
 
     def _read_properties(self):
         """Get a dict of the properties stored in the drf_properties.h5 file.
