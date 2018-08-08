@@ -30,7 +30,7 @@ requirements:
   run:
     - gnuradio  # [(not win) and py27]
     - h5py
-    - {{ pin_compatible('hdf5', min_pin='x.x.x', max_pin='x.x.x') }}  # needed until hdf5 package has run_exports
+    - hdf5
     - matplotlib
     - numpy
     - packaging
