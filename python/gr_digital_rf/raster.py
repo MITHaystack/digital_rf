@@ -280,7 +280,7 @@ class raster_select_aggregate(gr.basic_block):
             Maximum possible output aggregation, to allow for changes while the
             block is running. Knowing the maximum aggregation size allows for
             allocation of appropriately-sized buffers. If None, a default of
-            16 will be used.
+            four times the initial `nagg` will be used.
 
         """
         if max_raster_length is None:
@@ -289,7 +289,7 @@ class raster_select_aggregate(gr.basic_block):
             length = raster_length if select_length is None else select_length
             max_select_length = 4*length
         if max_nagg is None:
-            max_nagg = 16
+            max_nagg = 4*nagg
         gr.basic_block.__init__(
             self,
             name='Raster Select',

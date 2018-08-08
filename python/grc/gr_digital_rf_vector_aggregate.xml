@@ -225,7 +225,7 @@ Max Num Aggregate : int
     Maximum possible output aggregation, to allow for changes while
     the block is running. Knowing the maximum aggregation size allows
     for allocation of appropriately-sized buffers. If None, a default
-    of 16 will be used.
+    of four times the initial `nagg` will be used.
 
     </doc>
 </block>
