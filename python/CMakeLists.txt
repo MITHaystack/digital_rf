@@ -82,6 +82,7 @@ execute_process(
     COMMAND ${PYTHON_EXECUTABLE} setup.py -q
         egg_info -e ${CMAKE_CURRENT_BINARY_DIR}/temp_egg
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    ERROR_QUIET
 )
 file(READ ${EGG_INFO_OUTPUT}/SOURCES.txt PYSOURCES)
 string(REGEX REPLACE ";" "\\\\;" PYSOURCES "${PYSOURCES}")
