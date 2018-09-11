@@ -392,7 +392,8 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
         # check if self emitters are running
         if not all(
             emitter.is_alive()
-            and (not emitter._inotify or emitter._inotify.is_alive())
+            and (not hasattr(emitter, '_inotify') or not emitter._inotify
+                 or emitter._inotify.is_alive())
                 for emitter in self.emitters
         ):
             return False
@@ -402,7 +403,8 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
         # check if all root observer emitters are running
         if not all(
             emitter.is_alive()
-            and (not emitter._inotify or emitter._inotify.is_alive())
+            and (not hasattr(emitter, '_inotify') or not emitter._inotify
+                 or emitter._inotify.is_alive())
                 for emitter in self.root_observer.emitters
         ):
             return False
