@@ -46,7 +46,6 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
 
         Other Parameters
         ----------------
-
         starttime : datetime.datetime
             Data covering this time or after will be included. This has no
             effect on property files.
@@ -447,7 +446,6 @@ def DigitalRFRingbufferHandler(size=None, count=None, duration=None, **kwargs):
 
     Parameters
     ----------
-
     size : float | int | None
         Size of the ringbuffer in bytes. Negative values are used to
         indicate all available space except the given amount. If None, no
@@ -464,7 +462,6 @@ def DigitalRFRingbufferHandler(size=None, count=None, duration=None, **kwargs):
 
     Other Parameters
     ----------------
-
     verbose : bool
         If True, print debugging info about the files that are created and
         deleted and how much space they consume.
@@ -541,7 +538,6 @@ class DigitalRFRingbuffer(object):
 
         Parameters
         ----------
-
         path : str
             Directory in which the ringbuffer is enforced.
 
@@ -561,7 +557,6 @@ class DigitalRFRingbuffer(object):
 
         Other Parameters
         ----------------
-
         verbose : bool
             If True, print debugging info about the files that are created and
             deleted and how much space they consume.
@@ -768,7 +763,10 @@ class DigitalRFRingbuffer(object):
                     self._restart()
 
                 time.sleep(1)
-        except (KeyboardInterrupt, SystemExit):
+        except KeyboardInterrupt:
+            # catch keyboard interrupt and simply exit
+            pass
+        finally:
             self.stop()
             sys.stdout.write('\n')
             sys.stdout.flush()
@@ -784,7 +782,7 @@ class DigitalRFRingbuffer(object):
         self.observer.stop()
 
     def __str__(self):
-        """String describing ringbuffer."""
+        """Return string describing ringbuffer."""
         amounts = []
         if self.size is not None:
             amounts.append('{0} bytes'.format(self.size))
@@ -859,6 +857,8 @@ def _build_ringbuffer_parser(Parser, *args):
 
 
 def _run_ringbuffer(args):
+    import signal
+
     # parse size string into number of bytes
     if args.size == '':
         args.size = None
@@ -876,7 +876,7 @@ def _run_ringbuffer(args):
             ('PB', 1000**5),
             ('PiB', 1024**5),
         ])
-        m = re.match('(?P<num>\-?\d+\.?\d*)(?P<suf>\D*)', args.size)
+        m = re.match(r'(?P<num>\-?\d+\.?\d*)(?P<suf>\D*)', args.size)
         if not m:
             raise ValueError('Size string not recognized. '
                              'Use number followed by suffix.')
@@ -905,6 +905,12 @@ def _run_ringbuffer(args):
 
     kwargs = vars(args).copy()
     del kwargs['func']
+
+    # handle SIGTERM (getting killed) gracefully by just calling sys.exit
+    def sigterm_handler(signal, frame):
+        sys.exit(0)
+    signal.signal(signal.SIGTERM, sigterm_handler)
+
     ringbuffer = DigitalRFRingbuffer(**kwargs)
     print('Type Ctrl-C to quit.')
     ringbuffer.run()

@@ -47,7 +47,6 @@ class DigitalRFMirrorHandler(DigitalRFEventHandler):
 
         Other Parameters
         ----------------
-
         starttime : datetime.datetime
             Data covering this time or after will be included. This has no
             effect on property files.
@@ -150,7 +149,6 @@ class DigitalRFMirror(object):
 
         Parameters
         ----------
-
         src : str
             Source directory to monitor.
 
@@ -165,7 +163,6 @@ class DigitalRFMirror(object):
 
         Other Parameters
         ----------------
-
         ignore_existing : bool
             If True, existing Digital RF and Digital Metadata files will not be
             mirrored. Otherwise, they will be mirrored to the destination
@@ -306,7 +303,10 @@ class DigitalRFMirror(object):
                     self._init_observer()
                     self.observer.start()
                 time.sleep(1)
-        except (KeyboardInterrupt, SystemExit):
+        except KeyboardInterrupt:
+            # catch keyboard interrupt and simply exit
+            pass
+        finally:
             self.stop()
             sys.stdout.write('\n')
             sys.stdout.flush()
@@ -361,6 +361,8 @@ def _build_mirror_parser(Parser, *args):
 
 
 def _run_mirror(args):
+    import signal
+
     methods = {'mv': 'move', 'cp': 'copy'}
     args.method = methods[args.method]
 
@@ -373,6 +375,12 @@ def _run_mirror(args):
 
     kwargs = vars(args).copy()
     del kwargs['func']
+
+    # handle SIGTERM (getting killed) gracefully by just calling sys.exit
+    def sigterm_handler(signal, frame):
+        sys.exit(0)
+    signal.signal(signal.SIGTERM, sigterm_handler)
+
     mirror = DigitalRFMirror(**kwargs)
     print('Type Ctrl-C to quit.')
     mirror.run()
