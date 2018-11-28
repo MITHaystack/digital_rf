@@ -27,8 +27,9 @@ import digital_rf as drf
 import gr_digital_rf as gr_drf
 import numpy as np
 import pytz
+from gnuradio import blocks
 from gnuradio import filter as grfilter
-from gnuradio import blocks, gr, uhd
+from gnuradio import gr, uhd
 
 
 def equiripple_lpf(
@@ -41,7 +42,6 @@ def equiripple_lpf(
 
     Parameters
     ----------
-
     cutoff : float
         Normalized cutoff frequency (beginning of transition band).
 
@@ -59,7 +59,6 @@ def equiripple_lpf(
 
     Returns
     -------
-
     taps : array_like
         Type I (even order) FIR low-pass filter taps meeting the given
         requirements.
@@ -1066,11 +1065,13 @@ class Thor(object):
         except KeyboardInterrupt:
             # catch keyboard interrupt and simply exit
             pass
-        fg.stop()
-        # need to wait for the flowgraph to clean up, otherwise it won't exit
-        fg.wait()
-        print('done')
-        sys.stdout.flush()
+        finally:
+            fg.stop()
+            # need to wait for the flowgraph to clean up, otherwise it won't
+            # exit and we will wait forever after finishing this process
+            fg.wait()
+            print('done')
+            sys.stdout.flush()
 
 
 def evalint(s):
@@ -1555,6 +1556,8 @@ def _build_thor_parser(Parser, *args):
 
 
 def _run_thor(args):
+    import signal
+
     if args.datadir is None:
         args.datadir = args.outdir
     del args.outdir
@@ -1642,6 +1645,12 @@ def _run_thor(args):
         if k in ('starttime', 'endtime', 'duration', 'period')
     }
     del options['func']
+
+    # handle SIGTERM (getting killed) gracefully by just calling sys.exit
+    def sigterm_handler(signal, frame):
+        sys.exit(0)
+    signal.signal(signal.SIGTERM, sigterm_handler)
+
     thor = Thor(**options)
     thor.run(**runopts)
 
