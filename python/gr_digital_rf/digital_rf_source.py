@@ -599,7 +599,7 @@ class digital_rf_source(gr.hier_block2):
             )
             self._channels.append(chsrc)
 
-        out_sig_dtypes = [src.out_sig()[0] for src in self._channels]
+        out_sig_dtypes = [list(src.out_sig())[0] for src in self._channels]
         out_sig = gr.io_signaturev(
             len(out_sig_dtypes), len(out_sig_dtypes),
             [s.itemsize for s in out_sig_dtypes],
@@ -619,7 +619,7 @@ class digital_rf_source(gr.hier_block2):
         for k, src in enumerate(self._channels):
             if throttle:
                 throt = gnuradio.blocks.throttle(
-                    src.out_sig()[0].itemsize, float(src._sample_rate),
+                    list(src.out_sig())[0].itemsize, float(src._sample_rate),
                     ignore_tags=True,
                 )
                 self.connect(src, throt, (self, k))
