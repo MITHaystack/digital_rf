@@ -44,7 +44,7 @@ requirements:
 
 test:
   requires:
-    - pytest >=3.0
+    - pytest >=3.6
   imports:
     - digital_rf
     - digital_rf.digital_rf_hdf5
