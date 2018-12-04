@@ -3,11 +3,8 @@ environment:
     - CONDA_INSTALL_LOCN: "C:\\Miniconda-x64"
       CONDA_PY: "27"
 
-    - CONDA_INSTALL_LOCN: "C:\\Miniconda35-x64"
-      CONDA_PY: "35"
-
-    - CONDA_INSTALL_LOCN: "C:\\Miniconda36-x64"
-      CONDA_PY: "36"
+    - CONDA_INSTALL_LOCN: "C:\\Miniconda3-x64"
+      CONDA_PY: "37"
 
 install:
   - set CPU_COUNT=2
@@ -27,7 +24,9 @@ install:
   - conda info
 
 build_script:
-  - conda build --no-test --quiet recipes/conda || exit 1
+  - conda build --no-test --quiet recipes\conda || exit 1
+  - set PKGPATH="%CONDA_INSTALL_LOCN%\conda-bld\win-64\*.tar.bz2"
+  - dir /b "%PKGPATH%" || exit 1
 
 test_script:
-  - conda build --test recipes/conda || exit 1
+  - conda build --test "%PKGPATH%" || exit 1
