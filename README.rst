@@ -38,6 +38,25 @@ Important Links
 :Developer mailing list: openradar-developers@openradar.org
 
 
+Citation
+========
+
+If you use digital_rf in a scientific publication, we would appreciate a citation such as the following:
+
+    Volz, R., Rideout, W. C., Swoboda, J., Vierinen, J. P., & Lind, F. D. (2018). Digital RF (Version 2.6.1). MIT Haystack Observatory. Retrieved from https://github.com/MITHaystack/digital_rf
+
+.. code-block:: bibtex
+
+    @software{DigitalRF,
+    author = {Volz, Ryan and Rideout, William C. and Swoboda, John and Vierinen, Juha P. and Lind, Frank D.}
+    title = {Digital {{RF}}},
+    url = {https://github.com/MITHaystack/digital_rf},
+    version = {2.6.1},
+    publisher = {{MIT Haystack Observatory}},
+    date = {2018-08-07},
+    }
+
+
 Dependencies
 ============
 
