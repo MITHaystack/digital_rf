@@ -211,8 +211,13 @@ class digital_rf_channel_source(gr.sync_block):
         typedict = get_h5type(typeclass, itemsize, is_complex)
         self._outtype = typedict['name']
         self._itemtype = typedict['dtype']
-        self._missingvalue = typedict['missingvalue']
+        self._missingvalue = np.zeros((), dtype=self._itemtype)
+        self._missingvalue[()] = typedict['missingvalue']
         self._fillvalue = np.zeros((), dtype=self._itemtype)
+        if np.issubdtype(self._itemtype, np.inexact) and np.isnan(self._missingvalue):
+            self._ismissing = lambda a: np.isnan(a)
+        else:
+            self._ismissing = lambda a: a == self._missingvalue
         if vlen == 1:
             out_sig = [self._itemtype]
         else:
@@ -402,7 +407,12 @@ class digital_rf_channel_source(gr.sync_block):
                     n = data.shape[0]
                     stop_index = next_index + n
                     end_sample = sample + n
-                    out[next_index:stop_index] = data.squeeze()
+                    out_dest = out[next_index:stop_index]
+                    data_arr = data.squeeze()
+                    out_dest[:] = data_arr
+                    # overwrite missing values with fill values
+                    missing_val_idx = self._ismissing(data_arr)
+                    out_dest[missing_val_idx] = self._fillvalue
                     # output tags
                     for tag_sample in sorted(self._tag_queue.keys()):
                         if tag_sample < sample:
