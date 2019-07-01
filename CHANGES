@@ -1,3 +1,15 @@
+2.6.2 - July 1, 2019
+--------------------
+
+This is entirely a bugfix release. Notable fixes include:
+
+- Fix error using Digital RF Source with GNU Radio 3.7.12, which changed the type of its input and output signature objects.
+- Digital RF Source now outputs zeros for missing values, to minimize impact on downstream processing.
+- Make tests compatible with pytest >=4.
+- The watchdog_drf module now works for non-inotify observers (i.e. non-Linux).
+- Proper cleanup of tmp.rf@*.h5 files when thor and mirror/ringbuffer tools are killed.
+
+
 2.6.1 - August 7, 2018
 ----------------------
 
