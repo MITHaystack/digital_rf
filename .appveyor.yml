@@ -25,10 +25,12 @@ install:
 
 build_script:
   - conda build --no-test --quiet recipes\conda || exit 1
-  - set PKGPATH="%CONDA_INSTALL_LOCN%\conda-bld\win-64\*.tar.bz2"
-  - dir /b "%PKGPATH%" || exit 1
+  - set PKGGLOB="%CONDA_INSTALL_LOCN%\conda-bld\win-64\*.tar.bz2"
+  - dir /b "%PKGGLOB%" || exit 1
+  # get path to package as a variable
+  - for /f "delims=" %%a in ('dir /b "%PKGGLOB%"') do set "PKGPATH=%%a"
   # package info for debugging
-  - conda search "%PKGPATH%" --info
+  - conda search "%PKGPATH%" --info || exit 1
 
 test_script:
   - conda build --test "%PKGPATH%" || exit 1
