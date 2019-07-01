@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-#    "pkgconfig",
+    "pkgconfig",
     "numpy",
     "setuptools",
     "wheel",
