@@ -22,50 +22,50 @@ from gnuradio import gr
 import six
 
 H5T_LOOKUP = {
-    # (class, itemsize, is_complex): {name, dtype, fillvalue}
+    # (class, itemsize, is_complex): {name, dtype, missingvalue}
     (h5py.h5t.INTEGER, 1, False): dict(
-        name='s8', dtype=np.int8, fillvalue=np.iinfo(np.int8).min,
+        name='s8', dtype=np.int8, missingvalue=np.iinfo(np.int8).min,
     ),
     (h5py.h5t.INTEGER, 2, False): dict(
-        name='s16', dtype=np.int16, fillvalue=np.iinfo(np.int16).min,
+        name='s16', dtype=np.int16, missingvalue=np.iinfo(np.int16).min,
     ),
     (h5py.h5t.INTEGER, 4, False): dict(
-        name='s32', dtype=np.int32, fillvalue=np.iinfo(np.int32).min,
+        name='s32', dtype=np.int32, missingvalue=np.iinfo(np.int32).min,
     ),
     (h5py.h5t.INTEGER, 8, False): dict(
-        name='s64', dtype=np.int64, fillvalue=np.iinfo(np.int64).min,
+        name='s64', dtype=np.int64, missingvalue=np.iinfo(np.int64).min,
     ),
     (h5py.h5t.FLOAT, 4, False): dict(
-        name='f32', dtype=np.float32, fillvalue=np.nan,
+        name='f32', dtype=np.float32, missingvalue=np.nan,
     ),
     (h5py.h5t.FLOAT, 8, False): dict(
-        name='f64', dtype=np.float64, fillvalue=np.nan,
+        name='f64', dtype=np.float64, missingvalue=np.nan,
     ),
     (h5py.h5t.INTEGER, 1, True): dict(
         name='sc8',
         dtype=np.dtype([('r', np.int8), ('i', np.int8)]),
-        fillvalue=(np.iinfo(np.int8).min,)*2,
+        missingvalue=(np.iinfo(np.int8).min,)*2,
     ),
     (h5py.h5t.INTEGER, 2, True): dict(
         name='sc16',
         dtype=np.dtype([('r', np.int16), ('i', np.int16)]),
-        fillvalue=(np.iinfo(np.int16).min,)*2,
+        missingvalue=(np.iinfo(np.int16).min,)*2,
     ),
     (h5py.h5t.INTEGER, 4, True): dict(
         name='sc32',
         dtype=np.dtype([('r', np.int32), ('i', np.int32)]),
-        fillvalue=(np.iinfo(np.int32).min,)*2,
+        missingvalue=(np.iinfo(np.int32).min,)*2,
     ),
     (h5py.h5t.INTEGER, 8, True): dict(
         name='sc64',
         dtype=np.dtype([('r', np.int64), ('i', np.int64)]),
-        fillvalue=(np.iinfo(np.int64).min,)*2,
+        missingvalue=(np.iinfo(np.int64).min,)*2,
     ),
     (h5py.h5t.FLOAT, 4, True): dict(
-        name='fc32', dtype=np.complex64, fillvalue=(np.nan+np.nan*1j),
+        name='fc32', dtype=np.complex64, missingvalue=(np.nan+np.nan*1j),
     ),
     (h5py.h5t.FLOAT, 8, True): dict(
-        name='fc64', dtype=np.complex128, fillvalue=(np.nan+np.nan*1j),
+        name='fc64', dtype=np.complex128, missingvalue=(np.nan+np.nan*1j),
     ),
 }
 
@@ -211,7 +211,8 @@ class digital_rf_channel_source(gr.sync_block):
         typedict = get_h5type(typeclass, itemsize, is_complex)
         self._outtype = typedict['name']
         self._itemtype = typedict['dtype']
-        self._fillvalue = typedict['fillvalue']
+        self._missingvalue = typedict['missingvalue']
+        self._fillvalue = np.zeros((), dtype=self._itemtype)
         if vlen == 1:
             out_sig = [self._itemtype]
         else:
