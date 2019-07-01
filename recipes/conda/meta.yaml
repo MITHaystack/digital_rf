@@ -20,6 +20,7 @@ requirements:
     - cmake >=3.0
 
   host:
+    - h5py  # included only to ensure that a compatible hdf5 version is used to build
     - hdf5
     - mako
     - numpy
