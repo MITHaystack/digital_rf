@@ -24,6 +24,8 @@ before_install:
   - setup_environment
   # install python build requirements
   - python -m pip install -U -r python/dev_requirements.txt
+  # list pip packages for debugging purposes
+  - python -m pip list
 
 install:
   - mkdir build

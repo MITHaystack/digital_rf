@@ -5,7 +5,7 @@ if [[ $TRAVIS_OS_NAME == 'linux' ]]; then
     function setup_environment {
         # install non-python build requirements
         sudo apt-get update -qq
-        sudo apt-get install -qq cmake libhdf5-dev
+        sudo apt-get install -qq cmake pkg-config libhdf5-dev
         python -m pip install -U pip
     }
 else
