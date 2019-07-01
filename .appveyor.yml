@@ -15,8 +15,8 @@ install:
   # add channels
   - conda config --add channels conda-forge
   - conda config --set auto_update_conda false
-  # install conda-build
-  - conda install --yes --quiet conda-build
+  # install conda-build and build utilities
+  - conda install --yes --quiet conda-build conda-verify ripgrep
   # needed for building extensions in python 2.7 x64 with cmake
   - conda install --yes --quiet vs2008_express_vc_python_patch
   - call setup_x64
@@ -28,7 +28,8 @@ build_script:
   - set PKGGLOB="%CONDA_INSTALL_LOCN%\conda-bld\win-64\*.tar.bz2"
   - dir /b "%PKGGLOB%" || exit 1
   # get path to package as a variable
-  - for /f "delims=" %%a in ('dir /b "%PKGGLOB%"') do set "PKGPATH=%%a"
+  - for /f "delims=" %%a in ('dir /s /b "%PKGGLOB%"') do set "PKGPATH=%%a"
+  - echo "%PKGPATH%"
   # package info for debugging
   - conda search "%PKGPATH%" --info || exit 1
 
