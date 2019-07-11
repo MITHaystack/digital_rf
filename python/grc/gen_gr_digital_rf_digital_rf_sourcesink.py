@@ -19,7 +19,7 @@ if __name__ == '__main__':
     parser.add_argument('template', help='Template source/sink xml file.')
     parser.add_argument('output', nargs='?', help='Output xml file path.')
     parser.add_argument(
-        '-n', '--max_channels', type=int, default=16,
+        '-n', '--max_channels', type=int, default=32,
         help='''Create block with the given maximum number of channels.
                 (default: %(default)s)''',
     )
