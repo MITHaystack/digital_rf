@@ -236,7 +236,7 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
                 watch = self.root_observer.schedule(
                     event_handler=self, path=root, recursive=False,
                 )
-            except OSError:
+            except OSError as sched_err:
                 # root doesn't exist, move up one directory and try again
                 try:
                     # clean up from failed scheduling
@@ -245,7 +245,12 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
                     )
                 except KeyError:
                     pass
-                root = os.path.dirname(root)
+                newroot = os.path.dirname(root)
+                if newroot == root:
+                    # we've gotten to system root and still failed
+                    raise sched_err
+                else:
+                    root = newroot
             else:
                 # watch was set, break out of while loop
                 break
