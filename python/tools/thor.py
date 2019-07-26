@@ -1646,9 +1646,11 @@ def _run_thor(args):
     }
     del options['func']
 
-    # handle SIGTERM (getting killed) gracefully by just calling sys.exit
+    # handle SIGTERM (getting killed) gracefully by calling sys.exit
     def sigterm_handler(signal, frame):
-        sys.exit(0)
+        print('Killed')
+        sys.stdout.flush()
+        sys.exit(128 + signal)
     signal.signal(signal.SIGTERM, sigterm_handler)
 
     thor = Thor(**options)

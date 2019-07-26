@@ -906,9 +906,11 @@ def _run_ringbuffer(args):
     kwargs = vars(args).copy()
     del kwargs['func']
 
-    # handle SIGTERM (getting killed) gracefully by just calling sys.exit
+    # handle SIGTERM (getting killed) gracefully by calling sys.exit
     def sigterm_handler(signal, frame):
-        sys.exit(0)
+        print('Killed')
+        sys.stdout.flush()
+        sys.exit(128 + signal)
     signal.signal(signal.SIGTERM, sigterm_handler)
 
     ringbuffer = DigitalRFRingbuffer(**kwargs)
