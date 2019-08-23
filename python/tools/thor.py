@@ -590,6 +590,7 @@ class Thor(object):
         time.sleep(COMMAND_DELAY)
 
         # read back actual channel settings
+        op.usrpinfo = []
         for ch_num in range(op.nrchs):
             if op.lo_sources[ch_num]:
                 op.lo_sources[ch_num] = u.get_lo_source(uhd.ALL_LOS, ch_num)
@@ -600,6 +601,7 @@ class Thor(object):
             op.gains[ch_num] = u.get_gain(ch_num)
             op.bandwidths[ch_num] = u.get_bandwidth(chan=ch_num)
             op.antennas[ch_num] = u.get_antenna(chan=ch_num)
+            op.usrpinfo.append(dict(u.get_usrp_info(chan=ch_num)))
 
         if op.verbose:
             print('Using the following devices:')
@@ -617,7 +619,7 @@ class Thor(object):
                 header = '---- receiver channel {0} '.format(ch_num)
                 header += '-' * (78 - len(header))
                 print(header)
-                usrpinfo = dict(u.get_usrp_info(chan=ch_num))
+                usrpinfo = op.usrpinfo[ch_num]
                 info = {}
                 info['mb_id'] = usrpinfo['mboard_id']
                 mba = op.mboards_bychan[ch_num]
@@ -770,16 +772,20 @@ class Thor(object):
         # finalize options (for settings that depend on USRP setup)
         self._finalize_options()
 
-        # force creation of the RX streamer ahead of time with a start/stop
-        # (after setting time/clock sources, before setting the
-        # device time)
-        # this fixes timing with the B210
-        u.start()
-        # need to wait >0.1 s (constant in usrp_source_impl.c) for start/stop
-        # to actually take effect, so sleep a bit, 0.5 s seems more reliable
-        time.sleep(0.5)
-        u.stop()
-        time.sleep(0.2)
+        if any(
+            info['mboard_id'] in ('B200', 'B210', 'B200mini', 'B205mini')
+            for info in op.usrpinfo
+        ):
+            # force creation of the RX streamer ahead of time with a start/stop
+            # (after setting time/clock sources, before setting the
+            # device time)
+            # this fixes timing with the B210
+            u.start()
+            # need to wait >0.1 s (constant in usrp_source_impl.c) for start
+            # to actually take effect, so sleep, (0.5 s seems more reliable)
+            time.sleep(0.5)
+            u.stop()
+            time.sleep(0.2)
 
         # set device time
         tt = time.time()
@@ -966,7 +972,7 @@ class Thor(object):
                     # receiver metadata for USRP
                     receiver=dict(
                         description='UHD USRP source using GNU Radio',
-                        info=dict(u.get_usrp_info(chan=kr)),
+                        info=op.usrpinfo[kr],
                         antenna=op.antennas[kr],
                         bandwidth=op.bandwidths[kr],
                         center_freq=op.centerfreqs[kr],
