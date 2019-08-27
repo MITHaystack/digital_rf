@@ -33,7 +33,7 @@ from gnuradio import gr, uhd
 
 
 def equiripple_lpf(
-    cutoff=0.45, transition_width=0.1, attenuation=80, pass_ripple=None,
+    cutoff=0.9, transition_width=0.2, attenuation=80, pass_ripple=None,
 ):
     """Get taps for an equiripple low-pass filter.
 
@@ -651,7 +651,7 @@ class Thor(object):
         op.channelizer_filter_taps = []
         op.channelizer_filter_delays = []
         for ko, (osr, nsc) in enumerate(
-            zip(op.ch_samplerates, op.ch_nsubchannels)
+            zip(op.ch_samplerates, op.ch_nsubchannels),
         ):
             # get output sample rate fraction
             # (op.samplerate_frac final value is set in _usrp_setup
@@ -671,16 +671,31 @@ class Thor(object):
                 op.resampling_filter_taps.append(np.zeros(0))
                 op.resampling_filter_delays.append(0)
             else:
+                # filter taps need to be designed for the highest rate
+                # (i.e. after interpolation but before decimation)
                 taps = equiripple_lpf(
-                    cutoff=float(op.ch_lpf_cutoffs[ko] * ratio),
-                    transition_width=float(
-                        op.ch_lpf_transition_widths[ko] * ratio
+                    cutoff=float(op.ch_lpf_cutoffs[ko]) / ratio.denominator,
+                    transition_width=(
+                        float(op.ch_lpf_transition_widths[ko])
+                        / ratio.denominator
                     ),
                     attenuation=op.ch_lpf_attenuations[ko],
                     pass_ripple=op.ch_lpf_pass_ripples[ko],
                 )
+                # for unit gain in passband, need to multiply taps by
+                # interpolation rate
+                taps = ratio.numerator * taps
                 op.resampling_filter_taps.append(taps)
-                op.resampling_filter_delays.append((len(taps) - 1) // 2)
+                # calculate filter delay in same way as pfb_arb_resampler
+                # (overall taps are applied at interpolated rate, but delay is
+                #  still in terms of input rate, i.e. the taps per filter
+                #  after being split into the polyphase filter bank)
+                taps_per_filter = int(
+                    np.ceil(float(len(taps)) / ratio.numerator),
+                )
+                op.resampling_filter_delays.append(
+                    Fraction(taps_per_filter - 1, 2),
+                )
 
             # get channelizer low-pass filter taps
             if nsc > 1:
@@ -691,7 +706,9 @@ class Thor(object):
                     pass_ripple=op.ch_lpf_pass_ripples[ko],
                 )
                 op.channelizer_filter_taps.append(taps)
-                op.channelizer_filter_delays.append((len(taps) - 1) // 2)
+                op.channelizer_filter_delays.append(
+                    Fraction(len(taps) - 1, 2),
+                )
             else:
                 op.channelizer_filter_taps.append(np.zeros(0))
                 op.channelizer_filter_delays.append(0)
@@ -855,30 +872,43 @@ class Thor(object):
                 # frequency shift filter taps to band-pass if necessary
                 if ch_centerfreq is not False:
                     f_shift = ch_centerfreq - op.centerfreqs[kr]
-                    phase_inc = 2*np.pi*f_shift/op.samplerate
-                    rotator = np.exp(phase_inc*1j*np.arange(len(rs_taps)))
+                    phase_inc = 2 * np.pi * f_shift / op.samplerate
+                    rotator = np.exp(phase_inc * 1j * np.arange(len(rs_taps)))
                     rs_taps = (rs_taps * rotator).astype('complex64')
 
                     # create band-pass filter (complex taps)
-                    resampler = grfilter.rational_resampler_ccc(
-                        interpolation=rs_ratio.numerator,
-                        decimation=rs_ratio.denominator,
+                    # don't use rational_resampler because its delay is wrong
+                    resampler = grfilter.pfb_arb_resampler_ccc(
+                        rate=float(rs_ratio),
                         taps=rs_taps.tolist(),
+                        # since resampling is rational, we know we only need a
+                        # number of filters equal to the interpolation factor
+                        filter_size=rs_ratio.numerator,
                     )
                 else:
                     # create low-pass filter (float taps)
-                    resampler = grfilter.rational_resampler_ccf(
-                        interpolation=rs_ratio.numerator,
-                        decimation=rs_ratio.denominator,
+                    # don't use rational_resampler because its delay is wrong
+                    resampler = grfilter.pfb_arb_resampler_ccf(
+                        rate=float(rs_ratio),
                         taps=rs_taps.tolist(),
+                        # since resampling is rational, we know we only need a
+                        # number of filters equal to the interpolation factor
+                        filter_size=rs_ratio.numerator,
                     )
+
+                # declare sample delay for the filter block so that tags are
+                # propagated to the correct sample
+                resampler.declare_sample_delay(
+                    int(op.resampling_filter_delays[ko]),
+                )
 
                 # skip first samples to account for filter delay so first
                 # sample going to output is first valid filtered sample
-                # (skip is in terms of output samples, so fix rate)
+                # (skip is in terms of filter output samples, so need to
+                #  adjust the filter delay to the output rate)
                 resampler_skiphead = blocks.skiphead(
                     gr.sizeof_gr_complex,
-                    op.resampling_filter_delays[ko] // rs_ratio,
+                    int(op.resampling_filter_delays[ko] * rs_ratio),
                 )
             else:
                 conv_scaling = scaling
@@ -887,7 +917,7 @@ class Thor(object):
             # make frequency shift block if necessary
             if ch_centerfreq is not False:
                 f_shift = ch_centerfreq - op.centerfreqs[kr]
-                phase_inc = -2*np.pi*f_shift/ch_samplerate_frac
+                phase_inc = -2 * np.pi * f_shift / ch_samplerate_frac
                 rotator = blocks.rotator_cc(phase_inc)
             else:
                 ch_centerfreq = op.centerfreqs[kr]
@@ -903,7 +933,7 @@ class Thor(object):
                 channelizer = gr.hier_block2(
                     'lpf',
                     gr.io_signature(1, 1, gr.sizeof_gr_complex),
-                    gr.io_signature(1, 1, nsc*gr.sizeof_gr_complex),
+                    gr.io_signature(1, 1, nsc * gr.sizeof_gr_complex),
                 )
                 s2ss = blocks.stream_to_streams(gr.sizeof_gr_complex, nsc)
                 filt = grfilter.pfb_channelizer_ccf(
@@ -915,12 +945,21 @@ class Thor(object):
                     channelizer.connect((s2ss, ksc), (filt, ksc), (s2v, ksc))
                 channelizer.connect(s2v, channelizer)
 
+                # declare sample delay for the filter block so that tags are
+                # propagated to the correct sample
+                # (for channelized, delay is applied for each filter in the
+                #  polyphase bank, so this needs to be the output sample delay)
+                filt.declare_sample_delay(
+                    int(op.channelizer_filter_delays[ko] / nsc),
+                )
+
                 # skip first samples to account for filter delay so first
                 # sample going to output is first valid filtered sample
-                # (skip is in terms of output samples, so fix rate)
+                # (skip is in terms of filter output samples, so need to
+                #  adjust the filter delay to the output rate)
                 channelizer_skiphead = blocks.skiphead(
-                    gr.sizeof_gr_complex*nsc,
-                    op.channelizer_filter_delays[ko] // nsc,
+                    gr.sizeof_gr_complex * nsc,
+                    int(op.channelizer_filter_delays[ko] / nsc),
                 )
 
                 # modify output settings accordingly
