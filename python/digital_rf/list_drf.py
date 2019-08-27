@@ -156,18 +156,21 @@ def _yield_matching_files(
     reverse=False,
 ):
     """Yield matching files from a list of subdirectories in a channel dir."""
-    is_drf_channel = (
+    yielding_drf_channel = (
         any(_RE_DRFPROPFILE.match(f) for f in props) and include_drf
     )
-    is_dmd_channel = (
+    yielding_dmd_channel = (
         any(_RE_DMDPROPFILE.match(f) for f in props) and include_dmd
     )
-    if is_drf_channel and is_dmd_channel:
+    if yielding_drf_channel and yielding_dmd_channel:
         file_regex = _RE_FILE
-    elif is_drf_channel:
+    elif yielding_drf_channel:
         file_regex = _RE_DRFFILE
-    elif include_dmd:
+    elif yielding_dmd_channel:
         file_regex = _RE_DMDFILE
+    else:
+        # not in a channel that we want to include
+        return
     # get time-stamped subdirectories from dirs list
     dec_subdirs = []
     others = []
@@ -212,7 +215,7 @@ def _yield_matching_files(
             os.path.join(root, subdir), subdir_files, file_regex,
         )
         dec_files.sort()
-        if ((k == 0) and is_dmd_channel and subdir_slice.start > 0 and
+        if ((k == 0) and yielding_dmd_channel and subdir_slice.start > 0 and
                 starttime and dec_files[0][0] > starttime):
             # need to include files from earlier subdir so we can
             # forward fill and include the metadata file prior to starttime
@@ -233,7 +236,7 @@ def _yield_matching_files(
         # time is valid until the next metadata sample
         slc = _decorated_list_slice(
             dec_files, starttime=starttime, endtime=endtime,
-            ffill=(k == 0) and is_dmd_channel,
+            ffill=(k == 0) and yielding_dmd_channel,
         )
         for dec_file in (
             dec_files[slc]
