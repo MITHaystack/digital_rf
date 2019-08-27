@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from fractions import Fraction
 from itertools import chain, cycle, islice, repeat
 from subprocess import call
-from textwrap import TextWrapper, dedent, fill
+from textwrap import dedent, fill, TextWrapper
 
 import digital_rf as drf
 import gr_digital_rf as gr_drf
@@ -93,7 +93,7 @@ def equiripple_lpf(
     # round up to nearest even-order (Type I) filter
     M = int(np.ceil(M / 2.0)) * 2
 
-    for attempts in range(20):
+    for _attempts in range(20):
         # get taps for order M
         try:
             taps = np.asarray(grfilter.pm_remez(
@@ -111,8 +111,8 @@ def equiripple_lpf(
         passband = h[(np.abs(w) >= bands[0]) & (np.abs(w) <= bands[1])]
         stopband = h[(np.abs(w) >= bands[2]) & (np.abs(w) <= bands[3])]
 
-        act_ripple = -20*np.log10(np.max(np.abs(ampl[0] - np.abs(passband))))
-        act_atten = -20*np.log10(np.max(np.abs(ampl[2] - np.abs(stopband))))
+        act_ripple = -20 * np.log10(np.max(np.abs(ampl[0] - np.abs(passband))))
+        act_atten = -20 * np.log10(np.max(np.abs(ampl[2] - np.abs(stopband))))
 
         if act_ripple >= pass_ripple and act_atten >= attenuation:
             break
@@ -123,7 +123,7 @@ def equiripple_lpf(
             'Could not calculate equiripple filter that meets requirements'
             'after {0} attempts (final order {1}).'
         )
-        raise RuntimeError(errstr.format(attempts, M))
+        raise RuntimeError(errstr.format(_attempts, M))
 
     return taps
 
@@ -131,42 +131,42 @@ def equiripple_lpf(
 class Thor(object):
     """Record data from synchronized USRPs in DigitalRF format."""
 
-    def __init__(
-        self, datadir, verbose=True,
-        # mainboard group (num: len of mboards)
-        mboards=[], subdevs=['A:A'], clock_rates=[None],
-        clock_sources=[''], time_sources=[''],
-        # receiver group (apply to all)
-        samplerate=1e6,
-        dev_args=['recv_buff_size=100000000', 'num_recv_frames=512'],
-        stream_args=[], tune_args=[],
-        time_sync=True, wait_for_lock=True,
-        stop_on_dropped=False, realtime=False, test_settings=True,
-        # receiver channel group (num: matching channels from mboards/subdevs)
-        centerfreqs=[100e6],
-        lo_offsets=[0], lo_sources=[''], lo_exports=[None],
-        dc_offsets=[False], iq_balances=[None],
-        gains=[0], bandwidths=[0], antennas=[''],
-        # output channel group (num: len of channel_names)
-        channel_names=['ch0'], channels=[None], ch_samplerates=[None],
-        ch_centerfreqs=[False], ch_scalings=[1.0], ch_nsubchannels=[1],
-        ch_lpf_cutoffs=[0.9], ch_lpf_transition_widths=[0.2],
-        ch_lpf_attenuations=[80.0], ch_lpf_pass_ripples=[None],
-        ch_out_types=[None],
-        # digital_rf group (apply to all)
-        file_cadence_ms=1000, subdir_cadence_s=3600, metadata={}, uuid=None,
-    ):
-        options = locals()
-        del options['self']
-        op = self._parse_options(**options)
+    def __init__(self, datadir, **kwargs):
+        options = dict(
+            verbose=True,
+            # mainboard group (num: len of mboards)
+            mboards=[], subdevs=['A:A'], clock_rates=[None],
+            clock_sources=[''], time_sources=[''],
+            # receiver group (apply to all)
+            samplerate=1e6,
+            dev_args=['recv_buff_size=100000000', 'num_recv_frames=512'],
+            stream_args=[], tune_args=[],
+            time_sync=True, wait_for_lock=True,
+            stop_on_dropped=False, realtime=False, test_settings=True,
+            # receiver ch. group (num: matching channels from mboards/subdevs)
+            centerfreqs=[100e6],
+            lo_offsets=[0], lo_sources=[''], lo_exports=[None],
+            dc_offsets=[False], iq_balances=[None],
+            gains=[0], bandwidths=[0], antennas=[''],
+            # output channel group (num: len of channel_names)
+            channel_names=['ch0'], channels=[None], ch_samplerates=[None],
+            ch_centerfreqs=[False], ch_scalings=[1.0], ch_nsubchannels=[1],
+            ch_lpf_cutoffs=[0.9], ch_lpf_transition_widths=[0.2],
+            ch_lpf_attenuations=[80.0], ch_lpf_pass_ripples=[None],
+            ch_out_types=[None],
+            # digital_rf group (apply to all)
+            file_cadence_ms=1000, subdir_cadence_s=3600, metadata={},
+            uuid=None,
+        )
+        options.update(kwargs)
+        op = self._parse_options(datadir=datadir, **options)
         self.op = op
 
         # test usrp device settings, release device when done
         if op.test_settings:
             if op.verbose:
                 print('Initialization: testing device settings.')
-            u = self._usrp_setup()
-            del u
+            self._usrp_setup()
 
             # finalize options (for settings that depend on USRP setup)
             self._finalize_options()
@@ -189,10 +189,10 @@ class Thor(object):
 
         # get USRP cpu_format based on output type and decimation requirements
         processing_required = (
-            any(sr is not None for sr in op.ch_samplerates) or
-            any(cf is not False for cf in op.ch_centerfreqs) or
-            any(s != 1 for s in op.ch_scalings) or
-            any(nsch != 1 for nsch in op.ch_nsubchannels)
+            any(sr is not None for sr in op.ch_samplerates)
+            or any(cf is not False for cf in op.ch_centerfreqs)
+            or any(s != 1 for s in op.ch_scalings)
+            or any(nsch != 1 for nsch in op.ch_nsubchannels)
         )
         if (all(ot is None or ot == 'sc16' for ot in op.ch_out_types)
                 and not processing_required):
@@ -211,23 +211,23 @@ class Thor(object):
             supported_out_types = {
                 'sc8': dict(
                     convert='float_to_char',
-                    convert_kwargs=dict(vlen=2, scale=float(2**7-1)),
+                    convert_kwargs=dict(vlen=2, scale=float(2**7 - 1)),
                     dtype=np.dtype([(str('r'), np.int8), (str('i'), np.int8)]),
                     name='sc8',
                 ),
                 'sc16': dict(
                     convert='float_to_short',
-                    convert_kwargs=dict(vlen=2, scale=float(2**15-1)),
+                    convert_kwargs=dict(vlen=2, scale=float(2**15 - 1)),
                     dtype=np.dtype(
-                        [(str('r'), np.int16), (str('i'), np.int16)]
+                        [(str('r'), np.int16), (str('i'), np.int16)],
                     ),
                     name='sc16',
                 ),
                 'sc32': dict(
                     convert='float_to_int',
-                    convert_kwargs=dict(vlen=2, scale=float(2**31-1)),
+                    convert_kwargs=dict(vlen=2, scale=float(2**31 - 1)),
                     dtype=np.dtype(
-                        [(str('r'), np.int32), (str('i'), np.int32)]
+                        [(str('r'), np.int32), (str('i'), np.int32)],
                     ),
                     name='sc32',
                 ),
@@ -341,7 +341,7 @@ class Thor(object):
             if re.match(r'[^0-9]+=.+', mb):
                 idtype, mb = mb.split('=')
             elif re.match(
-                r'[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', mb
+                r'[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', mb,
             ):
                 idtype = 'addr'
             elif (
@@ -406,7 +406,7 @@ class Thor(object):
                 cpu_format=op.cpu_format,
                 otw_format=op.otw_format,
                 channels=list(range(op.nrchs)),
-                args=','.join(op.stream_args)
+                args=','.join(op.stream_args),
             ),
         )
 
@@ -612,7 +612,7 @@ class Thor(object):
             ]
             if any(op.lo_sources) or any(op.lo_exports):
                 chinfostrs.append(
-                    'LO source: {lo_source} | LO export: {lo_export}'
+                    'LO source: {lo_source} | LO export: {lo_export}',
                 )
             chinfo = '\n'.join(['  ' + l for l in chinfostrs])
             for ch_num in range(op.nrchs):
@@ -772,8 +772,8 @@ class Thor(object):
 
         # wait for the start time if it is not past
         while (st is not None) and (
-            (st - pytz.utc.localize(datetime.utcnow())) >
-                timedelta(seconds=SETUP_TIME)
+            (st - pytz.utc.localize(datetime.utcnow()))
+                > timedelta(seconds=SETUP_TIME)
         ):
             ttl = int((
                 st - pytz.utc.localize(datetime.utcnow())
@@ -844,7 +844,7 @@ class Thor(object):
         ct_secs = ct_td.total_seconds() // 1.0
         ct_frac = ct_td.microseconds / 1000000.0
         u.set_start_time(
-            uhd.time_spec(ct_secs) + uhd.time_spec(ct_frac)
+            uhd.time_spec(ct_secs) + uhd.time_spec(ct_frac),
         )
 
         # populate flowgraph one channel at a time
@@ -1090,8 +1090,10 @@ class Thor(object):
                 fg.wait()
             else:
                 # sleep until end time nears
-                while(pytz.utc.localize(datetime.utcnow()) <
-                        et - timedelta(seconds=2)):
+                while(
+                    pytz.utc.localize(datetime.utcnow())
+                        < et - timedelta(seconds=2)
+                ):
                     time.sleep(1)
                 else:
                     # issue stream stop command at end time
@@ -1518,12 +1520,12 @@ def _build_thor_parser(Parser, *args):
     copyright = 'Copyright (c) 2017 Massachusetts Institute of Technology'
     shortdesc = 'Record data from synchronized USRPs in DigitalRF format.'
     desc = '\n'.join((
-        '*'*width,
-        '*{0:^{1}}*'.format(title, width-2),
-        '*{0:^{1}}*'.format(copyright, width-2),
-        '*{0:^{1}}*'.format('', width-2),
-        '*{0:^{1}}*'.format(shortdesc, width-2),
-        '*'*width,
+        '*' * width,
+        '*{0:^{1}}*'.format(title, width - 2),
+        '*{0:^{1}}*'.format(copyright, width - 2),
+        '*{0:^{1}}*'.format('', width - 2),
+        '*{0:^{1}}*'.format(shortdesc, width - 2),
+        '*' * width,
     ))
 
     usage = (
@@ -1635,7 +1637,7 @@ def _run_thor(args):
             dev_args_dict = dict([a.split('=') for a in args.dev_args])
         except ValueError:
             raise ValueError(
-                'Device arguments must be {KEY}={VALUE} pairs.'
+                'Device arguments must be {KEY}={VALUE} pairs.',
             )
         args.dev_args = [
             '{0}={1}'.format(k, v) for k, v in dev_args_dict.items()
@@ -1645,7 +1647,7 @@ def _run_thor(args):
             stream_args_dict = dict([a.split('=') for a in args.stream_args])
         except ValueError:
             raise ValueError(
-                'Stream arguments must be {KEY}={VALUE} pairs.'
+                'Stream arguments must be {KEY}={VALUE} pairs.',
             )
         args.stream_args = [
             '{0}={1}'.format(k, v) for k, v in stream_args_dict.items()
@@ -1655,7 +1657,7 @@ def _run_thor(args):
             tune_args_dict = dict([a.split('=') for a in args.tune_args])
         except ValueError:
             raise ValueError(
-                'Tune request arguments must be {KEY}={VALUE} pairs.'
+                'Tune request arguments must be {KEY}={VALUE} pairs.',
             )
         args.tune_args = [
             '{0}={1}'.format(k, v) for k, v in tune_args_dict.items()
