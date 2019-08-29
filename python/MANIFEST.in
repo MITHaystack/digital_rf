@@ -7,6 +7,7 @@ include README.rst
 include setup.py
 include setup.cfg
 
+recursive-include data *
 include examples/beacon/*.py
 include examples/beacon/config/*.ini
 include examples/sounder/*.py
