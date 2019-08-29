@@ -838,12 +838,13 @@ class Thor(object):
             lt = now.replace(microsecond=0) + timedelta(seconds=3)
         ltts = (lt - drf.util.epoch).total_seconds()
         # adjust launch time forward so it falls on an exact sample since epoch
-        lt_rsamples = np.ceil(ltts * op.samplerate)
+        lt_rsamples = int(np.ceil(ltts * op.samplerate))
         ltts = lt_rsamples / op.samplerate
         lt = drf.util.sample_to_datetime(lt_rsamples, op.samplerate)
         if op.verbose:
             ltstr = lt.strftime('%a %b %d %H:%M:%S.%f %Y')
-            print('Launch time: {0} ({1})'.format(ltstr, repr(ltts)))
+            msg = 'Launch time: {0} ({1})\nSample index: {2}'
+            print(msg.format(ltstr, repr(ltts), lt_rsamples))
         # command launch time
         ct_td = lt - drf.util.epoch
         ct_secs = ct_td.total_seconds() // 1.0
