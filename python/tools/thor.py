@@ -418,7 +418,6 @@ class Thor(object):
             clock_rate = op.clock_rates[mb_num]
             if clock_rate is not None:
                 u.set_clock_rate(clock_rate, mb_num)
-            op.clock_rates[mb_num] = u.get_clock_rate(mb_num)
 
             # set clock source
             clock_source = op.clock_sources[mb_num]
@@ -436,7 +435,6 @@ class Thor(object):
                         mb_num, clock_source, u.get_clock_sources(mb_num),
                     )
                     raise ValueError(errstr)
-            op.clock_sources[mb_num] = u.get_clock_source(mb_num)
 
             # set time source
             time_source = op.time_sources[mb_num]
@@ -454,7 +452,6 @@ class Thor(object):
                         mb_num, time_source, u.get_time_sources(mb_num),
                     )
                     raise ValueError(errstr)
-            op.time_sources[mb_num] = u.get_time_source(mb_num)
 
         # check for ref lock
         mbnums_with_ref = [
@@ -498,13 +495,21 @@ class Thor(object):
                 sys.stdout.flush()
 
         # set global options
-        # sample rate
+        # sample rate (set after clock rate so it can be calculated correctly)
         u.set_samp_rate(float(op.samplerate))
-        # read back actual value
+
+        # read back actual mainboard options
+        # (clock rate can be affected by setting sample rate)
+        for mb_num in range(op.nmboards):
+            op.clock_rates[mb_num] = u.get_clock_rate(mb_num)
+            op.clock_sources[mb_num] = u.get_clock_source(mb_num)
+            op.time_sources[mb_num] = u.get_time_source(mb_num)
+
+        # read back actual sample rate value
         samplerate = u.get_samp_rate()
         # calculate longdouble precision/rational sample rate
         # (integer division of clock rate)
-        cr = u.get_clock_rate(0)
+        cr = op.clock_rates[0]
         srdec = int(round(cr / samplerate))
         samplerate_ld = np.longdouble(cr) / srdec
         op.samplerate = samplerate_ld
