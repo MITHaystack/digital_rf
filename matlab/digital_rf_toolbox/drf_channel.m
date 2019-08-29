@@ -124,6 +124,8 @@ classdef drf_channel
                 if (exist(metadata_dir, 'dir'))
                     reader = DigitalMetadataReader(metadata_dir);
                     return
+                else
+                    error('Associated metadata directory does not exist!')
                 end
             end
         end
@@ -290,8 +292,8 @@ classdef drf_channel
             start_ts = idivide(sample0, sps_n)*sps_d + idivide(mod(sample0, sps_n)*sps_d, sps_n);
             end_ts = idivide(sample1, sps_n)*sps_d + idivide(mod(sample1, sps_n)*sps_d, sps_n) + 1;
             % Get the start time and end time in microsecs to get file
-            start_msts = idivide(sample0*1000, sps_n)*sps_d + idivide(mod(sample0*1000, sps_n)*sps_d, sps_n);
-            end_msts = idivide(sample1*1000, sps_n)*sps_d + idivide(mod(sample1*1000, sps_n)*sps_d, sps_n);
+            start_msts = idivide(sample0, sps_n)*sps_d*1000 + idivide(mod(sample0, sps_n)*sps_d*1000, sps_n);
+            end_msts = idivide(sample1, sps_n)*sps_d*1000 + idivide(mod(sample1, sps_n)*sps_d*1000, sps_n);
 
             % get subdirectory start and end ts
             start_sub_ts = idivide(start_ts, obj.subdir_cadence_secs)*obj.subdir_cadence_secs;

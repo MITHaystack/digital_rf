@@ -49,10 +49,35 @@ endif(${ENABLE_MATLAB})
 if(${ENABLE_MATLAB})
     set(DIGITAL_RF_PRJ ${CMAKE_CURRENT_BINARY_DIR}/digital_rf.prj)
     set(DIGITAL_RF_MLTBX ${CMAKE_CURRENT_BINARY_DIR}/digital_rf.mltbx)
-    set(DIGITAL_RF_TOOLBOX_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/digital_rf_toolbox)
-    file(GLOB MATLAB_SRCS ${DIGITAL_RF_TOOLBOX_ROOT}/*)
+    set(DIGITAL_RF_TOOLBOX_ROOT ${CMAKE_CURRENT_BINARY_DIR}/digital_rf_toolbox)
+    # copy all toolbox files to the build directory
+    file(GLOB MATLAB_SRCS
+        RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/digital_rf_toolbox"
+        "digital_rf_toolbox/*"
+    )
     foreach(SRCFILE ${MATLAB_SRCS})
-        list(APPEND MATLAB_SRC_ITEM_XML "<file>${SRCFILE}</file>\n")
+        configure_file(
+            digital_rf_toolbox/${SRCFILE} ${DIGITAL_RF_TOOLBOX_ROOT}/${SRCFILE}
+            COPYONLY
+        )
+    endforeach(SRCFILE)
+    file(GLOB_RECURSE DATA_FILES
+        RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/.." "../data/*"
+    )
+    foreach(SRCFILE ${DATA_FILES})
+        configure_file(
+            ../${SRCFILE} ${DIGITAL_RF_TOOLBOX_ROOT}/${SRCFILE} COPYONLY
+        )
+    endforeach(SRCFILE)
+
+    # create the project file that matlab processes
+    foreach(SRCFILE ${MATLAB_SRCS} ${DATA_FILES})
+        list(APPEND DIGITAL_RF_TOOLBOX_SOURCES
+            "${DIGITAL_RF_TOOLBOX_ROOT}/${SRCFILE}"
+        )
+        list(APPEND MATLAB_SRC_ITEM_XML
+            "<file>${DIGITAL_RF_TOOLBOX_ROOT}/${SRCFILE}</file>\n"
+        )
     endforeach(SRCFILE)
     string(CONCAT DIGITAL_RF_TOOLBOX_ROOTFILES ${MATLAB_SRC_ITEM_XML})
     configure_file(digital_rf.prj.in ${DIGITAL_RF_PRJ} @ONLY)
@@ -63,7 +88,7 @@ if(${ENABLE_MATLAB})
         COMMAND ${Matlab_MAIN_PROGRAM} -nodisplay -r "\
     try, matlab.addons.toolbox.packageToolbox('${DIGITAL_RF_PRJ}'); \
     catch ME, warning(getReport(ME)); end; quit"
-        DEPENDS ${MATLAB_SRCS} ${DIGITAL_RF_PRJ}
+        DEPENDS ${DIGITAL_RF_PRJ} ${DIGITAL_RF_TOOLBOX_SOURCES}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         VERBATIM
     )

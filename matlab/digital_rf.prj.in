@@ -7,7 +7,7 @@
     <param.summary>MATLAB tools to read/write Digital RF data in HDF5 format</param.summary>
     <param.description>The Digital RF project encompasses a standardized HDF5 format for reading and writing of radio frequency data and the software for doing so. The format is designed to be self-documenting for data archive and to allow rapid random access for data processing.</param.description>
     <param.screenshot />
-    <param.version>2.0.0</param.version>
+    <param.version>2.6.3</param.version>
     <param.output>@DIGITAL_RF_MLTBX@</param.output>
     <param.products.name>
       <item>MATLAB</item>
@@ -27,12 +27,30 @@
     <param.getting.started.guide />
     <param.matlabpath.excludes />
     <param.javaclasspath.excludes />
+    <param.exported.on.package>false</param.exported.on.package>
+    <param.required.addons />
+    <param.matlab.project.id />
+    <param.matlab.project.name />
+    <param.release.start />
+    <param.release.end />
+    <param.release.current.only>false</param.release.current.only>
+    <param.compatiblity.windows>true</param.compatiblity.windows>
+    <param.compatiblity.macos>true</param.compatiblity.macos>
+    <param.compatiblity.linux>true</param.compatiblity.linux>
+    <param.compatiblity.matlabonline>true</param.compatiblity.matlabonline>
+    <param.installation.map />
+    <param.additional.sw.names />
+    <param.additional.sw.licenses />
+    <param.additional.sw.win.url />
+    <param.additional.sw.mac.url />
+    <param.additional.sw.linux.url />
     <unset>
       <param.company />
       <param.screenshot />
       <param.output />
       <param.platforms />
-      <param.guid />
+      <param.exclude.pcodedmfiles />
+      <param.examples />
       <param.demosxml />
       <param.apps />
       <param.registered.apps />
@@ -40,6 +58,23 @@
       <param.getting.started.guide />
       <param.matlabpath.excludes />
       <param.javaclasspath.excludes />
+      <param.exported.on.package />
+      <param.required.addons />
+      <param.matlab.project.id />
+      <param.matlab.project.name />
+      <param.release.start />
+      <param.release.end />
+      <param.release.current.only />
+      <param.compatiblity.windows />
+      <param.compatiblity.macos />
+      <param.compatiblity.linux />
+      <param.compatiblity.matlabonline />
+      <param.installation.map />
+      <param.additional.sw.names />
+      <param.additional.sw.licenses />
+      <param.additional.sw.win.url />
+      <param.additional.sw.mac.url />
+      <param.additional.sw.linux.url />
     </unset>
     <fileset.rootdir>
       <file>@DIGITAL_RF_TOOLBOX_ROOT@</file>

@@ -1,33 +1,34 @@
+% DigitalRFReader  Read data in the Digital RF format.
+%   See testDigitalRFReader.m for usage, or run <doc DigitalRFReader>
+%
+
 % ----------------------------------------------------------------------------
-% Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+% Copyright (c) 2017, 2019 Massachusetts Institute of Technology (MIT)
 % All rights reserved.
 %
 % Distributed under the terms of the BSD 3-clause license.
 %
 % The full license is in the LICENSE file, distributed with this software.
 % ----------------------------------------------------------------------------
-classdef DigitalRFReader
-    % class DigitalRFReader allows easy read access to static Digital RF data
-    %   See testDigitalRFReader.m for usage, or run <doc DigitalRFReader>
-    %
-    % $Id$
 
+classdef DigitalRFReader
     properties
-        topLevelDirectories % a char array of one or more top level directories
-        channel_map % a Map object with key=channel_name, value = drf_channel object
+        % char array of one or more top level directories
+        topLevelDirectories
+        % Map object with key = channel_name, value = drf_channel object
+        channel_map
 
     end
 
     methods
         function reader = DigitalRFReader(topLevelDirectories)
-            % DigitalRFReader is the contructor for this class.
-            % Inputs - topLevelDirectories - a char array of one or more
-            % top level directories, where a top level directory holds
-            % channel directories
-
-
-            % topLevelDirectories - a char array of one or more top level
-            %   directories.
+            % DigitalRFReader  Construct object for reading Digital RF data.
+            %   reader = DigitalRFReader(topLevelDirectories)
+            %
+            %   topLevelDirectories : char array
+            %     Path to a top level directory (or multiple directories)
+            %     that contains channel directories with Digital RF data.
+            %
             if (~(ischar(topLevelDirectories)))
                 ME = MException('DigitalRFReader:invalidArg', ...
                   'topLevelDirectories arg not a string or char array');
@@ -171,51 +172,110 @@ classdef DigitalRFReader
 
 
         function channels = get_channels(obj)
-            % get_channels returns a cell array of channel names found
-            % Inputs: None
+            % get_channels  Return a cell array of channel names.
+            %   channels = get_channels()
+            %
+            %   channels : cell array
+            %     Cell array containing the names of all channel
+            %     directories found within the reader's top level
+            %     directory.
+            %
             channels = keys(obj.channel_map);
         end % end get_channels
 
 
 
-        function [lower_sample, upper_sample] = get_bounds(obj, channel)
-            % get_bounds returns the first and last sample in channel.
-            % sample bounds are in samples since 0 seconds unix time
-            % (that is, unix time * sample_rate)
+        function [start_sample, end_sample] = get_bounds(obj, channel)
+            % get_bounds  Return the index of the first and last samples.
+            %   [start_sample, end_sample] = get_bounds(channel)
+            %
+            %   channel : string
+            %     Name of the channel to query.
+            %
+            %   start_sample : integer
+            %     Sample index (number of samples since the Unix epoch,
+            %     i.e. unix_time * sample_rate) for the start of the data.
+            %
+            %   end_sample : integer
+            %     Sample index for the end of the data (inclusive).
+            %
+            %
             drf_chan = obj.channel_map(channel);
-            [lower_sample, upper_sample] = drf_chan.get_bounds();
+            [start_sample, end_sample] = drf_chan.get_bounds();
         end
 
 
-        function [reader] = get_digital_metadata(obj, channel)
-            % get Digital Metadata reader for the given channel
+        function reader = get_digital_metadata(obj, channel)
+            % get_digital_metadata  Return a reader for the metadata.
+            %   md_reader = get_digital_metadata(channel)
+            %
+            %   channel : string
+            %     Name of the channel to query.
+            %
+            %   md_reader : DigitalMetadataReader object
+            %     Reader object for the metadata associated with the
+            %     data channel (found in the 'metadata' directory within
+            %     the channel directory).
+            %
             drf_chan = obj.channel_map(channel);
             reader = drf_chan.get_digital_metadata();
         end
 
 
-        function [data_map] = read(obj, channel, start_sample, end_sample, subchannel)
-            % read returns a containers.Map() object containing key= all
-            % first samples of continuous block of data found between
-            % start_sample and end_sample (inclusive).  Value is an array
-            % of the type stored in /rf_data. If subchannel is 0, all
-            % channels returned.  If subchannel == -1, length of continuous
-            % data is returned instead of data, Else, only subchannel set
-            % by subchannel argument returned.
+        function data_map = read(obj, channel, start_sample, end_sample, subchannel)
+            % read  Return a Map object of contiguous data blocks.
+            %   read(channel, start_sample, end_sample, subchannel)
+            %
+            %   channel : string
+            %     Name of the channel to read.
+            %   start_sample : integer
+            %     Sample index for start of read.
+            %   end_sample : integer
+            %     Sample index for end of read (inclusive).
+            %   subchannel : integer
+            %     Index of subchannel to read. If 0, read all subchannels.
+            %     If -1, return only the data block lengths and not the
+            %     data itself.
+            %
+            %   data_map : containers.Map object
+            %     Map of data block start samples to data arrays (or
+            %     lengths) for samples within the window of
+            %     [start_sample:end_sample]. The keys are a sample index
+            %     indicating the start of a contiguous data block, while
+            %     the values are the corresponding data array for the
+            %     block or (when subchannel is -1) the number of samples
+            %     in the block.
+            %
             drf_chan = obj.channel_map(channel);
             data_map = drf_chan.read(start_sample, end_sample, subchannel);
         end
 
 
         function subdir_cadence_secs = get_subdir_cadence_secs(obj, channel)
-            % get_subdir_cadence_secs returns subdir_cadence_secs for given channel
+            % get_subdir_cadence_secs  Return the subdirectory cadence.
+            %   subdir_cadence = get_subdir_cadence_secs(channel)
+            %
+            %   channel : string
+            %     Name of the channel to query.
+            %
+            %   subdir_cadence : uint64
+            %     Subdirectory cadence in seconds.
+            %
             drf_chan = obj.channel_map(channel);
             subdir_cadence_secs = drf_chan.subdir_cadence_secs;
         end
 
 
         function file_cadence_millisecs = get_file_cadence_millisecs(obj, channel)
-            % get_file_cadence_millisecs returns file_cadence_millisecs for given channel
+            % get_file_cadence_millisecs  Return the file cadence.
+            %   file_cadence = get_file_cadence_millisecs(channel)
+            %
+            %   channel : string
+            %     Name of the channel to query.
+            %
+            %   file_cadence : uint64
+            %     File cadence in milliseconds.
+            %
             drf_chan = obj.channel_map(channel);
             file_cadence_millisecs = drf_chan.file_cadence_millisecs;
         end
@@ -223,7 +283,15 @@ classdef DigitalRFReader
 
 
         function sample_rate_numerator = get_sample_rate_numerator(obj, channel)
-            % get_sample_rate_numerator returns the numerator of the sample rate for given channel
+            % get_sample_rate_numerator  Return sample rate numerator.
+            %   num = get_sample_rate_numerator(channel)
+            %
+            %   channel : string
+            %     Name of the channel to query.
+            %
+            %   num : uint64
+            %     Numerator of the sample rate in Hz.
+            %
             drf_chan = obj.channel_map(channel);
             sample_rate_numerator = drf_chan.sample_rate_numerator;
         end
@@ -231,7 +299,15 @@ classdef DigitalRFReader
 
 
         function sample_rate_denominator = get_sample_rate_denominator(obj, channel)
-            % get_sample_rate_denominator returns the denominator of the sample rate for given channel
+            % get_sample_rate_denominator  Return sample rate denominator.
+            %   den = get_sample_rate_denominator(channel)
+            %
+            %   channel : string
+            %     Name of the channel to query.
+            %
+            %   den : uint64
+            %     Denominator of the sample rate in Hz.
+            %
             drf_chan = obj.channel_map(channel);
             sample_rate_denominator = drf_chan.sample_rate_denominator;
         end
@@ -239,7 +315,15 @@ classdef DigitalRFReader
 
 
         function samples_per_second = get_samples_per_second(obj, channel)
-            % get_samples_per_second returns samples_per_second for given channel
+            % get_samples_per_second  Return the samples per second.
+            %   sps = get_samples_per_second(channel)
+            %
+            %   channel : string
+            %     Name of the channel to query.
+            %
+            %   sps : double
+            %     Sample rate in Hz.
+            %
             drf_chan = obj.channel_map(channel);
             samples_per_second = drf_chan.samples_per_second;
         end
@@ -247,7 +331,15 @@ classdef DigitalRFReader
 
 
         function is_complex = get_is_complex(obj, channel)
-            % get_is_complex returns is_complex (1 or 0) for given channel
+            % get_is_complex  Return whether the channel is complex.
+            %   is_complex = get_is_complex(channel)
+            %
+            %   channel : string
+            %     Name of the channel to query.
+            %
+            %   is_complex : 0 or 1
+            %     1 if complex, 0 if not
+            %
             drf_chan = obj.channel_map(channel);
             is_complex = drf_chan.is_complex;
         end
@@ -255,21 +347,44 @@ classdef DigitalRFReader
 
 
         function num_subchannels = get_num_subchannels(obj, channel)
-            % get_num_subchannels returns num_subchannels (1 or greater) for given channel
+            % get_num_subchannels  Return the number of subchannels.
+            %   nsc = get_num_subchannels(channel)
+            %
+            %   channel : string
+            %     Name of the channel to query.
+            %
+            %   nsc : integer
+            %     Number of subchannels.
+            %
             drf_chan = obj.channel_map(channel);
             num_subchannels = drf_chan.num_subchannels;
         end
 
 
 
-        function vector = read_vector(obj, channel, start_sample, sample_length)
-            % read_vector returns a data vector sample_length x num_subchannels.
-            % Data type will be complex if data was complex, otherwise data type
-            % as stored in same format as in Hdf5 file. Raises error if
-            % data gap found.  Simply calls read for all channels, and
-            % throws error if more than one block returned.
+        function vector = read_vector(obj, channel, start_sample, vector_length)
+            % read_vector  Read a contiguous vector of data.
+            %   data = read_vector(channel, start_sample, vector_length)
+            %
+            %   channel : string
+            %     Name of the channel to query.
+            %   start_sample : integer
+            %     Sample index for start of read.
+            %   vector_length : integer
+            %     Number of samples to return.
+            %
+            %   data : array of size [sample_length, num_subchannels]
+            %     Data vector.
+            %
+            %   The returned data type will be the same as stored in
+            %   the HDF5 file.
+            %
+            %   An error is raised if a data gap is found. (This just
+            %   calls the read method for all channels and throws an
+            %   error if more than one block is returned.)
+            %
 
-            end_sample = start_sample + (sample_length - 1);
+            end_sample = start_sample + (vector_length - 1);
             data_map = obj.read(channel, start_sample, end_sample, 0);
             if (isempty(data_map.keys()))
                 ME = MException('DigitalRFReader:invalidArg', ...

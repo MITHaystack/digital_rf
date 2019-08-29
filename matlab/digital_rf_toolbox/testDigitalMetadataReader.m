@@ -1,3 +1,5 @@
+% test and example usage of DigitalMetadataReader.m
+
 % ----------------------------------------------------------------------------
 % Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
 % All rights reserved.
@@ -6,37 +8,43 @@
 %
 % The full license is in the LICENSE file, distributed with this software.
 % ----------------------------------------------------------------------------
-% example usage of DigitalMetadataReader.m
-% Requires python example_write_digital_metadata.py be run first to create test data
-%
-metadataDir = '/tmp/test_metadata';
 
-% init the object
-reader = DigitalMetadataReader(metadataDir);
+example_dir = 'data/example';
+metadata_dir = [example_dir, '/ch0/metadata'];
 
-% get the sample bounds
-[b0, b1] = reader.get_bounds();
+% get the metadata reader through the DigitalRFReader
+reader = DigitalRFReader(example_directory);
+chs = reader.get_channels();
+ch = chs{1};
+md_reader = reader.get_digital_metadata(ch);
 
-% access all the object attributes
-fields = reader.get_fields();
+% get the metadata reader directly
+md_reader = DigitalMetadataReader(metadata_dir);
+fprintf('Reading metadata from directory: %s\n', metadata_dir)
+disp(md_reader)
+
+[start_sample, end_sample] = md_reader.get_bounds();
+disp('These are the sample bounds:');
+disp([start_sample, end_sample]);
+
 disp('The fields are:');
-disp(fields);
-disp('The samples per sec numerator, denominator, and float values are:');
-disp(reader.get_sample_rate_numerator());
-disp(reader.get_sample_rate_denominator());
-disp(reader.get_samples_per_second());
-disp('The subdirectory cadence in seconds is:');
-disp(reader.get_subdir_cadence_secs());
-disp('The file cadence in seconds is:');
-disp(reader.get_file_cadence_secs());
-disp('The file name prefix is:');
-disp(reader.get_file_name());
+disp(md_reader.fields);
 
 % call the main method read for each field
-for i=1:length(fields)
-    data_map = reader.read(b0, b0+1, char(fields(i)));
+for i=1:length(md_reader.fields)
+    data_map = md_reader.read(start_sample, end_sample, md_reader.fields{i});
 
-    disp(sprintf('Displaying all data relating to field %s', fields{i}));
+    fprintf('Displaying all data relating to field %s\n', md_reader.fields{i});
     recursive_disp_map(data_map);
 
 end
+
+% get one field specifically
+field = 'description';
+data_map = md_reader.read(start_sample, end_sample, field);
+data_sample_indices = data_map.keys();
+sample_index = data_sample_indices{1};
+value_map = data_map(sample_index);
+value = value_map(field);
+fprintf('Reading value of %s at index %d:\n', field, sample_index)
+desc = char(value)
