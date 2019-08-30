@@ -6,5 +6,6 @@ from .raster import *
 from .vector import *
 
 from digital_rf._version import get_versions
-__version__ = get_versions()['version']
+
+__version__ = get_versions()["version"]
 del get_versions

@@ -5,6 +5,7 @@ from .digital_rf_hdf5 import *
 from . import list_drf
 from .list_drf import ilsdrf, lsdrf
 from . import util
+
 try:
     from . import mirror
     from . import ringbuffer
@@ -14,5 +15,6 @@ except ImportError:
     pass
 
 from ._version import get_versions
-__version__ = get_versions()['version']
+
+__version__ = get_versions()["version"]
 del get_versions

@@ -215,11 +215,11 @@ static PyObject * _py_rf_write_hdf5_rf_block_write(PyObject * self, PyObject * a
  * 	2. numpy array of data to write - must be 2-D with shape
  *  	(length, num_subchannels) and a dtype giving the size of the complete
  *  	sample, whether complex or real
- * 	3. numpy array of global sample count - must by array of type numpy.uint64
+ * 	3. numpy array of global sample count - must by array of type np.uint64
  * 	4. numpy array of block sample count - gives the position in each data arr of the
  * 		global sample given in the global sample count array above.  Len of this
  * 		array must be the same as the one before, and it must also be an array
- *  	of type numpy.uint64
+ *  	of type np.uint64
  *
  * 	 Returns next available global sample if success, 0 if not
  */
@@ -425,7 +425,7 @@ hid_t get_hdf5_data_type(char byteorder, char dtype_char, int bytecount)
 /* get_hdf5_data_type returns an Hdf5 datatype that corresponds to the arguments
  *
  * Inputs:
- * 	char byteorder - char representing byteorder according to numpy.dtype
+ * 	char byteorder - char representing byteorder according to np.dtype
  * 		(< little-endian, > big-endian, | not applicable)
  * 	char dtype_char - i int, u - unsigned int, f - float
  *      (also accepts d for double for legacy, ignoring bytecount, assuming 8)

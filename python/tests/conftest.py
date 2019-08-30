@@ -12,7 +12,7 @@ def pytest_collection_modifyitems(items):
     selected_items = []
 
     for item in items:
-        for firstonly in item.iter_markers('firstonly'):
+        for firstonly in item.iter_markers("firstonly"):
             for param in firstonly.args:
                 # check if specified param is not first and skip
                 idx = item.callspec.indices.get(param, None)

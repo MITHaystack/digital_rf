@@ -19,9 +19,13 @@ import pytz
 import six
 
 __all__ = (
-    'datetime_to_timestamp', 'epoch', 'parse_identifier_to_sample',
-    'parse_identifier_to_time', 'sample_to_datetime', 'samples_to_timedelta',
-    'time_to_sample',
+    "datetime_to_timestamp",
+    "epoch",
+    "parse_identifier_to_sample",
+    "parse_identifier_to_time",
+    "sample_to_datetime",
+    "samples_to_timedelta",
+    "time_to_sample",
 )
 
 
@@ -39,7 +43,7 @@ def time_to_sample(time, samples_per_second):
         datetime object, the numeric value is interpreted as a UTC timestamp
         (seconds since epoch).
 
-    samples_per_second : numpy.longdouble
+    samples_per_second : np.longdouble
         Sample rate in Hz.
 
 
@@ -57,13 +61,11 @@ def time_to_sample(time, samples_per_second):
             time = pytz.utc.localize(time)
         td = time - epoch
         tsec = int(td.total_seconds())
-        tfrac = 1e-6*td.microseconds
-        tidx = int(np.uint64(
-            tsec*samples_per_second + tfrac*samples_per_second
-        ))
+        tfrac = 1e-6 * td.microseconds
+        tidx = int(np.uint64(tsec * samples_per_second + tfrac * samples_per_second))
         return tidx
     else:
-        return int(np.uint64(time*samples_per_second))
+        return int(np.uint64(time * samples_per_second))
 
 
 def sample_to_datetime(sample, samples_per_second):
@@ -75,7 +77,7 @@ def sample_to_datetime(sample, samples_per_second):
     sample : int
         Sample index in number of samples since epoch.
 
-    samples_per_second : numpy.longdouble
+    samples_per_second : np.longdouble
         Sample rate in Hz.
 
 
@@ -98,7 +100,7 @@ def samples_to_timedelta(samples, samples_per_second):
     samples : int
         Duration in number of samples.
 
-    samples_per_second : numpy.longdouble
+    samples_per_second : np.longdouble
         Sample rate in Hz.
 
 
@@ -112,7 +114,7 @@ def samples_to_timedelta(samples, samples_per_second):
     # splitting into secs/frac lets us get a more accurate datetime
     secs = int(samples // samples_per_second)
     frac = (samples % samples_per_second) / samples_per_second
-    microseconds = int(np.uint64(frac*1000000))
+    microseconds = int(np.uint64(frac * 1000000))
 
     return datetime.timedelta(seconds=secs, microseconds=microseconds)
 
@@ -161,7 +163,7 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
             3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
             4) 'now' ('nowish'), indicating the current time (rounded up)
 
-    samples_per_second : numpy.longdouble, required for float and time `iden`
+    samples_per_second : np.longdouble, required for float and time `iden`
         Sample rate in Hz used to convert a time to a sample index.
 
     ref_index : int/long, required for '+' string form of `iden`
@@ -178,12 +180,12 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
 
     """
     is_relative = False
-    if iden is None or iden == '':
+    if iden is None or iden == "":
         return None
     elif isinstance(iden, six.string_types):
-        if iden.startswith('+'):
+        if iden.startswith("+"):
             is_relative = True
-            iden = iden.lstrip('+')
+            iden = iden.lstrip("+")
         try:
             # int or float
             iden = ast.literal_eval(iden)
@@ -192,13 +194,10 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
                 raise ValueError(
                     '"+" identifier must be followed by an integer or float.'
                 )
-            if iden.lower().startswith('now'):
+            if iden.lower().startswith("now"):
                 dt = pytz.utc.localize(datetime.datetime.utcnow())
-                if iden.lower().endswith('ish'):
-                    dt = (
-                        dt.replace(microsecond=0)
-                        + datetime.timedelta(seconds=1)
-                    )
+                if iden.lower().endswith("ish"):
+                    dt = dt.replace(microsecond=0) + datetime.timedelta(seconds=1)
                 iden = dt
             else:
                 # parse to datetime
@@ -207,7 +206,7 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
     if not isinstance(iden, six.integer_types):
         if samples_per_second is None:
             raise ValueError(
-                'samples_per_second required when time identifier is used.'
+                "samples_per_second required when time identifier is used."
             )
         idx = time_to_sample(iden, samples_per_second)
     else:
@@ -215,9 +214,7 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
 
     if is_relative:
         if ref_index is None:
-            raise ValueError(
-                'ref_index required when relative "+" identifier is used.'
-            )
+            raise ValueError('ref_index required when relative "+" identifier is used.')
         return idx + ref_index
     else:
         return idx
@@ -245,7 +242,7 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
             3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
             4) 'now' ('nowish'), indicating the current time (rounded up)
 
-    samples_per_second : numpy.longdouble, required for integer `iden`
+    samples_per_second : np.longdouble, required for integer `iden`
         Sample rate in Hz used to convert a sample index to a time.
 
     ref_datetime : datetime, required for '+' string form of `iden`
@@ -261,12 +258,12 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
 
     """
     is_relative = False
-    if iden is None or iden == '':
+    if iden is None or iden == "":
         return None
     elif isinstance(iden, six.string_types):
-        if iden.startswith('+'):
+        if iden.startswith("+"):
             is_relative = True
-            iden = iden.lstrip('+')
+            iden = iden.lstrip("+")
         try:
             # int or float
             iden = ast.literal_eval(iden)
@@ -275,13 +272,10 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
                 raise ValueError(
                     '"+" identifier must be followed by an integer or float.'
                 )
-            if iden.lower().startswith('now'):
+            if iden.lower().startswith("now"):
                 dt = pytz.utc.localize(datetime.datetime.utcnow())
-                if iden.lower().endswith('ish'):
-                    dt = (
-                        dt.replace(microsecond=0)
-                        + datetime.timedelta(seconds=1)
-                    )
+                if iden.lower().endswith("ish"):
+                    dt = dt.replace(microsecond=0) + datetime.timedelta(seconds=1)
             else:
                 # parse string to datetime
                 dt = dateutil.parser.parse(iden)
@@ -300,11 +294,11 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
             raise ValueError(
                 'ref_datetime required when relative "+" identifier is used.'
             )
-        elif (not isinstance(ref_datetime, datetime.datetime)
-                or ref_datetime.tzinfo is None):
-            raise ValueError(
-                'ref_datetime must be a timezone-aware datetime.'
-            )
+        elif (
+            not isinstance(ref_datetime, datetime.datetime)
+            or ref_datetime.tzinfo is None
+        ):
+            raise ValueError("ref_datetime must be a timezone-aware datetime.")
         return td + ref_datetime
     else:
         return td + epoch

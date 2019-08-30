@@ -22,9 +22,7 @@ from . import list_drf, util
 from .list_drf import ilsdrf
 from .watchdog_drf import DigitalRFEventHandler, DirWatcher
 
-__all__ = (
-    'DigitalRFRingbufferHandler', 'DigitalRFRingbuffer',
-)
+__all__ = ("DigitalRFRingbufferHandler", "DigitalRFRingbuffer")
 
 
 class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
@@ -36,11 +34,16 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
 
     """
 
-    FileRecord = namedtuple('FileRecord', ('key', 'size', 'path', 'group'))
+    FileRecord = namedtuple("FileRecord", ("key", "size", "path", "group"))
 
     def __init__(
-        self, verbose=False, dryrun=False, starttime=None, endtime=None,
-        include_drf=True, include_dmd=True,
+        self,
+        verbose=False,
+        dryrun=False,
+        starttime=None,
+        endtime=None,
+        include_drf=True,
+        include_dmd=True,
     ):
         """Create a ringbuffer handler.
 
@@ -69,15 +72,18 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
         # acquire the record lock to modify the queue or record dicts
         self._record_lock = threading.RLock()
         super(DigitalRFRingbufferHandlerBase, self).__init__(
-            starttime=starttime, endtime=endtime,
-            include_drf=include_drf, include_dmd=include_dmd,
-            include_drf_properties=False, include_dmd_properties=False,
+            starttime=starttime,
+            endtime=endtime,
+            include_drf=include_drf,
+            include_dmd=include_dmd,
+            include_drf_properties=False,
+            include_dmd_properties=False,
         )
 
     def status(self):
         """Return status string about state of the ringbuffer."""
         nfiles = sum(len(q) for q in self.queues.values())
-        return '{0} files'.format(nfiles)
+        return "{0} files".format(nfiles)
 
     def _get_file_record(self, path):
         """Return self.FileRecord tuple for file at path."""
@@ -86,23 +92,23 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
         for r in self.regexes:
             m = r.match(path)
             try:
-                secs = int(m.group('secs'))
+                secs = int(m.group("secs"))
             except (AttributeError, IndexError, TypeError):
                 # no match, or regex matched but there is no 'secs' in regex
                 continue
             else:
                 try:
-                    frac = int(m.group('frac'))
+                    frac = int(m.group("frac"))
                 except (IndexError, TypeError):
                     frac = 0
                 # key is time in milliseconds
-                key = secs*1000 + frac
+                key = secs * 1000 + frac
                 break
         if key is None:
             return
 
         # ringbuffer by file groups, which are a channel path and name
-        group = (m.group('chpath'), m.group('name'))
+        group = (m.group("chpath"), m.group("name"))
 
         try:
             stat = os.stat(path)
@@ -157,7 +163,7 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
 
         if self.verbose:
             now = datetime.datetime.utcnow().replace(microsecond=0)
-            print('{0} | Expired {1}'.format(now, rec.path))
+            print("{0} | Expired {1}".format(now, rec.path))
 
         # delete file
         if not self.dryrun:
@@ -187,8 +193,8 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
             if rec.path in self.records:
                 if self.verbose:
                     msg = (
-                        'Adding record for {0} but it already exists in'
-                        ' ringbuffer, modify instead.'
+                        "Adding record for {0} but it already exists in"
+                        " ringbuffer, modify instead."
                     ).format(rec.path)
                     print(msg)
                 self._modify_record(rec)
@@ -199,7 +205,7 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
 
             if self.verbose:
                 now = datetime.datetime.utcnow().replace(microsecond=0)
-                print('{0} | Added {1}'.format(now, rec.path))
+                print("{0} | Added {1}".format(now, rec.path))
             # expire oldest files until size constraint is met
             self._expire(rec.group)
 
@@ -210,8 +216,7 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
                 # don't have record in ringbuffer when we should, add instead
                 if self.verbose:
                     msg = (
-                        'Missing modified file {0} from ringbuffer, adding'
-                        ' instead.'
+                        "Missing modified file {0} from ringbuffer, adding" " instead."
                     ).format(rec.path)
                     print(msg)
                 self._add_record(rec)
@@ -234,7 +239,7 @@ class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
 
         if self.verbose:
             now = datetime.datetime.utcnow().replace(microsecond=0)
-            print('{0} | Removed {1}'.format(now, rec.path))
+            print("{0} | Removed {1}".format(now, rec.path))
 
     def add_files(self, paths, sort=True):
         """Create file records from paths and add to ringbuffer."""
@@ -291,7 +296,7 @@ class CountExpirer(object):
 
     def __init__(self, *args, **kwargs):
         """Create a ringbuffer handler."""
-        self.count = kwargs.pop('count')
+        self.count = kwargs.pop("count")
         super(CountExpirer, self).__init__(*args, **kwargs)
 
     def status(self):
@@ -301,14 +306,14 @@ class CountExpirer(object):
             max_count = max(len(q) for q in self.queues.values())
         except ValueError:
             max_count = 0
-        pct_full = int(float(max_count)/self.count*100)
-        return ', '.join((status, '{0}% count'.format(pct_full)))
+        pct_full = int(float(max_count) / self.count * 100)
+        return ", ".join((status, "{0}% count".format(pct_full)))
 
     def _expire(self, group):
         """Expire records until file count constraint is met."""
         with self._record_lock:
             queue = self.queues[group]
-            while (len(queue) > self.count):
+            while len(queue) > self.count:
                 self._expire_oldest_from_group(group)
         super(CountExpirer, self)._expire(group)
 
@@ -325,15 +330,15 @@ class SizeExpirer(object):
 
     def __init__(self, *args, **kwargs):
         """Create a ringbuffer handler."""
-        self.size = kwargs.pop('size')
+        self.size = kwargs.pop("size")
         self.active_size = 0
         super(SizeExpirer, self).__init__(*args, **kwargs)
 
     def status(self):
         """Return status string about state of the ringbuffer."""
         status = super(SizeExpirer, self).status()
-        pct_full = int(float(self.active_size)/self.size*100)
-        return ', '.join((status, '{0}% size'.format(pct_full)))
+        pct_full = int(float(self.active_size) / self.size * 100)
+        return ", ".join((status, "{0}% size".format(pct_full)))
 
     def _add_to_queue(self, rec):
         """Add record to queue, tracking file size."""
@@ -357,7 +362,7 @@ class SizeExpirer(object):
             try:
                 oldest_key, oldest_path = self.queues[group][0]
             except IndexError:
-                oldest_key = float('inf')
+                oldest_key = float("inf")
             for grp in self.queues.keys():
                 if grp != group:
                     queue = self.queues[grp]
@@ -371,7 +376,7 @@ class SizeExpirer(object):
     def _expire(self, group):
         """Expire records until overall file size constraint is met."""
         with self._record_lock:
-            while (self.active_size > self.size):
+            while self.active_size > self.size:
                 self._expire_oldest(group)
         super(SizeExpirer, self)._expire(group)
 
@@ -391,7 +396,7 @@ class SizeExpirer(object):
 
                 if self.verbose:
                     now = datetime.datetime.utcnow().replace(microsecond=0)
-                    print('{0} | Updated {1}'.format(now, rec.path))
+                    print("{0} | Updated {1}".format(now, rec.path))
 
 
 class TimeExpirer(object):
@@ -407,7 +412,7 @@ class TimeExpirer(object):
     def __init__(self, *args, **kwargs):
         """Create a ringbuffer handler."""
         # duration is time span in milliseconds
-        self.duration = kwargs.pop('duration')
+        self.duration = kwargs.pop("duration")
         super(TimeExpirer, self).__init__(*args, **kwargs)
 
     @staticmethod
@@ -418,25 +423,23 @@ class TimeExpirer(object):
             newkey, _ = queue[-1]
         except IndexError:
             return 0
-        return (newkey - oldkey)
+        return newkey - oldkey
 
     def status(self):
         """Return status string about state of the ringbuffer."""
         status = super(TimeExpirer, self).status()
         try:
-            max_duration = max(
-                self._queue_duration(q) for q in self.queues.values()
-            )
+            max_duration = max(self._queue_duration(q) for q in self.queues.values())
         except ValueError:
             max_duration = 0
-        pct_full = int(float(max_duration)/self.duration*100)
-        return ', '.join((status, '{0}% duration'.format(pct_full)))
+        pct_full = int(float(max_duration) / self.duration * 100)
+        return ", ".join((status, "{0}% duration".format(pct_full)))
 
     def _expire(self, group):
         """Expire records until time span constraint is met."""
         with self._record_lock:
             queue = self.queues[group]
-            while (self._queue_duration(queue) > self.duration):
+            while self._queue_duration(queue) > self.duration:
                 self._expire_oldest_from_group(group)
         super(TimeExpirer, self)._expire(group)
 
@@ -488,24 +491,23 @@ def DigitalRFRingbufferHandler(size=None, count=None, duration=None, **kwargs):
 
     """
     if size is None and count is None and duration is None:
-        errstr = 'One of `size`, `count`, or `duration` must not be None.'
+        errstr = "One of `size`, `count`, or `duration` must not be None."
         raise ValueError(errstr)
 
-    bases = (DigitalRFRingbufferHandlerBase, )
+    bases = (DigitalRFRingbufferHandlerBase,)
     # add mixins in this particular order for expected results
     if size is not None:
-        bases = (SizeExpirer, ) + bases
-        kwargs['size'] = size
+        bases = (SizeExpirer,) + bases
+        kwargs["size"] = size
     if duration is not None:
-        bases = (TimeExpirer, ) + bases
-        kwargs['duration'] = duration
+        bases = (TimeExpirer,) + bases
+        kwargs["duration"] = duration
     if count is not None:
-        bases = (CountExpirer, ) + bases
-        kwargs['count'] = count
+        bases = (CountExpirer,) + bases
+        kwargs["count"] = count
 
     # now create the class with the desired mixins
-    docstring = (
-        """Event handler for implementing a ringbuffer of Digital RF files.
+    docstring = """Event handler for implementing a ringbuffer of Digital RF files.
 
         This class inherits from a base class (DigitalRFRingbufferHandlerBase)
         and some expirer mixins determined from the class factor arguments.
@@ -513,8 +515,7 @@ def DigitalRFRingbufferHandler(size=None, count=None, duration=None, **kwargs):
         ringbuffer based on size, count, or duration constraints.
 
         """
-    )
-    cls = type('DigitalRFRingbufferHandler', bases, {'__doc__': docstring})
+    cls = type("DigitalRFRingbufferHandler", bases, {"__doc__": docstring})
 
     return cls(**kwargs)
 
@@ -530,9 +531,18 @@ class DigitalRFRingbuffer(object):
     """
 
     def __init__(
-        self, path, size=-200e6, count=None, duration=None,
-        verbose=False, status_interval=10, dryrun=False,
-        starttime=None, endtime=None, include_drf=True, include_dmd=True,
+        self,
+        path,
+        size=-200e6,
+        count=None,
+        duration=None,
+        verbose=False,
+        status_interval=10,
+        dryrun=False,
+        starttime=None,
+        endtime=None,
+        include_drf=True,
+        include_dmd=True,
     ):
         """Create Digital RF ringbuffer object. Use start/run method to begin.
 
@@ -601,15 +611,15 @@ class DigitalRFRingbuffer(object):
         self._task_threads = []
 
         if self.size is None and self.count is None and self.duration is None:
-            errstr = 'One of `size`, `count`, or `duration` must not be None.'
+            errstr = "One of `size`, `count`, or `duration` must not be None."
             raise ValueError(errstr)
 
         if not self.include_drf and not self.include_dmd:
-            errstr = 'One of `include_drf` or `include_dmd` must be True.'
+            errstr = "One of `include_drf` or `include_dmd` must be True."
             raise ValueError(errstr)
 
         if self.status_interval is None:
-            self.status_interval = float('inf')
+            self.status_interval = float("inf")
 
         if self.size is not None:
             if self.size < 0:
@@ -619,10 +629,11 @@ class DigitalRFRingbuffer(object):
                 while not os.path.isdir(root):
                     root = os.path.dirname(root)
                 statvfs = os.statvfs(root)
-                bytes_available = statvfs.f_frsize*statvfs.f_bavail
+                bytes_available = statvfs.f_frsize * statvfs.f_bavail
                 if os.path.isdir(self.path):
                     existing = ilsdrf(
-                        self.path, starttime=self.starttime,
+                        self.path,
+                        starttime=self.starttime,
                         endtime=self.endtime,
                         include_drf=self.include_drf,
                         include_dmd=self.include_dmd,
@@ -640,10 +651,15 @@ class DigitalRFRingbuffer(object):
                 self.size = max(bytes_available + self.size, 0)
 
         self.event_handler = DigitalRFRingbufferHandler(
-            size=self.size, count=self.count, duration=self.duration,
-            verbose=self.verbose, dryrun=self.dryrun,
-            starttime=self.starttime, endtime=self.endtime,
-            include_drf=self.include_drf, include_dmd=self.include_dmd,
+            size=self.size,
+            count=self.count,
+            duration=self.duration,
+            verbose=self.verbose,
+            dryrun=self.dryrun,
+            starttime=self.starttime,
+            endtime=self.endtime,
+            include_drf=self.include_drf,
+            include_dmd=self.include_dmd,
         )
 
         self._init_observer()
@@ -659,9 +675,13 @@ class DigitalRFRingbuffer(object):
         with self.observer.paused_dispatching():
             # add existing files to ringbuffer handler
             existing = ilsdrf(
-                self.path, starttime=self.starttime, endtime=self.endtime,
-                include_drf=self.include_drf, include_dmd=self.include_dmd,
-                include_drf_properties=False, include_dmd_properties=False,
+                self.path,
+                starttime=self.starttime,
+                endtime=self.endtime,
+                include_drf=self.include_drf,
+                include_dmd=self.include_dmd,
+                include_drf_properties=False,
+                include_dmd_properties=False,
             )
             # do not sort because existing will already be sorted and we
             # don't want to convert to a list
@@ -675,9 +695,9 @@ class DigitalRFRingbuffer(object):
         self.observer.start()
 
         if self.dryrun:
-            print('DRY RUN (files will not be deleted):')
+            print("DRY RUN (files will not be deleted):")
         now = datetime.datetime.utcnow().replace(microsecond=0)
-        print('{0} | Starting {1}:'.format(now, self))
+        print("{0} | Starting {1}:".format(now, self))
         sys.stdout.flush()
 
         # add files that already existed before the observer started
@@ -693,11 +713,17 @@ class DigitalRFRingbuffer(object):
         # so we duplicate as few files from new events as possible
         # events that happen while we build this file set can be duplicated
         # when we verify the ringbuffer state below, but that's ok
-        ondisk = set(ilsdrf(
-            self.path, starttime=self.starttime, endtime=self.endtime,
-            include_drf=self.include_drf, include_dmd=self.include_dmd,
-            include_drf_properties=False, include_dmd_properties=False,
-        ))
+        ondisk = set(
+            ilsdrf(
+                self.path,
+                starttime=self.starttime,
+                endtime=self.endtime,
+                include_drf=self.include_drf,
+                include_dmd=self.include_dmd,
+                include_drf_properties=False,
+                include_dmd_properties=False,
+            )
+        )
 
         # now any file in inbuffer that is not in ondisk is a missed or
         # duplicate deletion event, so remove those files
@@ -728,8 +754,7 @@ class DigitalRFRingbuffer(object):
         # verify existing state of ringbuffer
         # (do it in another thread so we can get to join())
         thread = threading.Thread(
-            target=self._verify_ringbuffer_files,
-            kwargs=dict(inbuffer=inbuffer),
+            target=self._verify_ringbuffer_files, kwargs=dict(inbuffer=inbuffer)
         )
         thread.daemon = True
         thread.start()
@@ -743,20 +768,18 @@ class DigitalRFRingbuffer(object):
                 interval = int((now - self._start_time).total_seconds())
                 if (interval % self.status_interval) == 0:
                     status = self.event_handler.status()
-                    print('{0} | ({1})'.format(now, status))
+                    print("{0} | ({1})".format(now, status))
                     sys.stdout.flush()
 
                 if not self.observer.all_alive():
                     # if not all threads of the observer are alive,
                     # reinitialize and restart
-                    print(
-                        'Found stopped thread, reinitializing and restarting.'
-                    )
+                    print("Found stopped thread, reinitializing and restarting.")
                     sys.stdout.flush()
                     # first make sure all task threads have stopped
                     for thread in self._task_threads:
                         while thread.is_alive():
-                            print('Waiting for task thread to finish.')
+                            print("Waiting for task thread to finish.")
                             sys.stdout.flush()
                             thread.join(1)
                     del self._task_threads[:]
@@ -768,7 +791,7 @@ class DigitalRFRingbuffer(object):
             pass
         finally:
             self.stop()
-            sys.stdout.write('\n')
+            sys.stdout.write("\n")
             sys.stdout.flush()
         self.observer.join()
 
@@ -785,70 +808,83 @@ class DigitalRFRingbuffer(object):
         """Return string describing ringbuffer."""
         amounts = []
         if self.size is not None:
-            amounts.append('{0} bytes'.format(self.size))
+            amounts.append("{0} bytes".format(self.size))
         if self.count is not None:
-            amounts.append('{0} files'.format(self.count))
+            amounts.append("{0} files".format(self.count))
         if self.duration is not None:
-            amounts.append('{0} s'.format(self.duration/1e3))
-        s = 'DigitalRFRingbuffer of ({0}) in {1}'.format(
-            ', '.join(amounts), self.path,
-        )
+            amounts.append("{0} s".format(self.duration / 1e3))
+        s = "DigitalRFRingbuffer of ({0}) in {1}".format(", ".join(amounts), self.path)
         return s
 
 
 def _build_ringbuffer_parser(Parser, *args):
     desc = (
-        'Enforce ringbuffer of Digital RF and Digital Metadata files. When'
-        ' the space threshold is exceeded, the oldest files are deleted until'
-        ' the size constraint is met.'
+        "Enforce ringbuffer of Digital RF and Digital Metadata files. When"
+        " the space threshold is exceeded, the oldest files are deleted until"
+        " the size constraint is met."
     )
     parser = Parser(*args, description=desc)
 
+    parser.add_argument("path", help="Directory in which to enforce ringbuffer.")
     parser.add_argument(
-        'path',
-        help='Directory in which to enforce ringbuffer.',
-    )
-    parser.add_argument(
-        '-z', '--size', default=None,
-        help='''Size of ringbuffer, in bytes or using unit symbols (e.g 100GB).
+        "-z",
+        "--size",
+        default=None,
+        help="""Size of ringbuffer, in bytes or using unit symbols (e.g 100GB).
                 Negative values are used to indicate all available space except
-                the given amount. (default: -200MB if no count or duration)''',
+                the given amount. (default: -200MB if no count or duration)""",
     )
     parser.add_argument(
-        '-c', '--count', type=int, default=None,
-        help='''Max file count for each channel. (default: %(default)s)''',
+        "-c",
+        "--count",
+        type=int,
+        default=None,
+        help="""Max file count for each channel. (default: %(default)s)""",
     )
     parser.add_argument(
-        '-l', '--duration', default=None,
-        help='''Max duration for each channel in seconds.
-                (default: %(default)s)''',
+        "-l",
+        "--duration",
+        default=None,
+        help="""Max duration for each channel in seconds.
+                (default: %(default)s)""",
     )
     parser.add_argument(
-        '-v', '--verbose', action='store_true',
-        help='Print the name new/deleted files and the space consumed.',
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Print the name new/deleted files and the space consumed.",
     )
     parser.add_argument(
-        '-p', '--status_interval', type=int, default=10,
-        help='''Interval in seconds between printing of status updates.
-                (default: %(default)s)''',
+        "-p",
+        "--status_interval",
+        type=int,
+        default=10,
+        help="""Interval in seconds between printing of status updates.
+                (default: %(default)s)""",
     )
     parser.add_argument(
-        '-n', '--dryrun', action='store_true',
-        help='Do not delete files when expiring them from the ringbuffer.',
+        "-n",
+        "--dryrun",
+        action="store_true",
+        help="Do not delete files when expiring them from the ringbuffer.",
     )
 
     parser = list_drf._add_time_group(parser)
 
-    includegroup = parser.add_argument_group(title='include')
+    includegroup = parser.add_argument_group(title="include")
     includegroup.add_argument(
-        '--nodrf', dest='include_drf', action='store_false',
-        help='''Do not ringbuffer Digital RF HDF5 files.
-                (default: False)''',
+        "--nodrf",
+        dest="include_drf",
+        action="store_false",
+        help="""Do not ringbuffer Digital RF HDF5 files.
+                (default: False)""",
     )
     includegroup.add_argument(
-        '--nodmd', dest='include_dmd', action='store_false',
-        help='''Do not ringbuffer Digital Metadata HDF5 files.
-                (default: False)''',
+        "--nodmd",
+        dest="include_dmd",
+        action="store_false",
+        help="""Do not ringbuffer Digital Metadata HDF5 files.
+                (default: False)""",
     )
 
     parser.set_defaults(func=_run_ringbuffer)
@@ -860,61 +896,67 @@ def _run_ringbuffer(args):
     import signal
 
     # parse size string into number of bytes
-    if args.size == '':
+    if args.size == "":
         args.size = None
     if args.size is not None:
-        suffixes = OrderedDict([
-            ('B', 1),
-            ('KB', 1000**1),
-            ('KiB', 1024**1),
-            ('MB', 1000**2),
-            ('MiB', 1024**2),
-            ('GB', 1000**3),
-            ('GiB', 1024**3),
-            ('TB', 1000**4),
-            ('TiB', 1024**4),
-            ('PB', 1000**5),
-            ('PiB', 1024**5),
-        ])
-        m = re.match(r'(?P<num>\-?\d+\.?\d*)(?P<suf>\D*)', args.size)
+        suffixes = OrderedDict(
+            [
+                ("B", 1),
+                ("KB", 1000 ** 1),
+                ("KiB", 1024 ** 1),
+                ("MB", 1000 ** 2),
+                ("MiB", 1024 ** 2),
+                ("GB", 1000 ** 3),
+                ("GiB", 1024 ** 3),
+                ("TB", 1000 ** 4),
+                ("TiB", 1024 ** 4),
+                ("PB", 1000 ** 5),
+                ("PiB", 1024 ** 5),
+            ]
+        )
+        m = re.match(r"(?P<num>\-?\d+\.?\d*)(?P<suf>\D*)", args.size)
         if not m:
-            raise ValueError('Size string not recognized. '
-                             'Use number followed by suffix.')
-        sizenum = eval(m.group('num'))
-        suf = m.group('suf').strip()
+            raise ValueError(
+                "Size string not recognized. " "Use number followed by suffix."
+            )
+        sizenum = eval(m.group("num"))
+        suf = m.group("suf").strip()
         if not suf:
             args.size = sizenum
         elif suf in suffixes:
-            args.size = sizenum*suffixes[suf]
+            args.size = sizenum * suffixes[suf]
         else:
-            raise ValueError('Size suffix not recognized. Use one of:\n'
-                             '{0}'.format(list(suffixes.keys())))
+            raise ValueError(
+                "Size suffix not recognized. Use one of:\n"
+                "{0}".format(list(suffixes.keys()))
+            )
     elif args.count is None and args.duration is None:
         args.size = -200e6
 
     # evaluate duration to float, from seconds to milliseconds
     if args.duration is not None:
-        args.duration = float(eval(args.duration))*1e3
+        args.duration = float(eval(args.duration)) * 1e3
 
     if args.starttime is not None:
         args.starttime = util.parse_identifier_to_time(args.starttime)
     if args.endtime is not None:
         args.endtime = util.parse_identifier_to_time(
-            args.endtime, ref_datetime=args.starttime,
+            args.endtime, ref_datetime=args.starttime
         )
 
     kwargs = vars(args).copy()
-    del kwargs['func']
+    del kwargs["func"]
 
     # handle SIGTERM (getting killed) gracefully by calling sys.exit
     def sigterm_handler(signal, frame):
-        print('Killed')
+        print("Killed")
         sys.stdout.flush()
         sys.exit(128 + signal)
+
     signal.signal(signal.SIGTERM, sigterm_handler)
 
     ringbuffer = DigitalRFRingbuffer(**kwargs)
-    print('Type Ctrl-C to quit.')
+    print("Type Ctrl-C to quit.")
     ringbuffer.run()
 
 

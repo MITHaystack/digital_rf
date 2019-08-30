@@ -35,69 +35,78 @@ def update_properties_file(channel_dir):
 
     """
     attr_list = [
-        'H5Tget_class', 'H5Tget_size', 'H5Tget_order', 'H5Tget_offset',
-        'subdir_cadence_secs', 'file_cadence_millisecs',
-        'sample_rate_numerator', 'sample_rate_denominator', 'is_complex',
-        'num_subchannels', 'is_continuous', 'epoch',
-        'digital_rf_time_description', 'digital_rf_version',
+        "H5Tget_class",
+        "H5Tget_size",
+        "H5Tget_order",
+        "H5Tget_offset",
+        "subdir_cadence_secs",
+        "file_cadence_millisecs",
+        "sample_rate_numerator",
+        "sample_rate_denominator",
+        "is_complex",
+        "num_subchannels",
+        "is_continuous",
+        "epoch",
+        "digital_rf_time_description",
+        "digital_rf_version",
     ]
-    properties_file = os.path.join(channel_dir, 'drf_properties.h5')
+    properties_file = os.path.join(channel_dir, "drf_properties.h5")
     if os.path.exists(properties_file):
-        raise IOError('drf_properties.h5 already exists in %s' % (channel_dir))
+        raise IOError("drf_properties.h5 already exists in %s" % (channel_dir))
 
     # metadata file check
-    mdata_file = os.path.join(channel_dir, 'metadata.h5')
+    mdata_file = os.path.join(channel_dir, "metadata.h5")
     attr_dict = {i: None for i in attr_list}
     # any digital_rf version from 2 through 2.4 with a metadata.h5 is a valid
     # 2.5 version file with drf_properties.h5 in place
-    attr_dict['digital_rf_version'] = '2.5.0'
-    with h5py.File(mdata_file, 'r') as fi:
+    attr_dict["digital_rf_version"] = "2.5.0"
+    with h5py.File(mdata_file, "r") as fi:
         for i_attr in attr_list:
             if i_attr in fi.attrs and attr_dict[i_attr] is None:
                 attr_dict[i_attr] = fi.attrs[i_attr]
-            elif i_attr == 'sample_rate_numerator':
-                sps = fi.attrs['samples_per_second'].item()
+            elif i_attr == "sample_rate_numerator":
+                sps = fi.attrs["samples_per_second"].item()
                 if sps % 1 != 0:
                     errstr = (
-                        'No sample rate numerator value and sample rate is not'
-                        ' an integer.'
+                        "No sample rate numerator value and sample rate is not"
+                        " an integer."
                     )
                     raise IOError(errstr)
-                attr_dict[i_attr] = fi.attrs['samples_per_second']
-            elif i_attr == 'sample_rate_denominator':
-                sps = fi.attrs['samples_per_second'].item()
+                attr_dict[i_attr] = fi.attrs["samples_per_second"]
+            elif i_attr == "sample_rate_denominator":
+                sps = fi.attrs["samples_per_second"].item()
                 if sps % 1 != 0:
                     errstr = (
-                        'No sample rate denominator value and sample rate is'
-                        ' not an integer.'
+                        "No sample rate denominator value and sample rate is"
+                        " not an integer."
                     )
                     raise IOError(errstr)
-                attr_dict[i_attr] = fi.attrs['samples_per_second']
+                attr_dict[i_attr] = fi.attrs["samples_per_second"]
                 attr_dict[i_attr][0] = 1
 
     first_rf_file = digital_rf.ilsdrf(
-        channel_dir, include_dmd=False, include_drf_properties=False,
+        channel_dir, include_dmd=False, include_drf_properties=False
     ).next()
 
-    with h5py.File(first_rf_file, 'r') as fi:
-        md = fi['rf_data'].attrs
+    with h5py.File(first_rf_file, "r") as fi:
+        md = fi["rf_data"].attrs
         for i_attr in attr_list:
             if i_attr in md and attr_dict[i_attr] is None:
                 attr_dict[i_attr] = md[i_attr]
 
-    with h5py.File(properties_file, 'w') as fo:
+    with h5py.File(properties_file, "w") as fo:
         for i_attr in attr_list:
             fo.attrs[i_attr] = attr_dict[i_attr]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # command line interface
     parser = argparse.ArgumentParser(
-        description='''Convert Digital RF channel metadata.h5 file to
-                       drf_properties.h5.'''
+        description="""Convert Digital RF channel metadata.h5 file to
+                       drf_properties.h5."""
     )
     parser.add_argument(
-        'chdir', help='Digital RF channel directory containing metadata.h5',
+        "chdir", help="Digital RF channel directory containing metadata.h5"
     )
     args = parser.parse_args()
 

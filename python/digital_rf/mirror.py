@@ -25,9 +25,7 @@ from .list_drf import ilsdrf
 from .ringbuffer import DigitalRFRingbufferHandler
 from .watchdog_drf import DigitalRFEventHandler, DirWatcher
 
-__all__ = (
-    'DigitalRFMirrorHandler', 'DigitalRFMirror',
-)
+__all__ = ("DigitalRFMirrorHandler", "DigitalRFMirror")
 
 
 class DigitalRFMirrorHandler(DigitalRFEventHandler):
@@ -39,9 +37,17 @@ class DigitalRFMirrorHandler(DigitalRFEventHandler):
     """
 
     def __init__(
-        self, src, dest, verbose=False, mirror_fun=shutil.copy2,
-        starttime=None, endtime=None, include_drf=True, include_dmd=True,
-        include_drf_properties=True, include_dmd_properties=True,
+        self,
+        src,
+        dest,
+        verbose=False,
+        mirror_fun=shutil.copy2,
+        starttime=None,
+        endtime=None,
+        include_drf=True,
+        include_dmd=True,
+        include_drf_properties=True,
+        include_dmd_properties=True,
     ):
         """Create Digital RF mirror handler given source and destination.
 
@@ -75,8 +81,10 @@ class DigitalRFMirrorHandler(DigitalRFEventHandler):
         self.verbose = verbose
         self.mirror_fun = mirror_fun
         super(DigitalRFMirrorHandler, self).__init__(
-            starttime=starttime, endtime=endtime,
-            include_drf=include_drf, include_dmd=include_dmd,
+            starttime=starttime,
+            endtime=endtime,
+            include_drf=include_drf,
+            include_dmd=include_dmd,
             include_drf_properties=include_drf_properties,
             include_dmd_properties=include_dmd_properties,
         )
@@ -90,17 +98,16 @@ class DigitalRFMirrorHandler(DigitalRFEventHandler):
         """Mirror file to its location in the destination directory."""
         dest_path = self._get_dest_path(src_path)
         dest_dir, dest_name = os.path.split(dest_path)
-        tmp_dest_path = os.path.join(dest_dir, 'tmp.' + dest_name)
+        tmp_dest_path = os.path.join(dest_dir, "tmp." + dest_name)
         try:
             if not os.path.exists(dest_dir):
                 os.makedirs(dest_dir)
-            if (not os.path.exists(dest_path)
-                    or not filecmp.cmp(src_path, dest_path)):
+            if not os.path.exists(dest_path) or not filecmp.cmp(src_path, dest_path):
                 if self.verbose:
                     now = datetime.datetime.utcnow().replace(microsecond=0)
-                    print('{0} | Mirroring {1}'.format(now, src_path))
+                    print("{0} | Mirroring {1}".format(now, src_path))
                 else:
-                    sys.stdout.write('.')
+                    sys.stdout.write(".")
                     sys.stdout.flush()
                 # mirror to temporary name, then rename to final destination
                 self.mirror_fun(src_path, tmp_dest_path)
@@ -142,8 +149,16 @@ class DigitalRFMirror(object):
     """
 
     def __init__(
-        self, src, dest, method='move', ignore_existing=False, verbose=False,
-        starttime=None, endtime=None, include_drf=True, include_dmd=True,
+        self,
+        src,
+        dest,
+        method="move",
+        ignore_existing=False,
+        verbose=False,
+        starttime=None,
+        endtime=None,
+        include_drf=True,
+        include_dmd=True,
     ):
         """Create Digital RF mirror object. Use start/run method to begin.
 
@@ -191,7 +206,7 @@ class DigitalRFMirror(object):
         """
         self.src = os.path.abspath(src)
         self.dest = os.path.abspath(dest)
-        if method not in ('move', 'copy'):
+        if method not in ("move", "copy"):
             raise ValueError('Mirror method must be either "move" or "copy".')
         self.method = method
         self.ignore_existing = ignore_existing
@@ -202,39 +217,53 @@ class DigitalRFMirror(object):
         self.include_dmd = include_dmd
 
         if not self.include_drf and not self.include_dmd:
-            errstr = 'One of `include_drf` or `include_dmd` must be True.'
+            errstr = "One of `include_drf` or `include_dmd` must be True."
             raise ValueError(errstr)
 
         self.event_handlers = []
         # have to copy properties files because static,
         # have to copy metadata because can be modified
         copy_handler = DigitalRFMirrorHandler(
-            self.src, self.dest, verbose=verbose, mirror_fun=shutil.copy2,
-            starttime=self.starttime, endtime=self.endtime,
-            include_drf=(self.include_drf and self.method == 'copy'),
+            self.src,
+            self.dest,
+            verbose=verbose,
+            mirror_fun=shutil.copy2,
+            starttime=self.starttime,
+            endtime=self.endtime,
+            include_drf=(self.include_drf and self.method == "copy"),
             include_dmd=self.include_dmd,
             include_drf_properties=self.include_drf,
             include_dmd_properties=self.include_dmd,
         )
         self.event_handlers.append(copy_handler)
 
-        if self.include_drf and self.method == 'move':
+        if self.include_drf and self.method == "move":
             # move RF files with a separate handler
             drf_handler = DigitalRFMirrorHandler(
-                self.src, self.dest, verbose=verbose, mirror_fun=shutil.move,
-                starttime=self.starttime, endtime=self.endtime,
-                include_drf=True, include_dmd=False,
-                include_drf_properties=False, include_dmd_properties=False,
+                self.src,
+                self.dest,
+                verbose=verbose,
+                mirror_fun=shutil.move,
+                starttime=self.starttime,
+                endtime=self.endtime,
+                include_drf=True,
+                include_dmd=False,
+                include_drf_properties=False,
+                include_dmd_properties=False,
             )
             self.event_handlers.append(drf_handler)
 
-        if self.include_dmd and self.method == 'move':
+        if self.include_dmd and self.method == "move":
             # set ringbuffer on Digital Metadata files so old ones are removed
             # (can't move since multiple writes can happen to a single file)
             md_ringbuffer_handler = DigitalRFRingbufferHandler(
-                count=1, verbose=verbose, dryrun=False,
-                starttime=self.starttime, endtime=self.endtime,
-                include_drf=False, include_dmd=True,
+                count=1,
+                verbose=verbose,
+                dryrun=False,
+                starttime=self.starttime,
+                endtime=self.endtime,
+                include_drf=False,
+                include_dmd=True,
             )
             self.event_handlers.append(md_ringbuffer_handler)
 
@@ -251,9 +280,11 @@ class DigitalRFMirror(object):
         self.observer.start()
 
         now = datetime.datetime.utcnow().replace(microsecond=0)
-        print('{0} | Mirroring ({1}) {2} to {3}:'.format(
-            now, self.method, self.src, self.dest,
-        ))
+        print(
+            "{0} | Mirroring ({1}) {2} to {3}:".format(
+                now, self.method, self.src, self.dest
+            )
+        )
         sys.stdout.flush()
 
         if os.path.isdir(self.src):
@@ -262,7 +293,9 @@ class DigitalRFMirror(object):
             # copy again or fail to move because the source doesn't exist)
             # mirror properties at minimum
             paths = ilsdrf(
-                self.src, include_drf=False, include_dmd=False,
+                self.src,
+                include_drf=False,
+                include_dmd=False,
                 include_drf_properties=self.include_drf,
                 include_dmd_properties=self.include_dmd,
             )
@@ -270,7 +303,9 @@ class DigitalRFMirror(object):
             if not self.ignore_existing:
                 # mirror other files if desired
                 more_paths = ilsdrf(
-                    self.src, starttime=self.starttime, endtime=self.endtime,
+                    self.src,
+                    starttime=self.starttime,
+                    endtime=self.endtime,
                     include_drf=self.include_drf,
                     include_dmd=self.include_dmd,
                     include_drf_properties=False,
@@ -294,9 +329,7 @@ class DigitalRFMirror(object):
                 if not self.observer.all_alive():
                     # if not all threads of the observer are alive,
                     # reinitialize and restart
-                    print(
-                        'Found stopped thread, reinitializing and restarting.'
-                    )
+                    print("Found stopped thread, reinitializing and restarting.")
                     sys.stdout.flush()
                     # make a new observer and start it ASAP
                     # (if we missed some events, can't help it)
@@ -308,7 +341,7 @@ class DigitalRFMirror(object):
             pass
         finally:
             self.stop()
-            sys.stdout.write('\n')
+            sys.stdout.write("\n")
             sys.stdout.flush()
         self.observer.join()
 
@@ -323,36 +356,37 @@ class DigitalRFMirror(object):
 
 
 def _build_mirror_parser(Parser, *args):
-    desc = 'Mirror Digital RF files from one directory to another.'
+    desc = "Mirror Digital RF files from one directory to another."
     parser = Parser(*args, description=desc)
 
+    parser.add_argument("method", choices=["mv", "cp"], help="Mirroring method.")
+    parser.add_argument("src", help="Source directory to monitor.")
+    parser.add_argument("dest", help="Destination directory.")
     parser.add_argument(
-        'method', choices=['mv', 'cp'],
-        help='Mirroring method.',
-    )
-    parser.add_argument('src', help='Source directory to monitor.')
-    parser.add_argument('dest', help='Destination directory.')
-    parser.add_argument(
-        '-v', '--verbose', action='store_true',
-        help='Print the name of mirrored files.',
+        "-v", "--verbose", action="store_true", help="Print the name of mirrored files."
     )
     parser.add_argument(
-        '--ignore_existing', action='store_true',
-        help='Ignore existing files in source directory.',
+        "--ignore_existing",
+        action="store_true",
+        help="Ignore existing files in source directory.",
     )
 
     parser = list_drf._add_time_group(parser)
 
-    includegroup = parser.add_argument_group(title='include')
+    includegroup = parser.add_argument_group(title="include")
     includegroup.add_argument(
-        '--nodrf', dest='include_drf', action='store_false',
-        help='''Do not mirror Digital RF HDF5 files.
-                (default: False)''',
+        "--nodrf",
+        dest="include_drf",
+        action="store_false",
+        help="""Do not mirror Digital RF HDF5 files.
+                (default: False)""",
     )
     includegroup.add_argument(
-        '--nodmd', dest='include_dmd', action='store_false',
-        help='''Do not mirror Digital Metadata HDF5 files.
-                (default: False)''',
+        "--nodmd",
+        dest="include_dmd",
+        action="store_false",
+        help="""Do not mirror Digital Metadata HDF5 files.
+                (default: False)""",
     )
 
     parser.set_defaults(func=_run_mirror)
@@ -363,28 +397,29 @@ def _build_mirror_parser(Parser, *args):
 def _run_mirror(args):
     import signal
 
-    methods = {'mv': 'move', 'cp': 'copy'}
+    methods = {"mv": "move", "cp": "copy"}
     args.method = methods[args.method]
 
     if args.starttime is not None:
         args.starttime = util.parse_identifier_to_time(args.starttime)
     if args.endtime is not None:
         args.endtime = util.parse_identifier_to_time(
-            args.endtime, ref_datetime=args.starttime,
+            args.endtime, ref_datetime=args.starttime
         )
 
     kwargs = vars(args).copy()
-    del kwargs['func']
+    del kwargs["func"]
 
     # handle SIGTERM (getting killed) gracefully by calling sys.exit
     def sigterm_handler(signal, frame):
-        print('Killed')
+        print("Killed")
         sys.stdout.flush()
         sys.exit(128 + signal)
+
     signal.signal(signal.SIGTERM, sigterm_handler)
 
     mirror = DigitalRFMirror(**kwargs)
-    print('Type Ctrl-C to quit.')
+    print("Type Ctrl-C to quit.")
     mirror.run()
 
 

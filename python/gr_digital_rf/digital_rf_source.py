@@ -24,48 +24,44 @@ import six
 H5T_LOOKUP = {
     # (class, itemsize, is_complex): {name, dtype, missingvalue}
     (h5py.h5t.INTEGER, 1, False): dict(
-        name='s8', dtype=np.int8, missingvalue=np.iinfo(np.int8).min,
+        name="s8", dtype=np.int8, missingvalue=np.iinfo(np.int8).min
     ),
     (h5py.h5t.INTEGER, 2, False): dict(
-        name='s16', dtype=np.int16, missingvalue=np.iinfo(np.int16).min,
+        name="s16", dtype=np.int16, missingvalue=np.iinfo(np.int16).min
     ),
     (h5py.h5t.INTEGER, 4, False): dict(
-        name='s32', dtype=np.int32, missingvalue=np.iinfo(np.int32).min,
+        name="s32", dtype=np.int32, missingvalue=np.iinfo(np.int32).min
     ),
     (h5py.h5t.INTEGER, 8, False): dict(
-        name='s64', dtype=np.int64, missingvalue=np.iinfo(np.int64).min,
+        name="s64", dtype=np.int64, missingvalue=np.iinfo(np.int64).min
     ),
-    (h5py.h5t.FLOAT, 4, False): dict(
-        name='f32', dtype=np.float32, missingvalue=np.nan,
-    ),
-    (h5py.h5t.FLOAT, 8, False): dict(
-        name='f64', dtype=np.float64, missingvalue=np.nan,
-    ),
+    (h5py.h5t.FLOAT, 4, False): dict(name="f32", dtype=np.float32, missingvalue=np.nan),
+    (h5py.h5t.FLOAT, 8, False): dict(name="f64", dtype=np.float64, missingvalue=np.nan),
     (h5py.h5t.INTEGER, 1, True): dict(
-        name='sc8',
-        dtype=np.dtype([('r', np.int8), ('i', np.int8)]),
-        missingvalue=(np.iinfo(np.int8).min,)*2,
+        name="sc8",
+        dtype=np.dtype([("r", np.int8), ("i", np.int8)]),
+        missingvalue=(np.iinfo(np.int8).min,) * 2,
     ),
     (h5py.h5t.INTEGER, 2, True): dict(
-        name='sc16',
-        dtype=np.dtype([('r', np.int16), ('i', np.int16)]),
-        missingvalue=(np.iinfo(np.int16).min,)*2,
+        name="sc16",
+        dtype=np.dtype([("r", np.int16), ("i", np.int16)]),
+        missingvalue=(np.iinfo(np.int16).min,) * 2,
     ),
     (h5py.h5t.INTEGER, 4, True): dict(
-        name='sc32',
-        dtype=np.dtype([('r', np.int32), ('i', np.int32)]),
-        missingvalue=(np.iinfo(np.int32).min,)*2,
+        name="sc32",
+        dtype=np.dtype([("r", np.int32), ("i", np.int32)]),
+        missingvalue=(np.iinfo(np.int32).min,) * 2,
     ),
     (h5py.h5t.INTEGER, 8, True): dict(
-        name='sc64',
-        dtype=np.dtype([('r', np.int64), ('i', np.int64)]),
-        missingvalue=(np.iinfo(np.int64).min,)*2,
+        name="sc64",
+        dtype=np.dtype([("r", np.int64), ("i", np.int64)]),
+        missingvalue=(np.iinfo(np.int64).min,) * 2,
     ),
     (h5py.h5t.FLOAT, 4, True): dict(
-        name='fc32', dtype=np.complex64, missingvalue=(np.nan+np.nan*1j),
+        name="fc32", dtype=np.complex64, missingvalue=(np.nan + np.nan * 1j)
     ),
     (h5py.h5t.FLOAT, 8, True): dict(
-        name='fc64', dtype=np.complex128, missingvalue=(np.nan+np.nan*1j),
+        name="fc64", dtype=np.complex128, missingvalue=(np.nan + np.nan * 1j)
     ),
 }
 
@@ -74,7 +70,7 @@ def get_h5type(cls, size, is_complex):
     try:
         typedict = H5T_LOOKUP[(cls, size, is_complex)]
     except KeyError:
-        raise ValueError('HDF5 data type not supported for reading.')
+        raise ValueError("HDF5 data type not supported for reading.")
     return typedict
 
 
@@ -82,7 +78,12 @@ class digital_rf_channel_source(gr.sync_block):
     """Source block for reading a channel of Digital RF data."""
 
     def __init__(
-        self, channel_dir, start=None, end=None, repeat=False, gapless=False,
+        self,
+        channel_dir,
+        start=None,
+        end=None,
+        repeat=False,
+        gapless=False,
         min_chunksize=None,
     ):
         """Read a channel of data from a Digital RF directory.
@@ -191,17 +192,17 @@ class digital_rf_channel_source(gr.sync_block):
         if len(chs) == 1:
             ch = chs.pop()
         else:
-            raise ValueError('Channel directories must have the same name.')
+            raise ValueError("Channel directories must have the same name.")
         self._ch = ch
 
         self._Reader = DigitalRFReader(top_level_dirs)
         self._properties = self._Reader.get_properties(self._ch)
 
-        typeclass = self._properties['H5Tget_class']
-        itemsize = self._properties['H5Tget_size']
-        is_complex = self._properties['is_complex']
-        vlen = self._properties['num_subchannels']
-        sr = self._properties['samples_per_second']
+        typeclass = self._properties["H5Tget_class"]
+        itemsize = self._properties["H5Tget_size"]
+        is_complex = self._properties["is_complex"]
+        vlen = self._properties["num_subchannels"]
+        sr = self._properties["samples_per_second"]
 
         self._itemsize = itemsize
         self._sample_rate = sr
@@ -209,10 +210,10 @@ class digital_rf_channel_source(gr.sync_block):
 
         # determine output signature from HDF5 type metadata
         typedict = get_h5type(typeclass, itemsize, is_complex)
-        self._outtype = typedict['name']
-        self._itemtype = typedict['dtype']
+        self._outtype = typedict["name"]
+        self._itemtype = typedict["dtype"]
         self._missingvalue = np.zeros((), dtype=self._itemtype)
-        self._missingvalue[()] = typedict['missingvalue']
+        self._missingvalue[()] = typedict["missingvalue"]
         self._fillvalue = np.zeros((), dtype=self._itemtype)
         if np.issubdtype(self._itemtype, np.inexact) and np.isnan(self._missingvalue):
             self._ismissing = lambda a: np.isnan(a)
@@ -224,13 +225,10 @@ class digital_rf_channel_source(gr.sync_block):
             out_sig = [(self._itemtype, vlen)]
 
         gr.sync_block.__init__(
-            self,
-            name="digital_rf_channel_source",
-            in_sig=None,
-            out_sig=out_sig,
+            self, name="digital_rf_channel_source", in_sig=None, out_sig=out_sig
         )
 
-        self.message_port_register_out(pmt.intern('properties'))
+        self.message_port_register_out(pmt.intern("properties"))
         self._id = pmt.intern(self._ch)
         self._tag_queue = {}
 
@@ -279,12 +277,11 @@ class digital_rf_channel_source(gr.sync_block):
         tag_dict = self._tag_queue.get(sample, {})
         if not tag_dict:
             # add time and rate tags
-            time = sample/self._sample_rate
-            tag_dict['rx_time'] = pmt.make_tuple(
-                pmt.from_uint64(int(np.uint64(time))),
-                pmt.from_double(float(time % 1)),
+            time = sample / self._sample_rate
+            tag_dict["rx_time"] = pmt.make_tuple(
+                pmt.from_uint64(int(np.uint64(time))), pmt.from_double(float(time % 1))
             )
-            tag_dict['rx_rate'] = self._sample_rate_pmt
+            tag_dict["rx_rate"] = self._sample_rate_pmt
         for k, v in tags.items():
             try:
                 pmt_val = pmt.to_pmt(v)
@@ -302,10 +299,10 @@ class digital_rf_channel_source(gr.sync_block):
     def start(self):
         self._bounds = self._Reader.get_bounds(self._ch)
         self._start_sample = util.parse_identifier_to_sample(
-            self._start, self._sample_rate, self._bounds[0],
+            self._start, self._sample_rate, self._bounds[0]
         )
         self._end_sample = util.parse_identifier_to_sample(
-            self._end, self._sample_rate, self._bounds[0],
+            self._end, self._sample_rate, self._bounds[0]
         )
         if self._start_sample is None:
             self._read_start_sample = self._bounds[0]
@@ -315,11 +312,11 @@ class digital_rf_channel_source(gr.sync_block):
         self._queue_tags(self._read_start_sample, {})
         # replace longdouble samples_per_second with float for pmt conversion
         properties_message = self._properties.copy()
-        properties_message['samples_per_second'] = \
-            float(properties_message['samples_per_second'])
+        properties_message["samples_per_second"] = float(
+            properties_message["samples_per_second"]
+        )
         self.message_port_pub(
-            pmt.intern('properties'),
-            pmt.to_pmt({self._ch: properties_message}),
+            pmt.intern("properties"), pmt.to_pmt({self._ch: properties_message})
         )
         return super(digital_rf_channel_source, self).start()
 
@@ -347,9 +344,7 @@ class digital_rf_channel_source(gr.sync_block):
                 if read_start > read_end:
                     raise EOFError
                 # read data
-                data_dict = self._Reader.read(
-                    read_start, read_end, self._ch,
-                )
+                data_dict = self._Reader.read(read_start, read_end, self._ch)
                 # handled all samples through read_end regardless of whether
                 # they were written to the output vector
                 self._read_start_sample = read_end + 1
@@ -368,18 +363,16 @@ class digital_rf_channel_source(gr.sync_block):
                     continue
                 # read corresponding metadata
                 if self._DMDReader is not None:
-                    meta_dict = self._DMDReader.read(
-                        read_start, read_end,
-                    )
+                    meta_dict = self._DMDReader.read(read_start, read_end)
                     for sample, meta in meta_dict.items():
                         # add tags from Digital Metadata
                         # (in addition to default time and rate tags)
                         # eliminate sample_rate_* tags with duplicate info
-                        meta.pop('sample_rate_denominator', None)
-                        meta.pop('sample_rate_numerator', None)
+                        meta.pop("sample_rate_denominator", None)
+                        meta.pop("sample_rate_numerator", None)
                         # get center frequencies for rx_freq tag, squeeze()[()]
                         # to get single value if possible else pass as an array
-                        cf = meta.pop('center_frequencies', None)
+                        cf = meta.pop("center_frequencies", None)
                         if cf is not None:
                             cf = cf.ravel().squeeze()[()]
                         tags = dict(
@@ -430,7 +423,7 @@ class digital_rf_channel_source(gr.sync_block):
                         tag_dict = self._tag_queue.pop(tag_sample)
                         for name, val in tag_dict.items():
                             self.add_item_tag(
-                                0, offset, pmt.intern(name), val, self._id,
+                                0, offset, pmt.intern(name), val, self._id
                             )
                     # advance next output index and continuous sample
                     next_index = stop_index  # <=== next_index += n
@@ -467,8 +460,15 @@ class digital_rf_source(gr.hier_block2):
     """Source block for reading Digital RF data."""
 
     def __init__(
-        self, top_level_dir, channels=None, start=None, end=None,
-        repeat=False, throttle=False, gapless=False, min_chunksize=None,
+        self,
+        top_level_dir,
+        channels=None,
+        start=None,
+        end=None,
+        repeat=False,
+        throttle=False,
+        gapless=False,
+        min_chunksize=None,
     ):
         """Read data from a directory containing Digital RF channels.
 
@@ -576,27 +576,25 @@ class digital_rf_source(gr.hier_block2):
 
         """
         options = locals()
-        del options['self']
-        del options['top_level_dir']
-        del options['channels']
-        del options['start']
-        del options['end']
-        del options['throttle']
+        del options["self"]
+        del options["top_level_dir"]
+        del options["channels"]
+        del options["start"]
+        del options["end"]
+        del options["throttle"]
 
         Reader = DigitalRFReader(top_level_dir)
         available_channel_names = Reader.get_channels()
-        self._channel_names = self._get_channel_names(
-            channels, available_channel_names,
-        )
+        self._channel_names = self._get_channel_names(channels, available_channel_names)
 
         if start is None or isinstance(start, six.string_types):
-            start = [start]*len(self._channel_names)
+            start = [start] * len(self._channel_names)
         try:
             s_iter = iter(start)
         except TypeError:
             s_iter = iter([start])
         if end is None or isinstance(end, six.string_types):
-            end = [end]*len(self._channel_names)
+            end = [end] * len(self._channel_names)
         try:
             e_iter = iter(end)
         except TypeError:
@@ -612,7 +610,8 @@ class digital_rf_source(gr.hier_block2):
 
         out_sig_dtypes = [list(src.out_sig())[0] for src in self._channels]
         out_sig = gr.io_signaturev(
-            len(out_sig_dtypes), len(out_sig_dtypes),
+            len(out_sig_dtypes),
+            len(out_sig_dtypes),
             [s.itemsize for s in out_sig_dtypes],
         )
         in_sig = gr.io_signature(0, 0, 0)
@@ -624,13 +623,14 @@ class digital_rf_source(gr.hier_block2):
             output_signature=out_sig,
         )
 
-        msg_port_name = pmt.intern('properties')
-        self.message_port_register_hier_out('properties')
+        msg_port_name = pmt.intern("properties")
+        self.message_port_register_hier_out("properties")
 
         for k, src in enumerate(self._channels):
             if throttle:
                 throt = gnuradio.blocks.throttle(
-                    list(src.out_sig())[0].itemsize, float(src._sample_rate),
+                    list(src.out_sig())[0].itemsize,
+                    float(src._sample_rate),
                     ignore_tags=True,
                 )
                 self.connect(src, throt, (self, k))
@@ -656,14 +656,14 @@ class digital_rf_source(gr.hier_block2):
             ch_iter = iter([channels])
         for ch in ch_iter:
             # make None and index ch into string channel name
-            if ch is None or ch == '':
+            if ch is None or ch == "":
                 # use first available channel (alphabetical)
                 try:
                     ch_name = unselected_channels[0]
                 except IndexError:
                     raise ValueError(
                         '"None" invalid for channel, all available '
-                        'channels have been selected.'
+                        "channels have been selected."
                     )
             else:
                 # try ch as a list index into available channels
@@ -673,18 +673,13 @@ class digital_rf_source(gr.hier_block2):
                     # not an index, that's fine
                     ch_name = ch
                 except IndexError:
-                    raise IndexError(
-                        'Channel index {0} does not exist.'.format(ch)
-                    )
+                    raise IndexError("Channel index {0} does not exist.".format(ch))
 
             # now assume ch is a string, get from unselected channel list
             try:
                 unselected_channels.remove(ch_name)
             except ValueError:
-                errstr = (
-                    'Channel {0} does not exist or has already been '
-                    'selected.'
-                )
+                errstr = "Channel {0} does not exist or has already been " "selected."
                 raise ValueError(errstr.format(ch_name))
             channel_names.append(ch_name)
         return channel_names

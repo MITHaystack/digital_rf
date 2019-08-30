@@ -223,7 +223,7 @@ a running flowgraph.
 Parameters
 --------------------
 
-Input Type : numpy.dtype
+Input Type : np.dtype
     Data type of the input and output data.
 
 Vec Length : int

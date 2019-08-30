@@ -28,21 +28,22 @@ import uuid
 import warnings
 
 import h5py
-import numpy
+import numpy as np
 import packaging.version
-
 import six
 
 # local imports
 from . import _py_rf_write_hdf5, digital_metadata, list_drf
 from ._version import get_versions
 
-__version__ = get_versions()['version']
+__version__ = get_versions()["version"]
 del get_versions
 
 __all__ = (
-    'get_unix_time', 'recreate_properties_file',
-    'DigitalRFReader', 'DigitalRFWriter',
+    "get_unix_time",
+    "recreate_properties_file",
+    "DigitalRFReader",
+    "DigitalRFWriter",
 )
 
 
@@ -50,7 +51,7 @@ libdigital_rf_version = _py_rf_write_hdf5.get_version()
 
 
 def recreate_properties_file(channel_dir):
-    """Helper function to re-create top-level drf_properties.h5 in channel dir.
+    """Re-create top-level drf_properties.h5 in channel dir.
 
     This function re-creates a missing drf_properties.h5 file in a Digital RF
     channel directory using the duplicate attributes stored in one of the data
@@ -59,7 +60,6 @@ def recreate_properties_file(channel_dir):
 
     Parameters
     ----------
-
     channel_dir : string
         Channel directory containing Digital RF subdirectories in the form
         YYYY-MM-DDTHH-MM-SS, but missing a drf_properties.h5 file.
@@ -67,7 +67,6 @@ def recreate_properties_file(channel_dir):
 
     Notes
     -----
-
     The following properties are read from a data file and stored as attributes
     in a new drf_properties.h5 file:
 
@@ -96,48 +95,44 @@ def recreate_properties_file(channel_dir):
         subdir_cadence_secs : int
 
     """
-    properties_file = os.path.join(channel_dir, 'drf_properties.h5')
+    properties_file = os.path.join(channel_dir, "drf_properties.h5")
     if os.access(properties_file, os.R_OK):
-        raise IOError('drf_properties.h5 already exists in %s' % (channel_dir))
+        raise IOError("drf_properties.h5 already exists in %s" % (channel_dir))
 
     subdirs = glob.glob(os.path.join(channel_dir, list_drf.GLOB_SUBDIR))
     if len(subdirs) == 0:
-        errstr = 'No subdirectories in form YYYY-MM-DDTHH-MM-SS found in %s'
+        errstr = "No subdirectories in form YYYY-MM-DDTHH-MM-SS found in %s"
         raise IOError(errstr % str(channel_dir))
 
     this_subdir = subdirs[len(subdirs) // 2]
 
-    rf_file_glob = list_drf.GLOB_DRFFILE.replace('*', 'rf', 1)
+    rf_file_glob = list_drf.GLOB_DRFFILE.replace("*", "rf", 1)
     rf_files = glob.glob(os.path.join(this_subdir, rf_file_glob))
     if len(rf_files) == 0:
-        errstr = 'No rf files in form rf@<ts>.h5 found in %s'
+        errstr = "No rf files in form rf@<ts>.h5 found in %s"
         raise IOError(errstr % this_subdir)
 
-    with h5py.File(rf_files[0], 'r') as fi:
-        with h5py.File(properties_file, 'w') as fo:
-            md = fi['rf_data'].attrs
-            fo.attrs['H5Tget_class'] = md['H5Tget_class']
-            fo.attrs['H5Tget_size'] = md['H5Tget_size']
-            fo.attrs['H5Tget_order'] = md['H5Tget_order']
-            fo.attrs['H5Tget_precision'] = md['H5Tget_precision']
-            fo.attrs['H5Tget_offset'] = md['H5Tget_offset']
-            fo.attrs['subdir_cadence_secs'] = md['subdir_cadence_secs']
-            fo.attrs['file_cadence_millisecs'] = md['file_cadence_millisecs']
-            fo.attrs['sample_rate_numerator'] = md['sample_rate_numerator']
-            fo.attrs['sample_rate_denominator'] = md['sample_rate_denominator']
-            fo.attrs['is_complex'] = md['is_complex']
-            fo.attrs['num_subchannels'] = md['num_subchannels']
-            fo.attrs['is_continuous'] = md['is_continuous']
-            fo.attrs['epoch'] = md['epoch']
-            fo.attrs['digital_rf_time_description'] = (
-                md['digital_rf_time_description']
-            )
-            fo.attrs['digital_rf_version'] = md['digital_rf_version']
+    with h5py.File(rf_files[0], "r") as fi:
+        with h5py.File(properties_file, "w") as fo:
+            md = fi["rf_data"].attrs
+            fo.attrs["H5Tget_class"] = md["H5Tget_class"]
+            fo.attrs["H5Tget_size"] = md["H5Tget_size"]
+            fo.attrs["H5Tget_order"] = md["H5Tget_order"]
+            fo.attrs["H5Tget_precision"] = md["H5Tget_precision"]
+            fo.attrs["H5Tget_offset"] = md["H5Tget_offset"]
+            fo.attrs["subdir_cadence_secs"] = md["subdir_cadence_secs"]
+            fo.attrs["file_cadence_millisecs"] = md["file_cadence_millisecs"]
+            fo.attrs["sample_rate_numerator"] = md["sample_rate_numerator"]
+            fo.attrs["sample_rate_denominator"] = md["sample_rate_denominator"]
+            fo.attrs["is_complex"] = md["is_complex"]
+            fo.attrs["num_subchannels"] = md["num_subchannels"]
+            fo.attrs["is_continuous"] = md["is_continuous"]
+            fo.attrs["epoch"] = md["epoch"]
+            fo.attrs["digital_rf_time_description"] = md["digital_rf_time_description"]
+            fo.attrs["digital_rf_version"] = md["digital_rf_version"]
 
 
-def get_unix_time(
-    unix_sample_index, sample_rate_numerator, sample_rate_denominator,
-):
+def get_unix_time(unix_sample_index, sample_rate_numerator, sample_rate_denominator):
     """Get unix time corresponding to a sample index for a given sample rate.
 
     Returns a tuple (dt, ps) containing a datetime and picosecond value. The
@@ -148,7 +143,6 @@ def get_unix_time(
 
     Parameters
     ----------
-
     unix_sample_index : int
         Number of samples at given sample rate since UT midnight 1970-01-01
 
@@ -161,7 +155,6 @@ def get_unix_time(
 
     Returns
     -------
-
     dt : datetime.datetime
         Time corresponding to the sample, with microsecond precision. This will
         give a Unix second of ``(unix_sample_index // sample_rate)``.
@@ -171,13 +164,11 @@ def get_unix_time(
         for the time corresponding to the sample.
 
     """
-    year, month, day, hour, minute, second, picosecond = \
-        _py_rf_write_hdf5.get_unix_time(
-            unix_sample_index, sample_rate_numerator, sample_rate_denominator
-        )
+    year, month, day, hour, minute, second, picosecond = _py_rf_write_hdf5.get_unix_time(
+        unix_sample_index, sample_rate_numerator, sample_rate_denominator
+    )
     dt = datetime.datetime(
-        year, month, day, hour, minute, second,
-        microsecond=int(picosecond / 1e6),
+        year, month, day, hour, minute, second, microsecond=int(picosecond / 1e6)
     )
     return (dt, picosecond)
 
@@ -188,25 +179,34 @@ class DigitalRFWriter(object):
     _writer_version = libdigital_rf_version
 
     def __init__(
-        self, directory, dtype, subdir_cadence_secs,
-        file_cadence_millisecs, start_global_index, sample_rate_numerator,
-        sample_rate_denominator, uuid_str=None, compression_level=0,
-        checksum=False, is_complex=True, num_subchannels=1, is_continuous=True,
+        self,
+        directory,
+        dtype,
+        subdir_cadence_secs,
+        file_cadence_millisecs,
+        start_global_index,
+        sample_rate_numerator,
+        sample_rate_denominator,
+        uuid_str=None,
+        compression_level=0,
+        checksum=False,
+        is_complex=True,
+        num_subchannels=1,
+        is_continuous=True,
         marching_periods=True,
     ):
         """Initialize writer to channel directory with given parameters.
 
         Parameters
         ----------
-
         directory : string
             The directory where this channel is to be written. It must already
             exist and be writable.
 
-        dtype : numpy.dtype | object to be cast by numpy.dtype()
+        dtype : np.dtype | object to be cast by np.dtype()
             Object that gives the numpy dtype of the data to be written. This
-            value is passed into ``numpy.dtype`` to get the actual dtype
-            (e.g. ``numpy.dtype('>i4')``). Scalar types, complex types, and
+            value is passed into ``np.dtype`` to get the actual dtype
+            (e.g. ``np.dtype('>i4')``). Scalar types, complex types, and
             structured complex types with 'r' and 'i' fields of scalar types
             are valid.
 
@@ -227,8 +227,8 @@ class DigitalRFWriter(object):
             epoch. For a given ``start_time`` in seconds since the epoch, this
             can be calculated as::
 
-                floor(start_time * (numpy.longdouble(sample_rate_numerator) /
-                                    numpy.longdouble(sample_rate_denominator)))
+                floor(start_time * (np.longdouble(sample_rate_numerator) /
+                                    np.longdouble(sample_rate_denominator)))
 
         sample_rate_numerator : int
             Numerator of sample rate in Hz.
@@ -239,7 +239,6 @@ class DigitalRFWriter(object):
 
         Other Parameters
         ----------------
-
         uuid_str : None | string, optional
             UUID string that will act as a unique identifier for the data and
             can be used to tie the data files to metadata. If None, a random
@@ -274,20 +273,20 @@ class DigitalRFWriter(object):
 
         """
         if not os.access(directory, os.W_OK):
-            errstr = 'Directory %s does not exist or is not writable'
+            errstr = "Directory %s does not exist or is not writable"
             raise IOError(errstr % directory)
         self.directory = directory
 
         # use numpy to get all needed info about this datatype
         # set self.realdtype and self.is_complex
-        dtype = numpy.dtype(dtype)
+        dtype = np.dtype(dtype)
         self._dtype_is_complexfloating = False
-        if numpy.issubdtype(dtype, numpy.complexfloating):
+        if np.issubdtype(dtype, np.complexfloating):
             self.is_complex = True
-            self.realdtype = numpy.dtype('f{0}'.format(dtype.itemsize // 2))
-        elif dtype.names == ('r', 'i'):
+            self.realdtype = np.dtype("f{0}".format(dtype.itemsize // 2))
+        elif dtype.names == ("r", "i"):
             self.is_complex = True
-            self.realdtype = dtype['r']
+            self.realdtype = dtype["r"]
         elif not dtype.names:
             self.is_complex = bool(is_complex)
             self.realdtype = dtype
@@ -295,15 +294,11 @@ class DigitalRFWriter(object):
             raise ValueError("Structured dtype must have fields ('r', 'i').")
         # set self.dtype and self.structdtype
         if self.is_complex:
-            self.structdtype = numpy.dtype(
-                [('r', self.realdtype), ('i', self.realdtype)]
-            )
-            if numpy.issubdtype(self.realdtype, numpy.floating):
+            self.structdtype = np.dtype([("r", self.realdtype), ("i", self.realdtype)])
+            if np.issubdtype(self.realdtype, np.floating):
                 # if floats, try to get equivalent complex type
                 try:
-                    self.dtype = numpy.dtype(
-                        'c{0}'.format(self.realdtype.itemsize*2)
-                    )
+                    self.dtype = np.dtype("c{0}".format(self.realdtype.itemsize * 2))
                 except TypeError:
                     self.dtype = self.structdtype
                 else:
@@ -315,53 +310,49 @@ class DigitalRFWriter(object):
             self.structdtype = None
         # set byteorder
         self.byteorder = self.realdtype.byteorder
-        if self.byteorder == '=':
+        if self.byteorder == "=":
             # simplify C code by conversion here
-            if sys.byteorder == 'big':
-                self.byteorder = '>'
+            if sys.byteorder == "big":
+                self.byteorder = ">"
             else:
-                self.byteorder = '<'
+                self.byteorder = "<"
 
-        if (subdir_cadence_secs != int(subdir_cadence_secs)
-                or subdir_cadence_secs < 1):
-            errstr = (
-                'subdir_cadence_secs must be positive integer, not %s'
-            )
+        if subdir_cadence_secs != int(subdir_cadence_secs) or subdir_cadence_secs < 1:
+            errstr = "subdir_cadence_secs must be positive integer, not %s"
             raise ValueError(errstr % str(subdir_cadence_secs))
         self.subdir_cadence_secs = int(subdir_cadence_secs)
 
-        if (file_cadence_millisecs != int(file_cadence_millisecs)
-                or file_cadence_millisecs < 1):
-            errstr = (
-                'file_cadence_millisecs must be positive integer, not %s'
-            )
+        if (
+            file_cadence_millisecs != int(file_cadence_millisecs)
+            or file_cadence_millisecs < 1
+        ):
+            errstr = "file_cadence_millisecs must be positive integer, not %s"
             raise ValueError(errstr % str(file_cadence_millisecs))
         self.file_cadence_millisecs = int(file_cadence_millisecs)
 
         if self.subdir_cadence_secs * 1000 % self.file_cadence_millisecs != 0:
             raise ValueError(
-                '(subdir_cadence_secs*1000 % file_cadence_millisecs)'
-                ' must equal 0'
+                "(subdir_cadence_secs*1000 % file_cadence_millisecs)" " must equal 0"
             )
 
         if start_global_index < 0:
-            errstr = 'start_global_index cannot be negative (%s)'
+            errstr = "start_global_index cannot be negative (%s)"
             raise ValueError(errstr % str(start_global_index))
         self.start_global_index = int(start_global_index)
 
-        if (sample_rate_numerator != int(sample_rate_numerator)
-                or sample_rate_numerator < 1):
-            errstr = (
-                'sample_rate_numerator must be positive integer, not %s'
-            )
+        if (
+            sample_rate_numerator != int(sample_rate_numerator)
+            or sample_rate_numerator < 1
+        ):
+            errstr = "sample_rate_numerator must be positive integer, not %s"
             raise ValueError(errstr % str(sample_rate_numerator))
         self.sample_rate_numerator = int(sample_rate_numerator)
 
-        if (sample_rate_denominator != int(sample_rate_denominator)
-                or sample_rate_denominator < 1):
-            errstr = (
-                'sample_rate_denominator must be positive integer, not %s'
-            )
+        if (
+            sample_rate_denominator != int(sample_rate_denominator)
+            or sample_rate_denominator < 1
+        ):
+            errstr = "sample_rate_denominator must be positive integer, not %s"
             raise ValueError(errstr % str(sample_rate_denominator))
         self.sample_rate_denominator = int(sample_rate_denominator)
 
@@ -369,19 +360,19 @@ class DigitalRFWriter(object):
             # generate random UUID
             uuid_str = uuid.uuid4().hex
         elif not isinstance(uuid_str, six.string_types):
-            errstr = 'uuid_str must be a string, not %s type'
+            errstr = "uuid_str must be a string, not %s type"
             raise ValueError(errstr % str(type(uuid_str)))
         self.uuid = str(uuid_str)
 
         if compression_level not in range(10):
-            errstr = 'compression_level must be 0-9, not %s'
+            errstr = "compression_level must be 0-9, not %s"
             raise ValueError(errstr % str(compression_level))
         self.compression_level = compression_level
 
         self.checksum = bool(checksum)
 
         if num_subchannels < 1:
-            errstr = 'Number of subchannels must be at least one, not %i'
+            errstr = "Number of subchannels must be at least one, not %i"
             raise ValueError(errstr % num_subchannels)
         self.num_subchannels = int(num_subchannels)
 
@@ -394,17 +385,26 @@ class DigitalRFWriter(object):
 
         # call the underlying C extension, which will call the C init method
         self._channelObj = _py_rf_write_hdf5.init(
-            directory, self.byteorder, self.realdtype.kind,
+            directory,
+            self.byteorder,
+            self.realdtype.kind,
             self.realdtype.itemsize,
-            self.subdir_cadence_secs, self.file_cadence_millisecs,
-            self.start_global_index, self.sample_rate_numerator,
-            self.sample_rate_denominator, uuid_str, compression_level,
-            int(self.checksum), int(self.is_complex), self.num_subchannels,
-            self.is_continuous, use_marching_periods,
+            self.subdir_cadence_secs,
+            self.file_cadence_millisecs,
+            self.start_global_index,
+            self.sample_rate_numerator,
+            self.sample_rate_denominator,
+            uuid_str,
+            compression_level,
+            int(self.checksum),
+            int(self.is_complex),
+            self.num_subchannels,
+            self.is_continuous,
+            use_marching_periods,
         )
 
         if not self._channelObj:
-            raise ValueError('Failed to create DigitalRFWriter')
+            raise ValueError("Failed to create DigitalRFWriter")
 
         self._last_file_written = None
         self._last_dir_written = None
@@ -433,7 +433,6 @@ class DigitalRFWriter(object):
 
         Parameters
         ----------
-
         arr : array_like
             Array of data to write. The array must have the same number of
             subchannels and type as declared when initializing the writer
@@ -456,7 +455,6 @@ class DigitalRFWriter(object):
 
         Returns
         -------
-
         next_avail_sample : int
             Index of the next available sample after the array has been
             written.
@@ -464,19 +462,17 @@ class DigitalRFWriter(object):
 
         See Also
         --------
-
         rf_write_blocks
 
 
         Notes
         -----
-
         Here's an example of one way to create a structured numpy array with
         complex data with dtype int16::
 
-            arr_data = numpy.ones(
+            arr_data = np.ones(
                 (num_rows, num_subchannels),
-                dtype=[('r', numpy.int16), ('i', numpy.int16)],
+                dtype=[('r', np.int16), ('i', np.int16)],
             )
             for i in range(num_subchannels):
                 for j in range(num_rows):
@@ -485,9 +481,9 @@ class DigitalRFWriter(object):
 
         The same data could be also be passed as an interleaved array::
 
-            arr_data = numpy.ones(
+            arr_data = np.ones(
                 (num_rows, num_subchannels*2),
-                dtype=numpy.int16,
+                dtype=np.int16,
             )
 
         """
@@ -499,18 +495,16 @@ class DigitalRFWriter(object):
         else:
             next_sample = int(next_sample)
         if next_sample < self._next_avail_sample:
-            errstr = (
-                'Trying to write at sample %i, but next available sample is %i'
-            )
+            errstr = "Trying to write at sample %i, but next available sample is %i"
             raise ValueError(errstr % (next_sample, self._next_avail_sample))
 
         try:
             next_avail_sample = _py_rf_write_hdf5.rf_write(
-                self._channelObj, arr, next_sample,
+                self._channelObj, arr, next_sample
             )
         except AttributeError:
             # self._channelObj doesn't exist because writer has been closed
-            raise IOError('Writer has been closed, cannot write.')
+            raise IOError("Writer has been closed, cannot write.")
 
         # update index attributes
         nwritten = arr.shape[0]
@@ -526,7 +520,6 @@ class DigitalRFWriter(object):
 
         Parameters
         ----------
-
         arr : array_like
             Array of data to write. See `rf_write` for a complete description
             of allowed forms.
@@ -546,7 +539,6 @@ class DigitalRFWriter(object):
 
         Returns
         -------
-
         next_avail_sample : int
             Index of the next available sample after the array has been
             written.
@@ -554,7 +546,6 @@ class DigitalRFWriter(object):
 
         See Also
         --------
-
         rf_write
 
         """
@@ -567,59 +558,59 @@ class DigitalRFWriter(object):
 
         # check global_sample_arr and block_sample_arr values
         if global_sample_arr[0] < self._next_avail_sample:
-            errstr = (
-                'global_sample_arr[0] must be at least {0}, not {1}'
-            ).format(self._next_avail_sample, global_sample_arr[0])
+            errstr = ("global_sample_arr[0] must be at least {0}, not {1}").format(
+                self._next_avail_sample, global_sample_arr[0]
+            )
             raise ValueError(errstr)
         if block_sample_arr[0] != 0:
-            errstr = (
-                'block_sample_arr[0] must be 0, not {0}.'
-            ).format(block_sample_arr[0])
+            errstr = ("block_sample_arr[0] must be 0, not {0}.").format(
+                block_sample_arr[0]
+            )
             raise ValueError(errstr)
         if len(global_sample_arr) != len(block_sample_arr):
             errstr = (
-                'Must have the same lengths: global_sample_arr ({0}) and'
-                ' block_sample_arr ({1}).'
+                "Must have the same lengths: global_sample_arr ({0}) and"
+                " block_sample_arr ({1})."
             ).format(len(global_sample_arr), len(block_sample_arr))
             raise ValueError(errstr)
         # view uint64 result as int64 as a hack to get negative results
         # when it makes sense
-        block_steps = numpy.diff(block_sample_arr).view(dtype=numpy.int64)
-        if numpy.any(block_steps < 1):
-            errstr = (
-                'block_sample_arr ({0}) must have increasing values'
-            ).format(block_sample_arr)
+        block_steps = np.diff(block_sample_arr).view(dtype=np.int64)
+        if np.any(block_steps < 1):
+            errstr = ("block_sample_arr ({0}) must have increasing values").format(
+                block_sample_arr
+            )
             raise ValueError(errstr)
         # view uint64 result as int64 as a hack to get negative results
         # when it makes sense
-        global_steps = numpy.diff(global_sample_arr).view(dtype=numpy.int64)
-        if numpy.any(global_steps < 1):
-            errstr = (
-                'global_sample_arr ({0}) must have increasing values'
-            ).format(global_sample_arr)
+        global_steps = np.diff(global_sample_arr).view(dtype=np.int64)
+        if np.any(global_steps < 1):
+            errstr = ("global_sample_arr ({0}) must have increasing values").format(
+                global_sample_arr
+            )
             raise ValueError(errstr)
         if block_sample_arr[-1] >= arr.shape[0]:
             errstr = (
-                'block_sample_arr ({0}) has indices that reference past the'
-                ' end of the supplied data (with length {1})'
+                "block_sample_arr ({0}) has indices that reference past the"
+                " end of the supplied data (with length {1})"
             ).format(block_sample_arr, arr.shape[0])
             raise ValueError(errstr)
-        if numpy.any(block_steps > global_steps):
+        if np.any(block_steps > global_steps):
             errstr = (
-                'Sample indices in global_sample_arr ({0}) would require'
-                ' overwriting data given the size of the corresponding data'
-                ' blocks in block_sample_arr ({1})'
+                "Sample indices in global_sample_arr ({0}) would require"
+                " overwriting data given the size of the corresponding data"
+                " blocks in block_sample_arr ({1})"
             ).format(global_sample_arr, block_sample_arr)
             raise ValueError(errstr)
 
         # data passed initial tests, try to write
         try:
             next_avail_sample = _py_rf_write_hdf5.rf_block_write(
-                self._channelObj, arr, global_sample_arr, block_sample_arr,
+                self._channelObj, arr, global_sample_arr, block_sample_arr
             )
         except AttributeError:
             # self._channelObj doesn't exist because writer has been closed
-            raise IOError('Writer has been closed, cannot write.')
+            raise IOError("Writer has been closed, cannot write.")
 
         # update index attributes
         nwritten = arr.shape[0]
@@ -678,7 +669,7 @@ class DigitalRFWriter(object):
         been called.
 
         """
-        if hasattr(self, '_channelObj'):
+        if hasattr(self, "_channelObj"):
             # store last written properties so we can use them after close
             self._last_file_written = self.get_last_file_written()
             self._last_dir_written = self.get_last_dir_written()
@@ -691,20 +682,17 @@ class DigitalRFWriter(object):
 
         Parameters
         ----------
-
         arr : array_like
             See `rf_write` method for a complete description of allowed values.
 
 
         Returns
         -------
-
         arr : ndarray of type self.dtype or self.structdtype
 
 
         Raises
         ------
-
         TypeError
             If the array type cannot be cast to the writer type.
 
@@ -714,30 +702,29 @@ class DigitalRFWriter(object):
 
         """
         # make sure arr is a contiguous array (as required by libidigital_rf)
-        arr = numpy.ascontiguousarray(arr)
+        arr = np.ascontiguousarray(arr)
         # cast array to the correct type (if possible)
         if (
-            (self._dtype_is_complexfloating
-             and numpy.issubdtype(arr.dtype, numpy.complexfloating))  # cplx
-            or not self.is_complex  # real input (failing above)->real output
-        ):
+            self._dtype_is_complexfloating
+            and np.issubdtype(arr.dtype, np.complexfloating)
+        ) or not self.is_complex:  # cplx  # real input (failing above)->real output
             # input dtype and storage format are the same
             # one of real->real, complex->complex
-            arr = arr.astype(self.dtype, casting='safe', copy=False)
-        elif arr.dtype.names is not None and arr.dtype.names == ('r', 'i'):
+            arr = arr.astype(self.dtype, casting="safe", copy=False)
+        elif arr.dtype.names is not None and arr.dtype.names == ("r", "i"):
             # input as structured complex, stored as structure complex
-            arr = arr.astype(self.structdtype, casting='safe', copy=False)
+            arr = arr.astype(self.structdtype, casting="safe", copy=False)
         else:
             # input as real, stored as structured complex
             # first make sure the real type is compatible
-            arr = arr.astype(self.realdtype, casting='safe', copy=False)
+            arr = arr.astype(self.realdtype, casting="safe", copy=False)
             # then get a complex view
             arr = arr.view(dtype=self.structdtype)
         # check array shape
         if arr.ndim == 1:
             if self.num_subchannels > 1:
-                errstr = '1 subchannel provided, {0} required.'.format(
-                    self.num_subchannels,
+                errstr = "1 subchannel provided, {0} required.".format(
+                    self.num_subchannels
                 )
                 raise ValueError(errstr)
             else:
@@ -745,13 +732,13 @@ class DigitalRFWriter(object):
                 arr = arr.reshape((-1, 1))
         elif arr.ndim == 2:
             if arr.shape[1] != self.num_subchannels:
-                errstr = '{0} subchannels provided, {1} required.'.format(
-                    arr.shape[1], self.num_subchannels,
+                errstr = "{0} subchannels provided, {1} required.".format(
+                    arr.shape[1], self.num_subchannels
                 )
                 raise ValueError(errstr)
         else:
-            errstr = 'Illegal shape, must be (N, {0}) not {1}.'.format(
-                self.num_subchannels, arr.shape,
+            errstr = "Illegal shape, must be (N, {0}) not {1}.".format(
+                self.num_subchannels, arr.shape
             )
             raise ValueError(errstr)
         return arr
@@ -761,20 +748,17 @@ class DigitalRFWriter(object):
 
         Parameters
         ----------
-
         sample_arr : array_like
             Array of (global, block) sample indices.
 
 
         Returns
         -------
-
         sample_arr : ndarray of type uint64
 
 
         Raises
         ------
-
         TypeError
             If the array type cannot be cast to equivalent values of uint64.
 
@@ -783,15 +767,13 @@ class DigitalRFWriter(object):
 
         """
         # make sure arr is a contiguous array (as required by libidigital_rf)
-        sample_arr = numpy.ascontiguousarray(sample_arr)
+        sample_arr = np.ascontiguousarray(sample_arr)
         # cast array to the correct type (if possible)
-        sample_arr_uint64 = sample_arr.astype(
-            numpy.uint64, casting='unsafe', copy=False,
-        )
-        if not numpy.allclose(sample_arr_uint64, sample_arr):
-            raise TypeError('Cannot cast sample_arr to uint64.')
+        sample_arr_uint64 = sample_arr.astype(np.uint64, casting="unsafe", copy=False)
+        if not np.allclose(sample_arr_uint64, sample_arr):
+            raise TypeError("Cannot cast sample_arr to uint64.")
         if sample_arr_uint64.ndim > 1:
-            raise ValueError('sample_arr must be 1-D')
+            raise ValueError("sample_arr must be 1-D")
         return sample_arr_uint64
 
 
@@ -807,7 +789,6 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         top_level_directory_arg : string
             Either a single top level directory containing Digital RF channel
             directories, or a list of such. A directory can be a file system
@@ -818,7 +799,6 @@ class DigitalRFReader(object):
 
         Notes
         -----
-
         A top level directory must contain files in the format:
             [channel]/[YYYY-MM-DDTHH-MM-SS]/rf@[seconds].[%03i milliseconds].h5
 
@@ -844,16 +824,16 @@ class DigitalRFReader(object):
         # create static attribute self._top_level_dir_dict
         self._top_level_dir_dict = {}
         for top_level_directory in top_level_arg:
-            if top_level_directory[0:7] == 'file://':
-                self._top_level_dir_dict[top_level_directory] = 'file'
-            elif top_level_directory[0:7] == 'http://':
-                self._top_level_dir_dict[top_level_directory] = 'http'
-            elif top_level_directory[0:7] == 'ftp://':
-                self._top_level_dir_dict[top_level_directory] = 'ftp'
+            if top_level_directory[0:7] == "file://":
+                self._top_level_dir_dict[top_level_directory] = "file"
+            elif top_level_directory[0:7] == "http://":
+                self._top_level_dir_dict[top_level_directory] = "http"
+            elif top_level_directory[0:7] == "ftp://":
+                self._top_level_dir_dict[top_level_directory] = "ftp"
             else:
                 # make sure absolute path used
                 this_top_level_dir = os.path.abspath(top_level_directory)
-                self._top_level_dir_dict[this_top_level_dir] = 'local'
+                self._top_level_dir_dict[this_top_level_dir] = "local"
 
         self._channel_dict = {}
         # populate self._channel_dict
@@ -874,22 +854,20 @@ class DigitalRFReader(object):
             top_level_dir_properties_list = []
             for top_level_dir in channel_dict[channel_name]:
                 new_top_level_metadata = _top_level_dir_properties(
-                    top_level_dir, channel_name,
-                    self._top_level_dir_dict[top_level_dir],
+                    top_level_dir, channel_name, self._top_level_dir_dict[top_level_dir]
                 )
                 top_level_dir_properties_list.append(new_top_level_metadata)
             new_channel_properties = _channel_properties(
-                channel_name,
-                top_level_dir_meta_list=top_level_dir_properties_list,
+                channel_name, top_level_dir_meta_list=top_level_dir_properties_list
             )
             self._channel_dict[channel_name] = new_channel_properties
 
         if not self._channel_dict:
             errstr = (
-                'No channels found: top_level_directory_arg = {0}.'
-                ' If path is correct, you may need to run'
-                ' recreate_properties_file to re-create missing'
-                ' drf_properties.h5 files.'
+                "No channels found: top_level_directory_arg = {0}."
+                " If path is correct, you may need to run"
+                " recreate_properties_file to re-create missing"
+                " drf_properties.h5 files."
             )
             raise ValueError(errstr.format(top_level_directory_arg))
 
@@ -929,7 +907,6 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
@@ -949,7 +926,6 @@ class DigitalRFReader(object):
 
         Returns
         -------
-
         OrderedDict
             The dictionary's keys are the start sample of each continuous block
             found between `start_sample` and `end_sample` (inclusive). Each
@@ -960,7 +936,6 @@ class DigitalRFReader(object):
 
         See Also
         --------
-
         get_continuous_blocks : Similar, except no data is read.
         read_vector : Read data into a vector of complex64 type.
         read_vector_c81d : Read data into a 1-d vector of complex64 type.
@@ -969,34 +944,37 @@ class DigitalRFReader(object):
         """
         file_properties = self.get_properties(channel_name)
         if end_sample < start_sample:
-            errstr = 'start_sample %i greater than end sample %i'
+            errstr = "start_sample %i greater than end sample %i"
             raise ValueError(errstr % (start_sample, end_sample))
 
         if sub_channel is not None:
-            num_subchannels = file_properties['num_subchannels']
+            num_subchannels = file_properties["num_subchannels"]
             if sub_channel >= num_subchannels:
-                errstr = (
-                    'Data only has %i sub_channels, no sub_channel index %i'
-                )
+                errstr = "Data only has %i sub_channels, no sub_channel index %i"
                 raise ValueError(errstr % (num_subchannels, sub_channel))
 
         # first get the names of all possible files with data
-        subdir_cadence_secs = file_properties['subdir_cadence_secs']
-        file_cadence_millisecs = file_properties['file_cadence_millisecs']
-        samples_per_second = file_properties['samples_per_second']
+        subdir_cadence_secs = file_properties["subdir_cadence_secs"]
+        file_cadence_millisecs = file_properties["file_cadence_millisecs"]
+        samples_per_second = file_properties["samples_per_second"]
         filepaths = self._get_file_list(
-            start_sample, end_sample, samples_per_second,
-            subdir_cadence_secs, file_cadence_millisecs,
+            start_sample,
+            end_sample,
+            samples_per_second,
+            subdir_cadence_secs,
+            file_cadence_millisecs,
         )
 
         # key = start_sample, value = numpy array of contiguous data as in file
         cont_data_dict = {}
-        for top_level_obj in (
-            self._channel_dict[channel_name].top_level_dir_meta_list
-        ):
+        for top_level_obj in self._channel_dict[channel_name].top_level_dir_meta_list:
             top_level_obj._read(
-                start_sample, end_sample, filepaths, cont_data_dict,
-                len_only=False, sub_channel=sub_channel,
+                start_sample,
+                end_sample,
+                filepaths,
+                cont_data_dict,
+                len_only=False,
+                sub_channel=sub_channel,
             )
 
         # merge contiguous blocks
@@ -1007,14 +985,12 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         channel_name : string
             Name of channel, one of ``get_channels()``.
 
 
         Returns
         -------
-
         first_sample_index : int | None
             Index of the first sample, given in the number of samples since the
             epoch (time_since_epoch*sample_rate).
@@ -1026,9 +1002,7 @@ class DigitalRFReader(object):
         """
         first_unix_sample = None
         last_unix_sample = None
-        for top_level_obj in (
-            self._channel_dict[channel_name].top_level_dir_meta_list
-        ):
+        for top_level_obj in self._channel_dict[channel_name].top_level_dir_meta_list:
             this_first_sample, this_last_sample = top_level_obj._get_bounds()
             if first_unix_sample is not None:
                 if this_first_sample is not None:
@@ -1048,7 +1022,6 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         channel_name : string
             Name of channel, one of ``get_channels()``.
 
@@ -1064,14 +1037,12 @@ class DigitalRFReader(object):
 
         Returns
         -------
-
         dict
             Dictionary providing the properties.
 
 
         Notes
         -----
-
         The top-level properties, always returned, are:
 
             H5Tget_class : int
@@ -1096,7 +1067,7 @@ class DigitalRFReader(object):
             num_subchannels : int
             sample_rate_numerator : int
             sample_rate_denominator : int
-            samples_per_second : numpy.longdouble
+            samples_per_second : np.longdouble
             subdir_cadence_secs : int
 
         The additional properties particular to each file are:
@@ -1116,30 +1087,30 @@ class DigitalRFReader(object):
         if sample is None:
             return global_properties
 
-        subdir_cadence_secs = global_properties['subdir_cadence_secs']
-        file_cadence_millisecs = global_properties['file_cadence_millisecs']
-        samples_per_second = global_properties['samples_per_second']
+        subdir_cadence_secs = global_properties["subdir_cadence_secs"]
+        file_cadence_millisecs = global_properties["file_cadence_millisecs"]
+        samples_per_second = global_properties["samples_per_second"]
 
         file_list = self._get_file_list(
-            sample, sample, samples_per_second,
-            subdir_cadence_secs, file_cadence_millisecs,
+            sample,
+            sample,
+            samples_per_second,
+            subdir_cadence_secs,
+            file_cadence_millisecs,
         )
 
         if len(file_list) != 1:
-            raise ValueError('file_list is %s' % (str(file_list)))
+            raise ValueError("file_list is %s" % (str(file_list)))
 
         sample_properties = global_properties.copy()
-        for top_level_obj in (
-            self._channel_dict[channel_name].top_level_dir_meta_list
-        ):
+        for top_level_obj in self._channel_dict[channel_name].top_level_dir_meta_list:
             fullfile = os.path.join(
-                top_level_obj.top_level_dir, top_level_obj.channel_name,
-                file_list[0],
+                top_level_obj.top_level_dir, top_level_obj.channel_name, file_list[0]
             )
             if os.access(fullfile, os.R_OK):
-                with h5py.File(fullfile, 'r') as f:
+                with h5py.File(fullfile, "r") as f:
                     md = {}
-                    for key, val in f['rf_data'].attrs.items():
+                    for key, val in f["rf_data"].attrs.items():
                         try:
                             # get python type if a numpy scalar or 1-D array
                             val = val.item()
@@ -1149,12 +1120,12 @@ class DigitalRFReader(object):
                             # we know byte strings are ascii encoded,
                             # h5py (>=2.9) will decode all string attributes,
                             # decode here for consistency with on older h5py
-                            val = val.decode('ascii')
+                            val = val.decode("ascii")
                         md[key] = val
                     sample_properties.update(md)
                     return sample_properties
 
-        errstr = 'No data file found in channel %s associated with sample %i'
+        errstr = "No data file found in channel %s associated with sample %i"
         raise IOError(errstr % (channel_name, sample))
 
     def get_digital_metadata(self, channel_name, top_level_dir=None):
@@ -1168,7 +1139,6 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         channel_name : string
             Name of channel, one of ``get_channels()``.
 
@@ -1181,7 +1151,6 @@ class DigitalRFReader(object):
 
         Returns
         -------
-
         DigitalMetadataReader
             Metadata reader object for the given channel.
 
@@ -1195,21 +1164,17 @@ class DigitalRFReader(object):
         else:
             top_level_dirs = [top_level_dir]
         for this_top_level_dir in top_level_dirs:
-            metadata_dir = os.path.join(
-                this_top_level_dir, channel_name, 'metadata',
-            )
+            metadata_dir = os.path.join(this_top_level_dir, channel_name, "metadata")
             if os.access(metadata_dir, os.R_OK):
                 reader = digital_metadata.DigitalMetadataReader(metadata_dir)
                 self._channel_metadata_reader[channel_name] = reader
                 return reader
 
         # None found
-        errstr = 'Could not find valid digital_metadata in channel %s'
+        errstr = "Could not find valid digital_metadata in channel %s"
         raise IOError(errstr % channel_name)
 
-    def read_metadata(
-        self, start_sample, end_sample, channel_name, method='ffill',
-    ):
+    def read_metadata(self, start_sample, end_sample, channel_name, method="ffill"):
         """Read Digital Metadata accompanying a Digital RF channel.
 
         By convention, metadata in Digital Metadata format is stored in the
@@ -1220,7 +1185,6 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
@@ -1241,7 +1205,6 @@ class DigitalRFReader(object):
 
         Returns
         -------
-
         OrderedDict
             The dictionary's keys are the sample index for each sample of
             metadata found between `start_sample` and `end_sample` (inclusive).
@@ -1250,20 +1213,21 @@ class DigitalRFReader(object):
 
         Notes
         -----
-
         For convenience, some pertinent metadata inherent to the Digital RF
         channel is added to the Digital Metadata, including:
 
             sample_rate_numerator : int
             sample_rate_denominator : int
-            samples_per_second : numpy.longdouble
+            samples_per_second : np.longdouble
 
         """
         properties = self.get_properties(channel_name)
         added_metadata = {
-            key: properties[key] for key in (
-                u'sample_rate_numerator', u'sample_rate_denominator',
-                u'samples_per_second',
+            key: properties[key]
+            for key in (
+                "sample_rate_numerator",
+                "sample_rate_denominator",
+                "samples_per_second",
             )
         }
         try:
@@ -1272,8 +1236,10 @@ class DigitalRFReader(object):
             ret_dict = collections.OrderedDict()
         else:
             ret_dict = reader.read(
-                start_sample=start_sample, end_sample=end_sample,
-                columns=None, method=method,
+                start_sample=start_sample,
+                end_sample=end_sample,
+                columns=None,
+                method=method,
             )
 
         for d in ret_dict.values():
@@ -1292,7 +1258,6 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
@@ -1307,7 +1272,6 @@ class DigitalRFReader(object):
 
         Returns
         -------
-
         OrderedDict
             The dictionary's keys are the start sample of each continuous block
             found between `start_sample` and `end_sample` (inclusive). Each
@@ -1317,28 +1281,27 @@ class DigitalRFReader(object):
 
         See Also
         --------
-
         read : Similar, except the data itself is returned.
 
         """
         # first get the names of all possible files with data
         file_properties = self.get_properties(channel_name)
-        subdir_cadence_secs = file_properties['subdir_cadence_secs']
-        file_cadence_millisecs = file_properties['file_cadence_millisecs']
-        samples_per_second = file_properties['samples_per_second']
+        subdir_cadence_secs = file_properties["subdir_cadence_secs"]
+        file_cadence_millisecs = file_properties["file_cadence_millisecs"]
+        samples_per_second = file_properties["samples_per_second"]
         filepaths = self._get_file_list(
-            start_sample, end_sample, samples_per_second,
-            subdir_cadence_secs, file_cadence_millisecs,
+            start_sample,
+            end_sample,
+            samples_per_second,
+            subdir_cadence_secs,
+            file_cadence_millisecs,
         )
 
         # key = start_sample, value = len of contiguous data as in file
         cont_data_dict = {}
-        for top_level_obj in (
-            self._channel_dict[channel_name].top_level_dir_meta_list
-        ):
+        for top_level_obj in self._channel_dict[channel_name].top_level_dir_meta_list:
             top_level_obj._read(
-                start_sample, end_sample, filepaths, cont_data_dict,
-                len_only=True,
+                start_sample, end_sample, filepaths, cont_data_dict, len_only=True
             )
 
         # merge contiguous blocks
@@ -1349,14 +1312,12 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         channel_name : string
             Name of channel, one of ``get_channels()``.
 
 
         Returns
         -------
-
         timestamp : float | None
             Modification time of the last file written. None if there is no
             data.
@@ -1369,12 +1330,15 @@ class DigitalRFReader(object):
         if first_sample is None:
             return (None, None)
         file_properties = self.get_properties(channel_name)
-        subdir_cadence_seconds = file_properties['subdir_cadence_secs']
-        file_cadence_millisecs = file_properties['file_cadence_millisecs']
-        samples_per_second = file_properties['samples_per_second']
+        subdir_cadence_seconds = file_properties["subdir_cadence_secs"]
+        file_cadence_millisecs = file_properties["file_cadence_millisecs"]
+        samples_per_second = file_properties["samples_per_second"]
         file_list = self._get_file_list(
-            last_sample - 1, last_sample, samples_per_second,
-            subdir_cadence_seconds, file_cadence_millisecs,
+            last_sample - 1,
+            last_sample,
+            samples_per_second,
+            subdir_cadence_seconds,
+            file_cadence_millisecs,
         )
         file_list.reverse()
         for key in self._top_level_dir_dict.keys():
@@ -1386,9 +1350,7 @@ class DigitalRFReader(object):
         # not found
         return (None, None)
 
-    def read_vector(
-        self, start_sample, vector_length, channel_name, sub_channel=None,
-    ):
+    def read_vector(self, start_sample, vector_length, channel_name, sub_channel=None):
         """Read a complex vector of data beginning at the given sample index.
 
         This method returns the vector of the data beginning at `start_sample`
@@ -1403,7 +1365,6 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
@@ -1423,7 +1384,6 @@ class DigitalRFReader(object):
 
         Returns
         -------
-
         array
             An array of dtype complex64 and shape (`vector_length`,) or
             (`vector_length`, N) where N is the number of subchannels.
@@ -1431,26 +1391,23 @@ class DigitalRFReader(object):
 
         See Also
         --------
-
         read_vector_c81d : Read data into a 1-d vector of complex64 type.
         read_vector_raw : Read data into a vector of HDF5-native type.
         read : Read continuous blocks of data between start and end samples.
 
         """
-        z = self.read_vector_raw(
-            start_sample, vector_length, channel_name, sub_channel,
-        )
+        z = self.read_vector_raw(start_sample, vector_length, channel_name, sub_channel)
 
         if z.dtype.names is not None:
-            y = numpy.empty(z.shape, dtype=numpy.complex64)
-            y.real = z['r']
-            y.imag = z['i']
+            y = np.empty(z.shape, dtype=np.complex64)
+            y.real = z["r"]
+            y.imag = z["i"]
             return y
         else:
-            return numpy.array(z, dtype=numpy.complex64, copy=False)
+            return np.array(z, dtype=np.complex64, copy=False)
 
     def read_vector_raw(
-        self, start_sample, vector_length, channel_name, sub_channel=None,
+        self, start_sample, vector_length, channel_name, sub_channel=None
     ):
         """Read a vector of data beginning at the given sample index.
 
@@ -1466,7 +1423,6 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
@@ -1486,7 +1442,6 @@ class DigitalRFReader(object):
 
         Returns
         -------
-
         array
             An array of shape (`vector_length`,) or (`vector_length`, N) where
             N is the number of subchannels.
@@ -1494,32 +1449,29 @@ class DigitalRFReader(object):
 
         See Also
         --------
-
         read_vector : Read data into a vector of complex64 type.
         read_vector_c81d : Read data into a 1-d vector of complex64 type.
         read : Read continuous blocks of data between start and end samples.
 
         """
         if vector_length < 1:
-            estr = 'Number of samples requested must be greater than 0, not %i'
+            estr = "Number of samples requested must be greater than 0, not %i"
             raise IOError(estr % vector_length)
 
         start_sample = int(start_sample)
         end_sample = start_sample + (int(vector_length) - 1)
-        data_dict = self.read(
-            start_sample, end_sample, channel_name, sub_channel,
-        )
+        data_dict = self.read(start_sample, end_sample, channel_name, sub_channel)
 
         if len(data_dict) > 1:
             errstr = (
-                'Data gaps found with start_sample %i and vector_length %i'
-                ' with channel %s'
+                "Data gaps found with start_sample %i and vector_length %i"
+                " with channel %s"
             )
             raise IOError(errstr % (start_sample, vector_length, channel_name))
         elif len(data_dict) == 0:
             errstr = (
-                'No data found with start_sample %i and vector_length %i'
-                ' with channel %s'
+                "No data found with start_sample %i and vector_length %i"
+                " with channel %s"
             )
             raise IOError(errstr % (start_sample, vector_length, channel_name))
 
@@ -1528,13 +1480,13 @@ class DigitalRFReader(object):
         z = z.squeeze()
 
         if len(z) != vector_length:
-            errstr = 'Requested %i samples, but got %i'
+            errstr = "Requested %i samples, but got %i"
             raise IOError(errstr % (vector_length, len(z)))
 
         return z
 
     def read_vector_c81d(
-        self, start_sample, vector_length, channel_name, sub_channel=0,
+        self, start_sample, vector_length, channel_name, sub_channel=0
     ):
         """Read a complex vector of data beginning at the given sample index.
 
@@ -1545,7 +1497,6 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
@@ -1565,27 +1516,26 @@ class DigitalRFReader(object):
 
         Returns
         -------
-
         array
             An array of dtype complex64 and shape (`vector_length`,).
 
 
         See Also
         --------
-
         read_vector : Read data into a vector of complex64 type.
         read_vector_raw : Read data into a vector of HDF5-native type.
         read : Read continuous blocks of data between start and end samples.
 
         """
-        return(self.read_vector(
-            start_sample, vector_length, channel_name, sub_channel,
-        ))
+        return self.read_vector(start_sample, vector_length, channel_name, sub_channel)
 
     @staticmethod
     def _get_file_list(
-        sample0, sample1, samples_per_second,
-        subdir_cadence_seconds, file_cadence_millisecs,
+        sample0,
+        sample1,
+        samples_per_second,
+        subdir_cadence_seconds,
+        file_cadence_millisecs,
     ):
         """Get an ordered list of data file names that could contain data.
 
@@ -1595,7 +1545,6 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         sample0 : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
@@ -1604,7 +1553,7 @@ class DigitalRFReader(object):
             Sample index for end of read (inclusive), given in the number of
             samples since the epoch (time_since_epoch*sample_rate).
 
-        samples_per_second : numpy.longdouble
+        samples_per_second : np.longdouble
             Sample rate.
 
         subdir_cadence_secs : int
@@ -1618,30 +1567,27 @@ class DigitalRFReader(object):
 
         Returns
         -------
-
         list
             List of file paths that span the given time interval and conform
             to the subdirectory and file cadence naming scheme.
 
         """
         if (sample1 - sample0) > 1e12:
-            warnstr = 'Requested read size, %i samples, is very large'
+            warnstr = "Requested read size, %i samples, is very large"
             warnings.warn(warnstr % (sample1 - sample0), RuntimeWarning)
         sample0 = int(sample0)
         sample1 = int(sample1)
         # need to go through numpy uint64 to prevent conversion to float
-        start_ts = int(numpy.uint64(sample0 / samples_per_second))
-        end_ts = int(numpy.uint64(sample1 / samples_per_second)) + 1
-        start_msts = int(numpy.uint64(sample0 / samples_per_second * 1000))
-        end_msts = int(numpy.uint64(sample1 / samples_per_second * 1000))
+        start_ts = int(np.uint64(sample0 / samples_per_second))
+        end_ts = int(np.uint64(sample1 / samples_per_second)) + 1
+        start_msts = int(np.uint64(sample0 / samples_per_second * 1000))
+        end_msts = int(np.uint64(sample1 / samples_per_second * 1000))
 
         # get subdirectory start and end ts
         start_sub_ts = int(
             (start_ts // subdir_cadence_seconds) * subdir_cadence_seconds
         )
-        end_sub_ts = int(
-            (end_ts // subdir_cadence_seconds) * subdir_cadence_seconds
-        )
+        end_sub_ts = int((end_ts // subdir_cadence_seconds) * subdir_cadence_seconds)
 
         ret_list = []  # ordered list of full file paths to return
 
@@ -1651,26 +1597,24 @@ class DigitalRFReader(object):
             subdir_cadence_seconds,
         ):
             sub_datetime = datetime.datetime.utcfromtimestamp(sub_ts)
-            subdir = sub_datetime.strftime('%Y-%m-%dT%H-%M-%S')
+            subdir = sub_datetime.strftime("%Y-%m-%dT%H-%M-%S")
             # create numpy array of all file TS in subdir
-            file_msts_in_subdir = numpy.arange(
+            file_msts_in_subdir = np.arange(
                 sub_ts * 1000,
                 int(sub_ts + subdir_cadence_seconds) * 1000,
                 file_cadence_millisecs,
             )
             # file has valid samples if last time in file is after start time
             # and first time in file is before end time
-            valid_in_subdir = numpy.logical_and(
+            valid_in_subdir = np.logical_and(
                 file_msts_in_subdir + file_cadence_millisecs - 1 >= start_msts,
                 file_msts_in_subdir <= end_msts,
             )
-            valid_file_ts_list = numpy.compress(
-                valid_in_subdir,
-                file_msts_in_subdir,
-            )
+            valid_file_ts_list = np.compress(valid_in_subdir, file_msts_in_subdir)
             for valid_file_ts in valid_file_ts_list:
-                file_basename = 'rf@%i.%03i.h5' % (
-                    valid_file_ts // 1000, valid_file_ts % 1000
+                file_basename = "rf@%i.%03i.h5" % (
+                    valid_file_ts // 1000,
+                    valid_file_ts % 1000,
                 )
                 full_file = os.path.join(subdir, file_basename)
                 ret_list.append(full_file)
@@ -1682,7 +1626,6 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         cont_data_dict : dict
             Dictionary where keys are the start sample of a block of data and
             values are arrays of the data as found in a file. These blocks do
@@ -1696,7 +1639,6 @@ class DigitalRFReader(object):
 
         Returns
         -------
-
         OrderedDict
             The dictionary's keys are the start sample of each continuous block
             in ascending order. Each value is the array or length of continous
@@ -1718,9 +1660,7 @@ class DigitalRFReader(object):
                 if len_only:
                     present_arr += arr
                 else:
-                    present_arr = numpy.concatenate(
-                        (present_arr, arr)
-                    )
+                    present_arr = np.concatenate((present_arr, arr))
             else:
                 # non-continuous data found
                 ret_dict[present_key] = present_arr
@@ -1744,14 +1684,12 @@ class DigitalRFReader(object):
 
         Parameters
         ----------
-
         top_level_dir : string
             Path of the top-level directory.
 
 
         Returns
         -------
-
         list
             A list of strings giving the channel paths found.
 
@@ -1759,13 +1697,15 @@ class DigitalRFReader(object):
         retList = []
         access_mode = self._top_level_dir_dict[top_level_dir]
 
-        if access_mode == 'local':
+        if access_mode == "local":
             # detect if top_level_dir is a channel directory and raise
             # helpful error to let user know they need to specify parent
             properties_paths = [
-                f for f in glob.glob(os.path.join(
-                    top_level_dir, list_drf.GLOB_DRFPROPFILE,
-                )) if re.match(list_drf.RE_DRFPROP, f)
+                f
+                for f in glob.glob(
+                    os.path.join(top_level_dir, list_drf.GLOB_DRFPROPFILE)
+                )
+                if re.match(list_drf.RE_DRFPROP, f)
             ]
             if properties_paths:
                 errstr = (
@@ -1776,9 +1716,11 @@ class DigitalRFReader(object):
                 raise ValueError(errstr)
             # list and match all channel dirs with properties files
             properties_paths = [
-                f for f in glob.glob(os.path.join(
-                    top_level_dir, '*', list_drf.GLOB_DRFPROPFILE,
-                )) if re.match(list_drf.RE_DRFPROP, f)
+                f
+                for f in glob.glob(
+                    os.path.join(top_level_dir, "*", list_drf.GLOB_DRFPROPFILE)
+                )
+                if re.match(list_drf.RE_DRFPROP, f)
             ]
             for properties_path in properties_paths:
                 channel_path = os.path.dirname(properties_path)
@@ -1786,7 +1728,7 @@ class DigitalRFReader(object):
                     retList.append(channel_path)
 
         else:
-            raise ValueError('access_mode %s not implemented' % (access_mode))
+            raise ValueError("access_mode %s not implemented" % (access_mode))
 
         return retList
 
@@ -1794,7 +1736,7 @@ class DigitalRFReader(object):
 class _channel_properties(object):
     """Properties for a Digital RF channel over one or more top-level dirs."""
 
-    def __init__(self, channel_name, top_level_dir_meta_list=[]):
+    def __init__(self, channel_name, top_level_dir_meta_list=None):
         """Create a new _channel_properties object.
 
         This populates `self.properties`, which is a dictionary of
@@ -1804,7 +1746,6 @@ class _channel_properties(object):
 
         Parameters
         ----------
-
         channel_name : string
             Name of subdirectory defining this channel.
 
@@ -1812,21 +1753,22 @@ class _channel_properties(object):
             A time ordered list of _top_level_dir_properties objects.
 
         """
+        if top_level_dir_meta_list is None:
+            top_level_dir_meta_list = []
         self.channel_name = channel_name
         self.top_level_dir_meta_list = top_level_dir_meta_list
         self.properties = self._read_properties()
-        file_cadence_millisecs = self.properties['file_cadence_millisecs']
-        samples_per_second = self.properties['samples_per_second']
-        self.max_samples_per_file = int(numpy.uint64(numpy.ceil(
-            file_cadence_millisecs * samples_per_second / 1000
-        )))
+        file_cadence_millisecs = self.properties["file_cadence_millisecs"]
+        samples_per_second = self.properties["samples_per_second"]
+        self.max_samples_per_file = int(
+            np.uint64(np.ceil(file_cadence_millisecs * samples_per_second / 1000))
+        )
 
     def _read_properties(self):
         """Get a dict of the properties stored in the drf_properties.h5 file.
 
         Returns
         -------
-
         dict
             A dictionary of the properties stored in the channel's
             drf_properties.h5 file.
@@ -1844,7 +1786,7 @@ class _channel_properties(object):
 class _top_level_dir_properties(object):
     """A Digital RF channel in a specific top-level directory."""
 
-    _min_version = packaging.version.parse('2.0')
+    _min_version = packaging.version.parse("2.0")
     _max_version = packaging.version.parse(
         packaging.version.parse(__version__).base_version
     )
@@ -1854,7 +1796,6 @@ class _top_level_dir_properties(object):
 
         Parameters
         ----------
-
         top_level_dir : string
             Full path the top-level directory that contains the parent
             `channel_name`.
@@ -1875,27 +1816,27 @@ class _top_level_dir_properties(object):
         # already checked for existence of drf_properties.h5 before init
         self.properties = self._read_properties()
         try:
-            version = self.properties['digital_rf_version']
+            version = self.properties["digital_rf_version"]
         except KeyError:
             # version is before 2.3 when key was added to metadata.h5/
             # drf_properties.h5 (versions before 2.0 will not have metadata.h5/
             # drf_properties.h5, so the directories will not register as
             # channels and the reader will not try to read them, so we can
             # assume at least 2.0)
-            version = '2.0'
+            version = "2.0"
         version = packaging.version.parse(version)
-        if (version < self._min_version):
+        if version < self._min_version:
             errstr = (
-                'The Digital RF files being read are version {0}, which is'
-                ' less than the required version ({1}).'
+                "The Digital RF files being read are version {0}, which is"
+                " less than the required version ({1})."
             ).format(version.base_version, self._min_version.base_version)
             raise IOError(errstr)
-        elif (version > self._max_version):
+        elif version > self._max_version:
             warnstr = (
-                'The Digital RF files being read are version {0}, which is'
-                ' higher than the maximum supported version ({1}) for this'
-                ' digital_rf package. If you encounter errors, you will have'
-                ' upgrade to at least version {0} of digital_rf.'
+                "The Digital RF files being read are version {0}, which is"
+                " higher than the maximum supported version ({1}) for this"
+                " digital_rf package. If you encounter errors, you will have"
+                " upgrade to at least version {0} of digital_rf."
             ).format(version.base_version, self._max_version.base_version)
             warnings.warn(warnstr, RuntimeWarning)
 
@@ -1907,7 +1848,6 @@ class _top_level_dir_properties(object):
 
         Returns
         -------
-
         dict
             A dictionary of the properties stored in the channel's
             drf_properties.h5 file.
@@ -1915,18 +1855,25 @@ class _top_level_dir_properties(object):
         """
         ret_dict = {}
 
-        if self.access_mode == 'local':
+        if self.access_mode == "local":
             # list and match first properties file
             properties_file = next(
-                (f for f in glob.glob(os.path.join(
-                    self.top_level_dir, self.channel_name,
-                    list_drf.GLOB_DRFPROPFILE,
-                )) if re.match(list_drf.RE_DRFPROP, f)),
+                (
+                    f
+                    for f in glob.glob(
+                        os.path.join(
+                            self.top_level_dir,
+                            self.channel_name,
+                            list_drf.GLOB_DRFPROPFILE,
+                        )
+                    )
+                    if re.match(list_drf.RE_DRFPROP, f)
+                ),
                 None,
             )
             if properties_file is None:
-                raise IOError('drf_properties.h5 not found')
-            f = h5py.File(properties_file, 'r')
+                raise IOError("drf_properties.h5 not found")
+            f = h5py.File(properties_file, "r")
             for key, val in f.attrs.items():
                 try:
                     # get scalar python type if a numpy scalar or 1-D array
@@ -1940,43 +1887,46 @@ class _top_level_dir_properties(object):
                     # DRF 2.0 writes string attributes as single-element
                     # arrays but >=2.1 writes them as scalars like h5py,
                     # decode here for consistency with h5py (>=2.9) scalars
-                    val = val.decode('ascii')
+                    val = val.decode("ascii")
                 ret_dict[key] = val
             f.close()
 
         else:
-            raise ValueError('mode %s not implemented' % (self.access_mode))
+            raise ValueError("mode %s not implemented" % (self.access_mode))
 
         # calculate samples_per_second as longdouble and add to properties
         # (so we only have to do this in one place)
         try:
-            srn = ret_dict['sample_rate_numerator']
-            srd = ret_dict['sample_rate_denominator']
+            srn = ret_dict["sample_rate_numerator"]
+            srd = ret_dict["sample_rate_denominator"]
         except KeyError:
             # if no sample_rate_numerator/sample_rate_denominator, then we must
             # have an older version with samples_per_second as uint64
-            sps = ret_dict['samples_per_second']
+            sps = ret_dict["samples_per_second"]
             spsfrac = fractions.Fraction(sps).limit_denominator()
-            ret_dict[u'samples_per_second'] = numpy.longdouble(sps)
-            ret_dict[u'sample_rate_numerator'] = spsfrac.numerator
-            ret_dict[u'sample_rate_denominator'] = spsfrac.denominator
+            ret_dict["samples_per_second"] = np.longdouble(sps)
+            ret_dict["sample_rate_numerator"] = spsfrac.numerator
+            ret_dict["sample_rate_denominator"] = spsfrac.denominator
         else:
-            sps = (numpy.longdouble(numpy.uint64(srn)) /
-                   numpy.longdouble(numpy.uint64(srd)))
-            ret_dict[u'samples_per_second'] = sps
+            sps = np.longdouble(np.uint64(srn)) / np.longdouble(np.uint64(srd))
+            ret_dict["samples_per_second"] = sps
 
         # success
         return ret_dict
 
     def _read(
-        self, start_sample, end_sample, filepaths, cont_data_dict,
-        len_only=False, sub_channel=None,
+        self,
+        start_sample,
+        end_sample,
+        filepaths,
+        cont_data_dict,
+        len_only=False,
+        sub_channel=None,
     ):
         """Add continous data entries to `cont_data_dict`.
 
         Parameters
         ----------
-
         start_sample : int
             Sample index for start of read, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
@@ -2003,11 +1953,9 @@ class _top_level_dir_properties(object):
             subchannel given by that integer index.
 
         """
-        if self.access_mode == 'local':
+        if self.access_mode == "local":
             for fp in filepaths:
-                fullfile = os.path.join(
-                    self.top_level_dir, self.channel_name, fp,
-                )
+                fullfile = os.path.join(self.top_level_dir, self.channel_name, fp)
                 if not os.access(fullfile, os.R_OK):
                     continue
                 if fullfile != self._cachedFilename:
@@ -2017,12 +1965,12 @@ class _top_level_dir_properties(object):
                         except ValueError:
                             # already closed
                             pass
-                    self._cachedFile = h5py.File(fullfile, 'r')
+                    self._cachedFile = h5py.File(fullfile, "r")
                     self._cachedFilename = fullfile
-                rf_data = self._cachedFile['rf_data']
+                rf_data = self._cachedFile["rf_data"]
                 rf_data_len = rf_data.shape[0]
 
-                rf_index = self._cachedFile['rf_data_index'][...]
+                rf_index = self._cachedFile["rf_data_index"][...]
                 rf_index_len = rf_index.shape[0]
                 # loop through each row in rf_index
                 for row in range(rf_index_len):
@@ -2032,18 +1980,16 @@ class _top_level_dir_properties(object):
                         block_stop_index = rf_data_len
                     else:
                         block_stop_index = int(rf_index[row + 1, 1])
-                    block_stop_sample = (
-                        block_start_sample
-                        + (block_stop_index - block_start_index)
+                    block_stop_sample = block_start_sample + (
+                        block_stop_index - block_start_index
                     )
 
                     if start_sample <= block_start_sample:
                         read_start_index = block_start_index
                         read_start_sample = block_start_sample
                     elif start_sample < block_stop_sample:
-                        read_start_index = (
-                            block_start_index
-                            + (start_sample - block_start_sample)
+                        read_start_index = block_start_index + (
+                            start_sample - block_start_sample
                         )
                         read_start_sample = start_sample
                     else:
@@ -2053,9 +1999,8 @@ class _top_level_dir_properties(object):
                     if end_sample + 1 >= block_stop_sample:
                         read_stop_index = block_stop_index
                     else:
-                        read_stop_index = (
-                            block_stop_index
-                            - (block_stop_sample - (end_sample + 1))
+                        read_stop_index = block_stop_index - (
+                            block_stop_sample - (end_sample + 1)
                         )
 
                     # skip if no data found
@@ -2066,8 +2011,7 @@ class _top_level_dir_properties(object):
                             data = rf_data[read_start_index:read_stop_index]
                         else:
                             data = rf_data[
-                                read_start_index:read_stop_index,
-                                sub_channel,
+                                read_start_index:read_stop_index, sub_channel
                             ]
                         cont_data_dict[read_start_sample] = data
                     else:
@@ -2076,14 +2020,13 @@ class _top_level_dir_properties(object):
                         )
 
         else:
-            raise ValueError('mode %s not implemented' % (self.access_mode))
+            raise ValueError("mode %s not implemented" % (self.access_mode))
 
     def _get_bounds(self):
         """Get indices of first- and last-known sample for the channel.
 
         Returns
         -------
-
         first_sample_index : int | None
             Index of the first sample, given in the number of samples since the
             epoch (time_since_epoch*sample_rate).
@@ -2095,12 +2038,15 @@ class _top_level_dir_properties(object):
         """
         first_unix_sample = None
         last_unix_sample = None
-        if self.access_mode == 'local':
+        if self.access_mode == "local":
             channel_dir = os.path.join(self.top_level_dir, self.channel_name)
             # loop through files in order to get first sample
             for path in list_drf.ilsdrf(
-                channel_dir, recursive=False, reverse=False,
-                include_drf=True, include_dmd=False,
+                channel_dir,
+                recursive=False,
+                reverse=False,
+                include_drf=True,
+                include_dmd=False,
                 include_drf_properties=False,
             ):
                 try:
@@ -2110,8 +2056,8 @@ class _top_level_dir_properties(object):
                     continue
                 except (AttributeError, IndexError, KeyError, ValueError):
                     errstr = (
-                        'Warning: corrupt file %s found and ignored.'
-                        ' Deleting it will speed up get_bounds().'
+                        "Warning: corrupt file %s found and ignored."
+                        " Deleting it will speed up get_bounds()."
                     )
                     print(errstr % path)
                     continue
@@ -2120,8 +2066,11 @@ class _top_level_dir_properties(object):
 
             # loop through files in reverse order to get last sample
             for path in list_drf.ilsdrf(
-                channel_dir, recursive=False, reverse=True,
-                include_drf=True, include_dmd=False,
+                channel_dir,
+                recursive=False,
+                reverse=True,
+                include_drf=True,
+                include_dmd=False,
                 include_drf_properties=False,
             ):
                 try:
@@ -2131,33 +2080,31 @@ class _top_level_dir_properties(object):
                     continue
                 except (AttributeError, IndexError, KeyError, ValueError):
                     errstr = (
-                        'Warning: corrupt file %s found and ignored.'
-                        ' Deleting it will speed up get_bounds().'
+                        "Warning: corrupt file %s found and ignored."
+                        " Deleting it will speed up get_bounds()."
                     )
                     print(errstr % path)
                     continue
                 else:
                     break
         else:
-            raise ValueError('mode %s not implemented' % (self.access_mode))
+            raise ValueError("mode %s not implemented" % (self.access_mode))
 
         return (first_unix_sample, last_unix_sample)
 
     def _get_first_sample(self, fullname):
         """Return the first sample in a given rf file."""
         with h5py.File(fullname) as f:
-            return int(f['rf_data_index'][0][0])
+            return int(f["rf_data_index"][0][0])
 
     def _get_last_sample(self, fullname):
         """Return the last sample in a given rf file."""
         with h5py.File(fullname) as f:
-            total_samples = f['rf_data'].shape[0]
-            rf_data_index = f['rf_data_index']
+            total_samples = f["rf_data"].shape[0]
+            rf_data_index = f["rf_data_index"]
             last_start_sample = rf_data_index[-1][0]
             last_index = rf_data_index[-1][1]
-            return(
-                int(last_start_sample + (total_samples - (last_index + 1)))
-            )
+            return int(last_start_sample + (total_samples - (last_index + 1)))
 
     def __del__(self):
         # Make sure cached file is closed - does not happen automatically

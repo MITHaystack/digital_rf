@@ -27,25 +27,20 @@ def main(args=None):
     epi = 'Type "drf <command> -h" to display help for a particular command.'
     if not _WATCHDOG:
         s = (
-            '(Install watchdog package to enable mirror, ringbuffer, and watch'
-            ' commands.)'
+            "(Install watchdog package to enable mirror, ringbuffer, and watch"
+            " commands.)"
         )
-        epi = epi + ' ' + s
-    parser = ArgumentParser(
-        description='Digital RF command line tools.',
-        epilog=epi,
-    )
-    subparsers = parser.add_subparsers(
-        title='Available commands',
-    )
+        epi = epi + " " + s
+    parser = ArgumentParser(description="Digital RF command line tools.", epilog=epi)
+    subparsers = parser.add_subparsers(title="Available commands")
 
-    _build_cp_parser(subparsers.add_parser, 'cp')
-    _build_ls_parser(subparsers.add_parser, 'ls')
-    _build_mv_parser(subparsers.add_parser, 'mv')
+    _build_cp_parser(subparsers.add_parser, "cp")
+    _build_ls_parser(subparsers.add_parser, "ls")
+    _build_mv_parser(subparsers.add_parser, "mv")
     if _WATCHDOG:
-        _build_mirror_parser(subparsers.add_parser, 'mirror')
-        _build_ringbuffer_parser(subparsers.add_parser, 'ringbuffer')
-        _build_watch_parser(subparsers.add_parser, 'watch')
+        _build_mirror_parser(subparsers.add_parser, "mirror")
+        _build_ringbuffer_parser(subparsers.add_parser, "ringbuffer")
+        _build_watch_parser(subparsers.add_parser, "watch")
 
     # parse the command line and/or function call arguments
     parsed = parser.parse_args(args)

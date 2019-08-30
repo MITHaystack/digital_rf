@@ -19,8 +19,7 @@ from itertools import chain, tee
 
 import numpy as np
 import pmt
-from digital_rf import (DigitalMetadataWriter, DigitalRFWriter,
-                        _py_rf_write_hdf5, util)
+from digital_rf import DigitalMetadataWriter, DigitalRFWriter, _py_rf_write_hdf5, util
 from gnuradio import gr
 
 import six
@@ -32,14 +31,14 @@ def parse_time_pmt(val, samples_per_second):
     tsec = np.uint64(pmt.to_uint64(pmt.tuple_ref(val, 0)))
     tfrac = pmt.to_double(pmt.tuple_ref(val, 1))
     # calculate sample index of time and floor to uint64
-    tidx = np.uint64(tsec*samples_per_second + tfrac*samples_per_second)
+    tidx = np.uint64(tsec * samples_per_second + tfrac * samples_per_second)
     return int(tsec), tfrac, int(tidx)
 
 
 def translate_rx_freq(tag):
     """Translate 'rx_freq' tag to 'center_frequencies' metadata sample."""
     offset = tag.offset
-    key = 'center_frequencies'
+    key = "center_frequencies"
     val = np.array(pmt.to_python(tag.value), ndmin=1)
     yield offset, key, val
 
@@ -52,9 +51,7 @@ def translate_metadata(tag):
         for key, val in md.items():
             yield offset, key, val
     except AttributeError:
-        wrnstr = (
-            "Received 'metadata' stream tag that isn't a dictionary. Ignoring."
-        )
+        wrnstr = "Received 'metadata' stream tag that isn't a dictionary. Ignoring."
         warnings.warn(wrnstr)
 
 
@@ -93,13 +90,27 @@ class digital_rf_channel_sink(gr.sync_block):
     """Sink block for writing a channel of Digital RF data."""
 
     def __init__(
-        self, channel_dir, dtype, subdir_cadence_secs,
-        file_cadence_millisecs, sample_rate_numerator, sample_rate_denominator,
-        start=None, ignore_tags=False, is_complex=True, num_subchannels=1,
-        uuid_str=None, center_frequencies=None, metadata={},
-        is_continuous=True, compression_level=0,
-        checksum=False, marching_periods=True, stop_on_skipped=True,
-        debug=False, min_chunksize=None,
+        self,
+        channel_dir,
+        dtype,
+        subdir_cadence_secs,
+        file_cadence_millisecs,
+        sample_rate_numerator,
+        sample_rate_denominator,
+        start=None,
+        ignore_tags=False,
+        is_complex=True,
+        num_subchannels=1,
+        uuid_str=None,
+        center_frequencies=None,
+        metadata={},
+        is_continuous=True,
+        compression_level=0,
+        checksum=False,
+        marching_periods=True,
+        stop_on_skipped=True,
+        debug=False,
+        min_chunksize=None,
     ):
         """Write a channel of data in Digital RF format.
 
@@ -116,10 +127,10 @@ class digital_rf_channel_sink(gr.sync_block):
             created if it does not exist. The basename (last component) of the
             path is considered the channel's name for reading purposes.
 
-        dtype : numpy.dtype | object to be cast by numpy.dtype()
+        dtype : np.dtype | object to be cast by np.dtype()
             Object that gives the numpy dtype of the data to be written. This
-            value is passed into ``numpy.dtype`` to get the actual dtype
-            (e.g. ``numpy.dtype('>i4')``). Scalar types, complex types, and
+            value is passed into ``np.dtype`` to get the actual dtype
+            (e.g. ``np.dtype('>i4')``). Scalar types, complex types, and
             structured complex types with 'r' and 'i' fields of scalar types
             are valid.
 
@@ -267,10 +278,11 @@ class digital_rf_channel_sink(gr.sync_block):
         """
         dtype = np.dtype(dtype)
         # create structured dtype for interleaved samples if necessary
-        if is_complex and (not np.issubdtype(dtype, np.complexfloating) and
-                           not dtype.names):
+        if is_complex and (
+            not np.issubdtype(dtype, np.complexfloating) and not dtype.names
+        ):
             realdtype = dtype
-            dtype = np.dtype([('r', realdtype), ('i', realdtype)])
+            dtype = np.dtype([("r", realdtype), ("i", realdtype)])
 
         if num_subchannels == 1:
             in_sig = [dtype]
@@ -278,10 +290,7 @@ class digital_rf_channel_sink(gr.sync_block):
             in_sig = [(dtype, num_subchannels)]
 
         gr.sync_block.__init__(
-            self,
-            name="digital_rf_channel_sink",
-            in_sig=in_sig,
-            out_sig=None,
+            self, name="digital_rf_channel_sink", in_sig=in_sig, out_sig=None
         )
 
         self._channel_dir = channel_dir
@@ -302,10 +311,9 @@ class digital_rf_channel_sink(gr.sync_block):
         self._stop_on_skipped = stop_on_skipped
         self._debug = debug
 
-        self._samples_per_second = (
-            np.longdouble(np.uint64(sample_rate_numerator)) /
-            np.longdouble(np.uint64(sample_rate_denominator))
-        )
+        self._samples_per_second = np.longdouble(
+            np.uint64(sample_rate_numerator)
+        ) / np.longdouble(np.uint64(sample_rate_denominator))
 
         if min_chunksize is None:
             self._min_chunksize = int(self._samples_per_second // 1000)
@@ -320,11 +328,11 @@ class digital_rf_channel_sink(gr.sync_block):
 
         # will be None if start is None or ''
         self._start_sample = util.parse_identifier_to_sample(
-            start, self._samples_per_second, None,
+            start, self._samples_per_second, None
         )
         if self._start_sample is None:
             if self._ignore_tags:
-                raise ValueError('Must specify start if ignore_tags is True.')
+                raise ValueError("Must specify start if ignore_tags is True.")
             # data without a time tag will be written starting at global index
             # of 0, i.e. the Unix epoch
             # we don't want to guess the start time because the user would
@@ -334,36 +342,34 @@ class digital_rf_channel_sink(gr.sync_block):
         self._next_rel_sample = 0
 
         # stream tags to read (in addition to rx_time, handled specially)
-        if LooseVersion(gr.version()) >= LooseVersion('3.7.12'):
+        if LooseVersion(gr.version()) >= LooseVersion("3.7.12"):
             self._stream_tag_translators = {
                 # disable rx_freq until we figure out what to do with polyphase
                 # pmt.intern('rx_freq'): translate_rx_freq,
-                pmt.intern('metadata'): translate_metadata,
+                pmt.intern("metadata"): translate_metadata
             }
         else:
             # USRP source in gnuradio < 3.7.12 has bad rx_freq tags, so avoid
             # trouble by ignoring rx_freq tags for those gnuradio versions
-            self._stream_tag_translators = {
-                pmt.intern('metadata'): translate_metadata,
-            }
+            self._stream_tag_translators = {pmt.intern("metadata"): translate_metadata}
 
         # create metadata dictionary that will be updated and written whenever
         # new metadata is received in stream tags
         self._metadata = metadata.copy()
         if center_frequencies is None:
-            center_frequencies = np.array([0.0]*self._num_subchannels)
+            center_frequencies = np.array([0.0] * self._num_subchannels)
         else:
             center_frequencies = np.ascontiguousarray(center_frequencies)
         self._metadata.update(
             # standard metadata by convention
-            uuid_str='',
+            uuid_str="",
             sample_rate_numerator=self._sample_rate_numerator,
             sample_rate_denominator=self._sample_rate_denominator,
             center_frequencies=center_frequencies,
         )
 
         # create directories for RF data channel and metadata
-        self._metadata_dir = os.path.join(self._channel_dir, 'metadata')
+        self._metadata_dir = os.path.join(self._channel_dir, "metadata")
         if not os.path.exists(self._metadata_dir):
             os.makedirs(self._metadata_dir)
 
@@ -379,11 +385,17 @@ class digital_rf_channel_sink(gr.sync_block):
     def _create_writer(self):
         # Digital RF writer
         self._Writer = DigitalRFWriter(
-            self._channel_dir, self._dtype, self._subdir_cadence_secs,
-            self._file_cadence_millisecs, self._start_sample,
-            self._sample_rate_numerator, self._sample_rate_denominator,
-            uuid_str=self._uuid_str, compression_level=self._compression_level,
-            checksum=self._checksum, is_complex=self._is_complex,
+            self._channel_dir,
+            self._dtype,
+            self._subdir_cadence_secs,
+            self._file_cadence_millisecs,
+            self._start_sample,
+            self._sample_rate_numerator,
+            self._sample_rate_denominator,
+            uuid_str=self._uuid_str,
+            compression_level=self._compression_level,
+            checksum=self._checksum,
+            is_complex=self._is_complex,
             num_subchannels=self._num_subchannels,
             is_continuous=self._is_continuous,
             marching_periods=self._marching_periods,
@@ -397,7 +409,7 @@ class digital_rf_channel_sink(gr.sync_block):
             file_cadence_secs=1,
             sample_rate_numerator=self._sample_rate_numerator,
             sample_rate_denominator=self._sample_rate_denominator,
-            file_name='metadata',
+            file_name="metadata",
         )
 
     def _read_tags(self, nsamples):
@@ -415,15 +427,11 @@ class digital_rf_channel_sink(gr.sync_block):
         data_rel_samples = [self._next_rel_sample]
 
         # read time tags
-        time_tags = self.get_tags_in_window(
-            0, 0, nsamples, pmt.intern('rx_time'),
-        )
+        time_tags = self.get_tags_in_window(0, 0, nsamples, pmt.intern("rx_time"))
         # separate data into blocks to be written
         for tag in time_tags:
             offset = tag.offset
-            tsec, tfrac, tidx = parse_time_pmt(
-                tag.value, self._samples_per_second,
-            )
+            tsec, tfrac, tidx = parse_time_pmt(tag.value, self._samples_per_second)
 
             # index into data block for this tag
             bidx = offset - nread
@@ -438,11 +446,15 @@ class digital_rf_channel_sink(gr.sync_block):
             if sidx < next_continuous_sample:
                 if self._debug:
                     errstr = (
-                        '\n|{0}|rx_time tag @ sample {1}: {2}+{3} ({4})'
-                        '\n INVALID: time cannot go backwards from index {5}.'
-                        ' Skipping.'
+                        "\n|{0}|rx_time tag @ sample {1}: {2}+{3} ({4})"
+                        "\n INVALID: time cannot go backwards from index {5}."
+                        " Skipping."
                     ).format(
-                        self._channel_name, offset, tsec, tfrac, tidx,
+                        self._channel_name,
+                        offset,
+                        tsec,
+                        tfrac,
+                        tidx,
                         self._start_sample + next_continuous_sample,
                     )
                     sys.stdout.write(errstr)
@@ -455,10 +467,14 @@ class digital_rf_channel_sink(gr.sync_block):
                 # add new block to write based on time tag
                 if self._debug:
                     tagstr = (
-                        '\n|{0}|rx_time tag @ sample {1}: {2}+{3} ({4})'
-                        '\n {5} dropped samples.'
+                        "\n|{0}|rx_time tag @ sample {1}: {2}+{3} ({4})"
+                        "\n {5} dropped samples."
                     ).format(
-                        self._channel_name, offset, tsec, tfrac, tidx,
+                        self._channel_name,
+                        offset,
+                        tsec,
+                        tfrac,
+                        tidx,
                         sidx - next_continuous_sample,
                     )
                     sys.stdout.write(tagstr)
@@ -480,8 +496,7 @@ class digital_rf_channel_sink(gr.sync_block):
 
         # read other tags by data block (so we know the sample index)
         for (bidx, bend), sidx in zip(
-                pairwise(chain(data_blk_idxs, (nsamples,))),
-                data_rel_samples,
+            pairwise(chain(data_blk_idxs, (nsamples,))), data_rel_samples
         ):
             tags_by_offset = {}
             # read tags, translate to metadata dict, add to tag dict
@@ -516,9 +531,9 @@ class digital_rf_channel_sink(gr.sync_block):
 
         # get any metadata samples to be written from queue
         if self._md_queue:
-            md_samples, md_dict_updates = zip(*sorted(
-                self._md_queue.items(), key=lambda x: x[0],
-            ))
+            md_samples, md_dict_updates = zip(
+                *sorted(self._md_queue.items(), key=lambda x: x[0])
+            )
             md_samples = np.array(md_samples, dtype=np.uint64, ndmin=1)
             # fill out metadata to be written using stored metadata
             md_dicts = [
@@ -540,10 +555,11 @@ class digital_rf_channel_sink(gr.sync_block):
                 data_rel_samples[:1],
                 data_blk_idxs[:1],
             )
-            last_rel_sample = (data_rel_samples[0] +
-                               (data_blk_idxs[1] - data_blk_idxs[0]))
+            last_rel_sample = data_rel_samples[0] + (
+                data_blk_idxs[1] - data_blk_idxs[0]
+            )
             last_sample = last_rel_sample + self._start_sample
-            idx = np.searchsorted(md_samples, last_sample, 'right')
+            idx = np.searchsorted(md_samples, last_sample, "right")
             for md_sample, md_dict in zip(md_samples[:idx], md_dicts[:idx]):
                 self._DMDWriter.write(md_sample, md_dict)
             print("Stopping at skipped sample as requested.")
@@ -557,10 +573,7 @@ class digital_rf_channel_sink(gr.sync_block):
 
             # write data using block writer
             self._next_rel_sample = _py_rf_write_hdf5.rf_block_write(
-                self._Writer._channelObj,
-                in_data,
-                data_rel_samples,
-                data_blk_idxs,
+                self._Writer._channelObj, in_data, data_rel_samples, data_blk_idxs
             )
         except (IOError, RuntimeError):
             # just print the exception so we can return WORK_DONE to notify
@@ -598,13 +611,28 @@ class digital_rf_sink(gr.hier_block2):
     """Sink block for writing Digital RF data."""
 
     def __init__(
-        self, top_level_dir, channels, dtype, subdir_cadence_secs,
-        file_cadence_millisecs, sample_rate_numerator, sample_rate_denominator,
-        start=None, ignore_tags=False, is_complex=True, num_subchannels=1,
-        uuid_str=None, center_frequencies=None, metadata={},
-        is_continuous=True, compression_level=0,
-        checksum=False, marching_periods=True, stop_on_skipped=True,
-        debug=False, min_chunksize=None,
+        self,
+        top_level_dir,
+        channels,
+        dtype,
+        subdir_cadence_secs,
+        file_cadence_millisecs,
+        sample_rate_numerator,
+        sample_rate_denominator,
+        start=None,
+        ignore_tags=False,
+        is_complex=True,
+        num_subchannels=1,
+        uuid_str=None,
+        center_frequencies=None,
+        metadata={},
+        is_continuous=True,
+        compression_level=0,
+        checksum=False,
+        marching_periods=True,
+        stop_on_skipped=True,
+        debug=False,
+        min_chunksize=None,
     ):
         """Write data in Digital RF format.
 
@@ -631,10 +659,10 @@ class digital_rf_sink(gr.hier_block2):
             `top_level_dir`. If a string, a single channel will be written with
             that name.
 
-        dtype : numpy.dtype | object to be cast by numpy.dtype()
+        dtype : np.dtype | object to be cast by np.dtype()
             Object that gives the numpy dtype of the data to be written. This
-            value is passed into ``numpy.dtype`` to get the actual dtype
-            (e.g. ``numpy.dtype('>i4')``). Scalar types, complex types, and
+            value is passed into ``np.dtype`` to get the actual dtype
+            (e.g. ``np.dtype('>i4')``). Scalar types, complex types, and
             structured complex types with 'r' and 'i' fields of scalar types
             are valid.
 
@@ -781,9 +809,9 @@ class digital_rf_sink(gr.hier_block2):
 
         """
         options = locals()
-        del options['self']
-        del options['top_level_dir']
-        del options['channels']
+        del options["self"]
+        del options["top_level_dir"]
+        del options["channels"]
 
         self._top_level_dir = os.path.abspath(top_level_dir)
         if isinstance(channels, six.string_types):
@@ -799,8 +827,7 @@ class digital_rf_sink(gr.hier_block2):
 
         in_sig_dtypes = [list(sink.in_sig())[0] for sink in self._channels]
         in_sig = gr.io_signaturev(
-            len(in_sig_dtypes), len(in_sig_dtypes),
-            [s.itemsize for s in in_sig_dtypes],
+            len(in_sig_dtypes), len(in_sig_dtypes), [s.itemsize for s in in_sig_dtypes]
         )
         out_sig = gr.io_signature(0, 0, 0)
 

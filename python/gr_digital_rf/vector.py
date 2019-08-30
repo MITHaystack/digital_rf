@@ -12,21 +12,26 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 from gnuradio import gr
 
-__all__ = ('vector_aggregate',)
+__all__ = ("vector_aggregate",)
 
 
 class vector_aggregate(gr.basic_block):
     """Block for aggregate consecutive vectors together using an operation."""
 
     def __init__(
-        self, dtype=np.complex64, vlen=1, nagg=1, agg_op='mean',
-        agg_op_args=(), max_nagg=None,
+        self,
+        dtype=np.complex64,
+        vlen=1,
+        nagg=1,
+        agg_op="mean",
+        agg_op_args=(),
+        max_nagg=None,
     ):
         """Aggregate consecutive vectors together using a specified operation.
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : np.dtype
             Data type of the input and output data.
 
         vlen : int
@@ -57,10 +62,10 @@ class vector_aggregate(gr.basic_block):
 
         """
         if max_nagg is None:
-            max_nagg = 4*nagg
+            max_nagg = 4 * nagg
         gr.basic_block.__init__(
             self,
-            name='Vector Aggregate',
+            name="Vector Aggregate",
             in_sig=[(dtype, vlen)],
             out_sig=[(dtype, vlen)],
         )
@@ -117,10 +122,8 @@ class vector_aggregate(gr.basic_block):
         if self._adjust_params():
             return 0
 
-        nconsumed = noutput_items*self._nagg
-        in_agg = in_arr[:nconsumed].reshape(
-            (noutput_items, self._nagg, self._vlen),
-        )
+        nconsumed = noutput_items * self._nagg
+        in_agg = in_arr[:nconsumed].reshape((noutput_items, self._nagg, self._vlen))
         op_method = getattr(in_agg, self._agg_op)
         out_arr[...] = op_method(*self._agg_op_args, axis=1)
         self.consume(0, nconsumed)

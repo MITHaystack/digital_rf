@@ -32,9 +32,7 @@ from gnuradio import filter as grfilter
 from gnuradio import gr, uhd
 
 
-def equiripple_lpf(
-    cutoff=0.9, transition_width=0.2, attenuation=80, pass_ripple=None,
-):
+def equiripple_lpf(cutoff=0.9, transition_width=0.2, attenuation=80, pass_ripple=None):
     """Get taps for an equiripple low-pass filter.
 
     All frequencies given must be normalized in the range [0, 1], with 1
@@ -68,37 +66,38 @@ def equiripple_lpf(
         pass_ripple = attenuation
 
     if cutoff <= 0:
-        errstr = 'Cutoff ({0}) must be strictly greater than zero.'
+        errstr = "Cutoff ({0}) must be strictly greater than zero."
         raise ValueError(errstr.format(cutoff))
 
     if transition_width <= 0:
-        errstr = 'Transition width ({0}) must be strictly greater than zero.'
+        errstr = "Transition width ({0}) must be strictly greater than zero."
         raise ValueError(errstr.format(transition_width))
 
     if cutoff + transition_width >= 1:
         errstr = (
-            'Cutoff ({0}) + transition width ({1}) must be strictly less than'
-            ' one, but it is {2}.'
+            "Cutoff ({0}) + transition width ({1}) must be strictly less than"
+            " one, but it is {2}."
         ).format(cutoff, transition_width, cutoff + transition_width)
         raise ValueError(errstr)
 
     # pm_remez arguments
     bands = [0, cutoff, cutoff + transition_width, 1]
     ampl = [1, 1, 0, 0]
-    error_weight = [10**((pass_ripple - attenuation) / 20.0), 1]
+    error_weight = [10 ** ((pass_ripple - attenuation) / 20.0), 1]
 
     # get estimate for the filter order (Oppenheim + Schafer 2nd ed, 7.104)
-    M = (((attenuation + pass_ripple) / 2.0 - 13)
-         / 2.324 / (np.pi * transition_width))
+    M = ((attenuation + pass_ripple) / 2.0 - 13) / 2.324 / (np.pi * transition_width)
     # round up to nearest even-order (Type I) filter
     M = int(np.ceil(M / 2.0)) * 2
 
     for _attempts in range(20):
         # get taps for order M
         try:
-            taps = np.asarray(grfilter.pm_remez(
-                order=M, bands=bands, ampl=ampl, error_weight=error_weight,
-            ))
+            taps = np.asarray(
+                grfilter.pm_remez(
+                    order=M, bands=bands, ampl=ampl, error_weight=error_weight
+                )
+            )
         except RuntimeError:
             M = M + 2
             continue
@@ -120,8 +119,8 @@ def equiripple_lpf(
             M = M + 2
     else:
         errstr = (
-            'Could not calculate equiripple filter that meets requirements'
-            'after {0} attempts (final order {1}).'
+            "Could not calculate equiripple filter that meets requirements"
+            "after {0} attempts (final order {1})."
         )
         raise RuntimeError(errstr.format(_attempts, M))
 
@@ -135,27 +134,47 @@ class Thor(object):
         options = dict(
             verbose=True,
             # mainboard group (num: len of mboards)
-            mboards=[], subdevs=['A:A'], clock_rates=[None],
-            clock_sources=[''], time_sources=[''],
+            mboards=[],
+            subdevs=["A:A"],
+            clock_rates=[None],
+            clock_sources=[""],
+            time_sources=[""],
             # receiver group (apply to all)
             samplerate=1e6,
-            dev_args=['recv_buff_size=100000000', 'num_recv_frames=512'],
-            stream_args=[], tune_args=[],
-            time_sync=True, wait_for_lock=True,
-            stop_on_dropped=False, realtime=False, test_settings=True,
+            dev_args=["recv_buff_size=100000000", "num_recv_frames=512"],
+            stream_args=[],
+            tune_args=[],
+            time_sync=True,
+            wait_for_lock=True,
+            stop_on_dropped=False,
+            realtime=False,
+            test_settings=True,
             # receiver ch. group (num: matching channels from mboards/subdevs)
             centerfreqs=[100e6],
-            lo_offsets=[0], lo_sources=[''], lo_exports=[None],
-            dc_offsets=[False], iq_balances=[None],
-            gains=[0], bandwidths=[0], antennas=[''],
+            lo_offsets=[0],
+            lo_sources=[""],
+            lo_exports=[None],
+            dc_offsets=[False],
+            iq_balances=[None],
+            gains=[0],
+            bandwidths=[0],
+            antennas=[""],
             # output channel group (num: len of channel_names)
-            channel_names=['ch0'], channels=[None], ch_samplerates=[None],
-            ch_centerfreqs=[False], ch_scalings=[1.0], ch_nsubchannels=[1],
-            ch_lpf_cutoffs=[0.9], ch_lpf_transition_widths=[0.2],
-            ch_lpf_attenuations=[80.0], ch_lpf_pass_ripples=[None],
+            channel_names=["ch0"],
+            channels=[None],
+            ch_samplerates=[None],
+            ch_centerfreqs=[False],
+            ch_scalings=[1.0],
+            ch_nsubchannels=[1],
+            ch_lpf_cutoffs=[0.9],
+            ch_lpf_transition_widths=[0.2],
+            ch_lpf_attenuations=[80.0],
+            ch_lpf_pass_ripples=[None],
             ch_out_types=[None],
             # digital_rf group (apply to all)
-            file_cadence_ms=1000, subdir_cadence_s=3600, metadata={},
+            file_cadence_ms=1000,
+            subdir_cadence_s=3600,
+            metadata={},
             uuid=None,
         )
         options.update(kwargs)
@@ -165,7 +184,7 @@ class Thor(object):
         # test usrp device settings, release device when done
         if op.test_settings:
             if op.verbose:
-                print('Initialization: testing device settings.')
+                print("Initialization: testing device settings.")
             self._usrp_setup()
 
             # finalize options (for settings that depend on USRP setup)
@@ -182,8 +201,8 @@ class Thor(object):
             if len(set(sds)) != len(sds):
                 errstr = (
                     'Invalid subdevice specification: "{0}". '
-                    'Each subdevice specification for a given mainboard must '
-                    'be unique.'
+                    "Each subdevice specification for a given mainboard must "
+                    "be unique."
                 )
                 raise ValueError(errstr.format(sd))
 
@@ -194,71 +213,69 @@ class Thor(object):
             or any(s != 1 for s in op.ch_scalings)
             or any(nsch != 1 for nsch in op.ch_nsubchannels)
         )
-        if (all(ot is None or ot == 'sc16' for ot in op.ch_out_types)
-                and not processing_required):
+        if (
+            all(ot is None or ot == "sc16" for ot in op.ch_out_types)
+            and not processing_required
+        ):
             # with only sc16 output and no processing, can use sc16 as cpu
             # format and disable conversion
-            op.cpu_format = 'sc16'
-            op.ch_out_specs = [dict(
-                convert=None,
-                convert_kwargs=None,
-                dtype=np.dtype([(str('r'), np.int16), (str('i'), np.int16)]),
-                name='sc16',
-            )]
-        else:
-            op.cpu_format = 'fc32'
-            # get full specification for output types
-            supported_out_types = {
-                'sc8': dict(
-                    convert='float_to_char',
-                    convert_kwargs=dict(vlen=2, scale=float(2**7 - 1)),
-                    dtype=np.dtype([(str('r'), np.int8), (str('i'), np.int8)]),
-                    name='sc8',
-                ),
-                'sc16': dict(
-                    convert='float_to_short',
-                    convert_kwargs=dict(vlen=2, scale=float(2**15 - 1)),
-                    dtype=np.dtype(
-                        [(str('r'), np.int16), (str('i'), np.int16)],
-                    ),
-                    name='sc16',
-                ),
-                'sc32': dict(
-                    convert='float_to_int',
-                    convert_kwargs=dict(vlen=2, scale=float(2**31 - 1)),
-                    dtype=np.dtype(
-                        [(str('r'), np.int32), (str('i'), np.int32)],
-                    ),
-                    name='sc32',
-                ),
-                'fc32': dict(
+            op.cpu_format = "sc16"
+            op.ch_out_specs = [
+                dict(
                     convert=None,
                     convert_kwargs=None,
-                    dtype=np.dtype('complex64'),
-                    name='fc32',
+                    dtype=np.dtype([(str("r"), np.int16), (str("i"), np.int16)]),
+                    name="sc16",
+                )
+            ]
+        else:
+            op.cpu_format = "fc32"
+            # get full specification for output types
+            supported_out_types = {
+                "sc8": dict(
+                    convert="float_to_char",
+                    convert_kwargs=dict(vlen=2, scale=float(2 ** 7 - 1)),
+                    dtype=np.dtype([(str("r"), np.int8), (str("i"), np.int8)]),
+                    name="sc8",
+                ),
+                "sc16": dict(
+                    convert="float_to_short",
+                    convert_kwargs=dict(vlen=2, scale=float(2 ** 15 - 1)),
+                    dtype=np.dtype([(str("r"), np.int16), (str("i"), np.int16)]),
+                    name="sc16",
+                ),
+                "sc32": dict(
+                    convert="float_to_int",
+                    convert_kwargs=dict(vlen=2, scale=float(2 ** 31 - 1)),
+                    dtype=np.dtype([(str("r"), np.int32), (str("i"), np.int32)]),
+                    name="sc32",
+                ),
+                "fc32": dict(
+                    convert=None,
+                    convert_kwargs=None,
+                    dtype=np.dtype("complex64"),
+                    name="fc32",
                 ),
             }
-            supported_out_types[None] = supported_out_types['fc32']
+            supported_out_types[None] = supported_out_types["fc32"]
             type_dicts = []
             for ot in op.ch_out_types:
                 try:
                     type_dict = supported_out_types[ot]
                 except KeyError:
                     errstr = (
-                        'Output type {0} is not supported. Must be one of {1}.'
+                        "Output type {0} is not supported. Must be one of {1}."
                     ).format(ot, list(supported_out_types.keys()))
                     raise ValueError(errstr)
                 else:
                     type_dicts.append(type_dict)
             op.ch_out_specs = type_dicts
         # replace out_types to fill in None values with type name
-        op.ch_out_types = [os['name'] for os in op.ch_out_specs]
+        op.ch_out_types = [os["name"] for os in op.ch_out_specs]
 
         # repeat mainboard arguments as necessary
         op.nmboards = len(op.mboards) if len(op.mboards) > 0 else 1
-        for mb_arg in (
-            'subdevs', 'clock_rates', 'clock_sources', 'time_sources',
-        ):
+        for mb_arg in ("subdevs", "clock_rates", "clock_sources", "time_sources"):
             val = getattr(op, mb_arg)
             mbval = list(islice(cycle(val), 0, op.nmboards))
             setattr(op, mb_arg, mbval)
@@ -268,7 +285,7 @@ class Thor(object):
         op.mboards_bychan = []
         op.subdevs_bychan = []
         op.mboardnum_bychan = []
-        mboards = op.mboards if op.mboards else ['default']
+        mboards = op.mboards if op.mboards else ["default"]
         for mbnum, (mb, sd) in enumerate(zip(mboards, op.subdevs)):
             sds = sd.split()
             mbs = list(repeat(mb, len(sds)))
@@ -280,8 +297,15 @@ class Thor(object):
         # repeat receiver channel arguments as necessary
         op.nrchs = len(op.subdevs_bychan)
         for rch_arg in (
-            'antennas', 'bandwidths', 'centerfreqs', 'dc_offsets',
-            'iq_balances', 'lo_offsets', 'lo_sources', 'lo_exports', 'gains',
+            "antennas",
+            "bandwidths",
+            "centerfreqs",
+            "dc_offsets",
+            "iq_balances",
+            "lo_offsets",
+            "lo_sources",
+            "lo_exports",
+            "gains",
         ):
             val = getattr(op, rch_arg)
             rval = list(islice(cycle(val), 0, op.nrchs))
@@ -290,10 +314,17 @@ class Thor(object):
         # repeat output channel arguments as necessary
         op.nochs = len(op.channel_names)
         for och_arg in (
-            'channels', 'ch_centerfreqs', 'ch_lpf_attenuations',
-            'ch_lpf_cutoffs', 'ch_lpf_pass_ripples',
-            'ch_lpf_transition_widths', 'ch_nsubchannels', 'ch_out_specs',
-            'ch_out_types', 'ch_samplerates', 'ch_scalings',
+            "channels",
+            "ch_centerfreqs",
+            "ch_lpf_attenuations",
+            "ch_lpf_cutoffs",
+            "ch_lpf_pass_ripples",
+            "ch_lpf_transition_widths",
+            "ch_nsubchannels",
+            "ch_out_specs",
+            "ch_out_types",
+            "ch_samplerates",
+            "ch_scalings",
         ):
             val = getattr(op, och_arg)
             rval = list(islice(cycle(val), 0, op.nochs))
@@ -304,28 +335,26 @@ class Thor(object):
         ochannels = set(c for c in op.channels if c is not None)
         if not ochannels.issubset(rchannels):
             errstr = (
-                'Invalid channel specification. Output channel uses'
-                ' non-existent receiver channel: {0}.'
+                "Invalid channel specification. Output channel uses"
+                " non-existent receiver channel: {0}."
             )
             raise ValueError(errstr.format(list(ochannels - rchannels)))
         avail = sorted(rchannels - ochannels)
         try:
-            op.channels = [
-                c if c is not None else avail.pop(0) for c in op.channels
-            ]
+            op.channels = [c if c is not None else avail.pop(0) for c in op.channels]
         except IndexError:
             errstr = (
-                'No remaining receiver channels left to assign to unspecified'
-                ' (None) output channel. You probably need to explicitly'
-                ' specify the receiver channels to output.'
+                "No remaining receiver channels left to assign to unspecified"
+                " (None) output channel. You probably need to explicitly"
+                " specify the receiver channels to output."
             )
             raise ValueError(errstr)
         unused_rchs = set(range(op.nrchs)) - set(op.channels)
         if unused_rchs:
             errstr = (
-                'Receiver channels {0} are unused in the output. Either'
-                ' remove them from the mainboard/subdevice specification or'
-                ' correct the output channel specification.'
+                "Receiver channels {0} are unused in the output. Either"
+                " remove them from the mainboard/subdevice specification or"
+                " correct the output channel specification."
             )
             raise ValueError(errstr.format(unused_rchs))
 
@@ -338,30 +367,31 @@ class Thor(object):
         # create device_addr string to identify the requested device(s)
         op.mboard_strs = []
         for n, mb in enumerate(op.mboards):
-            if re.match(r'[^0-9]+=.+', mb):
-                idtype, mb = mb.split('=')
-            elif re.match(
-                r'[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}', mb,
-            ):
-                idtype = 'addr'
+            if re.match(r"[^0-9]+=.+", mb):
+                idtype, mb = mb.split("=")
+            elif re.match(r"[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}", mb):
+                idtype = "addr"
             elif (
-                re.match(r'usrp[123]', mb) or re.match(r'b2[01]0', mb)
-                or re.match(r'x3[01]0', mb)
+                re.match(r"usrp[123]", mb)
+                or re.match(r"b2[01]0", mb)
+                or re.match(r"x3[01]0", mb)
             ):
-                idtype = 'type'
-            elif re.match(r'[0-9A-Fa-f]{1,}', mb):
-                idtype = 'serial'
+                idtype = "type"
+            elif re.match(r"[0-9A-Fa-f]{1,}", mb):
+                idtype = "serial"
             else:
-                idtype = 'name'
+                idtype = "name"
             if len(op.mboards) == 1:
                 # do not use identifier numbering if only using one mainboard
-                s = '{type}={mb}'.format(type=idtype, mb=mb.strip())
+                s = "{type}={mb}".format(type=idtype, mb=mb.strip())
             else:
-                s = '{type}{n}={mb}'.format(type=idtype, n=n, mb=mb.strip())
+                s = "{type}{n}={mb}".format(type=idtype, n=n, mb=mb.strip())
             op.mboard_strs.append(s)
 
         if op.verbose:
-            opstr = dedent('''\
+            opstr = (
+                dedent(
+                    """\
                 Main boards: {mboard_strs}
                 Subdevices: {subdevs}
                 Clock rates: {clock_rates}
@@ -390,7 +420,11 @@ class Thor(object):
                 Data dir: {datadir}
                 Metadata: {metadata}
                 UUID: {uuid}
-            ''').strip().format(**op.__dict__)
+            """
+                )
+                .strip()
+                .format(**op.__dict__)
+            )
             print(opstr)
 
         return op
@@ -399,14 +433,14 @@ class Thor(object):
         """Create, set up, and return USRP source object."""
         op = self.op
         # create usrp source block
-        op.otw_format = 'sc16'
+        op.otw_format = "sc16"
         u = uhd.usrp_source(
-            device_addr=','.join(chain(op.mboard_strs, op.dev_args)),
+            device_addr=",".join(chain(op.mboard_strs, op.dev_args)),
             stream_args=uhd.stream_args(
                 cpu_format=op.cpu_format,
                 otw_format=op.otw_format,
                 channels=list(range(op.nrchs)),
-                args=','.join(op.stream_args),
+                args=",".join(op.stream_args),
             ),
         )
 
@@ -422,7 +456,7 @@ class Thor(object):
             # set clock source
             clock_source = op.clock_sources[mb_num]
             if not clock_source and op.wait_for_lock:
-                clock_source = 'external'
+                clock_source = "external"
             if clock_source:
                 try:
                     u.set_clock_source(clock_source, mb_num)
@@ -431,15 +465,13 @@ class Thor(object):
                         "Setting mainboard {0} clock_source to '{1}' failed."
                         " Must be one of {2}. If setting is valid, check that"
                         " the source (REF) is operational."
-                    ).format(
-                        mb_num, clock_source, u.get_clock_sources(mb_num),
-                    )
+                    ).format(mb_num, clock_source, u.get_clock_sources(mb_num))
                     raise ValueError(errstr)
 
             # set time source
             time_source = op.time_sources[mb_num]
             if not time_source and op.time_sync:
-                time_source = 'external'
+                time_source = "external"
             if time_source:
                 try:
                     u.set_time_source(time_source, mb_num)
@@ -448,19 +480,18 @@ class Thor(object):
                         "Setting mainboard {0} time_source to '{1}' failed."
                         " Must be one of {2}. If setting is valid, check that"
                         " the source (PPS) is operational."
-                    ).format(
-                        mb_num, time_source, u.get_time_sources(mb_num),
-                    )
+                    ).format(mb_num, time_source, u.get_time_sources(mb_num))
                     raise ValueError(errstr)
 
         # check for ref lock
         mbnums_with_ref = [
-            mb_num for mb_num in range(op.nmboards)
-            if 'ref_locked' in u.get_mboard_sensor_names(mb_num)
+            mb_num
+            for mb_num in range(op.nmboards)
+            if "ref_locked" in u.get_mboard_sensor_names(mb_num)
         ]
         if op.wait_for_lock and mbnums_with_ref:
             if op.verbose:
-                sys.stdout.write('Waiting for reference lock...')
+                sys.stdout.write("Waiting for reference lock...")
                 sys.stdout.flush()
             timeout = 0
             if op.wait_for_lock is True:
@@ -468,30 +499,31 @@ class Thor(object):
             else:
                 timeout_thresh = op.wait_for_lock
             while not all(
-                u.get_mboard_sensor('ref_locked', mb_num).to_bool()
+                u.get_mboard_sensor("ref_locked", mb_num).to_bool()
                 for mb_num in mbnums_with_ref
             ):
                 if op.verbose:
-                    sys.stdout.write('.')
+                    sys.stdout.write(".")
                     sys.stdout.flush()
                 time.sleep(1)
                 timeout += 1
                 if timeout > timeout_thresh:
                     if op.verbose:
-                        sys.stdout.write('failed\n')
+                        sys.stdout.write("failed\n")
                         sys.stdout.flush()
                     unlocked_mbs = [
-                        mb_num for mb_num in mbnums_with_ref
-                        if u.get_mboard_sensor('ref_locked', mb_num).to_bool()
+                        mb_num
+                        for mb_num in mbnums_with_ref
+                        if u.get_mboard_sensor("ref_locked", mb_num).to_bool()
                     ]
                     errstr = (
-                        'Failed to lock to 10 MHz reference on mainboards {0}.'
-                        ' To skip waiting for lock, set `wait_for_lock` to'
-                        ' False (pass --nolock on the command line).'
+                        "Failed to lock to 10 MHz reference on mainboards {0}."
+                        " To skip waiting for lock, set `wait_for_lock` to"
+                        " False (pass --nolock on the command line)."
                     ).format(unlocked_mbs)
                     raise RuntimeError(errstr)
             if op.verbose:
-                sys.stdout.write('locked\n')
+                sys.stdout.write("locked\n")
                 sys.stdout.flush()
 
         # set global options
@@ -537,23 +569,22 @@ class Thor(object):
             if lo_export is not None:
                 if not lo_source:
                     errstr = (
-                        'Channel {0}: must set an LO source in order to set'
-                        ' LO export.'
+                        "Channel {0}: must set an LO source in order to set"
+                        " LO export."
                     ).format(ch_num)
                     raise ValueError(errstr)
                 u.set_lo_export_enabled(lo_export, uhd.ALL_LOS, ch_num)
             # center frequency and tuning offset
             tune_res = u.set_center_freq(
                 uhd.tune_request(
-                    op.centerfreqs[ch_num], op.lo_offsets[ch_num],
-                    args=uhd.device_addr(','.join(op.tune_args)),
+                    op.centerfreqs[ch_num],
+                    op.lo_offsets[ch_num],
+                    args=uhd.device_addr(",".join(op.tune_args)),
                 ),
                 ch_num,
             )
             # store actual values from tune result
-            op.centerfreqs[ch_num] = (
-                tune_res.actual_rf_freq - tune_res.actual_dsp_freq
-            )
+            op.centerfreqs[ch_num] = tune_res.actual_rf_freq - tune_res.actual_dsp_freq
             op.lo_offsets[ch_num] = tune_res.actual_dsp_freq
             # dc offset
             dc_offset = op.dc_offsets[ch_num]
@@ -600,49 +631,45 @@ class Thor(object):
             if op.lo_sources[ch_num]:
                 op.lo_sources[ch_num] = u.get_lo_source(uhd.ALL_LOS, ch_num)
             if op.lo_exports[ch_num] is not None:
-                op.lo_exports[ch_num] = u.get_lo_export_enabled(
-                    uhd.ALL_LOS, ch_num,
-                )
+                op.lo_exports[ch_num] = u.get_lo_export_enabled(uhd.ALL_LOS, ch_num)
             op.gains[ch_num] = u.get_gain(ch_num)
             op.bandwidths[ch_num] = u.get_bandwidth(chan=ch_num)
             op.antennas[ch_num] = u.get_antenna(chan=ch_num)
             op.usrpinfo.append(dict(u.get_usrp_info(chan=ch_num)))
 
         if op.verbose:
-            print('Using the following devices:')
+            print("Using the following devices:")
             chinfostrs = [
-                'Motherboard: {mb_id} ({mb_addr}) | Daughterboard: {db_name}',
-                'Subdev: {sub} | Antenna: {ant} | Gain: {gain} | Rate: {sr}',
-                'Frequency: {freq:.3f} ({lo_off:+.3f}) | Bandwidth: {bw}',
+                "Motherboard: {mb_id} ({mb_addr}) | Daughterboard: {db_name}",
+                "Subdev: {sub} | Antenna: {ant} | Gain: {gain} | Rate: {sr}",
+                "Frequency: {freq:.3f} ({lo_off:+.3f}) | Bandwidth: {bw}",
             ]
             if any(op.lo_sources) or any(op.lo_exports):
-                chinfostrs.append(
-                    'LO source: {lo_source} | LO export: {lo_export}',
-                )
-            chinfo = '\n'.join(['  ' + l for l in chinfostrs])
+                chinfostrs.append("LO source: {lo_source} | LO export: {lo_export}")
+            chinfo = "\n".join(["  " + l for l in chinfostrs])
             for ch_num in range(op.nrchs):
-                header = '---- receiver channel {0} '.format(ch_num)
-                header += '-' * (78 - len(header))
+                header = "---- receiver channel {0} ".format(ch_num)
+                header += "-" * (78 - len(header))
                 print(header)
                 usrpinfo = op.usrpinfo[ch_num]
                 info = {}
-                info['mb_id'] = usrpinfo['mboard_id']
+                info["mb_id"] = usrpinfo["mboard_id"]
                 mba = op.mboards_bychan[ch_num]
-                if mba == 'default':
-                    mba = usrpinfo['mboard_serial']
-                info['mb_addr'] = mba
-                info['db_name'] = usrpinfo['rx_subdev_name']
-                info['sub'] = op.subdevs_bychan[ch_num]
-                info['ant'] = op.antennas[ch_num]
-                info['bw'] = op.bandwidths[ch_num]
-                info['freq'] = op.centerfreqs[ch_num]
-                info['gain'] = op.gains[ch_num]
-                info['lo_off'] = op.lo_offsets[ch_num]
-                info['lo_source'] = op.lo_sources[ch_num]
-                info['lo_export'] = op.lo_exports[ch_num]
-                info['sr'] = op.samplerate
+                if mba == "default":
+                    mba = usrpinfo["mboard_serial"]
+                info["mb_addr"] = mba
+                info["db_name"] = usrpinfo["rx_subdev_name"]
+                info["sub"] = op.subdevs_bychan[ch_num]
+                info["ant"] = op.antennas[ch_num]
+                info["bw"] = op.bandwidths[ch_num]
+                info["freq"] = op.centerfreqs[ch_num]
+                info["gain"] = op.gains[ch_num]
+                info["lo_off"] = op.lo_offsets[ch_num]
+                info["lo_source"] = op.lo_sources[ch_num]
+                info["lo_export"] = op.lo_exports[ch_num]
+                info["sr"] = op.samplerate
                 print(chinfo.format(**info))
-                print('-' * 78)
+                print("-" * 78)
 
         return u
 
@@ -655,9 +682,7 @@ class Thor(object):
         op.resampling_filter_delays = []
         op.channelizer_filter_taps = []
         op.channelizer_filter_delays = []
-        for ko, (osr, nsc) in enumerate(
-            zip(op.ch_samplerates, op.ch_nsubchannels),
-        ):
+        for ko, (osr, nsc) in enumerate(zip(op.ch_samplerates, op.ch_nsubchannels)):
             # get output sample rate fraction
             # (op.samplerate_frac final value is set in _usrp_setup
             #  so can't get output sample rate until after that is done)
@@ -681,8 +706,7 @@ class Thor(object):
                 taps = equiripple_lpf(
                     cutoff=float(op.ch_lpf_cutoffs[ko]) / ratio.denominator,
                     transition_width=(
-                        float(op.ch_lpf_transition_widths[ko])
-                        / ratio.denominator
+                        float(op.ch_lpf_transition_widths[ko]) / ratio.denominator
                     ),
                     attenuation=op.ch_lpf_attenuations[ko],
                     pass_ripple=op.ch_lpf_pass_ripples[ko],
@@ -695,12 +719,8 @@ class Thor(object):
                 # (overall taps are applied at interpolated rate, but delay is
                 #  still in terms of input rate, i.e. the taps per filter
                 #  after being split into the polyphase filter bank)
-                taps_per_filter = int(
-                    np.ceil(float(len(taps)) / ratio.numerator),
-                )
-                op.resampling_filter_delays.append(
-                    Fraction(taps_per_filter - 1, 2),
-                )
+                taps_per_filter = int(np.ceil(float(len(taps)) / ratio.numerator))
+                op.resampling_filter_delays.append(Fraction(taps_per_filter - 1, 2))
 
             # get channelizer low-pass filter taps
             if nsc > 1:
@@ -711,9 +731,7 @@ class Thor(object):
                     pass_ripple=op.ch_lpf_pass_ripples[ko],
                 )
                 op.channelizer_filter_taps.append(taps)
-                op.channelizer_filter_delays.append(
-                    Fraction(len(taps) - 1, 2),
-                )
+                op.channelizer_filter_delays.append(Fraction(len(taps) - 1, 2))
             else:
                 op.channelizer_filter_taps.append(np.zeros(0))
                 op.channelizer_filter_delays.append(0)
@@ -726,9 +744,9 @@ class Thor(object):
         SETUP_TIME = 10
 
         # print current time and NTP status
-        if op.verbose and sys.platform.startswith('linux'):
+        if op.verbose and sys.platform.startswith("linux"):
             try:
-                call(('timedatectl', 'status'))
+                call(("timedatectl", "status"))
             except OSError:
                 # no timedatectl command, ignore
                 pass
@@ -745,30 +763,31 @@ class Thor(object):
             st = st + timedelta(seconds=periods_until_next * period)
 
             if op.verbose:
-                ststr = st.strftime('%a %b %d %H:%M:%S %Y')
+                ststr = st.strftime("%a %b %d %H:%M:%S %Y")
                 stts = (st - drf.util.epoch).total_seconds()
-                print('Start time: {0} ({1})'.format(ststr, stts))
+                print("Start time: {0} ({1})".format(ststr, stts))
 
         et = drf.util.parse_identifier_to_time(endtime, ref_datetime=st)
         if et is not None:
             if op.verbose:
-                etstr = et.strftime('%a %b %d %H:%M:%S %Y')
+                etstr = et.strftime("%a %b %d %H:%M:%S %Y")
                 etts = (et - drf.util.epoch).total_seconds()
-                print('End time: {0} ({1})'.format(etstr, etts))
+                print("End time: {0} ({1})".format(etstr, etts))
 
-            if ((et < (pytz.utc.localize(datetime.utcnow())
-                       + timedelta(seconds=SETUP_TIME)))
-               or (st is not None and et <= st)):
-                raise ValueError('End time is before launch time!')
+            if (
+                et
+                < (pytz.utc.localize(datetime.utcnow()) + timedelta(seconds=SETUP_TIME))
+            ) or (st is not None and et <= st):
+                raise ValueError("End time is before launch time!")
 
         if op.realtime:
             r = gr.enable_realtime_scheduling()
 
             if op.verbose:
                 if r == gr.RT_OK:
-                    print('Realtime scheduling enabled')
+                    print("Realtime scheduling enabled")
                 else:
-                    print('Note: failed to enable realtime scheduling')
+                    print("Note: failed to enable realtime scheduling")
 
         # create data directory so ringbuffer code can be started while waiting
         # to launch
@@ -777,14 +796,11 @@ class Thor(object):
 
         # wait for the start time if it is not past
         while (st is not None) and (
-            (st - pytz.utc.localize(datetime.utcnow()))
-                > timedelta(seconds=SETUP_TIME)
+            (st - pytz.utc.localize(datetime.utcnow())) > timedelta(seconds=SETUP_TIME)
         ):
-            ttl = int((
-                st - pytz.utc.localize(datetime.utcnow())
-            ).total_seconds())
+            ttl = int((st - pytz.utc.localize(datetime.utcnow())).total_seconds())
             if (ttl % 10) == 0:
-                print('Standby {0} s remaining...'.format(ttl))
+                print("Standby {0} s remaining...".format(ttl))
                 sys.stdout.flush()
             time.sleep(1)
 
@@ -795,7 +811,7 @@ class Thor(object):
         self._finalize_options()
 
         if any(
-            info['mboard_id'] in ('B200', 'B210', 'B200mini', 'B205mini')
+            info["mboard_id"] in ("B200", "B210", "B200mini", "B205mini")
             for info in op.usrpinfo
         ):
             # force creation of the RX streamer ahead of time with a start/stop
@@ -818,7 +834,7 @@ class Thor(object):
                 time.sleep(0.01)
                 tt = time.time()
             if op.verbose:
-                print('Latching at ' + str(tt))
+                print("Latching at " + str(tt))
             # waits for the next pps to happen
             # (at time math.ceil(tt))
             # then sets the time for the subsequent pps
@@ -842,16 +858,14 @@ class Thor(object):
         ltts = lt_rsamples / op.samplerate
         lt = drf.util.sample_to_datetime(lt_rsamples, op.samplerate)
         if op.verbose:
-            ltstr = lt.strftime('%a %b %d %H:%M:%S.%f %Y')
-            msg = 'Launch time: {0} ({1})\nSample index: {2}'
+            ltstr = lt.strftime("%a %b %d %H:%M:%S.%f %Y")
+            msg = "Launch time: {0} ({1})\nSample index: {2}"
             print(msg.format(ltstr, repr(ltts), lt_rsamples))
         # command launch time
         ct_td = lt - drf.util.epoch
         ct_secs = ct_td.total_seconds() // 1.0
         ct_frac = ct_td.microseconds / 1000000.0
-        u.set_start_time(
-            uhd.time_spec(ct_secs) + uhd.time_spec(ct_frac),
-        )
+        u.set_start_time(uhd.time_spec(ct_secs) + uhd.time_spec(ct_frac))
 
         # populate flowgraph one channel at a time
         fg = gr.top_block()
@@ -880,7 +894,7 @@ class Thor(object):
                     f_shift = ch_centerfreq - op.centerfreqs[kr]
                     phase_inc = 2 * np.pi * f_shift / op.samplerate
                     rotator = np.exp(phase_inc * 1j * np.arange(len(rs_taps)))
-                    rs_taps = (rs_taps * rotator).astype('complex64')
+                    rs_taps = (rs_taps * rotator).astype("complex64")
 
                     # create band-pass filter (complex taps)
                     # don't use rational_resampler because its delay is wrong
@@ -904,9 +918,7 @@ class Thor(object):
 
                 # declare sample delay for the filter block so that tags are
                 # propagated to the correct sample
-                resampler.declare_sample_delay(
-                    int(op.resampling_filter_delays[ko]),
-                )
+                resampler.declare_sample_delay(int(op.resampling_filter_delays[ko]))
 
                 # skip first samples to account for filter delay so first
                 # sample going to output is first valid filtered sample
@@ -937,13 +949,13 @@ class Thor(object):
                 # build a hierarchical block for the channelizer so output
                 # is a vector of channels as expected by digital_rf
                 channelizer = gr.hier_block2(
-                    'lpf',
+                    "lpf",
                     gr.io_signature(1, 1, gr.sizeof_gr_complex),
                     gr.io_signature(1, 1, nsc * gr.sizeof_gr_complex),
                 )
                 s2ss = blocks.stream_to_streams(gr.sizeof_gr_complex, nsc)
                 filt = grfilter.pfb_channelizer_ccf(
-                    numchans=nsc, taps=sc_taps, oversample_rate=1.0,
+                    numchans=nsc, taps=sc_taps, oversample_rate=1.0
                 )
                 s2v = blocks.streams_to_vector(gr.sizeof_gr_complex, nsc)
                 channelizer.connect(channelizer, s2ss)
@@ -955,9 +967,7 @@ class Thor(object):
                 # propagated to the correct sample
                 # (for channelized, delay is applied for each filter in the
                 #  polyphase bank, so this needs to be the output sample delay)
-                filt.declare_sample_delay(
-                    int(op.channelizer_filter_delays[ko] / nsc),
-                )
+                filt.declare_sample_delay(int(op.channelizer_filter_delays[ko] / nsc))
 
                 # skip first samples to account for filter delay so first
                 # sample going to output is first valid filtered sample
@@ -969,9 +979,8 @@ class Thor(object):
                 )
 
                 # modify output settings accordingly
-                ch_centerfreq = (
-                    ch_centerfreq
-                    + np.fft.fftfreq(nsc, 1 / float(ch_samplerate_frac))
+                ch_centerfreq = ch_centerfreq + np.fft.fftfreq(
+                    nsc, 1 / float(ch_samplerate_frac)
                 )
                 ch_samplerate_frac = ch_samplerate_frac / nsc
             else:
@@ -979,13 +988,13 @@ class Thor(object):
 
             # make conversion block if necessary
             ot_dict = op.ch_out_specs[ko]
-            converter = ot_dict['convert']
+            converter = ot_dict["convert"]
             if converter is not None:
-                kw = ot_dict['convert_kwargs']
+                kw = ot_dict["convert_kwargs"]
                 # increase vector length of input due to channelizer
-                kw['vlen'] *= nsc
+                kw["vlen"] *= nsc
                 # incorporate any scaling into type conversion block
-                kw['scale'] *= conv_scaling
+                kw["scale"] *= conv_scaling
                 convert = getattr(blocks, converter)(**kw)
             elif conv_scaling != 1:
                 convert = blocks.multiply_const_cc(conv_scaling, nsc)
@@ -993,16 +1002,15 @@ class Thor(object):
                 convert = None
 
             # get start sample
-            ch_samplerate_ld = (
-                np.longdouble(ch_samplerate_frac.numerator)
-                / np.longdouble(ch_samplerate_frac.denominator)
-            )
+            ch_samplerate_ld = np.longdouble(
+                ch_samplerate_frac.numerator
+            ) / np.longdouble(ch_samplerate_frac.denominator)
             start_sample = int(np.uint64(ltts * ch_samplerate_ld))
 
             # create digital RF sink
             dst = gr_drf.digital_rf_channel_sink(
                 channel_dir=os.path.join(op.datadir, op.channel_names[ko]),
-                dtype=op.ch_out_specs[ko]['dtype'],
+                dtype=op.ch_out_specs[ko]["dtype"],
                 subdir_cadence_secs=op.subdir_cadence_s,
                 file_cadence_millisecs=op.file_cadence_ms,
                 sample_rate_numerator=ch_samplerate_frac.numerator,
@@ -1016,7 +1024,7 @@ class Thor(object):
                 metadata=dict(
                     # receiver metadata for USRP
                     receiver=dict(
-                        description='UHD USRP source using GNU Radio',
+                        description="UHD USRP source using GNU Radio",
                         info=op.usrpinfo[kr],
                         antenna=op.antennas[kr],
                         bandwidth=op.bandwidths[kr],
@@ -1032,7 +1040,7 @@ class Thor(object):
                         lo_source=op.lo_sources[kr],
                         otw_format=op.otw_format,
                         samp_rate=u.get_samp_rate(),
-                        stream_args=','.join(op.stream_args),
+                        stream_args=",".join(op.stream_args),
                         subdev=op.subdevs_bychan[kr],
                         time_source=op.time_sources[mbnum],
                     ),
@@ -1075,17 +1083,12 @@ class Thor(object):
 
         # check that we get samples after launch
         while not u.nitems_written(0):
-            if (
-                (pytz.utc.localize(datetime.utcnow())) - lt
-                    > timedelta(seconds=5)
-            ):
+            if (pytz.utc.localize(datetime.utcnow())) - lt > timedelta(seconds=5):
                 fg.stop()
                 # need to wait for the flowgraph to clean up,
                 # otherwise it won't exit
                 fg.wait()
-                errstr = (
-                    'No samples streamed after launch. Exiting with failure.'
-                )
+                errstr = "No samples streamed after launch. Exiting with failure."
                 raise RuntimeError(errstr)
             time.sleep(1)
 
@@ -1097,10 +1100,7 @@ class Thor(object):
                 fg.wait()
             else:
                 # sleep until end time nears
-                while(
-                    pytz.utc.localize(datetime.utcnow())
-                        < et - timedelta(seconds=2)
-                ):
+                while pytz.utc.localize(datetime.utcnow()) < et - timedelta(seconds=2):
                     time.sleep(1)
                 else:
                     # issue stream stop command at end time
@@ -1124,7 +1124,7 @@ class Thor(object):
             # need to wait for the flowgraph to clean up, otherwise it won't
             # exit and we will wait forever after finishing this process
             fg.wait()
-            print('done')
+            print("done")
             sys.stdout.flush()
 
 
@@ -1140,7 +1140,7 @@ def evalfloat(s):
 
 def intstrtuple(s):
     """Get (int, string) tuple from int:str strings."""
-    parts = [p.strip() for p in s.split(':', 1)]
+    parts = [p.strip() for p in s.split(":", 1)]
     if len(parts) == 2:
         return int(parts[0]), parts[1]
     else:
@@ -1149,7 +1149,7 @@ def intstrtuple(s):
 
 def noneorstr(s):
     """Turn empty or 'none' string to None."""
-    if s.lower() in ('', 'none'):
+    if s.lower() in ("", "none"):
         return None
     else:
         return s
@@ -1157,7 +1157,7 @@ def noneorstr(s):
 
 def noneorfloat(s):
     """Turn empty or 'none' to None, else evaluate to float."""
-    if s.lower() in ('', 'none'):
+    if s.lower() in ("", "none"):
         return None
     else:
         return evalfloat(s)
@@ -1165,9 +1165,9 @@ def noneorfloat(s):
 
 def noneorbool(s):
     """Turn empty or 'none' string to None, all others to boolean."""
-    if s.lower() in ('', 'none'):
+    if s.lower() in ("", "none"):
         return None
-    elif s.lower() in ('true', 't', 'yes', 'y', '1'):
+    elif s.lower() in ("true", "t", "yes", "y", "1"):
         return True
     else:
         return False
@@ -1175,11 +1175,11 @@ def noneorbool(s):
 
 def noneorboolorfloat(s):
     """Turn empty or 'none' to None, else evaluate to a boolean or float."""
-    if s.lower() in ('', 'none'):
+    if s.lower() in ("", "none"):
         return None
-    elif s.lower() in ('auto', 'true', 't', 'yes', 'y'):
+    elif s.lower() in ("auto", "true", "t", "yes", "y"):
         return True
-    elif s.lower() in ('false', 'f', 'no', 'n'):
+    elif s.lower() in ("false", "f", "no", "n"):
         return False
     else:
         return evalfloat(s)
@@ -1187,11 +1187,11 @@ def noneorboolorfloat(s):
 
 def noneorboolorcomplex(s):
     """Turn empty or 'none' to None, else evaluate to a boolean or complex."""
-    if s.lower() in ('', 'none'):
+    if s.lower() in ("", "none"):
         return None
-    elif s.lower() in ('auto', 'true', 't', 'yes', 'y'):
+    elif s.lower() in ("auto", "true", "t", "yes", "y"):
         return True
-    elif s.lower() in ('false', 'f', 'no', 'n'):
+    elif s.lower() in ("false", "f", "no", "n"):
         return False
     else:
         return complex(eval(s, {}, {}))
@@ -1204,11 +1204,12 @@ class Extend(argparse.Action):
         if type is not None:
             itemtype = type
         else:
+
             def itemtype(s):
                 return s
 
         def split_string_and_cast(s):
-            return [itemtype(a.strip()) for a in s.strip().split(',')]
+            return [itemtype(a.strip()) for a in s.strip().split(",")]
 
         super(Extend, self).__init__(
             option_strings, dest, type=split_string_and_cast, **kwargs
@@ -1225,294 +1226,416 @@ class Extend(argparse.Action):
 def _add_dir_group(parser):
     dirgroup = parser.add_mutually_exclusive_group(required=True)
     dirgroup.add_argument(
-        'datadir', nargs='?', default=None,
-        help='''Data directory, to be filled with channel subdirectories.''',
+        "datadir",
+        nargs="?",
+        default=None,
+        help="""Data directory, to be filled with channel subdirectories.""",
     )
     dirgroup.add_argument(
-        '-o', '--out', dest='outdir', default=None,
-        help='''Data directory, to be filled with channel subdirectories.''',
+        "-o",
+        "--out",
+        dest="outdir",
+        default=None,
+        help="""Data directory, to be filled with channel subdirectories.""",
     )
     return parser
 
 
 def _add_mainboard_group(parser):
-    mbgroup = parser.add_argument_group(title='mainboard')
+    mbgroup = parser.add_argument_group(title="mainboard")
     mbgroup.add_argument(
-        '-m', '--mainboard', dest='mboards', action=Extend,
-        help='''Mainboard address. (default: first device found)''',
+        "-m",
+        "--mainboard",
+        dest="mboards",
+        action=Extend,
+        help="""Mainboard address. (default: first device found)""",
     )
     mbgroup.add_argument(
-        '-d', '--subdevice', dest='subdevs', action=Extend,
-        help='''USRP subdevice string. (default: "A:A")''',
+        "-d",
+        "--subdevice",
+        dest="subdevs",
+        action=Extend,
+        help="""USRP subdevice string. (default: "A:A")""",
     )
     mbgroup.add_argument(
-        '--clock_rate', dest='clock_rates', action=Extend, type=noneorfloat,
-        help='''Master clock rate for mainboard. Can be 'None'/'' to use
-                device default or a value in Hz. (default: None)''',
+        "--clock_rate",
+        dest="clock_rates",
+        action=Extend,
+        type=noneorfloat,
+        help="""Master clock rate for mainboard. Can be 'None'/'' to use
+                device default or a value in Hz. (default: None)""",
     )
     mbgroup.add_argument(
-        '--clock_source', dest='clock_sources', action=Extend, type=noneorstr,
-        help='''Clock source (i.e. 10 MHz REF) for mainboard. Can be 'None'/''
+        "--clock_source",
+        dest="clock_sources",
+        action=Extend,
+        type=noneorstr,
+        help="""Clock source (i.e. 10 MHz REF) for mainboard. Can be 'None'/''
                 to use default (do not set if --nolock, otherwise 'external')
-                or a string like 'external' or 'internal'. (default: '')''',
+                or a string like 'external' or 'internal'. (default: '')""",
     )
     mbgroup.add_argument(
-        '--time_source', dest='time_sources', action=Extend, type=noneorstr,
-        help='''Time source (i.e. PPS) for mainboard. Can be 'None'/''
+        "--time_source",
+        dest="time_sources",
+        action=Extend,
+        type=noneorstr,
+        help="""Time source (i.e. PPS) for mainboard. Can be 'None'/''
                 to use default (do not set if --nosync, otherwise 'external')
-                or a string like 'external' or 'internal'. (default: '')''',
+                or a string like 'external' or 'internal'. (default: '')""",
     )
     return parser
 
 
 def _add_receiver_group(parser):
-    recgroup = parser.add_argument_group(title='receiver')
+    recgroup = parser.add_argument_group(title="receiver")
     recgroup.add_argument(
-        '-r', '--samplerate', dest='samplerate', type=evalfloat,
-        help='''Sample rate in Hz. (default: 1e6)''',
+        "-r",
+        "--samplerate",
+        dest="samplerate",
+        type=evalfloat,
+        help="""Sample rate in Hz. (default: 1e6)""",
     )
     recgroup.add_argument(
-        '-A', '--devargs', dest='dev_args', action=Extend,
-        help='''Device arguments, e.g. "master_clock_rate=30e6".
-                (default: 'recv_buff_size=100000000,num_recv_frames=512')''',
+        "-A",
+        "--devargs",
+        dest="dev_args",
+        action=Extend,
+        help="""Device arguments, e.g. "master_clock_rate=30e6".
+                (default: 'recv_buff_size=100000000,num_recv_frames=512')""",
     )
     recgroup.add_argument(
-        '-a', '--streamargs', dest='stream_args', action=Extend,
-        help='''Stream arguments, e.g. "peak=0.125,fullscale=1.0".
-                (default: '')''',
+        "-a",
+        "--streamargs",
+        dest="stream_args",
+        action=Extend,
+        help="""Stream arguments, e.g. "peak=0.125,fullscale=1.0".
+                (default: '')""",
     )
     recgroup.add_argument(
-        '-T', '--tuneargs', dest='tune_args', action=Extend,
-        help='''Tune request arguments, e.g. "mode_n=integer,int_n_step=100e3".
-                (default: '')''',
+        "-T",
+        "--tuneargs",
+        dest="tune_args",
+        action=Extend,
+        help="""Tune request arguments, e.g. "mode_n=integer,int_n_step=100e3".
+                (default: '')""",
     )
     # kept for backward compatibility,
     # replaced by clock_source/time_source in 2.6
+    recgroup.add_argument("--sync_source", dest="sync_source", help=argparse.SUPPRESS)
     recgroup.add_argument(
-        '--sync_source', dest='sync_source',
-        help=argparse.SUPPRESS,
+        "--nosync",
+        dest="time_sync",
+        action="store_false",
+        help="""Skip syncing with reference time. (default: False)""",
     )
     recgroup.add_argument(
-        '--nosync', dest='time_sync', action='store_false',
-        help='''Skip syncing with reference time. (default: False)''',
+        "--nolock",
+        dest="wait_for_lock",
+        action="store_false",
+        help="""Don't wait for reference clock to lock. (default: False)""",
     )
     recgroup.add_argument(
-        '--nolock', dest='wait_for_lock', action='store_false',
-        help='''Don't wait for reference clock to lock. (default: False)''',
+        "--stop_on_dropped",
+        dest="stop_on_dropped",
+        action="store_true",
+        help="""Stop on dropped packet. (default: %(default)s)""",
     )
     recgroup.add_argument(
-        '--stop_on_dropped', dest='stop_on_dropped', action='store_true',
-        help='''Stop on dropped packet. (default: %(default)s)''',
+        "--realtime",
+        dest="realtime",
+        action="store_true",
+        help="""Enable realtime scheduling if possible.
+                (default: %(default)s)""",
     )
     recgroup.add_argument(
-        '--realtime', dest='realtime', action='store_true',
-        help='''Enable realtime scheduling if possible.
-                (default: %(default)s)''',
-    )
-    recgroup.add_argument(
-        '--notest', dest='test_settings', action='store_false',
-        help='''Do not test USRP settings until experiment start.
-                (default: False)''',
+        "--notest",
+        dest="test_settings",
+        action="store_false",
+        help="""Do not test USRP settings until experiment start.
+                (default: False)""",
     )
     return parser
 
 
 def _add_rchannel_group(parser):
-    chgroup = parser.add_argument_group(title='receiver channel')
+    chgroup = parser.add_argument_group(title="receiver channel")
     chgroup.add_argument(
-        '-f', '--centerfreq', dest='centerfreqs', action=Extend,
+        "-f",
+        "--centerfreq",
+        dest="centerfreqs",
+        action=Extend,
         type=evalfloat,
-        help='''Center frequency in Hz. (default: 100e6)''',
+        help="""Center frequency in Hz. (default: 100e6)""",
     )
     chgroup.add_argument(
-        '-F', '--lo_offset', dest='lo_offsets', action=Extend, type=evalfloat,
-        help='''Frontend tuner offset from center frequency, in Hz.
-                (default: 0)''',
+        "-F",
+        "--lo_offset",
+        dest="lo_offsets",
+        action=Extend,
+        type=evalfloat,
+        help="""Frontend tuner offset from center frequency, in Hz.
+                (default: 0)""",
     )
     chgroup.add_argument(
-        '--lo_source', dest='lo_sources', action=Extend, type=noneorstr,
-        help='''Local oscillator source. Typically 'None'/'' (do not set),
+        "--lo_source",
+        dest="lo_sources",
+        action=Extend,
+        type=noneorstr,
+        help="""Local oscillator source. Typically 'None'/'' (do not set),
                 'internal' (e.g. LO1 for CH1, LO2 for CH2),
                 'companion' (e.g. LO2 for CH1, LO1 for CH2), or
                 'external' (neighboring board via connector).
-                (default: '')''',
+                (default: '')""",
     )
     chgroup.add_argument(
-        '--lo_export', dest='lo_exports', action=Extend, type=noneorbool,
-        help='''Whether to export the LO's source to the external connector.
+        "--lo_export",
+        dest="lo_exports",
+        action=Extend,
+        type=noneorbool,
+        help="""Whether to export the LO's source to the external connector.
                 Can be 'None'/'' to skip the channel, otherwise it can be
                 'True' or 'False' provided the LO source is set.
-                (default: None)''',
+                (default: None)""",
     )
     chgroup.add_argument(
-        '--dc_offset', dest='dc_offsets', action=Extend,
+        "--dc_offset",
+        dest="dc_offsets",
+        action=Extend,
         type=noneorboolorcomplex,
-        help='''DC offset correction to use. Can be 'None'/'' to keep device
+        help="""DC offset correction to use. Can be 'None'/'' to keep device
                 default, 'True'/'auto' to enable automatic correction, 'False'
                 to disable automatic correction, or a complex value
-                (e.g. "1+1j"). (default: False)''',
+                (e.g. "1+1j"). (default: False)""",
     )
     chgroup.add_argument(
-        '--iq_balance', dest='iq_balances', action=Extend,
+        "--iq_balance",
+        dest="iq_balances",
+        action=Extend,
         type=noneorboolorcomplex,
-        help='''IQ balance correction to use. Can be 'None'/'' to keep device
+        help="""IQ balance correction to use. Can be 'None'/'' to keep device
                 default, 'True'/'auto' to enable automatic correction, 'False'
                 to disable automatic correction, or a complex value
-                (e.g. "1+1j"). (default: None)''',
+                (e.g. "1+1j"). (default: None)""",
     )
     chgroup.add_argument(
-        '-g', '--gain', dest='gains', action=Extend, type=evalfloat,
-        help='''Gain in dB. (default: 0)''',
+        "-g",
+        "--gain",
+        dest="gains",
+        action=Extend,
+        type=evalfloat,
+        help="""Gain in dB. (default: 0)""",
     )
     chgroup.add_argument(
-        '-b', '--bandwidth', dest='bandwidths', action=Extend, type=evalfloat,
-        help='''Frontend bandwidth in Hz. (default: 0 == frontend default)''',
+        "-b",
+        "--bandwidth",
+        dest="bandwidths",
+        action=Extend,
+        type=evalfloat,
+        help="""Frontend bandwidth in Hz. (default: 0 == frontend default)""",
     )
     chgroup.add_argument(
-        '-y', '--antenna', dest='antennas', action=Extend, type=noneorstr,
-        help='''Name of antenna to select on the frontend.
-                (default: frontend default))''',
+        "-y",
+        "--antenna",
+        dest="antennas",
+        action=Extend,
+        type=noneorstr,
+        help="""Name of antenna to select on the frontend.
+                (default: frontend default))""",
     )
     return parser
 
 
 def _add_ochannel_group(parser):
-    chgroup = parser.add_argument_group(title='output channel')
+    chgroup = parser.add_argument_group(title="output channel")
     chgroup.add_argument(
-        '+c', '-c', '--channel', dest='chs', action=Extend, type=intstrtuple,
-        help='''Output channel specification, including names and mapping from
+        "+c",
+        "-c",
+        "--channel",
+        dest="chs",
+        action=Extend,
+        type=intstrtuple,
+        help="""Output channel specification, including names and mapping from
                 receiver channels. Each output channel must be specified here
                 and given a unique name. Specifications are given as a receiver
                 channel number and name pair, e.g. "0:ch0". The number and
                 colon are optional; if omitted, any unused receiver channels
                 will be assigned to output channels in the supplied name order.
-                (default: "ch0")''',
+                (default: "ch0")""",
     )
     chgroup.add_argument(
-        '+r', '--ch_samplerate', dest='ch_samplerates', action=Extend,
+        "+r",
+        "--ch_samplerate",
+        dest="ch_samplerates",
+        action=Extend,
         type=noneorfloat,
-        help='''Output channel sample rate in Hz. If 'None'/'', use the
+        help="""Output channel sample rate in Hz. If 'None'/'', use the
                 receiver sample rate. Filtering and resampling will be
                 performed to achieve the desired rate (set filter specs with
                 lpf_* options). Must be less than or equal to the receiver
-                sample rate. (default: None)''',
+                sample rate. (default: None)""",
     )
     # deprecated by ch_samplerate in 2.6
     # if used, all ch_samplerate arguments will be ignored
     chgroup.add_argument(
-        '-i', '--dec', dest='decimations', action=Extend,
-        type=evalint, help=argparse.SUPPRESS,
+        "-i",
+        "--dec",
+        dest="decimations",
+        action=Extend,
+        type=evalint,
+        help=argparse.SUPPRESS,
     )
     chgroup.add_argument(
-        '+f', '--ch_centerfreq', dest='ch_centerfreqs', action=Extend,
+        "+f",
+        "--ch_centerfreq",
+        dest="ch_centerfreqs",
+        action=Extend,
         type=noneorboolorfloat,
-        help='''Output channel center frequency in Hz. Can be 'True'/'auto' to
+        help="""Output channel center frequency in Hz. Can be 'True'/'auto' to
                 use the receiver channel target frequency (correcting for
                 actual tuner offset), 'False' to use the receiver channel
-                frequency unchanged, or a float value. (default: False)''',
+                frequency unchanged, or a float value. (default: False)""",
     )
     chgroup.add_argument(
-        '+k', '--scale', dest='ch_scalings', action=Extend, type=evalfloat,
-        help='''Scale output channel by this factor. (default: 1)''',
+        "+k",
+        "--scale",
+        dest="ch_scalings",
+        action=Extend,
+        type=evalfloat,
+        help="""Scale output channel by this factor. (default: 1)""",
     )
     chgroup.add_argument(
-        '+n', '--subchannels', dest='ch_nsubchannels', action=Extend,
+        "+n",
+        "--subchannels",
+        dest="ch_nsubchannels",
+        action=Extend,
         type=evalint,
-        help='''Number of subchannels for channelizing the output. A polyphase
+        help="""Number of subchannels for channelizing the output. A polyphase
                 filter bank will be applied after the otherwise specified
                 resampling and frequency shifting to further decimate the
                 output and divide it into this many equally-spaced channels.
-                (default: 1)''',
+                (default: 1)""",
     )
     chgroup.add_argument(
-        '--lpf_cutoff', dest='ch_lpf_cutoffs', action=Extend, type=evalfloat,
-        help='''Normalized low-pass filter cutoff frequency (start of
+        "--lpf_cutoff",
+        dest="ch_lpf_cutoffs",
+        action=Extend,
+        type=evalfloat,
+        help="""Normalized low-pass filter cutoff frequency (start of
                 transition band), where a value of 1 indicates half the
                 *output* sampling rate. Value in Hz is therefore
-                (cutoff * out_sample_rate / 2.0). (default: 0.9)''',
+                (cutoff * out_sample_rate / 2.0). (default: 0.9)""",
     )
     chgroup.add_argument(
-        '--lpf_transition_width', dest='ch_lpf_transition_widths',
-        action=Extend, type=evalfloat,
-        help='''Normalized width (in frequency) of low-pass filter transition
+        "--lpf_transition_width",
+        dest="ch_lpf_transition_widths",
+        action=Extend,
+        type=evalfloat,
+        help="""Normalized width (in frequency) of low-pass filter transition
                 region from pass band to stop band, where a value of 1
                 indicates half the *output* sampling rate. Value in Hz is
                 therefore (transition_width * out_sample_rate / 2.0).
-                (default: 0.2)''',
+                (default: 0.2)""",
     )
     chgroup.add_argument(
-        '--lpf_attenuation', dest='ch_lpf_attenuations', action=Extend,
+        "--lpf_attenuation",
+        dest="ch_lpf_attenuations",
+        action=Extend,
         type=evalfloat,
-        help='''Minimum attenuation of the low-pass filter stop band in dB.
-                (default: 80)''',
+        help="""Minimum attenuation of the low-pass filter stop band in dB.
+                (default: 80)""",
     )
     chgroup.add_argument(
-        '--lpf_pass_ripple', dest='ch_lpf_pass_ripples', action=Extend,
+        "--lpf_pass_ripple",
+        dest="ch_lpf_pass_ripples",
+        action=Extend,
         type=noneorfloat,
-        help='''Maximum ripple of the low-pass filter pass band in dB. If
+        help="""Maximum ripple of the low-pass filter pass band in dB. If
                 'None', use the same value as `lpf_attenuation`.
-                (default: None)''',
+                (default: None)""",
     )
     chgroup.add_argument(
-        '+t', '--type', dest='ch_out_types', action=Extend, type=noneorstr,
-        help='''Output channel data type to convert to ('scXX' for complex
+        "+t",
+        "--type",
+        dest="ch_out_types",
+        action=Extend,
+        type=noneorstr,
+        help="""Output channel data type to convert to ('scXX' for complex
                 integer and 'fcXX' for complex float with XX bits). Use 'None'
                 to skip conversion and use the USRP or filter output type.
                 Conversion from float to integer will map a magnitude of 1.0
                 (after any scaling) to the maximum integer value.
-                (default: None)''',
+                (default: None)""",
     )
     return parser
 
 
 def _add_drf_group(parser):
-    drfgroup = parser.add_argument_group(title='digital_rf')
+    drfgroup = parser.add_argument_group(title="digital_rf")
     drfgroup.add_argument(
-        '-n', '--file_cadence_ms', dest='file_cadence_ms', type=evalint,
-        help='''Number of milliseconds of data per file.
-                (default: 1000)''',
+        "-n",
+        "--file_cadence_ms",
+        dest="file_cadence_ms",
+        type=evalint,
+        help="""Number of milliseconds of data per file.
+                (default: 1000)""",
     )
     drfgroup.add_argument(
-        '-N', '--subdir_cadence_s', dest='subdir_cadence_s', type=evalint,
-        help='''Number of seconds of data per subdirectory.
-                (default: 3600)''',
+        "-N",
+        "--subdir_cadence_s",
+        dest="subdir_cadence_s",
+        type=evalint,
+        help="""Number of seconds of data per subdirectory.
+                (default: 3600)""",
     )
     drfgroup.add_argument(
-        '--metadata', action=Extend, metavar='{KEY}={VALUE}',
-        help='''Key, value metadata pairs to include with data.
-                (default: "")''',
+        "--metadata",
+        action=Extend,
+        metavar="{KEY}={VALUE}",
+        help="""Key, value metadata pairs to include with data.
+                (default: "")""",
     )
     drfgroup.add_argument(
-        '--uuid', dest='uuid',
-        help='''Unique ID string for this data collection.
-                (default: random)''',
+        "--uuid",
+        dest="uuid",
+        help="""Unique ID string for this data collection.
+                (default: random)""",
     )
     return parser
 
 
 def _add_time_group(parser):
-    timegroup = parser.add_argument_group(title='time')
+    timegroup = parser.add_argument_group(title="time")
     timegroup.add_argument(
-        '-s', '--starttime', dest='starttime',
-        help='''Start time of the experiment as datetime (if in ISO8601 format:
+        "-s",
+        "--starttime",
+        dest="starttime",
+        help="""Start time of the experiment as datetime (if in ISO8601 format:
                 2016-01-01T15:24:00Z) or Unix time (if float/int).
-                (default: start ASAP)''',
+                (default: start ASAP)""",
     )
     timegroup.add_argument(
-        '-e', '--endtime', dest='endtime',
-        help='''End time of the experiment as datetime (if in ISO8601 format:
+        "-e",
+        "--endtime",
+        dest="endtime",
+        help="""End time of the experiment as datetime (if in ISO8601 format:
                 2016-01-01T16:24:00Z) or Unix time (if float/int).
-                (default: wait for Ctrl-C)''',
+                (default: wait for Ctrl-C)""",
     )
     timegroup.add_argument(
-        '-l', '--duration', dest='duration', type=evalint,
-        help='''Duration of experiment in seconds. When endtime is not given,
-                end this long after start time. (default: wait for Ctrl-C)''',
+        "-l",
+        "--duration",
+        dest="duration",
+        type=evalint,
+        help="""Duration of experiment in seconds. When endtime is not given,
+                end this long after start time. (default: wait for Ctrl-C)""",
     )
     timegroup.add_argument(
-        '-p', '--cycle-length', dest='period', type=evalint,
-        help='''Repeat time of experiment cycle. Align to start of next cycle
-                if start time has passed. (default: 10)''',
+        "-p",
+        "--cycle-length",
+        dest="period",
+        type=evalint,
+        help="""Repeat time of experiment cycle. Align to start of next cycle
+                if start time has passed. (default: 10)""",
     )
     return parser
 
@@ -1523,26 +1646,28 @@ def _build_thor_parser(Parser, *args):
     formatter = argparse.RawDescriptionHelpFormatter(scriptname)
     width = formatter._width
 
-    title = 'THOR (The Haystack Observatory Recorder)'
-    copyright = 'Copyright (c) 2017 Massachusetts Institute of Technology'
-    shortdesc = 'Record data from synchronized USRPs in DigitalRF format.'
-    desc = '\n'.join((
-        '*' * width,
-        '*{0:^{1}}*'.format(title, width - 2),
-        '*{0:^{1}}*'.format(copyright, width - 2),
-        '*{0:^{1}}*'.format('', width - 2),
-        '*{0:^{1}}*'.format(shortdesc, width - 2),
-        '*' * width,
-    ))
+    title = "THOR (The Haystack Observatory Recorder)"
+    copyright = "Copyright (c) 2017 Massachusetts Institute of Technology"
+    shortdesc = "Record data from synchronized USRPs in DigitalRF format."
+    desc = "\n".join(
+        (
+            "*" * width,
+            "*{0:^{1}}*".format(title, width - 2),
+            "*{0:^{1}}*".format(copyright, width - 2),
+            "*{0:^{1}}*".format("", width - 2),
+            "*{0:^{1}}*".format(shortdesc, width - 2),
+            "*" * width,
+        )
+    )
 
     usage = (
-        '%(prog)s [-m MBOARD] [-d SUBDEV] [-c CH] [-y ANT] [-f FREQ]'
-        ' [-F OFFSET] \\\n'
-        '{0:8}[-g GAIN] [-b BANDWIDTH] [-r RATE] [options] DIR\n'.format('')
+        "%(prog)s [-m MBOARD] [-d SUBDEV] [-c CH] [-y ANT] [-f FREQ]"
+        " [-F OFFSET] \\\n"
+        "{0:8}[-g GAIN] [-b BANDWIDTH] [-r RATE] [options] DIR\n".format("")
     )
 
     epi_pars = [
-        '''\
+        """\
         Arguments in the "mainboard", "receiver channel", and "output channel"
         groups accept multiple values, allowing multiple mainboards and
         channels to be specified. Multiple arguments can be provided by
@@ -1553,47 +1678,56 @@ def _build_thor_parser(Parser, *args):
         values given than the number of mainboards/channels, its values will be
         extended by repeatedly cycling through the values given up to the
         needed number.
-        ''',
-        '''\
+        """,
+        """\
         Arguments in other groups apply to all mainboards/channels (including
         the receiver sample rate).
-        ''',
-        '''\
+        """,
+        """\
         Example usage:
-        ''',
+        """,
     ]
     epi_pars = [fill(dedent(s), width) for s in epi_pars]
 
     egtw = TextWrapper(
-        width=(width - 2), break_long_words=False, break_on_hyphens=False,
-        subsequent_indent=' ' * (len(scriptname) + 1),
+        width=(width - 2),
+        break_long_words=False,
+        break_on_hyphens=False,
+        subsequent_indent=" " * (len(scriptname) + 1),
     )
     egs = [
-        '''\
+        """\
         {0} -m 192.168.20.2 -d "A:A A:B" -c h,v -f 95e6 -r 100e6/24
         /data/test
-        ''',
-        '''\
+        """,
+        """\
         {0} -m 192.168.10.2 -d "A:0" -c ch1 -y "TX/RX" -f 20e6 -F 10e3 -g 20
         -b 0 -r 1e6 /data/test
-        ''',
+        """,
     ]
-    egs = [' \\\n'.join(egtw.wrap(dedent(s.format(scriptname)))) for s in egs]
-    epi = '\n' + '\n\n'.join(epi_pars + egs) + '\n'
+    egs = [" \\\n".join(egtw.wrap(dedent(s.format(scriptname)))) for s in egs]
+    epi = "\n" + "\n\n".join(epi_pars + egs) + "\n"
 
     # parse options
     parser = Parser(
-        description=desc, usage=usage, epilog=epi, prefix_chars='-+',
+        description=desc,
+        usage=usage,
+        epilog=epi,
+        prefix_chars="-+",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument(
-        '--version', action='version',
-        version='THOR 3.1, using digital_rf {0}'.format(drf.__version__),
+        "--version",
+        action="version",
+        version="THOR 3.1, using digital_rf {0}".format(drf.__version__),
     )
     parser.add_argument(
-        '-q', '--quiet', dest='verbose', action='store_false',
-        help='''Reduce text output to the screen. (default: False)''',
+        "-q",
+        "--quiet",
+        dest="verbose",
+        action="store_false",
+        help="""Reduce text output to the screen. (default: False)""",
     )
 
     parser = _add_dir_group(parser)
@@ -1641,41 +1775,29 @@ def _run_thor(args):
     # remove redundant arguments in dev_args, stream_args, tune_args
     if args.dev_args is not None:
         try:
-            dev_args_dict = dict([a.split('=') for a in args.dev_args])
+            dev_args_dict = dict([a.split("=") for a in args.dev_args])
         except ValueError:
-            raise ValueError(
-                'Device arguments must be {KEY}={VALUE} pairs.',
-            )
-        args.dev_args = [
-            '{0}={1}'.format(k, v) for k, v in dev_args_dict.items()
-        ]
+            raise ValueError("Device arguments must be {KEY}={VALUE} pairs.")
+        args.dev_args = ["{0}={1}".format(k, v) for k, v in dev_args_dict.items()]
     if args.stream_args is not None:
         try:
-            stream_args_dict = dict([a.split('=') for a in args.stream_args])
+            stream_args_dict = dict([a.split("=") for a in args.stream_args])
         except ValueError:
-            raise ValueError(
-                'Stream arguments must be {KEY}={VALUE} pairs.',
-            )
-        args.stream_args = [
-            '{0}={1}'.format(k, v) for k, v in stream_args_dict.items()
-        ]
+            raise ValueError("Stream arguments must be {KEY}={VALUE} pairs.")
+        args.stream_args = ["{0}={1}".format(k, v) for k, v in stream_args_dict.items()]
     if args.tune_args is not None:
         try:
-            tune_args_dict = dict([a.split('=') for a in args.tune_args])
+            tune_args_dict = dict([a.split("=") for a in args.tune_args])
         except ValueError:
-            raise ValueError(
-                'Tune request arguments must be {KEY}={VALUE} pairs.',
-            )
-        args.tune_args = [
-            '{0}={1}'.format(k, v) for k, v in tune_args_dict.items()
-        ]
+            raise ValueError("Tune request arguments must be {KEY}={VALUE} pairs.")
+        args.tune_args = ["{0}={1}".format(k, v) for k, v in tune_args_dict.items()]
 
     # convert metadata strings to a dictionary
     if args.metadata is not None:
         metadata_dict = {}
         for a in args.metadata:
             try:
-                k, v = a.split('=')
+                k, v = a.split("=")
             except ValueError:
                 k = None
                 v = a
@@ -1684,7 +1806,7 @@ def _run_thor(args):
             except ValueError:
                 pass
             if k is None:
-                metadata_dict.setdefault('metadata', []).append(v)
+                metadata_dict.setdefault("metadata", []).append(v)
             else:
                 metadata_dict[k] = v
         args.metadata = metadata_dict
@@ -1695,23 +1817,25 @@ def _run_thor(args):
 
     options = {k: v for k, v in args._get_kwargs() if v is not None}
     runopts = {
-        k: options.pop(k) for k in list(options.keys())
-        if k in ('starttime', 'endtime', 'duration', 'period')
+        k: options.pop(k)
+        for k in list(options.keys())
+        if k in ("starttime", "endtime", "duration", "period")
     }
-    del options['func']
+    del options["func"]
 
     # handle SIGTERM (getting killed) gracefully by calling sys.exit
     def sigterm_handler(signal, frame):
-        print('Killed')
+        print("Killed")
         sys.stdout.flush()
         sys.exit(128 + signal)
+
     signal.signal(signal.SIGTERM, sigterm_handler)
 
     thor = Thor(**options)
     thor.run(**runopts)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = _build_thor_parser(argparse.ArgumentParser)
     args = parser.parse_args()
     args.func(args)

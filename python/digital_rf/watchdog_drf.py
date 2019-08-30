@@ -17,20 +17,21 @@ import time
 from contextlib import contextmanager
 
 import pytz
-from watchdog.events import (DirCreatedEvent, FileCreatedEvent,
-                             FileDeletedEvent, RegexMatchingEventHandler)
+from watchdog.events import (
+    DirCreatedEvent,
+    FileCreatedEvent,
+    FileDeletedEvent,
+    RegexMatchingEventHandler,
+)
 from watchdog.observers import Observer
 from watchdog.observers.api import ObservedWatch
 from watchdog.utils import unicode_paths
 from watchdog.utils.bricks import OrderedSetQueue
 
 from . import list_drf, util
-from .list_drf import (RE_DMD, RE_DMDPROP, RE_DRF, RE_DRFDMD, RE_DRFDMDPROP,
-                       RE_DRFPROP)
+from .list_drf import RE_DMD, RE_DMDPROP, RE_DRF, RE_DRFDMD, RE_DRFDMDPROP, RE_DRFPROP
 
-__all__ = (
-    'DigitalRFEventHandler', 'DirWatcher',
-)
+__all__ = ("DigitalRFEventHandler", "DirWatcher")
 
 
 class DigitalRFEventHandler(RegexMatchingEventHandler):
@@ -46,8 +47,13 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
     """
 
     def __init__(
-        self, starttime=None, endtime=None, include_drf=True, include_dmd=True,
-        include_drf_properties=None, include_dmd_properties=None,
+        self,
+        starttime=None,
+        endtime=None,
+        include_drf=True,
+        include_dmd=True,
+        include_drf_properties=None,
+        include_dmd_properties=None,
         ignore_regexes=[],
     ):
         """Create Digital RF event handler for given time range and file types.
@@ -113,11 +119,10 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
             regexes.append(RE_DMDPROP)
 
         if not regexes:
-            raise ValueError('Must include at least one file type.')
+            raise ValueError("Must include at least one file type.")
 
         super(DigitalRFEventHandler, self).__init__(
-            regexes=regexes, ignore_regexes=ignore_regexes,
-            ignore_directories=True,
+            regexes=regexes, ignore_regexes=ignore_regexes, ignore_directories=True
         )
 
     def dispatch(self, event, match_time=True):
@@ -148,7 +153,7 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
                         match = m
 
         dest_match = False
-        if getattr(event, 'dest_path', None) is not None:
+        if getattr(event, "dest_path", None) is not None:
             dest_path = unicode_paths.decode(event.dest_path)
             if not any(r.match(dest_path) for r in self.ignore_regexes):
                 for r in self.regexes:
@@ -169,13 +174,13 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
         # regexes matched, now check the time
         if match_time:
             try:
-                secs = int(match.group('secs'))
+                secs = int(match.group("secs"))
             except (IndexError, TypeError):
                 # no time, don't need to check it
                 pass
             else:
                 try:
-                    msecs = int(match.group('frac'))
+                    msecs = int(match.group("frac"))
                 except (IndexError, TypeError):
                     msecs = 0
                 time = datetime.timedelta(seconds=secs, milliseconds=msecs)
@@ -187,10 +192,10 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
         # the event matched, including time if applicable, dispatch
         self.on_any_event(event)
         _method_map = {
-            'modified': self.on_modified,
-            'moved': self.on_moved,
-            'created': self.on_created,
-            'deleted': self.on_deleted,
+            "modified": self.on_modified,
+            "moved": self.on_moved,
+            "created": self.on_created,
+            "deleted": self.on_deleted,
         }
         event_type = event.event_type
         _method_map[event_type](event)
@@ -234,15 +239,13 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
         while True:
             try:
                 watch = self.root_observer.schedule(
-                    event_handler=self, path=root, recursive=False,
+                    event_handler=self, path=root, recursive=False
                 )
             except OSError as sched_err:
                 # root doesn't exist, move up one directory and try again
                 try:
                     # clean up from failed scheduling
-                    self.root_observer.unschedule(
-                        ObservedWatch(root, False),
-                    )
+                    self.root_observer.unschedule(ObservedWatch(root, False))
                 except KeyError:
                     pass
                 newroot = os.path.dirname(root)
@@ -257,14 +260,14 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
 
         # add regex for root and next subdirectory
         regexes = []
-        regexes.append('^' + re.escape(root) + '$')
+        regexes.append("^" + re.escape(root) + "$")
         nextdir = self._get_next_dir_in_path(root)
         if nextdir != root:
-            regexes.append('^' + re.escape(nextdir) + '$')
+            regexes.append("^" + re.escape(nextdir) + "$")
 
         # update handler (self) with regexes
         RegexMatchingEventHandler.__init__(
-            self, regexes=regexes, ignore_directories=False,
+            self, regexes=regexes, ignore_directories=False
         )
 
         # unschedule old root watch
@@ -290,8 +293,7 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
         for watch, handlers in self._stopped_handlers.items():
             for handler in handlers:
                 self.schedule(
-                    event_handler=handler, path=watch.path,
-                    recursive=watch.is_recursive
+                    event_handler=handler, path=watch.path, recursive=watch.is_recursive
                 )
         # generate any events for files/dirs in self.path that were
         # created before the watch started (since dispatching is stopped,
@@ -343,9 +345,7 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
                 # created before the watch started
                 nextdir = self._get_next_dir_in_path(event.src_path)
                 if os.path.isdir(nextdir):
-                    emitter = self.root_observer._emitter_for_watch[
-                        self.root_watch
-                    ]
+                    emitter = self.root_observer._emitter_for_watch[self.root_watch]
                     event = DirCreatedEvent(nextdir)
                     emitter.queue_event(event)
 
@@ -365,7 +365,7 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
             path = self.path
         try:
             super(DirWatcher, self).schedule(
-                event_handler=event_handler, path=path, recursive=recursive,
+                event_handler=event_handler, path=path, recursive=recursive
             )
         except OSError:
             # path doesn't exist and we're already running, but watch was added
@@ -375,7 +375,7 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
     def start(self):
         """Start watching and enable handlers."""
         now = datetime.datetime.utcnow().replace(microsecond=0)
-        msg = '{0} | Starting watchdog observer(s).'
+        msg = "{0} | Starting watchdog observer(s)."
         print(msg.format(now))
         sys.stdout.flush()
 
@@ -397,9 +397,12 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
         # check if self emitters are running
         if not all(
             emitter.is_alive()
-            and (not hasattr(emitter, '_inotify') or not emitter._inotify
-                 or emitter._inotify.is_alive())
-                for emitter in self.emitters
+            and (
+                not hasattr(emitter, "_inotify")
+                or not emitter._inotify
+                or emitter._inotify.is_alive()
+            )
+            for emitter in self.emitters
         ):
             return False
         # check if root observer thread is running
@@ -408,9 +411,12 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
         # check if all root observer emitters are running
         if not all(
             emitter.is_alive()
-            and (not hasattr(emitter, '_inotify') or not emitter._inotify
-                 or emitter._inotify.is_alive())
-                for emitter in self.root_observer.emitters
+            and (
+                not hasattr(emitter, "_inotify")
+                or not emitter._inotify
+                or emitter._inotify.is_alive()
+            )
+            for emitter in self.root_observer.emitters
         ):
             return False
 
@@ -434,12 +440,16 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
 
 
 def _build_watch_parser(Parser, *args):
-    desc = 'Print Digital RF file events occurring in a directory.'
+    desc = "Print Digital RF file events occurring in a directory."
     parser = Parser(*args, description=desc)
 
-    parser.add_argument('dir', nargs='?', default='.',
-                        help='''Data directory to monitor.
-                               (default: %(default)s)''')
+    parser.add_argument(
+        "dir",
+        nargs="?",
+        default=".",
+        help="""Data directory to monitor.
+                               (default: %(default)s)""",
+    )
 
     parser = list_drf._add_time_group(parser)
     parser = list_drf._add_include_group(parser)
@@ -456,12 +466,11 @@ def _run_watch(args):
         args.starttime = util.parse_identifier_to_time(args.starttime)
     if args.endtime is not None:
         args.endtime = util.parse_identifier_to_time(
-            args.endtime, ref_datetime=args.starttime,
+            args.endtime, ref_datetime=args.starttime
         )
 
     # subclass DigitalRFEventHandler to just print events
     class DigitalRFPrint(DigitalRFEventHandler):
-
         def __init__(self, dir, **kwargs):
             self.root_dir = dir
             super(DigitalRFPrint, self).__init__(**kwargs)
@@ -469,41 +478,41 @@ def _run_watch(args):
         def on_created(self, event):
             now = datetime.datetime.utcnow().replace(microsecond=0)
             path = os.path.relpath(event.src_path, self.root_dir)
-            print('{0} | Created {1}'.format(now, path))
+            print("{0} | Created {1}".format(now, path))
 
         def on_deleted(self, event):
             now = datetime.datetime.utcnow().replace(microsecond=0)
             path = os.path.relpath(event.src_path, self.root_dir)
-            print('{0} | Deleted {1}'.format(now, path))
+            print("{0} | Deleted {1}".format(now, path))
 
         def on_modified(self, event):
             now = datetime.datetime.utcnow().replace(microsecond=0)
             path = os.path.relpath(event.src_path, self.root_dir)
-            print('{0} | Modified {1}'.format(now, path))
+            print("{0} | Modified {1}".format(now, path))
 
         def on_moved(self, event):
-            msg = '{0} | Moved {1} to {2}'
+            msg = "{0} | Moved {1} to {2}"
             now = datetime.datetime.utcnow().replace(microsecond=0)
             src_path = os.path.relpath(event.src_path, self.root_dir)
             dest_path = os.path.relpath(event.dest_path, self.root_dir)
             print(msg.format(now, src_path, dest_path))
 
     kwargs = vars(args).copy()
-    del kwargs['func']
+    del kwargs["func"]
     event_handler = DigitalRFPrint(**kwargs)
     observer = DirWatcher(args.dir)
     observer.schedule(event_handler, args.dir, recursive=True)
-    print('Type Ctrl-C to quit.')
+    print("Type Ctrl-C to quit.")
     observer.start()
     now = datetime.datetime.utcnow().replace(microsecond=0)
-    print('{0} | Monitoring {1}:'.format(now, args.dir))
+    print("{0} | Monitoring {1}:".format(now, args.dir))
     sys.stdout.flush()
     try:
         while True:
             time.sleep(1)
     except (KeyboardInterrupt, SystemExit):
         observer.stop()
-        sys.stdout.write('\n')
+        sys.stdout.write("\n")
         sys.stdout.flush()
     observer.join()
 
