@@ -22,12 +22,15 @@ classdef DigitalRFReader
 
     methods
         function reader = DigitalRFReader(topLevelDirectories)
-            % DigitalRFReader  Construct object for reading Digital RF data.
+            % DigitalRFReader  Initialize Digital RF reader.
             %   reader = DigitalRFReader(topLevelDirectories)
             %
             %   topLevelDirectories : char array
             %     Path to a top level directory (or multiple directories)
             %     that contains channel directories with Digital RF data.
+            %     The top level direcotry is the *parent* directory of
+            %     channel directories containing a drf_properties.h5 file.
+            %     Pass multiple directories as char('PATH1', 'PATH2', ...).
             %
             if (~(ischar(topLevelDirectories)))
                 ME = MException('DigitalRFReader:invalidArg', ...
@@ -198,7 +201,6 @@ classdef DigitalRFReader
             %
             %   end_sample : integer
             %     Sample index for the end of the data (inclusive).
-            %
             %
             drf_chan = obj.channel_map(channel);
             [start_sample, end_sample] = drf_chan.get_bounds();

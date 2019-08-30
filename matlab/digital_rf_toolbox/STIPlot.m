@@ -249,8 +249,7 @@ classdef STIPlot
                     keyidx = find(keys <= st0, 1, 'last');
                 end
                 if ~isempty(keyidx)
-                    md_val_map = md_map(keys(keyidx));
-                    cfreqs = md_val_map('center_frequencies');
+                    cfreqs = md_map(keys(keyidx));
                     cfreq = cfreqs(obj.subchannel);
                 end
             end

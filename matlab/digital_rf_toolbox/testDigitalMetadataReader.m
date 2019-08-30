@@ -13,7 +13,7 @@ example_dir = 'data/example';
 metadata_dir = [example_dir, '/ch0/metadata'];
 
 % get the metadata reader through the DigitalRFReader
-reader = DigitalRFReader(example_directory);
+reader = DigitalRFReader(example_dir);
 chs = reader.get_channels();
 ch = chs{1};
 md_reader = reader.get_digital_metadata(ch);
@@ -44,7 +44,6 @@ field = 'description';
 data_map = md_reader.read(start_sample, end_sample, field);
 data_sample_indices = data_map.keys();
 sample_index = data_sample_indices{1};
-value_map = data_map(sample_index);
-value = value_map(field);
+value = data_map(sample_index);
 fprintf('Reading value of %s at index %d:\n', field, sample_index)
 desc = char(value)

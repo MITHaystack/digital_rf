@@ -1,3 +1,8 @@
+% DigitalMetadataReader  Read metadata in the Digital Metadata format.
+%   See testDigitalMetadataReader.m for usage, or run
+%   <doc DigitalMetadataReader>
+%
+
 % ----------------------------------------------------------------------------
 % Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
 % All rights reserved.
@@ -6,30 +11,38 @@
 %
 % The full license is in the LICENSE file, distributed with this software.
 % ----------------------------------------------------------------------------
-classdef DigitalMetadataReader
-    % class DigitalMetadataReader allows easy read access to  Digital
-    % metadata
-    %   See testDigitalMetadataReader.m for usage, or run <doc DigitalMetadataReader>
-    %
-    % $Id$
 
+classdef DigitalMetadataReader
     properties
-        metadataDir % a string of metadata directory
-        subdir_cadence_secs % a number of seconds per directory
-        file_cadence_secs % number of seconds per filereader
-        sample_rate_numerator % samples per second numerator of metadata
-        sample_rate_denominator % samples per second denominator of metadata
-        samples_per_second % float samples per second of metadata as determined by numerator and denominator
-        file_name % file naming prefix
-        fields % a char array of field names in metadata
-        dir_glob % string to glob for directories
+        % string, the metadata directory
+        metadataDir
+        % uint64, number of seconds per sub-directory
+        subdir_cadence_secs
+        % uint64, number of seconds per file
+        file_cadence_secs
+        % uint64, numerator of the sample rate of the metadata in Hz
+        sample_rate_numerator
+        % uint64, denominator of the sample rate of the metadata in Hz
+        sample_rate_denominator
+        % double, sample rate of the metadata in Hz
+        samples_per_second
+        % string, the file name prefix for the HDF5 files
+        file_name
+        % cell array, field names for the metadata
+        fields
+        % string, a glob that matches time stamped sub-directories
+        dir_glob
     end % end properties
 
     methods
         function reader = DigitalMetadataReader(metadataDir)
-            % DigitalMetadataReader is the contructor for this class.
-            % Inputs - metadataDir - a string of the path to the metadata
-
+            % DigitalMetadataReader  Initialize Digital Metadata reader.
+            %   reader = DigitalMetadataReader(metadataDir)
+            %
+            %   metadataDir : string
+            %     Path to the metadata directory (containing a
+            %     dmd_properties.h5 file).
+            %
             reader.metadataDir = metadataDir;
             % read properties from drf_properties.h5
             propFile = fullfile(metadataDir, 'dmd_properties.h5');
@@ -45,9 +58,18 @@ classdef DigitalMetadataReader
 
         end % end DigitalMetadataReader
 
-        function [lower_sample, upper_sample] = get_bounds(obj)
-            % get_bounds returns a tuple of first sample, last sample for this metadata. A sample
-            % is the unix time times the sample rate as a integer.
+        function [start_sample, end_sample] = get_bounds(obj)
+            % get_bounds  Return the index of the first and last samples.
+            %   [start_sample, end_sample] = get_bounds()
+            %
+            %   start_sample : integer
+            %     Sample index (number of samples since the Unix epoch,
+            %     i.e. unix_time * sample_rate) for the start of the
+            %     metadata.
+            %
+            %   end_sample : integer
+            %     Sample index for the end of the metadata (inclusive).
+            %
             glob_str = fullfile(obj.metadataDir, obj.dir_glob);
             result = glob(glob_str);
 
@@ -56,14 +78,14 @@ classdef DigitalMetadataReader
             result2 = glob(char(glob_str));
             h5_summary = h5info(char(result2(1)));
             name = h5_summary.Groups(1).Name;
-            lower_sample = uint64(str2double(name(2:end)));
+            start_sample = uint64(str2double(name(2:end)));
 
             % get last sample
             glob_str = fullfile(result(end), sprintf('%s@*.h5', char(obj.file_name)));
             result2 = glob(char(glob_str));
             h5_summary = h5info(char(result2(end)));
             name = h5_summary.Groups(end).Name;
-            upper_sample = uint64(str2double(name(2:end)));
+            end_sample = uint64(str2double(name(2:end)));
 
         end % end get_bounds
 
@@ -96,16 +118,25 @@ classdef DigitalMetadataReader
         end % end get_file_name
 
         function data_map = read(obj, sample0, sample1, field)
-            % read returns a containers.Map() object containing key=sample as uint64,
-            % value = data at that sample for field, or another containers.Map()
-            % with its keys = names,values = data or more containers.Maps -
-            % no limit to levels
+            % read  Return a Map object of metadata.
+            %   read(start_sample, end_sample, field)
             %
-            %   Inputs:
-            %       sample0 - first sample for which to return metadata
-            %       sample1 - last sample for which to return metadata. A sample
-            %           is the unix time times the sample rate as a long.
-            %       field - the valid field you which to get
+            %   start_sample : integer
+            %     Sample index for start of read.
+            %   end_sample : integer
+            %     Sample index for end of read (inclusive).
+            %   field : string
+            %     The field to read.
+            %
+            %   data_map : containers.Map object
+            %     Map of metadata sample indices to values for samples
+            %     within the window of [start_sample:end_sample]. The keys
+            %     are the sample index for each metadata item, while
+            %     the values are either the corresponding dataset for the
+            %     given field, or, if the field is a group, a map with
+            %     additional (field: value) pairs (which can have further
+            %     subsequent data levels for subgroups).
+            %
             data_map = containers.Map('KeyType','uint64','ValueType','any');
             sample0 = uint64(sample0);
             sample1 = uint64(sample1);
@@ -114,16 +145,22 @@ classdef DigitalMetadataReader
                 obj.add_metadata(data_map, file_list{i}, sample0, sample1, field);
             end % end for file_list
         end % end read
+    end % end methods
 
-
+    methods (Access = protected)
         function file_list = get_file_list(obj, sample0, sample1)
-            % get_file_list is a private method that returns a cell array
-            % of strings representing the full path to files that exist
-            % with data
-            %   Inputs:
-            %       sample0 - first sample for which to return metadata
-            %       sample1 - last sample for which to return metadata. A sample
-            %           is the unix time times the sample rate as a long.
+            % get_file_list  Return paths of metadata files between indices.
+            %   get_file_list(sample0, sample1)
+            %
+            %   sample0 : integer
+            %      Sample index for start of file list.
+            %   sample1 : integer
+            %      Sample index for end of file list.
+            %
+            %   file_list : cell array
+            %      The full paths to files that exist with data that comes
+            %      between the provided sample indices.
+            %
             sps_n = obj.sample_rate_numerator;
             sps_d = obj.sample_rate_denominator;
             sample0 = uint64(sample0);
@@ -167,50 +204,59 @@ classdef DigitalMetadataReader
 
 
         function add_metadata(obj, data_map, filename, sample0, sample1, field)
-            % add metadata adds all needed metadata from filename to
-            % data_map
-            %   Inputs:
-            %       data_map - a containers.Map() object containing key=sample as uint64,
-            %           value = data at that sample for all fields
-            %       filename - full path of file to read
-            %       sample0 - first sample for which to return metadata
-            %       sample1 - last sample for which to return metadata. A sample
-            %           is the unix time times the sample rate as a long.
-            %       field - the valid field you which to get
+            % add metadata  Add metadata from filename to data_map.
+            %   add_metadata(data_map, filename, sample0, sample1, field)
+            %
+            %   data_map : Map object
+            %     Map containing key=sample as uint64, value = data at
+            %     that sample for all fields
+            %   filename : string
+            %     Full path of file to read
+            %   sample0 : uint64
+            %     First sample for which to return metadata
+            %   sample1 : uint64
+            %     Last sample for which to return metadata
+            %   field : string
+            %     The field to read
+            %
             h5_summary = h5info(filename);
             keys = h5_summary.Groups;
             for i=1:length(keys)
                 sample = uint64(str2double(keys(i).Name(2:end)));
                 if (sample >= sample0 && sample <= sample1)
                     path = fullfile(keys(i).Name, field);
-                    map = containers.Map('KeyType','char','ValueType','any');
-                    data_map(sample) = map;
-                    obj.recursive_get_metadata(filename, path, map, field);
+                    obj.recursive_get_metadata(filename, path, data_map, sample);
                 end
             end % end for keys
         end % end add_metadata
 
 
         function recursive_get_metadata(obj, filename, path, map, key)
-            % recursive_get_metadata is a recursive function that adds
-            % either datasets or containers.Map objects to map(key).
-            %   Inputs:
-            %      filename - full path to Hdf5 digital metadata file
-            %      path - path into this level of file
-            %      map - containers.Map being added to
-            %      key - ket to add dataset to
+            % recursive_get_metadata  Read HDF5 file recursively.
+            %   recursive_get_metadata(filename, path, map, key)
+            %
+            %   filename : string
+            %     Full path of file to read
+            %   path : string
+            %     HDF5 path of the part of the file to read
+            %   map : Map object
+            %     Map to add to. Either a dataset or another Map object
+            %     will be added at the specified key.
+            %   key : string
+            %     Key to add dataset to in the map.
+            %
             h5_subdata = h5info(filename, path);
             if (isfield(h5_subdata, 'Groups'))
+                % create new map
+                data_map = containers.Map('KeyType','char','ValueType','any');
+                map(key) = data_map;
                 for i=1:length(h5_subdata.Datasets)
                     name = h5_subdata.Datasets(i).Name;
                     newPath = strcat(path, '/', name);
-                    map(name) = h5read(filename, newPath);
+                    data_map(name) = h5read(filename, newPath);
                 end % end Datasets
                 for i=1:length(h5_subdata.Groups)
-                    % create new map
-                    data_map = containers.Map('KeyType','char','ValueType','any');
                     newPath = h5_subdata.Groups(i).Name;
-                    map(name) = data_map;
                     recursive_get_metadata(obj, filename, newPath, data_map, name);
 
                 end % end Groups
@@ -221,7 +267,7 @@ classdef DigitalMetadataReader
 
         end % end recursive_get_metadata
 
-    end % end methods
+    end % end protected methods
 
 
 end % end DigitalMetadataReader class
