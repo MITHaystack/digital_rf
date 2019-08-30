@@ -1,0 +1,124 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2019 Massachusetts Institute of Technology (MIT)
+# All rights reserved.
+#
+# Distributed under the terms of the BSD 3-clause license.
+#
+# The full license is in the LICENSE file, distributed with this software.
+# ----------------------------------------------------------------------------
+
+id: gr_digital_rf_raster_tag
+label: Raster Tag
+
+parameters:
+-   id: input
+    label: Input Type
+    dtype: enum
+    default: fc32
+    options: [sc8, sc16, fc32, fc64, s8, s16, f32, f64]
+    option_labels: [Complex int8, Complex int16, Complex float32, Complex float64,
+        int8, int16, float32, float64]
+    option_attributes:
+        complex: ['True', 'True', 'True', 'True', 'False', 'False', 'False', 'False']
+        dtype: [np.int8, np.int16, np.complex64, np.complex128, np.int8, np.int16,
+            np.float32, np.float64]
+        type: [sc8, sc16, fc32, fc64, s8, s16, f32, f64]
+    hide: part
+-   id: vlen
+    label: Vec Length
+    dtype: int
+    default: '1'
+    hide: ${ 'none' if vlen > 1 else 'part' }
+-   id: raster_length
+    label: Raster Length
+    dtype: int
+    default: '10000'
+-   id: tags
+    label: Tags
+    dtype: raw
+    default: '[(0, "raster_start", True)]'
+    hide: part
+-   id: max_raster_length
+    label: Max Raster Length
+    dtype: int
+    default: '0'
+    hide: part
+
+inputs:
+-   domain: stream
+    dtype: ${ input.type }
+    vlen: 1
+
+outputs:
+-   domain: stream
+    dtype: ${ input.type }
+    vlen: 1
+asserts:
+- ${ raster_length > 0 }
+- ${ max_raster_length >= 0 }
+- ${ max_raster_length * (max_raster_length - raster_length) >= 0 }
+
+templates:
+    imports: import numpy as np; import gr_digital_rf
+    make: >
+        gr_digital_rf.raster_tag(
+            dtype=${input.dtype},
+            vlen=${vlen},
+            raster_length=${raster_length},
+            tags=${tags},
+            max_raster_length=${ None if max_raster_length == '0' else max_raster_length },
+        )
+    callbacks:
+    - set_raster_length(${raster_length})
+    - set_tags(${tags})
+
+documentation: |-
+    Add tags within a periodic raster window.
+
+    The input data is provided as samples with length 'Vec Length' and type
+    'Input Type'. It is then divided into raster windows with a number of
+    samples equal to 'Raster Length'. The specified tags are periodically
+    added to the output stream relative to the raster window at the given
+    indices.
+
+    The advantage of a raster of data is that its size can be changed in
+    a running flowgraph. The added tags can be for informational purposes,
+    or they could be used to trigger processing or plotting of the raster
+    windows.
+
+
+    Parameters
+    --------------------
+
+    Input Type : np.dtype
+        Data type of the input and output data.
+
+    Vec Length : int
+        Vector length of the *input* data (NOT the output vector length).
+
+    Raster Length : int
+        Length of the raster window.
+
+    Tags : list of tuples
+        Tags to be added to the output relative to the specified raster
+        window. Each tag is represented by a tuple item in the `tags` list
+        with the following format:
+
+            tag_item : (int, str, any) tuple
+                The first entry gives the index of the tag relative to the
+                start of each raster window. The second entry gives the
+                name of the tag. The third and final entry gives the tag's
+                value as a python object, to be converted to a pmt value
+                with :func:``pmt.to_pmt``.
+
+
+    Other Parameters
+    --------------------------
+
+    Max Raster Length : int
+        Maximum possible raster length, to allow for changes while the
+        block is running. Knowing the maximum length allows for allocation
+        of appropriately-sized buffers. If None, four times the initial
+        `raster_length` will be used.
+
+file_format: 1

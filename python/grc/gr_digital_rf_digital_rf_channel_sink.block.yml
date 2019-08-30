@@ -1,0 +1,325 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2019 Massachusetts Institute of Technology (MIT)
+# All rights reserved.
+#
+# Distributed under the terms of the BSD 3-clause license.
+#
+# The full license is in the LICENSE file, distributed with this software.
+# ----------------------------------------------------------------------------
+
+id: gr_digital_rf_digital_rf_channel_sink
+label: Digital RF Channel Sink
+
+parameters:
+-   id: dir
+    label: Directory
+    dtype: string
+-   id: input
+    label: Input Type
+    dtype: enum
+    default: sc16
+    options: [sc8, sc16, fc32, fc64, s8, s16, f32, f64]
+    option_labels: [Complex int8, Complex int16, Complex float32, Complex float64,
+        int8, int16, float32, float64]
+    option_attributes:
+        complex: ['True', 'True', 'True', 'True', 'False', 'False', 'False', 'False']
+        dtype: [np.int8, np.int16, np.complex64, np.complex128, np.int8, np.int16,
+            np.float32, np.float64]
+        type: [sc8, sc16, fc32, fc64, s8, s16, f32, f64]
+    hide: part
+-   id: vlen
+    label: Vector Length
+    dtype: int
+    default: '1'
+    hide: part
+-   id: subdir_cadence_s
+    label: Subdir Cadence (s)
+    dtype: int
+    default: '3600'
+    hide: part
+-   id: file_cadence_ms
+    label: File Cadence (ms)
+    dtype: int
+    default: '1000'
+    hide: part
+-   id: sample_rate_numerator
+    label: Sample Rate (num)
+    dtype: int
+    default: int(samp_rate)
+-   id: sample_rate_denominator
+    label: Sample Rate (den)
+    dtype: int
+    default: '1'
+-   id: start
+    label: Start
+    dtype: string
+    hide: ${ 'none' if start else 'part' }
+-   id: uuid
+    label: UUID
+    dtype: string
+    hide: ${ 'none' if uuid else 'part' }
+-   id: ignore_tags
+    label: Ignore Tags
+    dtype: bool
+    default: 'False'
+    options: ['True', 'False']
+    option_labels: ['Yes', 'No']
+    hide: ${ 'none' if ignore_tags else 'part' }
+-   id: center_freqs
+    label: Center Frequencies
+    category: Metadata
+    dtype: real_vector
+    default: '[]'
+    hide: part
+-   id: metadata
+    label: Additional Metadata
+    category: Metadata
+    dtype: raw
+    default: '{}'
+    hide: part
+-   id: debug
+    label: Debug Printing
+    category: Advanced
+    dtype: bool
+    default: 'False'
+    options: ['True', 'False']
+    option_labels: ['Yes', 'No']
+    hide: part
+-   id: is_continuous
+    label: Continuous Blocks
+    category: Advanced
+    dtype: bool
+    default: 'True'
+    options: ['True', 'False']
+    option_labels: ['Yes', 'No']
+    hide: part
+-   id: compression_level
+    label: HDF5 Compression
+    category: Advanced
+    dtype: int
+    default: '0'
+    hide: part
+-   id: checksum
+    label: HDF5 Checksum
+    category: Advanced
+    dtype: bool
+    default: 'False'
+    options: ['True', 'False']
+    option_labels: ['Yes', 'No']
+    hide: part
+-   id: marching_periods
+    label: Marching Periods
+    category: Advanced
+    dtype: bool
+    default: 'True'
+    options: ['True', 'False']
+    option_labels: ['Yes', 'No']
+    hide: part
+-   id: stop_on_skipped
+    label: Stop on Skip
+    category: Advanced
+    dtype: bool
+    default: 'False'
+    options: ['True', 'False']
+    option_labels: ['Yes', 'No']
+    hide: part
+-   id: min_chunksize
+    label: Minimum Chunk Size
+    category: Advanced
+    dtype: int
+    default: '0'
+    hide: part
+
+inputs:
+-   domain: stream
+    dtype: ${ input.type }
+    vlen: ${ vlen }
+asserts:
+- ${ vlen > 0 }
+- ${ subdir_cadence_s > 0 }
+- ${ file_cadence_ms > 0 }
+- ${ subdir_cadence_s*1000 % file_cadence_ms == 0 }
+- ${ sample_rate_numerator > 0 }
+- ${ sample_rate_denominator > 0 }
+- ${ compression_level >= 0 and 9 >= compression_level }
+- ${ min_chunksize >= 0 }
+
+templates:
+    imports: import numpy as np; import gr_digital_rf
+    make: >
+        gr_digital_rf.digital_rf_channel_sink(
+            channel_dir=${dir},
+            dtype=${input.dtype},
+            subdir_cadence_secs=${subdir_cadence_s},
+            file_cadence_millisecs=${file_cadence_ms},
+            sample_rate_numerator=${sample_rate_numerator},
+            sample_rate_denominator=${sample_rate_denominator},
+            start=${start},
+            ignore_tags=${ignore_tags},
+            is_complex=${input.complex},
+            num_subchannels=${vlen},
+            uuid_str=${ None if uuid == "''" else uuid },
+            center_frequencies=${ None if not center_freqs else center_freqs },
+            metadata=${metadata},
+            is_continuous=${is_continuous},
+            compression_level=${compression_level},
+            checksum=${checksum},
+            marching_periods=${marching_periods},
+            stop_on_skipped=${stop_on_skipped},
+            debug=${debug},
+            min_chunksize=${ None if min_chunksize == '0' else min_chunksize },
+        )
+    callbacks:
+    - set_debug(${debug})
+    - set_ignore_tags(${ignore_tags})
+    - set_stop_on_skipped(${stop_on_skipped})
+
+documentation: |-
+    Write a channel of data in Digital RF format.
+
+    In addition to storing the input samples in Digital RF format, this
+    block also populates the channel's accompanying Digital Metadata
+    at the sample indices when the metadata changes or a data skip occurs.
+    See the Notes section for details on what metadata is stored.
+
+
+    Parameters
+    ----------
+    Directory : string
+        The directory where this channel is to be written. It will be
+        created if it does not exist. The basename (last component) of the
+        path is considered the channel's name for reading purposes.
+
+    Input Type : enum
+        Size and type of the input samples.
+
+    Vector Length : int
+        Vector length of the input. Each sample of the vector will be written
+        to a different subchannel.
+
+    Subdir Cadence (s) : int
+        The number of seconds of data to store in one subdirectory. The
+        timestamp of any subdirectory will be an integer multiple of this
+        value.
+
+    File Cadence (s) : int
+        The number of milliseconds of data to store in each file. Note that
+        an integer number of files must exactly span a subdirectory,
+        implying::
+
+            (subdir_cadence_secs*1000 % file_cadence_millisecs) == 0
+
+    Sample Rate (num) : int
+        Numerator of sample rate in Hz.
+
+    Sample Rate (den) : int
+        Denominator of sample rate in Hz.
+
+    Start : int | float | string, optional
+        A value giving the time/index of the channel's first sample. An
+        'rx_time' tag on the first sample will override this value when
+        `ignore_tags` is False.
+        If empty and `ignore_tags` is False, drop data until an
+        'rx_time' tag arrives and sets the start time (a ValueError is
+        raised if `ignore_tags` is True).
+        If an integer, it is interpreted as a sample index given in the
+        number of samples since the epoch (time_since_epoch*sample_rate).
+        If a float, it is interpreted as a timestamp (seconds since epoch).
+        If a string, three forms are permitted:
+            1) a string which can be evaluated to an integer/float and
+                interpreted as above,
+            2) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
+            3) 'now' ('nowish'), indicating the current time (rounded up)
+
+    UUID : string, optional
+        UUID string that will act as a unique identifier for the data and
+        can be used to tie the data files to metadata. If empty, a random
+        UUID will be generated.
+
+    Ignore Tags : bool, optional
+        If True, do not use 'rx_time' tags to set the sample index and do
+        not write other tags as Digital Metadata.
+
+
+    Other Parameters
+    ----------------
+    Center Frequencies : None | array_like of floats, optional
+        List of subchannel center frequencies to include in initial
+        metadata. If empty, ``[0.0]*num_subchannels`` will be used.
+        Subsequent center frequency metadata samples can be written using
+        'rx_freq' stream tags.
+
+    Additional Metadata : dict, optional
+        Dictionary of additional metadata to include in initial Digital
+        Metadata sample. Subsequent metadata samples can be written
+        using 'metadata' stream tags, but all keys intended to be included
+        should be set here first even if their values are empty.
+
+    Continuous Blocks : bool, optional
+        If True, data will be written in continuous blocks. If False data
+        will be written with gapped blocks. Fastest read speed is achieved
+        with is_continuous True, checksum False, and compression_level 0
+        (all defaults).
+
+    HDF5 Compression : int, optional
+        0 for no compression (default), 1-9 for varying levels of gzip
+        compression (1 == least compression, least CPU; 9 == most
+        compression, most CPU).
+
+    HDF5 Checksum : bool, optional
+        If True, use HDF5 checksum capability. If False (default), no
+        checksum.
+
+    Marching Periods : bool, optional
+        If True, write a period to stdout for every subdirectory when
+        writing.
+
+    Stop on Skip : bool, optional
+        If True, stop writing when a sample would be skipped (such as from
+        a dropped packet).
+
+    Minimum Chunk Size : int, optional
+        Minimum number of samples to consume at once. This value can be
+        used to adjust the sink's performance to reduce processing time.
+        If 0, a sensible default will be used.
+
+
+    Notes
+    -----
+    By convention, this block sets the following Digital Metadata fields:
+
+        uuid_str : string
+            Value provided by the `uuid_str` argument.
+
+        sample_rate_numerator : int
+            Value provided by the `sample_rate_numerator` argument.
+
+        sample_rate_denominator : int
+            Value provided by the `sample_rate_denominator` argument.
+
+        center_frequencies : list of floats with length `num_subchannels`
+            Subchannel center frequencies as specified by
+            `center_frequencies` argument and 'rx_freq' stream tags.
+
+    Additional metadata fields can be set using the `metadata` argument and
+    stream tags. Nested dictionaries are permitted and are helpful for
+    grouping properties. For example, receiver-specific metadata is
+    typically specified with a sub-dictionary using the 'receiver' field.
+
+    This block acts on the following stream tags when `ignore_tags` is
+    False:
+
+        rx_time : (int secs, float frac) tuple
+            Used to set the sample index from the given time since epoch.
+
+        rx_freq : float
+            Used to set the 'center_frequencies' value in the channel's
+            Digital Metadata as described above.
+
+        metadata : dict
+            Used to populate additional (key, value) pairs in the channel's
+            Digital Metadata. Any keys passed in 'metadata' tags should be
+            included in the `metadata` argument at initialization to ensure
+            that they always exist in the Digital Metadata.
+
+file_format: 1

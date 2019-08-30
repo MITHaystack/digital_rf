@@ -1,0 +1,209 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2019 Massachusetts Institute of Technology (MIT)
+# All rights reserved.
+#
+# Distributed under the terms of the BSD 3-clause license.
+#
+# The full license is in the LICENSE file, distributed with this software.
+# ----------------------------------------------------------------------------
+<%text>
+id: gr_digital_rf_digital_rf_source
+label: Digital RF Source
+category: Digital RF
+flags:
+- ${ 'throttle' if throttle else '' }
+
+parameters:
+-   id: top_level_dir
+    label: Directory
+    dtype: string
+-   id: repeat
+    label: Repeat
+    dtype: bool
+    default: 'False'
+    options: ['True', 'False']
+    option_labels: ['Yes', 'No']
+    hide: ${ 'none' if repeat else 'part' }
+-   id: throttle
+    label: Throttle
+    dtype: bool
+    default: 'False'
+    options: ['True', 'False']
+    option_labels: ['Yes', 'No']
+    hide: ${ 'none' if throttle else 'part' }
+-   id: gapless
+    label: Gapless Playback
+    dtype: bool
+    default: 'False'
+    options: ['True', 'False']
+    option_labels: ['Yes', 'No']
+    hide: part
+</%text>
+-   id: nchan
+    label: Number of channels
+    dtype: int
+    default: '1'
+    options: [ ${", ".join(str(n) for n in range(1, max_num_channels + 1))} ]
+    hide: part
+% for n in range(max_num_channels):
+-   id: channel${n}
+    label: Ch${n}
+    dtype: string
+    default: ch${n}
+    hide: ${'$'}{ ${ "'none' if nchan > {n} else 'all'".format(n=n) } }
+-   id: start${n}
+    label: "Ch${n}: start"
+    dtype: string
+    hide: ${'$'}{ ${ "'part' if nchan > {n} else 'all'".format(n=n) } }
+-   id: end${n}
+    label: "Ch${n}: end"
+    dtype: string
+    hide: ${'$'}{ ${ "'part' if nchan > {n} else 'all'".format(n=n) } }
+% endfor
+<%text>
+-   id: min_chunksize
+    label: Minimum Chunk Size
+    category: Advanced
+    dtype: int
+    default: '0'
+    hide: part
+-   id: hide_msg_port
+    label: Show Message Port
+    category: Advanced
+    dtype: enum
+    default: 'True'
+    options: ['False', 'True']
+    option_labels: ['Yes', 'No']
+    hide: part
+
+outputs:
+-   domain: stream
+    dtype: ''
+    multiplicity: ${ nchan }
+-   domain: message
+    id: properties
+    optional: true
+    hide: ${ hide_msg_port }
+asserts:
+- ${ nchan > 0 }
+- ${ min_chunksize >= 0 }
+
+templates:
+    imports: import gr_digital_rf
+    make: >
+        gr_digital_rf.digital_rf_source(
+            ${top_level_dir},
+            channels=${ [context['channel{n}'.format(n=n)].strip('\'\"') for n in range(int(nchan))] },
+            start=${ [context['start{n}'.format(n=n)].strip('\'\"') for n in range(int(nchan))] },
+            end=${ [context['end{n}'.format(n=n)].strip('\'\"') for n in range(int(nchan))] },
+            repeat=${repeat},
+            throttle=${throttle},
+            gapless=${gapless},
+            min_chunksize=${ None if min_chunksize == '0' else min_chunksize },
+        )
+    callbacks:
+    - set_gapless(${gapless})
+    - set_repeat(${repeat})
+
+documentation: |-
+    Read data in Digital RF format.
+
+    In addition to outputting samples from Digital RF format data, this
+    block also emits a 'properties' message containing inherent channel
+    properties and adds stream tags using the channel's accompanying
+    Digital Metadata. See the Notes section for details on what the
+    messages and stream tags contain.
+
+
+    Parameters
+    ---------------
+
+    Directory : string
+        A top-level directory containing Digital RF channel directories.
+
+    Repeat : bool
+        If True, loop the data continuously from the start after the end
+        is reached. If False, stop after the data is read once.
+
+    Throttle : bool
+        If True, playback the samples at their recorded sample rate.
+        If False, read samples as quickly as possible.
+
+    Gapless Playback : bool
+        If True, output zeroed samples for any missing data between start
+        and end. If False, skip missing samples and add an `rx_time` stream
+        tag to indicate the gap.
+
+    Number of channels : int
+        Number of channels to output.
+
+    ChN : string
+        Identifier for channel number N. This can be the channel name or
+        an integer giving the index from the available channels sorted
+        alphabetically. An empty string uses the next available channel
+        alphabetically.
+
+    ChN start : string
+        A value giving the start of the channel's playback.
+        If None or '', the start of the channel's available data is used.
+        If an integer, it is interpreted as a sample index giving the
+        number of samples since the epoch (t_since_epoch*sample_rate).
+        If a float, it is interpreted as a timestamp (seconds since epoch).
+        If a string, four forms are permitted:
+            1) a string which can be evaluated to an integer/float and
+                interpreted as above,
+            2) a string beginning with '+' and followed by an integer
+                (float) expression, interpreted as samples (seconds) from
+                the start of the data, and
+            3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
+            4) 'now' ('nowish'), indicating the current time (rounded up)
+
+    ChN end : string
+        A value giving the end of the channel's playback.
+        If None or '', the end of the channel's available data is used.
+        Otherwise, this is interpreted in the same way as the start value.
+
+
+    Other Parameters
+    -----------------------
+
+    Minimum Chunk Size : int, optional
+        Minimum number of samples to output at once. This value can be
+        used to adjust the source's performance to reduce underruns and
+        processing time. If 0, a sensible default will be used.
+
+
+    Notes
+    -----
+
+    A top-level directory must contain files in the format:
+        [channel]/[YYYY-MM-DDTHH-MM-SS]/rf@[seconds].[%03i milliseconds].h5
+
+    If more than one top level directory contains the same channel_name
+    subdirectory, this is considered the same channel. An error is raised
+    if their sample rates differ, or if their time periods overlap.
+
+    Upon start, this block sends 'properties' messages on its output
+    message port that contains a dictionaries with one key, the channel's
+    name, and a value which is a dictionary of properties found in the
+    channel's 'drf_properties.h5' file.
+
+    This block emits the following stream tags at the appropriate sample
+    for each of the channel's accompanying Digital Metadata samples:
+
+        rx_time : (int secs, float frac) tuple
+            Time since epoch of the sample.
+
+        rx_rate : float
+            Sample rate in Hz.
+
+        rx_freq : float | 1-D array of floats
+            Center frequency or frequencies of the subchannels based on
+            the 'center_frequencies' metadata field.
+
+        metadata : dict
+            Any additional Digital Metadata fields are added to this
+            dictionary tag of metadata.
+
+file_format: 1
+</%text>

@@ -1,0 +1,13 @@
+'[gr_digital_rf]':
+- Digital RF:
+  - gr_digital_rf_digital_rf_channel_sink
+  - gr_digital_rf_digital_rf_channel_source
+  - gr_digital_rf_digital_rf_sink
+  - gr_digital_rf_digital_rf_source
+- Raster:
+  - gr_digital_rf_raster_aggregate
+  - gr_digital_rf_raster_chunk
+  - gr_digital_rf_raster_select
+  - gr_digital_rf_raster_tag
+- Stream Operators:
+  - gr_digital_rf_vector_aggregate

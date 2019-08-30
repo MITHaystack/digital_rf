@@ -12,10 +12,10 @@ if __name__ == "__main__":
 
     from mako.template import Template
 
-    desc = "Generate Digital RF Source/Sink GRC block xml file from template."
+    desc = "Generate Digital RF Source/Sink GRC block file from template."
     parser = ArgumentParser(description=desc)
-    parser.add_argument("template", help="Template source/sink xml file.")
-    parser.add_argument("output", nargs="?", help="Output xml file path.")
+    parser.add_argument("template", help="Template source/sink file.")
+    parser.add_argument("output", nargs="?", help="Output file path.")
     parser.add_argument(
         "-n",
         "--max_channels",

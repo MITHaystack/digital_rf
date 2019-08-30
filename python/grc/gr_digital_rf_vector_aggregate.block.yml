@@ -1,0 +1,138 @@
+# ----------------------------------------------------------------------------
+# Copyright (c) 2019 Massachusetts Institute of Technology (MIT)
+# All rights reserved.
+#
+# Distributed under the terms of the BSD 3-clause license.
+#
+# The full license is in the LICENSE file, distributed with this software.
+# ----------------------------------------------------------------------------
+
+id: gr_digital_rf_vector_aggregate
+label: Vector Aggregate
+
+parameters:
+-   id: input
+    label: Input Type
+    dtype: enum
+    default: fc32
+    options: [sc8, sc16, fc32, fc64, s8, s16, f32, f64]
+    option_labels: [Complex int8, Complex int16, Complex float32, Complex float64,
+        int8, int16, float32, float64]
+    option_attributes:
+        complex: ['True', 'True', 'True', 'True', 'False', 'False', 'False', 'False']
+        dtype: [np.int8, np.int16, np.complex64, np.complex128, np.int8, np.int16,
+            np.float32, np.float64]
+        type: [sc8, sc16, fc32, fc64, s8, s16, f32, f64]
+    hide: part
+-   id: vlen
+    label: Vec Length
+    dtype: int
+    default: '1'
+    hide: ${ 'part' if vlen == 1 else 'none' }
+-   id: nagg
+    label: Num Aggregate
+    dtype: int
+    default: '1'
+-   id: agg
+    label: Agg Op
+    dtype: enum
+    default: mean
+    options: [mean, sum, max, min, take, custom]
+    option_attributes:
+        op: ["'mean'", "'sum'", "'max'", "'min'", "'take'", "'custom'"]
+-   id: agg_op
+    label: Custom Op
+    dtype: string
+    default: take
+    hide: ${ 'part' if agg == 'custom' else 'all' }
+-   id: agg_op_args
+    label: Custom Op Args
+    dtype: raw
+    default: (0,)
+    hide: ${ 'part' if agg == 'custom' else 'all' }
+-   id: take_index
+    label: Take Index
+    dtype: int
+    default: '0'
+    hide: ${ 'none' if agg == 'take' else 'all' }
+-   id: max_nagg
+    label: Max Num Aggregate
+    dtype: int
+    default: '0'
+    hide: part
+
+inputs:
+-   domain: stream
+    dtype: ${ input.type }
+    vlen: ${ vlen }
+
+outputs:
+-   domain: stream
+    dtype: ${ input.type }
+    vlen: ${ vlen }
+asserts:
+- ${ vlen > 0 }
+- ${ nagg > 0 }
+- ${ max_nagg >= 0 }
+- ${ max_nagg * (max_nagg - nagg) >= 0 }
+
+templates:
+    imports: import numpy as np; import gr_digital_rf
+    make: >
+        gr_digital_rf.vector_aggregate(
+            dtype=${input.dtype},
+            vlen=${vlen},
+            nagg=${nagg},
+            agg_op=${ agg_op if agg == 'custom' else agg.op },
+            agg_op_args=${ agg_op_args if agg == 'custom' else (int(take_index),) if agg == 'take' else () },
+            max_nagg=${ None if max_nagg == '0' else max_nagg },
+        )
+    callbacks:
+    - set_nagg(${nagg})
+
+documentation: |-
+    Aggregate consecutive vectors together using a specified operation.
+
+    Parameters
+    --------------------
+
+    Input Type : np.dtype
+        Data type of the input and output data.
+
+    Vec Length : int
+        Vector length of the input and output data.
+
+    Num Aggregate : int
+        Number of output vectors to aggregate together. The output is thus
+        downsampled by `nagg` in whole vector chunks.
+
+    Agg Op : enum
+        Aggregation operation. If 'Custom', specify the custom operation
+        using the following parameters.
+
+    Custom Op : str
+        String giving the name of a numpy array method to use for the
+        aggregation operation. For a given `agg_op` and `nagg` output
+        vectors organized as an ``(nagg, vlen)``-shaped array called
+        ``vectors``, the aggregation operation would then be
+        ``vectors.agg_op(*agg_op_args, axis=0)``.
+
+    Custom Op Args : tuple
+        Positional arguments to be passed to the aggregation operation
+        method specified by 'Custom Op'. See above.
+
+    Take Index : int
+        If 'Take' is selected as the aggregation operation, this specifies
+        the index in range(Num Aggregate) to select for the output.
+
+
+    Other Parameters
+    --------------------------
+
+    Max Num Aggregate : int
+        Maximum possible output aggregation, to allow for changes while
+        the block is running. Knowing the maximum aggregation size allows
+        for allocation of appropriately-sized buffers. If None, a default
+        of four times the initial `nagg` will be used.
+
+file_format: 1

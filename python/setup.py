@@ -238,6 +238,15 @@ setup(
                 "grc/gr_digital_rf_raster_select.xml",
                 "grc/gr_digital_rf_raster_tag.xml",
                 "grc/gr_digital_rf_vector_aggregate.xml",
+                "grc/gr_digital_rf_digital_rf_channel_sink.block.yml",
+                "grc/gr_digital_rf_digital_rf_channel_source.block.yml",
+                "grc/gr_digital_rf_digital_rf_sink.block.yml",
+                "grc/gr_digital_rf_digital_rf_source.block.yml",
+                "grc/gr_digital_rf_raster_aggregate.block.yml",
+                "grc/gr_digital_rf_raster_chunk.block.yml",
+                "grc/gr_digital_rf_raster_select.block.yml",
+                "grc/gr_digital_rf_raster_tag.block.yml",
+                "grc/gr_digital_rf_vector_aggregate.block.yml",
             ],
         )
     ]
