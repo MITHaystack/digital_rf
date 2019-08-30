@@ -949,7 +949,7 @@ int digital_rf_create_hdf5_file(Digital_rf_write_object *hdf5_data_object, char 
 	char datasetname[] = "rf_data";
 	char fullname[BIG_HDF5_STR] = "";
 	char finished_fullname[BIG_HDF5_STR] = "";
-	char error_str[BIG_HDF5_STR] = "";
+	char error_str[2*BIG_HDF5_STR] = "";
 	uint64_t num_rows = 0;
 	hsize_t  dims[2]  = {0, hdf5_data_object->num_subchannels};
 	hsize_t  maxdims[2] = {max_samples_this_file, hdf5_data_object->num_subchannels};
@@ -1014,7 +1014,7 @@ int digital_rf_create_hdf5_file(Digital_rf_write_object *hdf5_data_object, char 
 	strcat(finished_fullname, strstr(hdf5_data_object->basename, "rf"));
 	if( access( finished_fullname, F_OK ) != -1 )
 	{
-		snprintf(error_str, BIG_HDF5_STR, "The following Hdf5 file already exists: %s\n", finished_fullname);
+		snprintf(error_str, sizeof(error_str), "The following Hdf5 file already exists: %s\n", finished_fullname);
 		fprintf(stderr, "%s", error_str);
 		return(-1);
 	}
@@ -1023,7 +1023,7 @@ int digital_rf_create_hdf5_file(Digital_rf_write_object *hdf5_data_object, char 
 	hdf5_data_object->hdf5_file = H5Fcreate (fullname, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
 	if (hdf5_data_object->hdf5_file < 0)
 	{
-		snprintf(error_str, BIG_HDF5_STR, "The following Hdf5 file could not be created, or already exists: %s\n", fullname);
+		snprintf(error_str, sizeof(error_str), "The following Hdf5 file could not be created, or already exists: %s\n", fullname);
 		fprintf(stderr, "%s", error_str);
 		hdf5_data_object->has_failure = 1;
 		hdf5_data_object->hdf5_file = 0;
@@ -1901,7 +1901,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 {
 	/* local variables */
 	char metadata_file[BIG_HDF5_STR] = "";
-	char error_str[BIG_HDF5_STR] = "";
+	char error_str[2*BIG_HDF5_STR] = "";
 	int metadata_exists = 0;
 	hid_t hdf5_file, str_type, str_attribute;
 	hid_t attribute_id, dataspace_id;  /* identifiers */
@@ -1923,7 +1923,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		hdf5_file = H5Fcreate (metadata_file, H5F_ACC_EXCL, H5P_DEFAULT, H5P_DEFAULT);
 		if (hdf5_file < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The following metadata file could not be created: %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The following metadata file could not be created: %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(1);
 		}
@@ -2034,7 +2034,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		hdf5_file = H5Fopen(metadata_file, H5F_ACC_RDONLY, H5P_DEFAULT);
 		if (hdf5_file < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The following metadata file could not be opened: %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The following metadata file could not be opened: %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2045,7 +2045,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "H5Tget_class", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The H5Tget_class attribute not found in %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The H5Tget_class attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2061,7 +2061,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "H5Tget_size", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The H5Tget_size attribute not found in %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The H5Tget_size attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2077,7 +2077,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "H5Tget_order", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The H5Tget_order attribute not found in %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The H5Tget_order attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2093,7 +2093,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "H5Tget_precision", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The H5Tget_precision attribute not found in %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The H5Tget_precision attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2109,7 +2109,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "H5Tget_offset", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The H5Tget_offset attribute not found in %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The H5Tget_offset attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2125,7 +2125,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "subdir_cadence_secs", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The subdir_cadence_secs attribute not found in %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The subdir_cadence_secs attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2141,7 +2141,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "file_cadence_millisecs", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The file_cadence_millisecs attribute not found in %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The file_cadence_millisecs attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2157,7 +2157,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "sample_rate_numerator", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The sample_rate_numerator attribute not found in %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The sample_rate_numerator attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2173,7 +2173,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "sample_rate_denominator", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The sample_rate_denominator attribute not found in %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The sample_rate_denominator attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2189,7 +2189,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "is_complex", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The is_complex attribute not found in %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The is_complex attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2205,7 +2205,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "num_subchannels", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The num_subchannels attribute not found in %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The num_subchannels attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
@@ -2221,7 +2221,7 @@ int digital_rf_handle_metadata(Digital_rf_write_object * hdf5_data_object)
 		attribute_id = H5Aopen(hdf5_file, "is_continuous", H5P_DEFAULT);
 		if (attribute_id < 0)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "The is_continuous attribute not found in %s\n", metadata_file);
+			snprintf(error_str, sizeof(error_str), "The is_continuous attribute not found in %s\n", metadata_file);
 			fprintf(stderr, "%s", error_str);
 			return(-1);
 		}
