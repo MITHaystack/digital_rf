@@ -19,11 +19,11 @@ from itertools import chain, tee
 
 import numpy as np
 import pmt
-from digital_rf import DigitalMetadataWriter, DigitalRFWriter, _py_rf_write_hdf5, util
-from gnuradio import gr
-
 import six
+from gnuradio import gr
 from six.moves import zip
+
+from digital_rf import DigitalMetadataWriter, DigitalRFWriter, _py_rf_write_hdf5, util
 
 
 def parse_time_pmt(val, samples_per_second):
@@ -55,8 +55,10 @@ def translate_metadata(tag):
         warnings.warn(wrnstr)
 
 
-def collect_tags_in_dict(tags, translator, tag_dict={}):
+def collect_tags_in_dict(tags, translator, tag_dict=None):
     """Add the stream tags to `tag_dict` by their offset."""
+    if tag_dict is None:
+        tag_dict = {}
     for tag in tags:
         for offset, key, val in translator(tag):
             # add tag as its own dictionary to tag_dict[offset]
@@ -103,7 +105,7 @@ class digital_rf_channel_sink(gr.sync_block):
         num_subchannels=1,
         uuid_str=None,
         center_frequencies=None,
-        metadata={},
+        metadata=None,
         is_continuous=True,
         compression_level=0,
         checksum=False,
@@ -121,7 +123,6 @@ class digital_rf_channel_sink(gr.sync_block):
 
         Parameters
         ----------
-
         channel_dir : string
             The directory where this channel is to be written. It will be
             created if it does not exist. The basename (last component) of the
@@ -155,7 +156,6 @@ class digital_rf_channel_sink(gr.sync_block):
 
         Other Parameters
         ----------------
-
         start : None | int | float | string, optional
             A value giving the time/index of the channel's first sample. When
             `ignore_tags` is False, 'rx_time' tags will be used to identify
@@ -237,7 +237,6 @@ class digital_rf_channel_sink(gr.sync_block):
 
         Notes
         -----
-
         By convention, this block sets the following Digital Metadata fields:
 
             uuid_str : string
@@ -355,6 +354,8 @@ class digital_rf_channel_sink(gr.sync_block):
 
         # create metadata dictionary that will be updated and written whenever
         # new metadata is received in stream tags
+        if metadata is None:
+            metadata = {}
         self._metadata = metadata.copy()
         if center_frequencies is None:
             center_frequencies = np.array([0.0] * self._num_subchannels)
@@ -625,7 +626,7 @@ class digital_rf_sink(gr.hier_block2):
         num_subchannels=1,
         uuid_str=None,
         center_frequencies=None,
-        metadata={},
+        metadata=None,
         is_continuous=True,
         compression_level=0,
         checksum=False,
@@ -647,7 +648,6 @@ class digital_rf_sink(gr.hier_block2):
 
         Parameters
         ----------
-
         top_level_dir : string
             The top-level directory in which Digital RF channel directories
             will be created. It will be created if it does not exist.
@@ -687,7 +687,6 @@ class digital_rf_sink(gr.hier_block2):
 
         Other Parameters
         ----------------
-
         start : None | int | float | string, optional
             A value giving the time/index of the channel's first sample. When
             `ignore_tags` is False, 'rx_time' tags will be used to identify
@@ -769,7 +768,6 @@ class digital_rf_sink(gr.hier_block2):
 
         Notes
         -----
-
         By convention, this block sets the following Digital Metadata fields:
 
             uuid_str : string

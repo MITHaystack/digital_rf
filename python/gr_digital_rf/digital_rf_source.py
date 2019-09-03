@@ -16,10 +16,10 @@ import gnuradio.blocks
 import h5py
 import numpy as np
 import pmt
-from digital_rf import DigitalRFReader, util
+import six
 from gnuradio import gr
 
-import six
+from digital_rf import DigitalRFReader, util
 
 H5T_LOOKUP = {
     # (class, itemsize, is_complex): {name, dtype, missingvalue}
@@ -97,7 +97,6 @@ class digital_rf_channel_source(gr.sync_block):
 
         Parameters
         ----------
-
         channel_dir : string | list of strings
             Either a single channel directory containing 'drf_properties.h5'
             and timestamped subdirectories with Digital RF files, or a list of
@@ -108,7 +107,6 @@ class digital_rf_channel_source(gr.sync_block):
 
         Other Parameters
         ----------------
-
         start : None | int | float | string, optional
             A value giving the start of the channel's playback.
             If None or '', the start of the channel's available data is used.
@@ -147,7 +145,6 @@ class digital_rf_channel_source(gr.sync_block):
 
         Notes
         -----
-
         A channel directory must contain subdirectories/files in the format:
             [YYYY-MM-DDTHH-MM-SS]/rf@[seconds].[%03i milliseconds].h5
 
@@ -262,7 +259,6 @@ class digital_rf_channel_source(gr.sync_block):
 
         Parameters
         ----------
-
         sample : int
             Sample index for the sample to tag, given in the number of samples
             since the epoch (time_since_epoch*sample_rate).
@@ -481,7 +477,6 @@ class digital_rf_source(gr.hier_block2):
 
         Parameters
         ----------
-
         top_level_dir : string
             Either a single top-level directory containing Digital RF channel
             directories, or a list of such. A directory can be a file system
@@ -492,7 +487,6 @@ class digital_rf_source(gr.hier_block2):
 
         Other Parameters
         ----------------
-
         channels : None | string | int | iterable of previous, optional
             If None, use all available channels in alphabetical order.
             Otherwise, use the channels in the order specified in the given
@@ -544,7 +538,6 @@ class digital_rf_source(gr.hier_block2):
 
         Notes
         -----
-
         A top-level directory must contain files in the format:
             [channel]/[YYYY-MM-DDTHH-MM-SS]/rf@[seconds].[%03i milliseconds].h5
 
