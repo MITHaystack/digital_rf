@@ -33,7 +33,7 @@ requirements:
     - h5py
     - hdf5
     - matplotlib
-    - numpy
+    - {{ pin_compatible('numpy') }}
     - packaging
     - pandas
     - python
