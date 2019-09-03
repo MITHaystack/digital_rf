@@ -1146,12 +1146,23 @@ class DigitalMetadataReader(object):
         """
         if isinstance(obj, h5py.Dataset):
             # [()] casts a Dataset as a numpy array (or python object if the
-            # Dataset is of object type)
+            # Dataset is of object type, e.g. a variable length string)
             val = obj[()]
-            if isinstance(val, (np.bool_, np.object_, np.flexible)):
-                # if value is numpy non-numeric scalar, get as python type
-                # (otherwise always keep as numpy type for consistency)
+            if isinstance(val, np.generic):
+                # if value is numpy scalar, get as python type
+                # scalars without a corresponding type stay as numpy scalars
+                # (numpy scalars often act like the corresponding python types,
+                #  but not always, and this prevents surprises such as np.int_
+                #  not subclassing from int in Python 3)
                 val = val.item()
+            elif isinstance(val, bytes):
+                # h5py, as of version 2.9, returns ascii text as bytes
+                # but since we never write arbitrary bytes, it's much more
+                # convenient to convert this into a proper Python string
+                try:
+                    val = val.decode()
+                except UnicodeDecodeError:
+                    pass
             ret_dict[name] = val
         else:
             # create a dictionary for this group
