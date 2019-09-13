@@ -463,6 +463,12 @@ class digital_rf_channel_sink(gr.sync_block):
                 continue
             elif sidx == next_continuous_sample:
                 # don't create a new block because it's continuous
+                if self._debug:
+                    tagstr = ("\n|{0}|rx_time tag @ sample {1}: {2}+{3} ({4})").format(
+                        self._channel_name, offset, tsec, tfrac, tidx
+                    )
+                    sys.stdout.write(tagstr)
+                    sys.stdout.flush()
                 continue
             else:
                 # add new block to write based on time tag
