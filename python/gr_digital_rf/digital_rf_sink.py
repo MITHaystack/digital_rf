@@ -494,7 +494,7 @@ class digital_rf_channel_sink(gr.sync_block):
                     data_blk_idxs.append(bidx)
                     data_rel_samples.append(sidx)
                 # reset metadata queue with only valid values
-                for md_idx in md_queue.keys():
+                for md_idx in list(md_queue.keys()):
                     md_sidx = md_idx - self._start_sample
                     if next_continuous_sample <= md_sidx and md_sidx < sidx:
                         del md_queue[md_idx]
