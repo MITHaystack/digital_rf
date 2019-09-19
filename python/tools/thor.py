@@ -878,6 +878,7 @@ class Thor(object):
             # output settings that get modified depending on processing
             ch_samplerate_frac = op.ch_samplerates_frac[ko]
             ch_centerfreq = op.ch_centerfreqs[ko]
+            start_sample_adjust = 0
 
             # make resampling filter blocks if necessary
             rs_ratio = op.resampling_ratios[ko]
@@ -920,13 +921,12 @@ class Thor(object):
                 # propagated to the correct sample
                 resampler.declare_sample_delay(int(op.resampling_filter_delays[ko]))
 
-                # skip first samples to account for filter delay so first
-                # sample going to output is first valid filtered sample
-                # (skip is in terms of filter output samples, so need to
-                #  adjust the filter delay to the output rate)
-                resampler_skiphead = blocks.skiphead(
-                    gr.sizeof_gr_complex,
-                    int(op.resampling_filter_delays[ko] * rs_ratio),
+                # adjust start sample to account for filter delay so first
+                # sample going to output is shifted to an earlier time
+                # (adjustment is in terms of filter output samples, so need to
+                #  take the input filter delay and account for the output rate)
+                start_sample_adjust = int(
+                    (start_sample_adjust - op.resampling_filter_delays[ko]) * rs_ratio
                 )
             else:
                 conv_scaling = scaling
@@ -969,13 +969,12 @@ class Thor(object):
                 #  polyphase bank, so this needs to be the output sample delay)
                 filt.declare_sample_delay(int(op.channelizer_filter_delays[ko] / nsc))
 
-                # skip first samples to account for filter delay so first
-                # sample going to output is first valid filtered sample
-                # (skip is in terms of filter output samples, so need to
-                #  adjust the filter delay to the output rate)
-                channelizer_skiphead = blocks.skiphead(
-                    gr.sizeof_gr_complex * nsc,
-                    int(op.channelizer_filter_delays[ko] / nsc),
+                # adjust start sample to account for filter delay so first
+                # sample going to output is shifted to an earlier time
+                # (adjustment is in terms of filter output samples, so need to
+                #  take the input filter delay and account for the output rate)
+                start_sample_adjust = int(
+                    (start_sample_adjust - op.channelizer_filter_delays[ko]) / nsc
                 )
 
                 # modify output settings accordingly
@@ -1005,7 +1004,7 @@ class Thor(object):
             ch_samplerate_ld = np.longdouble(
                 ch_samplerate_frac.numerator
             ) / np.longdouble(ch_samplerate_frac.denominator)
-            start_sample = int(np.uint64(ltts * ch_samplerate_ld))
+            start_sample = int(np.uint64(ltts * ch_samplerate_ld)) + start_sample_adjust
 
             # create digital RF sink
             dst = gr_drf.digital_rf_channel_sink(
@@ -1064,12 +1063,10 @@ class Thor(object):
             connections = [(u, kr)]
             if resampler is not None:
                 connections.append((resampler, 0))
-                connections.append((resampler_skiphead, 0))
             if rotator is not None:
                 connections.append((rotator, 0))
             if channelizer is not None:
                 connections.append((channelizer, 0))
-                connections.append((channelizer_skiphead, 0))
             if convert is not None:
                 connections.append((convert, 0))
             connections.append((dst, 0))
