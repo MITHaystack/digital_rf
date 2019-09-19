@@ -554,21 +554,32 @@ class digital_rf_channel_sink(gr.sync_block):
             md_dicts = []
         self._md_queue.clear()
 
-        # check if skip occurs and break if so after writing continuous data
-        if self._stop_on_skipped and len(data_blk_idxs) > 1:
-            _py_rf_write_hdf5.rf_block_write(
-                self._Writer._channelObj,
-                in_data,
-                data_rel_samples[:1],
-                data_blk_idxs[:1],
+        # check if skip occurs (*after* first write) and, if so, break
+        if self._stop_on_skipped and (
+            (
+                data_rel_samples[0] != self._next_rel_sample
+                and self._next_rel_sample != 0
             )
-            last_rel_sample = data_rel_samples[0] + (
-                data_blk_idxs[1] - data_blk_idxs[0]
-            )
-            last_sample = last_rel_sample + self._start_sample
-            idx = np.searchsorted(md_samples, last_sample, "right")
-            for md_sample, md_dict in zip(md_samples[:idx], md_dicts[:idx]):
-                self._DMDWriter.write(md_sample, md_dict)
+            or len(data_blk_idxs) > 1
+        ):
+            if (
+                data_rel_samples[0] == self._next_rel_sample
+                or self._next_rel_sample == 0
+            ):
+                # write continuous data from this chunk first
+                _py_rf_write_hdf5.rf_block_write(
+                    self._Writer._channelObj,
+                    in_data,
+                    data_rel_samples[:1],
+                    data_blk_idxs[:1],
+                )
+                last_rel_sample = data_rel_samples[0] + (
+                    data_blk_idxs[1] - data_blk_idxs[0]
+                )
+                last_sample = last_rel_sample + self._start_sample
+                idx = np.searchsorted(md_samples, last_sample, "right")
+                for md_sample, md_dict in zip(md_samples[:idx], md_dicts[:idx]):
+                    self._DMDWriter.write(md_sample, md_dict)
             print("Stopping at skipped sample as requested.")
             # return WORK_DONE
             return -1
