@@ -23,8 +23,8 @@ parameters:
         int8, int16, float32, float64]
     option_attributes:
         complex: ['True', 'True', 'True', 'True', 'False', 'False', 'False', 'False']
-        dtype: [np.int8, np.int16, np.complex64, np.complex128, np.int8, np.int16,
-            np.float32, np.float64]
+        dtype: ['np.dtype([("r", "i1"), ("i", "i1")])', 'np.dtype([("r", "i2"), ("i", "i2")])',
+            np.complex64, np.complex128, np.int8, np.int16, np.float32, np.float64]
         type: [sc8, sc16, fc32, fc64, s8, s16, f32, f64]
     hide: part
 -   id: vlen
