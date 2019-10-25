@@ -1,3 +1,14 @@
+2.6.3 - October 28, 2019
+------------------------
+
+- Format Python code and enforce a standard style using Black.
+- Include a small amount of example data to demonstrate the format and enable example scripts that don't depend on writing data first.
+- Add yaml-based GRC files and fix a gr_digital_rf Python 3 bug for GNU Radio 3.8+ compatibility.
+- Fix the MATLAB reader when dealing with very high sample rates.
+- Fix resampling and channelizer filters in thor.py to correctly account for filter delays and keep the timing consistent.
+- Clean up and fix various minor issues throughout the Python codebase.
+
+
 2.6.2 - July 1, 2019
 --------------------
 
