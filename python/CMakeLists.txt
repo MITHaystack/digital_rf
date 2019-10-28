@@ -7,7 +7,13 @@ if(CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
  source directory.")
 endif(CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
 
-find_package(Python REQUIRED)
+find_package(Python)
+if(NOT Python_FOUND)
+    # fall back to older FindPythonInterp CMake module
+    set(PYTHON_EXECUTABLE ${Python_EXECUTABLE})
+    find_package(PythonInterp REQUIRED)
+    set(Python_EXECUTABLE ${PYTHON_EXECUTABLE})
+endif(NOT Python_FOUND)
 
 # get the package version from setup.py
 set(pyver_cmd ${Python_EXECUTABLE} setup.py --version)
