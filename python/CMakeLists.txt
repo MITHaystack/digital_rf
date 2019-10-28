@@ -7,15 +7,21 @@ if(CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
  source directory.")
 endif(CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
 
-find_package(PythonInterp REQUIRED)
+find_package(Python REQUIRED)
 
 # get the package version from setup.py
+set(pyver_cmd ${Python_EXECUTABLE} setup.py --version)
+string(REPLACE ";" " " pyver_cmd_str "${pyver_cmd}")
 execute_process(
-    COMMAND ${PYTHON_EXECUTABLE} setup.py --version
+    COMMAND ${pyver_cmd}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    RESULT_VARIABLE pyver_ret
     OUTPUT_VARIABLE digital_rf_FULLVERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
+if(NOT ${pyver_ret} EQUAL "0")
+    message(FATAL_ERROR "Error running '${pyver_cmd_str}': " ${pyver_ret})
+endif(NOT ${pyver_ret} EQUAL "0")
 string(REGEX REPLACE
     "([0-9]+\\.[0-9]+\\.[0-9]+)[\\.a-z0-9]*\\+*.*" "\\1"
     digital_rf_VERSION ${digital_rf_FULLVERSION}
@@ -82,7 +88,7 @@ endforeach(SRCFILE)
 set(EGG_INFO_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/temp_egg/${PROJECT_NAME}.egg-info)
 file(MAKE_DIRECTORY ${EGG_INFO_OUTPUT})
 execute_process(
-    COMMAND ${PYTHON_EXECUTABLE} setup.py -q
+    COMMAND ${Python_EXECUTABLE} setup.py -q
         egg_info -e ${CMAKE_CURRENT_BINARY_DIR}/temp_egg
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     ERROR_QUIET
@@ -104,7 +110,7 @@ macro(gen_block _generator _tmpl _out)
     list(APPEND GENERATED_BLOCKS ${out})
     add_custom_command(
         OUTPUT ${out}
-        COMMAND ${PYTHON_EXECUTABLE} ${generator} ${tmpl} ${out}
+        COMMAND ${Python_EXECUTABLE} ${generator} ${tmpl} ${out}
         DEPENDS ${generator} ${tmpl}
     )
 endmacro(gen_block)
@@ -140,7 +146,7 @@ endif(NOT TARGET source)
 add_dependencies(source digital_rf_source)
 
 add_custom_target(digital_rf_sdist
-    COMMAND ${PYTHON_EXECUTABLE} setup.py sdist -d ${CMAKE_BINARY_DIR}/dist
+    COMMAND ${Python_EXECUTABLE} setup.py sdist -d ${CMAKE_BINARY_DIR}/dist
     DEPENDS ${PYSOURCES}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -158,8 +164,8 @@ add_custom_command(
         HDF5_LIBRARY_DIRS="${HDF5_LIBRARY_DIRS}"
         HDF5_LIBRARIES="${HDF5_LIBRARIES}"
         HDF5_DEFINE="${HDF5_DEFINE}"
-        ${PYTHON_EXECUTABLE} setup.py build
-    COMMAND ${PYTHON_EXECUTABLE} setup.py egg_info
+        ${Python_EXECUTABLE} setup.py build
+    COMMAND ${Python_EXECUTABLE} setup.py egg_info
     COMMAND ${CMAKE_COMMAND} -E touch ${PYBUILD_OUTPUT}
     DEPENDS ${PYSOURCES}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
@@ -173,7 +179,7 @@ if(NOT TARGET build)
 endif(NOT TARGET build)
 add_dependencies(build digital_rf_python)
 add_custom_target(digital_rf_wheel
-    COMMAND ${PYTHON_EXECUTABLE} setup.py bdist_wheel -d ${CMAKE_BINARY_DIR}/dist
+    COMMAND ${Python_EXECUTABLE} setup.py bdist_wheel -d ${CMAKE_BINARY_DIR}/dist
     DEPENDS ${PYBUILD_OUTPUT}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
@@ -193,7 +199,7 @@ if(WIN32)
     NORMALIZE_PATH(DRF_SCRIPT_PREFIX_PYTHON)
 endif(WIN32)
 file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/drf_install_python.cmake
-    CONTENT "execute_process(COMMAND ${PYTHON_EXECUTABLE} setup.py install\
+    CONTENT "execute_process(COMMAND ${Python_EXECUTABLE} setup.py install\
 $<$<BOOL:${DRF_INSTALL_PREFIX_PYTHON}>: --prefix=${DRF_INSTALL_PREFIX_PYTHON}>\
 $<$<BOOL:${DRF_DATA_PREFIX_PYTHON}>: --install-data=${DRF_DATA_PREFIX_PYTHON}>\
 $<$<BOOL:${DRF_SCRIPT_PREFIX_PYTHON}>: --install-scripts=${DRF_SCRIPT_PREFIX_PYTHON}>\
