@@ -247,6 +247,7 @@ setup(
                 "grc/gr_digital_rf_raster_select.block.yml",
                 "grc/gr_digital_rf_raster_tag.block.yml",
                 "grc/gr_digital_rf_vector_aggregate.block.yml",
+                "grc/gr_digital_rf.tree.yml",
             ],
         )
     ]
