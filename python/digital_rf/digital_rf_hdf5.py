@@ -2094,12 +2094,12 @@ class _top_level_dir_properties(object):
 
     def _get_first_sample(self, fullname):
         """Return the first sample in a given rf file."""
-        with h5py.File(fullname) as f:
+        with h5py.File(fullname, "r") as f:
             return int(f["rf_data_index"][0][0])
 
     def _get_last_sample(self, fullname):
         """Return the last sample in a given rf file."""
-        with h5py.File(fullname) as f:
+        with h5py.File(fullname, "r") as f:
             total_samples = f["rf_data"].shape[0]
             rf_data_index = f["rf_data_index"]
             last_start_sample = rf_data_index[-1][0]
