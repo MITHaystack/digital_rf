@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 cmake_policy(SET CMP0048 NEW)
+cmake_policy(SET CMP0094 NEW)
 
 # can't do binary dir == source dir because of file copying
 if(CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)

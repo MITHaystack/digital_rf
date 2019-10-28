@@ -9,7 +9,7 @@ cmake -G "NMake Makefiles" ^
       -DCMAKE_INSTALL_PREFIX:PATH="%LIBRARY_PREFIX%" ^
       -DCMAKE_PREFIX_PATH:PATH="%LIBRARY_PREFIX%" ^
       -DDRF_DATA_PREFIX_PYTHON:PATH="%LIBRARY_PREFIX%" ^
-      -DPython_EXECUTABLE:PATH="%PYTHON%" ^
+      -DPython_FIND_REGISTRY=LAST ^
       ..
 if errorlevel 1 exit 1
 
