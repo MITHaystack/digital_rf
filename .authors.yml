@@ -1,0 +1,30 @@
+- name: Ryan Volz
+  email: rvolz@mit.edu
+  alternate_emails:
+  - ryan.volz@gmail.com
+  - rvolz@haystack.mit.edu
+  num_commits: 407
+  first_commit: 2017-04-07 17:54:29
+- name: Frank Lind
+  email: flind@mit.edu
+  aliases:
+  - flind
+  alternate_emails:
+  - flind@haystack.mit.edu
+  - flind@orion.haystack.mit.edu
+  num_commits: 3
+  first_commit: 2017-05-26 09:24:02
+- name: John Swoboda
+  email: swoboj@mit.edu
+  num_commits: 53
+  first_commit: 2017-04-12 15:28:37
+- name: Juha Vierinen
+  email: jvi019@uit.no
+  num_commits: 0
+  first_commit: &id001 2019-11-08 16:10:04.463013
+- name: Bill Rideout
+  email: brideout@mit.edu
+  alternate_emails:
+  - brideout@haystack.mit.edu
+  num_commits: 0
+  first_commit: *id001

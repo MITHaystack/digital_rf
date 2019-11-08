@@ -1,5 +1,5 @@
 include AUTHORS
-include CHANGES
+include CHANGELOG.rst
 include LICENSE
 include MANIFEST.md
 include pyproject.toml

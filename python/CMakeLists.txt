@@ -73,7 +73,7 @@ set(HDF5_LIBRARIES hdf5)
 separate_arguments(HDF5_DEFINE UNIX_COMMAND "${HDF5_DEFINITIONS}")
 
 # copy files from root directory that we want in the python package
-set(ROOT_SRCS AUTHORS CHANGES LICENSE)
+set(ROOT_SRCS AUTHORS CHANGELOG.rst LICENSE)
 file(GLOB_RECURSE DATA_FILES
     RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/.." "../data/*"
 )
