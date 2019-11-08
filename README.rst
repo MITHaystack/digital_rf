@@ -41,20 +41,11 @@ Important Links
 Citation
 ========
 
-If you use digital_rf in a scientific publication, we would appreciate a citation such as the following:
+If you use Digital RF in a scientific publication, we would appreciate a citation such as the following (BibTeX_):
 
     Volz, R., Rideout, W. C., Swoboda, J., Vierinen, J. P., & Lind, F. D. (2019). Digital RF (Version 2.6.3). MIT Haystack Observatory. Retrieved from https://github.com/MITHaystack/digital_rf
 
-.. code-block:: bibtex
-
-    @software{DigitalRF,
-    author = {Volz, Ryan and Rideout, William C. and Swoboda, John and Vierinen, Juha P. and Lind, Frank D.}
-    title = {Digital {{RF}}},
-    url = {https://github.com/MITHaystack/digital_rf},
-    version = {2.6.3},
-    publisher = {{MIT Haystack Observatory}},
-    date = {2019-10-28},
-    }
+.. _BibTeX: bibtex.bib
 
 
 Dependencies
