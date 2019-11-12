@@ -15,11 +15,17 @@ $ACTIVITIES = [
     "ghrelease",
 ]
 
+import datetime
 $VERSION_BUMP_PATTERNS = [
     (
         "python/CMakeLists.txt",
         r"set\(digital_rf_VERSION .*\)",
         "set(digital_rf_VERSION $VERSION)",
+    ),
+    (
+        "README.rst",
+        r"Volz, R.* \(Version .*\).*",
+        (lambda ver: "Volz, R., Rideout, W. C., Swoboda, J., Vierinen, J. P., & Lind, F. D. ({yr}). Digital RF (Version {ver}). MIT Haystack Observatory. Retrieved from https://github.com/MITHaystack/digital_rf".format(ver=ver, yr=datetime.datetime.now().year)),
     ),
 ]
 
