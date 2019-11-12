@@ -19,24 +19,7 @@ else()
     set(Python_EXECUTABLE ${PYTHON_EXECUTABLE})
 endif(Python_FOUND)
 
-# get the package version from setup.py
-set(pyver_cmd ${Python_EXECUTABLE} setup.py --version)
-string(REPLACE ";" " " pyver_cmd_str "${pyver_cmd}")
-execute_process(
-    COMMAND ${pyver_cmd}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    RESULT_VARIABLE pyver_ret
-    OUTPUT_VARIABLE digital_rf_FULLVERSION
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-if(NOT ${pyver_ret} EQUAL "0")
-    message(FATAL_ERROR "Error running '${pyver_cmd_str}': " ${pyver_ret})
-endif(NOT ${pyver_ret} EQUAL "0")
-string(REGEX REPLACE
-    "([0-9]+\\.[0-9]+\\.[0-9]+)[\\.a-z0-9]*\\+*.*" "\\1"
-    digital_rf_VERSION ${digital_rf_FULLVERSION}
-)
-
+set(digital_rf_VERSION 2.6.3)
 project(digital_rf LANGUAGES C VERSION ${digital_rf_VERSION})
 
 include(GNUInstallDirs)
