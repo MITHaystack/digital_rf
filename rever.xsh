@@ -9,10 +9,8 @@ $ACTIVITIES = [
     "bibtex",
     "changelog",
     "pytest",
-#    "sphinx",
     "tag",
     "push_tag",
-#    "pypi",
 #    "conda_forge",
     "ghrelease",
 ]
@@ -56,11 +54,22 @@ $BIBTEX_AUTHORS = [
 $CHANGELOG_FILENAME = "CHANGELOG.rst"
 $CHANGELOG_TEMPLATE = "TEMPLATE.rst"
 
-#$DOCKER_APT_DEPS = []
-#with open("requirements/tests.txt") as f:
-#    $DOCKER_CONDA_DEPS = f.read().split()
-#with open("requirements/docs.txt") as f:
-#    $DOCKER_CONDA_DEPS += f.read().split()
-#$DOCKER_CONDA_DEPS = [d.lower() for d in set($DOCKER_CONDA_DEPS)]
-#$DOCKER_PIP_DEPS = ["xonda"]
-#$DOCKER_INSTALL_COMMAND = "git clean -fdx && mkdir build-rever && pushd build-rever && cmake .. && make && make install"
+$DOCKER_APT_DEPS = [
+    "cmake",
+    "git",
+    "libhdf5-dev",
+    "python3-dateutil",
+    "python3-dev",
+    "python3-h5py",
+    "python3-mako",
+    "python3-numpy",
+    "python3-packaging",
+    "python3-pkgconfig",
+    "python3-pytest",
+    "python3-setuptools",
+    "python3-six",
+    "python3-tz",
+]
+$DOCKER_INSTALL_COMMAND = "git clean -fdx && mkdir build-rever && cd build-rever && cmake .. && make && make install && cd .. && rm -rf build-rever"
+
+$PYTEST_COMMAND = "pytest-3"
