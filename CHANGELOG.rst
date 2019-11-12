@@ -5,7 +5,7 @@ digital_rf Change Log
 .. current developments
 
 
-2.6.3
+v2.6.3
 ====================
 
 - Format Python code and enforce a standard style using Black.
@@ -17,7 +17,7 @@ digital_rf Change Log
 
 
 
-2.6.2
+v2.6.2
 ====================
 
 This is entirely a bugfix release. Notable fixes include:
@@ -30,7 +30,7 @@ This is entirely a bugfix release. Notable fixes include:
 
 
 
-2.6.1
+v2.6.1
 ====================
 
 This is primarily a bugfix release. Changes include:
@@ -42,7 +42,7 @@ This is primarily a bugfix release. Changes include:
 
 
 
-2.6.0
+v2.6.0
 ====================
 
 The main impetus for this release is a complete reorganization of the build system to enable Digital RF to run with Python 3 and on Windows. Major changes include:
@@ -65,7 +65,7 @@ The main impetus for this release is a complete reorganization of the build syst
 
 
 
-2.5.4
+v2.5.4
 ====================
 
 This release incorporates many robustness improvements and fixes based on testing with the Millstone Hill radar. Major changes include:
@@ -78,63 +78,63 @@ This release incorporates many robustness improvements and fixes based on testin
 
 
 
-2.5.3
+v2.5.3
 ====================
 
 Improvements to watchdog_drf, list_drf, mirror, and ringbuffer. Can now monitor directories that don't yet exist or get deleted and ringbuffer by file count and duration.
 
 
 
-2.5.2
+v2.5.2
 ====================
 
 Fix build on OSX for C version of gr_drf Digital RF Sink.
 
 
 
-2.5.1
+v2.5.1
 ====================
 
 The main new feature is a GNU Radio Digital RF Sink written entirely in Python that writes receiver and recorder metadata previously handled only in the thor recording script.
 
 
 
-2.5
+v2.5
 ====================
 
 First release intended for public use. The 'metadata.h5' files that previously indicated a Digital RF/Metadata channel directory and that stored properties inherent to the channel have been renamed to 'drf_properties.h5' and 'dmd_properties.h5', respectively, to avoid confusion with accompanying Digital Metadata.
 
 
 
-2.4
+v2.4
 ====================
 
 First release with a revamped CMake build system and including the gr_drf GNU Radio module and many examples.
 
 
 
-2.0 - Dec 30, 2015
+v2.0 - Dec 30, 2015
 ====================
 
 Major update to Digital RF, in that file and subdirectory names were made predictable. To do this, each file and subdirectory now contains a set range of samples, and files and subdirectories will no longer have set number of samples when data is gappy. This greatly simplified the read api, since globs were no longer needed to find the data files that need to be opened; instead all needed file names can be derived.
 
 
 
-1.1.1 - Aug 4, 2014
+v1.1.1 - Aug 4, 2014
 ====================
 
 The python read methods have changed. The method read_vector now returns all data in format numpy.complex8, no matter how the data was stored in the underlying Hdf5 file. A new method, read_vector_raw duplicates the old read_vector method, returning data in the format stored in the Hdf5 raw files. The method read_vector_c81d that returns data as a single subchannel in numpy.complex8 format still exists, but issues a UserWarning recommending use of the other methods.
 
 
 
-1.1 - July 7, 2014
+v1.1 - July 7, 2014
 ====================
 
 The directory naming convention has changed from HH:MM:SS since certain file systems disallowed colons in directory names.  This affected both the read and write API's.
 
 
 
-1.0 - May 29, 2014
+v1.0 - May 29, 2014
 ====================
 
 The first major release of the C and Python API's supporting the Digital RF HDF5 raw data format.
