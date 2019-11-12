@@ -17,10 +17,13 @@ $ACTIVITIES = [
     "ghrelease",
 ]
 
-#$VERSION_BUMP_PATTERNS = [
-#    ("rever/__init__.py", "__version__\s*=.*", "__version__ = '$VERSION'"),
-#    ("setup.py", "version\s*=.*,", "version='$VERSION',")
-#]
+$VERSION_BUMP_PATTERNS = [
+    (
+        "python/CMakeLists.txt",
+        r"set\(digital_rf_VERSION .*\)",
+        "set(digital_rf_VERSION $VERSION)",
+    ),
+]
 
 $AUTHORS_TEMPLATE = """\
 History
