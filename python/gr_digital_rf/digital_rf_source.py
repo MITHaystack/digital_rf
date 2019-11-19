@@ -243,7 +243,17 @@ class digital_rf_channel_source(gr.sync_block):
         # to handle at once
         # (really want to set_min_noutput_items, but no way to do that from
         #  Python)
-        self.set_output_multiple(self._min_chunksize)
+        try:
+            self.set_output_multiple(self._min_chunksize)
+        except RuntimeError:
+            traceback.print_exc()
+            errstr = "Failed to set source block min_chunksize to {min_chunksize}."
+            if min_chunksize is None:
+                errstr += (
+                    " This value was calculated automatically based on the sample rate."
+                    " You may have to specify min_chunksize manually."
+                )
+            raise ValueError(errstr.format(min_chunksize=self._min_chunksize))
 
         try:
             self._DMDReader = self._Reader.get_digital_metadata(self._ch)

@@ -315,7 +315,7 @@ class digital_rf_channel_sink(gr.sync_block):
         ) / np.longdouble(np.uint64(sample_rate_denominator))
 
         if min_chunksize is None:
-            self._min_chunksize = int(self._samples_per_second // 1000)
+            self._min_chunksize = max(int(self._samples_per_second // 1000), 1)
         else:
             self._min_chunksize = min_chunksize
 
@@ -323,7 +323,17 @@ class digital_rf_channel_sink(gr.sync_block):
         # at once
         # (really want to set_min_noutput_items, but no way to do that from
         #  Python)
-        self.set_output_multiple(self._min_chunksize)
+        try:
+            self.set_output_multiple(self._min_chunksize)
+        except RuntimeError:
+            traceback.print_exc()
+            errstr = "Failed to set sink block min_chunksize to {min_chunksize}."
+            if min_chunksize is None:
+                errstr += (
+                    " This value was calculated automatically based on the sample rate."
+                    " You may have to specify min_chunksize manually."
+                )
+            raise ValueError(errstr.format(min_chunksize=self._min_chunksize))
 
         # will be None if start is None or ''
         self._start_sample = util.parse_identifier_to_sample(
