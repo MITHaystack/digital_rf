@@ -152,6 +152,8 @@ Build and install::
     make
     sudo make install
 
+CMake will attempt to find your Python installation in the usual places, preferring Python 3. If this fails or you need to specify a Python 2 installation (e.g. for GNU Radio older than version 3.8), specify a particular Python interpreter by adding ``-DPython_EXECUTABLE={PATH}`` (replacing ``{PATH}`` with the interpreter path) to the cmake command.
+
 Finally, you may need to update the library cache so the newly-installed ``libdigital_rf`` is found::
 
     sudo ldconfig
