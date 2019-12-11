@@ -11,7 +11,7 @@ $ACTIVITIES = [
     "pytest",
     "tag",
     "push_tag",
-#    "conda_forge",
+    "conda_forge",
     "ghrelease",
 ]
 
