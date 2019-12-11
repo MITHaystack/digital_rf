@@ -130,6 +130,29 @@ to contain::
 
 (replacing ``{PIP_PREFIX}`` with the pip installation prefix, "/usr/local" for example).
 
+Using Conda package
+-------------------
+
+Alternatively, you can install digital_rf using our Conda_ binary package. It is available in the `conda-forge <https://conda-forge.github.io/>`_ distribution of community-maintained packages.
+
+In an existing Conda environment, run the following to install ``digital_rf`` and its dependencies::
+
+    conda config --add channels conda-forge
+    conda config --set channel_priority strict
+    conda install digital_rf
+
+You may also want to install the ``gnuradio-core`` package in order to make use of ``gr_digital_rf``::
+
+    conda install gnuradio-core
+
+Using MacPorts
+--------------
+
+Digital RF can be installed though MacPorts, using the port install command::
+
+    sudo ports install digital_rf
+
+This will install and build all of the needed dependencies using MacPorts.
 
 Using source code package
 -------------------------
@@ -167,26 +190,6 @@ The MATLAB toolbox is not created by default. If you have MATLAB R2016a or highe
 
 The toolbox package will then be found at "build/matlab/digital_rf.mltbx".
 
-
-Using Conda package
--------------------
-
-Alternatively, you can install digital_rf using our Conda_ binary package. Our package is compatible with the `conda-forge <https://conda-forge.github.io/>`_ distribution of community-maintained packages.
-
-In an existing Conda environment, run the following to install ``digital_rf`` and its dependencies::
-
-    conda config --add channels ryanvolz
-    conda config --add channels conda-forge
-    conda install digital_rf
-
-Using MacPorts
---------------
-
-Digital RF can be installed though MacPorts, using the port install command::
-
-    sudo ports install digital_rf
-
-This will install and build all of the needed dependencies using MacPorts.
 
 Example Usage
 =============
