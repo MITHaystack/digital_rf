@@ -1046,7 +1046,13 @@ class _top_level_dir_metadata(object):
                 if self.sub_directory_dict[base_subdirectory].update_if_needed(
                     file_count, last_timestamp
                 ):
-                    first_unix_sample, sample_extent, file_count, samples_per_file, last_timestamp = self.sub_directory_dict[
+                    (
+                        first_unix_sample,
+                        sample_extent,
+                        file_count,
+                        samples_per_file,
+                        last_timestamp,
+                    ) = self.sub_directory_dict[
                         base_subdirectory
                     ].get_summary_metadata()
                     self.sub_directory_recarray[i] = (
@@ -1072,9 +1078,13 @@ class _top_level_dir_metadata(object):
                     self.sub_directory_dict[base_subdirectory] = new_sub_dir_meta
                 else:
                     self.sub_directory_dict = {base_subdirectory: new_sub_dir_meta}
-                first_unix_sample, sample_extent, file_count, samples_per_file, last_timestamp = (
-                    new_sub_dir_meta.get_summary_metadata()
-                )
+                (
+                    first_unix_sample,
+                    sample_extent,
+                    file_count,
+                    samples_per_file,
+                    last_timestamp,
+                ) = new_sub_dir_meta.get_summary_metadata()
                 # extend self.sub_directory_recarray by one
                 self.sub_directory_recarray.resize(len(self.sub_directory_recarray) + 1)
                 self.sub_directory_recarray[-1] = (
