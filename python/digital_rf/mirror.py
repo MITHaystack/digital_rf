@@ -20,15 +20,12 @@ from itertools import chain
 
 from watchdog.events import FileCreatedEvent
 
-from . import list_drf, util
-from .list_drf import ilsdrf
-from .ringbuffer import DigitalRFRingbufferHandler
-from .watchdog_drf import DigitalRFEventHandler, DirWatcher
+from . import list_drf, ringbuffer, util, watchdog_drf
 
 __all__ = ("DigitalRFMirrorHandler", "DigitalRFMirror")
 
 
-class DigitalRFMirrorHandler(DigitalRFEventHandler):
+class DigitalRFMirrorHandler(watchdog_drf.DigitalRFEventHandler):
     """Event handler for mirroring Digital RF and Digital Metadata files.
 
     This handler mirrors new or modified files from a source directory to a
@@ -159,6 +156,7 @@ class DigitalRFMirror(object):
         endtime=None,
         include_drf=True,
         include_dmd=True,
+        force_polling=False,
     ):
         """Create Digital RF mirror object. Use start/run method to begin.
 
@@ -203,6 +201,10 @@ class DigitalRFMirror(object):
             If True, include Digital Metadata files. If False, ignore Digital
             Metadata files.
 
+        force_polling : bool
+            If True, force the watchdog to use polling instead of the default
+            observer.
+
         """
         self.src = os.path.abspath(src)
         self.dest = os.path.abspath(dest)
@@ -215,6 +217,7 @@ class DigitalRFMirror(object):
         self.endtime = endtime
         self.include_drf = include_drf
         self.include_dmd = include_dmd
+        self.force_polling = force_polling
 
         if not self.include_drf and not self.include_dmd:
             errstr = "One of `include_drf` or `include_dmd` must be True."
@@ -256,7 +259,7 @@ class DigitalRFMirror(object):
         if self.include_dmd and self.method == "move":
             # set ringbuffer on Digital Metadata files so old ones are removed
             # (can't move since multiple writes can happen to a single file)
-            md_ringbuffer_handler = DigitalRFRingbufferHandler(
+            md_ringbuffer_handler = ringbuffer.DigitalRFRingbufferHandler(
                 count=1,
                 verbose=verbose,
                 dryrun=False,
@@ -270,7 +273,9 @@ class DigitalRFMirror(object):
         self._init_observer()
 
     def _init_observer(self):
-        self.observer = DirWatcher(self.src)
+        self.observer = watchdog_drf.DirWatcher(
+            self.src, force_polling=self.force_polling
+        )
         for handler in self.event_handlers:
             self.observer.schedule(handler, self.src, recursive=True)
 
@@ -292,7 +297,7 @@ class DigitalRFMirror(object):
             # critical and duplicate events are not harmful (we will either
             # copy again or fail to move because the source doesn't exist)
             # mirror properties at minimum
-            paths = ilsdrf(
+            paths = list_drf.ilsdrf(
                 self.src,
                 include_drf=False,
                 include_dmd=False,
@@ -302,7 +307,7 @@ class DigitalRFMirror(object):
 
             if not self.ignore_existing:
                 # mirror other files if desired
-                more_paths = ilsdrf(
+                more_paths = list_drf.ilsdrf(
                     self.src,
                     starttime=self.starttime,
                     endtime=self.endtime,
@@ -388,6 +393,8 @@ def _build_mirror_parser(Parser, *args):
         help="""Do not mirror Digital Metadata HDF5 files.
                 (default: False)""",
     )
+
+    parser = watchdog_drf._add_watchdog_group(parser)
 
     parser.set_defaults(func=_run_mirror)
 
