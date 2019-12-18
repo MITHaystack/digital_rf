@@ -18,14 +18,12 @@ import time
 import traceback
 from collections import OrderedDict, defaultdict, deque, namedtuple
 
-from . import list_drf, util
-from .list_drf import ilsdrf
-from .watchdog_drf import DigitalRFEventHandler, DirWatcher
+from . import list_drf, util, watchdog_drf
 
 __all__ = ("DigitalRFRingbufferHandler", "DigitalRFRingbuffer")
 
 
-class DigitalRFRingbufferHandlerBase(DigitalRFEventHandler):
+class DigitalRFRingbufferHandlerBase(watchdog_drf.DigitalRFEventHandler):
     """Base event handler for implementing a ringbuffer of Digital RF files.
 
     This handler tracks files but does nothing to expire them. At least one
@@ -543,6 +541,7 @@ class DigitalRFRingbuffer(object):
         endtime=None,
         include_drf=True,
         include_dmd=True,
+        force_polling=False,
     ):
         """Create Digital RF ringbuffer object. Use start/run method to begin.
 
@@ -595,6 +594,10 @@ class DigitalRFRingbuffer(object):
             If True, include Digital Metadata files. If False, ignore Digital
             Metadata files.
 
+        force_polling : bool
+            If True, force the watchdog to use polling instead of the default
+            observer.
+
         """
         self.path = os.path.abspath(path)
         self.size = size
@@ -607,6 +610,7 @@ class DigitalRFRingbuffer(object):
         self.endtime = endtime
         self.include_drf = include_drf
         self.include_dmd = include_dmd
+        self.force_polling = force_polling
         self._start_time = None
         self._task_threads = []
 
@@ -631,7 +635,7 @@ class DigitalRFRingbuffer(object):
                 statvfs = os.statvfs(root)
                 bytes_available = statvfs.f_frsize * statvfs.f_bavail
                 if os.path.isdir(self.path):
-                    existing = ilsdrf(
+                    existing = list_drf.ilsdrf(
                         self.path,
                         starttime=self.starttime,
                         endtime=self.endtime,
@@ -665,7 +669,9 @@ class DigitalRFRingbuffer(object):
         self._init_observer()
 
     def _init_observer(self):
-        self.observer = DirWatcher(self.path)
+        self.observer = watchdog_drf.DirWatcher(
+            self.path, force_polling=self.force_polling
+        )
         self.observer.schedule(self.event_handler, self.path, recursive=True)
 
     def _add_existing_files(self):
@@ -674,7 +680,7 @@ class DigitalRFRingbuffer(object):
         # to the ringbuffer in the correct order
         with self.observer.paused_dispatching():
             # add existing files to ringbuffer handler
-            existing = ilsdrf(
+            existing = list_drf.ilsdrf(
                 self.path,
                 starttime=self.starttime,
                 endtime=self.endtime,
@@ -714,7 +720,7 @@ class DigitalRFRingbuffer(object):
         # events that happen while we build this file set can be duplicated
         # when we verify the ringbuffer state below, but that's ok
         ondisk = set(
-            ilsdrf(
+            list_drf.ilsdrf(
                 self.path,
                 starttime=self.starttime,
                 endtime=self.endtime,
@@ -886,6 +892,8 @@ def _build_ringbuffer_parser(Parser, *args):
         help="""Do not ringbuffer Digital Metadata HDF5 files.
                 (default: False)""",
     )
+
+    parser = watchdog_drf._add_watchdog_group(parser)
 
     parser.set_defaults(func=_run_ringbuffer)
 

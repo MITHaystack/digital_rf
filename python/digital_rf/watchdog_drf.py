@@ -24,7 +24,8 @@ from watchdog.events import (
     RegexMatchingEventHandler,
 )
 from watchdog.observers import Observer
-from watchdog.observers.api import ObservedWatch
+from watchdog.observers.api import BaseObserver, ObservedWatch
+from watchdog.observers.polling import PollingObserver
 from watchdog.utils import unicode_paths
 from watchdog.utils.bricks import OrderedSetQueue
 
@@ -54,13 +55,12 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
         include_dmd=True,
         include_drf_properties=None,
         include_dmd_properties=None,
-        ignore_regexes=[],
+        ignore_regexes=None,
     ):
         """Create Digital RF event handler for given time range and file types.
 
         Parameters
         ----------
-
         starttime : datetime.datetime
             Data covering this time or after will be included. This has no
             effect on property files.
@@ -104,6 +104,9 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
         if include_dmd_properties is None:
             include_dmd_properties = include_dmd
 
+        if ignore_regexes is None:
+            ignore_regexes = []
+
         regexes = []
         if include_drf and include_dmd:
             regexes.append(RE_DRFDMD)
@@ -130,7 +133,6 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
 
         Parameters
         ----------
-
         event : FileSystemEvent
             Event object representing the file system event.
 
@@ -201,7 +203,7 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
         _method_map[event_type](event)
 
 
-class DirWatcher(Observer, RegexMatchingEventHandler):
+class DirWatcher(BaseObserver, RegexMatchingEventHandler):
     """Watchdog observer for monitoring a particular directory.
 
     This observer has a sub-observer and handler for noticing when the
@@ -212,16 +214,20 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
 
     """
 
-    def __init__(self, path, **kwargs):
+    def __init__(self, path, force_polling=False, **kwargs):
         """Create observer for the directory at `path`."""
-        Observer.__init__(self, **kwargs)
+        if force_polling:
+            observer_class = PollingObserver
+        else:
+            observer_class = Observer
+        observer_class.__init__(self, **kwargs)
         # replace default event queue with ordered set queue to disallow
         # duplicate events even if added out of order
         self._event_queue = OrderedSetQueue()
         RegexMatchingEventHandler.__init__(self)
 
         self.path = os.path.abspath(path)
-        self.root_observer = Observer(**kwargs)
+        self.root_observer = observer_class(**kwargs)
         self.root_watch = None
         self._stopped_handlers = dict()
         self._dispatching_enabled = True
@@ -439,6 +445,16 @@ class DirWatcher(Observer, RegexMatchingEventHandler):
         self._start_dispatching()
 
 
+def _add_watchdog_group(parser):
+    watchdoggroup = parser.add_argument_group(title="watchdog")
+    watchdoggroup.add_argument(
+        "--force_polling",
+        action="store_true",
+        help="""Force watchdog to use polling instead of the default observer.""",
+    )
+    return parser
+
+
 def _build_watch_parser(Parser, *args):
     desc = "Print Digital RF file events occurring in a directory."
     parser = Parser(*args, description=desc)
@@ -451,6 +467,7 @@ def _build_watch_parser(Parser, *args):
                                (default: %(default)s)""",
     )
 
+    parser = _add_watchdog_group(parser)
     parser = list_drf._add_time_group(parser)
     parser = list_drf._add_include_group(parser)
 
@@ -471,7 +488,7 @@ def _run_watch(args):
 
     # subclass DigitalRFEventHandler to just print events
     class DigitalRFPrint(DigitalRFEventHandler):
-        def __init__(self, dir, **kwargs):
+        def __init__(self, dir, force_polling=None, **kwargs):
             self.root_dir = dir
             super(DigitalRFPrint, self).__init__(**kwargs)
 
@@ -500,7 +517,7 @@ def _run_watch(args):
     kwargs = vars(args).copy()
     del kwargs["func"]
     event_handler = DigitalRFPrint(**kwargs)
-    observer = DirWatcher(args.dir)
+    observer = DirWatcher(args.dir, force_polling=args.force_polling)
     observer.schedule(event_handler, args.dir, recursive=True)
     print("Type Ctrl-C to quit.")
     observer.start()

@@ -90,8 +90,10 @@ RE_DMDPROP = re.escape(os.sep).join((r"(?P<chpath>.*?)", RE_DMDPROPFILE))
 RE_DRFDMDPROP = re.escape(os.sep).join((r"(?P<chpath>.*?)", RE_PROPFILE))
 
 
-def sortkey_drf(filename, regexes=[_RE_FILE]):
+def sortkey_drf(filename, regexes=None):
     """Get key for a Digital RF filename to sort first by sample time."""
+    if regexes is None:
+        regexes = [_RE_FILE]
     for r in regexes:
         m = r.match(filename)
         if m:
@@ -201,7 +203,7 @@ def _yield_matching_files(
         dec_subdirs, starttime=starttime, endtime=endtime, ffill=True
     )
 
-    for k, (time, subdir) in (
+    for k, (_time, subdir) in (
         enumerate(dec_subdirs[subdir_slice])
         if not reverse
         else enumerate(list(reversed(dec_subdirs[subdir_slice])))
@@ -261,7 +263,7 @@ def ilsdrf(
     include_drf_properties=None,
     include_dmd_properties=None,
 ):
-    """Generator of Digital RF/Metadata files contained in a channel directory.
+    """Yield Digital RF/Metadata files contained in a channel directory.
 
     Sub-directories will be traversed in alphabetical order and files from each
     directory will be yielded in Digital RF (time) order.
@@ -396,7 +398,6 @@ def lsdrf(*args, **kwargs):
 
     Parameters
     ----------
-
     path : string
         Parent directory to list.
 
@@ -432,7 +433,6 @@ def lsdrf(*args, **kwargs):
 
     Returns
     -------
-
     List of Digital RF/Metadata files contained in `path`.
 
     """
