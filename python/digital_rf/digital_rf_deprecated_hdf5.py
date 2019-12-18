@@ -562,7 +562,7 @@ class read_hdf5(object):
         access_mode = self._top_level_dir_dict[top_level_dir]
         # for now only local access
         if access_mode not in ("local"):
-            raise ValueError("access_mode %s not yet implemented" % (access_mode))
+            raise ValueError("access_mode %s not yet implemented" % (self.access_mode))
 
         if access_mode == "local":
             potential_channels = glob.glob(
@@ -1179,7 +1179,7 @@ class _top_level_dir_metadata(object):
         """
         # for now only local access
         if self.access_mode not in ("local"):
-            raise ValueError("access_mode %s not yet implemented" % (access_mode))
+            raise ValueError("access_mode %s not yet implemented" % (self.access_mode))
         subdirectory_list = glob.glob(
             os.path.join(
                 self.top_level_dir, self.channel_name, self._sub_directory_glob
@@ -1425,7 +1425,7 @@ class _top_level_dir_metadata(object):
         # use subdirectory names instead
         # for now only local access
         if self.access_mode not in ("local"):
-            raise ValueError("access_mode %s not yet implemented" % (access_mode))
+            raise ValueError("access_mode %s not yet implemented" % (self.access_mode))
 
         first_subdirectory_list = glob.glob(
             os.path.join(
@@ -1476,7 +1476,7 @@ class _top_level_dir_metadata(object):
         # use subdirectory names instead
         # for now only local access
         if self.access_mode not in ("local"):
-            raise ValueError("access_mode %s not yet implemented" % (access_mode))
+            raise ValueError("access_mode %s not yet implemented" % (self.access_mode))
 
         first_subdirectory_list = glob.glob(
             os.path.join(
@@ -1621,7 +1621,7 @@ class _sub_directory_metadata(object):
 
         # for now only local access
         if self.access_mode not in ("local"):
-            raise ValueError("access_mode %s not yet implemented" % (access_mode))
+            raise ValueError("access_mode %s not yet implemented" % (self.access_mode))
 
         rf_file_list = glob.glob(
             os.path.join(
@@ -1650,7 +1650,7 @@ class _sub_directory_metadata(object):
         """
         # for now only local access
         if self.access_mode not in ("local"):
-            raise ValueError("access_mode %s not yet implemented" % (access_mode))
+            raise ValueError("access_mode %s not yet implemented" % (self.access_mode))
 
         rf_file_list = glob.glob(
             os.path.join(
@@ -2251,7 +2251,7 @@ class _sub_directory_metadata(object):
         """
         # for now only local access
         if self.access_mode not in ("local"):
-            raise ValueError("access_mode %s not yet implemented" % (access_mode))
+            raise ValueError("access_mode %s not yet implemented" % (self.access_mode))
 
         return os.path.getmtime(fullfile) - time.timezone
 
