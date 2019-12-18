@@ -53,9 +53,19 @@ def archive_subdirectory_local_local(args):
 
     file_count = 0
 
-    source, channel, subdir, dt, nextDT, is_metadata, channel_dest, startDT, endDT, gzip, verbose = (
-        args
-    )
+    (
+        source,
+        channel,
+        subdir,
+        dt,
+        nextDT,
+        is_metadata,
+        channel_dest,
+        startDT,
+        endDT,
+        gzip,
+        verbose,
+    ) = args
 
     # determine if this channel is compressed
     if is_metadata:
@@ -173,9 +183,19 @@ def archive_subdirectory_local_remote(args):
 
     file_count = 0
 
-    source, channel, subdir, dt, nextDT, is_metadata, channel_dest, startDT, endDT, gzip, verbose = (
-        args
-    )
+    (
+        source,
+        channel,
+        subdir,
+        dt,
+        nextDT,
+        is_metadata,
+        channel_dest,
+        startDT,
+        endDT,
+        gzip,
+        verbose,
+    ) = args
 
     # determine if this channel is compressed
     if is_metadata:

@@ -29,8 +29,8 @@ sample_rate_denominator = 1
 sample_rate = np.longdouble(sample_rate_numerator) / sample_rate_denominator
 dtype_str = "i2"  # short int
 sub_cadence_secs = (
-    4
-)  # Number of seconds of data in a subdirectory - typically MUCH larger
+    4  # Number of seconds of data in a subdirectory - typically MUCH larger
+)
 file_cadence_millisecs = 400  # Each file will have up to 400 ms of data
 compression_level = 1  # low level of compression
 checksum = False  # no checksum

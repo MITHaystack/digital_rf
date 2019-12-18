@@ -164,7 +164,15 @@ def get_unix_time(unix_sample_index, sample_rate_numerator, sample_rate_denomina
         for the time corresponding to the sample.
 
     """
-    year, month, day, hour, minute, second, picosecond = _py_rf_write_hdf5.get_unix_time(
+    (
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        second,
+        picosecond,
+    ) = _py_rf_write_hdf5.get_unix_time(
         unix_sample_index, sample_rate_numerator, sample_rate_denominator
     )
     dt = datetime.datetime(
