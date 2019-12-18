@@ -22,4 +22,4 @@ jobs:
     - name: Check formatting with black
       run: |
         pip install black
-        black --check python
+        black --check --diff python
