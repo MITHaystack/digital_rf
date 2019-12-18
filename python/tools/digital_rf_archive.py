@@ -886,7 +886,9 @@ if __name__ == "__main__":
 
     # verify gzip in range
     if args.gzip < 0 or args.gzip > 9:
-        raise ValueError("gzip must be 0 (no compression), or 1-9, not %i" % (gzip))
+        raise ValueError(
+            "gzip must be 0 (no compression), or 1-9, not %i" % (args.gzip)
+        )
 
     # call main class
     archive(
