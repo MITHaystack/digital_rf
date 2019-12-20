@@ -110,7 +110,8 @@ class digital_rf_channel_sink(gr.sync_block):
         compression_level=0,
         checksum=False,
         marching_periods=True,
-        stop_on_skipped=True,
+        stop_on_skipped=False,
+        stop_on_time_tag=False,
         debug=False,
         min_chunksize=None,
     ):
@@ -226,6 +227,9 @@ class digital_rf_channel_sink(gr.sync_block):
             If True, stop writing when a sample would be skipped (such as from
             a dropped packet).
 
+        stop_on_time_tag : bool, optional
+            If True, stop writing when any but an initial 'rx_time' tag is received.
+
         debug : bool, optional
             If True, print debugging information.
 
@@ -308,7 +312,10 @@ class digital_rf_channel_sink(gr.sync_block):
         self._checksum = checksum
         self._marching_periods = marching_periods
         self._stop_on_skipped = stop_on_skipped
+        self._stop_on_time_tag = stop_on_time_tag
         self._debug = debug
+
+        self._work_done = False
 
         self._samples_per_second = np.longdouble(
             np.uint64(sample_rate_numerator)
@@ -439,6 +446,8 @@ class digital_rf_channel_sink(gr.sync_block):
 
         # read time tags
         time_tags = self.get_tags_in_window(0, 0, nsamples, pmt.intern("rx_time"))
+        if time_tags and self._stop_on_time_tag and self._next_rel_sample != 0:
+            self._work_done = True
         # separate data into blocks to be written
         for tag in time_tags:
             offset = tag.offset
@@ -496,6 +505,9 @@ class digital_rf_channel_sink(gr.sync_block):
                     )
                     sys.stdout.write(tagstr)
                     sys.stdout.flush()
+                # set flag to stop work when stop_on_skipped is set
+                if self._stop_on_skipped and self._next_rel_sample != 0:
+                    self._work_done = True
                 if bidx == 0:
                     # override assumed continuous write
                     # data_blk_idxs[0] is already 0
@@ -564,14 +576,8 @@ class digital_rf_channel_sink(gr.sync_block):
             md_dicts = []
         self._md_queue.clear()
 
-        # check if skip occurs (*after* first write) and, if so, break
-        if self._stop_on_skipped and (
-            (
-                data_rel_samples[0] != self._next_rel_sample
-                and self._next_rel_sample != 0
-            )
-            or len(data_blk_idxs) > 1
-        ):
+        # check if work_done has been flagged (stop on skipped or time tag)
+        if self._work_done:
             if (
                 data_rel_samples[0] == self._next_rel_sample
                 or self._next_rel_sample == 0
@@ -590,7 +596,7 @@ class digital_rf_channel_sink(gr.sync_block):
                 idx = np.searchsorted(md_samples, last_sample, "right")
                 for md_sample, md_dict in zip(md_samples[:idx], md_dicts[:idx]):
                     self._DMDWriter.write(md_sample, md_dict)
-            print("Stopping at skipped sample as requested.")
+            print("Stopping as requested.")
             # return WORK_DONE
             return -1
 
@@ -634,6 +640,12 @@ class digital_rf_channel_sink(gr.sync_block):
     def set_stop_on_skipped(self, stop_on_skipped):
         self._stop_on_skipped = stop_on_skipped
 
+    def get_stop_on_time_tag(self):
+        return self._stop_on_time_tag
+
+    def set_stop_on_time_tag(self, stop_on_time_tag):
+        self._stop_on_time_tag = stop_on_time_tag
+
 
 class digital_rf_sink(gr.hier_block2):
     """Sink block for writing Digital RF data."""
@@ -658,7 +670,8 @@ class digital_rf_sink(gr.hier_block2):
         compression_level=0,
         checksum=False,
         marching_periods=True,
-        stop_on_skipped=True,
+        stop_on_skipped=False,
+        stop_on_time_tag=False,
         debug=False,
         min_chunksize=None,
     ):
@@ -784,6 +797,9 @@ class digital_rf_sink(gr.hier_block2):
             If True, stop writing when a sample would be skipped (such as from
             a dropped packet).
 
+        stop_on_time_tag : bool, optional
+            If True, stop writing when any but an initial 'rx_time' tag is received.
+
         debug : bool, optional
             If True, print debugging information.
 
@@ -886,3 +902,10 @@ class digital_rf_sink(gr.hier_block2):
     def set_stop_on_skipped(self, stop_on_skipped):
         for ch in self._channels:
             ch.set_stop_on_skipped(stop_on_skipped)
+
+    def get_stop_on_time_tag(self):
+        return self._channels[0].get_stop_on_time_tag()
+
+    def set_stop_on_time_tag(self, stop_on_time_tag):
+        for ch in self._channels:
+            ch.set_stop_on_time_tag(stop_on_time_tag)

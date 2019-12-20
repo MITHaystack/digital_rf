@@ -26,7 +26,8 @@
         metadata=$metadata,
         is_continuous=$is_continuous, compression_level=$compression_level,
         checksum=$checksum, marching_periods=$marching_periods,
-        stop_on_skipped=$stop_on_skipped, debug=$debug,
+        stop_on_skipped=$stop_on_skipped, stop_on_time_tag=$stop_on_time_tag,
+        debug=$debug,
         min_chunksize=None if $min_chunksize==0 else $min_chunksize,
     )
     </make>
@@ -34,6 +35,7 @@
     <callback>set_debug($debug)</callback>
     <callback>set_ignore_tags($ignore_tags)</callback>
     <callback>set_stop_on_skipped($stop_on_skipped)</callback>
+    <callback>set_stop_on_time_tag($stop_on_time_tag)</callback>
 
     <param>
         <name>Directory</name>
@@ -270,6 +272,22 @@
         <tab>Advanced</tab>
     </param>
     <param>
+        <name>Stop on Time Tag</name>
+        <key>stop_on_time_tag</key>
+        <value>False</value>
+        <type>bool</type>
+        <hide>part</hide>
+        <option>
+            <name>Yes</name>
+            <key>True</key>
+        </option>
+        <option>
+            <name>No</name>
+            <key>False</key>
+        </option>
+        <tab>Advanced</tab>
+    </param>
+    <param>
         <name>Minimum Chunk Size</name>
         <key>min_chunksize</key>
         <value>0</value>
@@ -398,6 +416,9 @@ Marching Periods : bool, optional
 Stop on Skip : bool, optional
     If True, stop writing when a sample would be skipped (such as from
     a dropped packet).
+
+Stop on Time Tag : bool, optional
+    If True, stop writing when any but an initial 'rx_time' tag is received.
 
 Minimum Chunk Size : int, optional
     Minimum number of samples to consume at once. This value can be
