@@ -10,6 +10,7 @@
 from __future__ import absolute_import, division, print_function
 
 import datetime
+import errno
 import os
 import re
 import sys
@@ -167,10 +168,16 @@ class DigitalRFRingbufferHandlerBase(watchdog_drf.DigitalRFEventHandler):
         if not self.dryrun:
             try:
                 os.remove(rec.path)
-            except OSError:
-                # path doesn't exist like we thought it did, oh well
-                if self.verbose:
-                    traceback.print_exc()
+            except EnvironmentError as e:
+                # Python 2 and 3 compatible substitute for FileNotFoundError
+                if e.errno == errno.ENOENT:
+                    # path doesn't exist like we thought it did, oh well
+                    if self.verbose:
+                        traceback.print_exc()
+                else:
+                    # try again if path still exists, otherwise it's ok to move on
+                    if os.path.exists(rec.path):
+                        os.remove(rec.path)
         # try to clean up directory in case it is empty
         head, tail = os.path.split(rec.path)
         try:

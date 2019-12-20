@@ -108,7 +108,7 @@ class DigitalRFMirrorHandler(watchdog_drf.DigitalRFEventHandler):
                     sys.stdout.flush()
                 # mirror to temporary name, then rename to final destination
                 self.mirror_fun(src_path, tmp_dest_path)
-                shutil.move(tmp_dest_path, dest_path)
+                os.rename(tmp_dest_path, dest_path)
         except OSError:
             if not os.path.isfile(src_path):
                 # file doesn't exist anymore, no need to notify
