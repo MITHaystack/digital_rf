@@ -123,6 +123,14 @@ parameters:
     options: ['True', 'False']
     option_labels: ['Yes', 'No']
     hide: part
+-   id: stop_on_time_tag
+    label: Stop on Time Tag
+    category: Advanced
+    dtype: bool
+    default: 'False'
+    options: ['True', 'False']
+    option_labels: ['Yes', 'No']
+    hide: part
 -   id: min_chunksize
     label: Minimum Chunk Size
     category: Advanced
@@ -166,6 +174,7 @@ templates:
             checksum=${checksum},
             marching_periods=${marching_periods},
             stop_on_skipped=${stop_on_skipped},
+            stop_on_time_tag=${stop_on_time_tag},
             debug=${debug},
             min_chunksize=${ None if min_chunksize == '0' else min_chunksize },
         )
@@ -173,6 +182,7 @@ templates:
     - set_debug(${debug})
     - set_ignore_tags(${ignore_tags})
     - set_stop_on_skipped(${stop_on_skipped})
+    - set_stop_on_time_tag(${stop_on_time_tag})
 
 documentation: |-
     Write a channel of data in Digital RF format.
@@ -277,6 +287,9 @@ documentation: |-
     Stop on Skip : bool, optional
         If True, stop writing when a sample would be skipped (such as from
         a dropped packet).
+
+    Stop on Time Tag : bool, optional
+        If True, stop writing when any but an initial 'rx_time' tag is received.
 
     Minimum Chunk Size : int, optional
         Minimum number of samples to consume at once. This value can be
