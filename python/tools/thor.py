@@ -1057,6 +1057,7 @@ class Thor(object):
                 checksum=False,
                 marching_periods=True,
                 stop_on_skipped=op.stop_on_dropped,
+                stop_on_time_tag=op.stop_on_dropped,
                 debug=op.verbose,
             )
 
