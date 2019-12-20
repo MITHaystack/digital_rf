@@ -220,14 +220,19 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
             observer_class = PollingObserver
         else:
             observer_class = Observer
-        observer_class.__init__(self, **kwargs)
+
+        self.root_observer = observer_class(**kwargs)
+
+        # get proper emitter class from root_observer instance of observer_class
+        BaseObserver.__init__(
+            self, emitter_class=self.root_observer._emitter_class, **kwargs
+        )
         # replace default event queue with ordered set queue to disallow
         # duplicate events even if added out of order
         self._event_queue = OrderedSetQueue()
         RegexMatchingEventHandler.__init__(self)
 
         self.path = os.path.abspath(path)
-        self.root_observer = observer_class(**kwargs)
         self.root_watch = None
         self._stopped_handlers = dict()
         self._dispatching_enabled = True
