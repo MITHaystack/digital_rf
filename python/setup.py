@@ -299,6 +299,8 @@ setup(
         "tools/drf_sti.py",
         "tools/drf_sound.py",
         "tools/thor.py",
+        "tools/thorosmo.py",
+        "tools/uhdtodrf.py",
         "tools/verify_digital_rf_upconvert.py",
     ],
     cmdclass=cmdclass,

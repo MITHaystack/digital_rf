@@ -98,12 +98,14 @@ Runtime [optional feature]
 
 python
   * gnuradio [gr_digital_rf] (``gnuradio``)
+  * gr-osmosdr [thorosmo] (``gr-osmosdr``)
   * gr-uhd [thor] (``libgnuradio-uhd``)
   * matplotlib [tools] (``python-matplotlib``)
   * pandas [digital_metadata] (``python-pandas``)
   * pytest >= 3 [tests] (``python-pytest``)
   * python-sounddevice [tools] (``pip install sounddevice``)
   * scipy [tools] (``python-scipy``)
+  * uhd [uhdtodrf] (``python3-uhd``)
   * watchdog [mirror, ringbuffer, watchdog] (``python-watchdog``)
 
 
