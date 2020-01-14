@@ -878,7 +878,7 @@ class Thorosmo(object):
                     cmd_time = osmosdr.time_spec_t(ct_secs) + osmosdr.time_spec_t(
                         ct_frac
                     )
-                    
+
                     # sleep until after end time
                     time.sleep(2)
         except KeyboardInterrupt:
