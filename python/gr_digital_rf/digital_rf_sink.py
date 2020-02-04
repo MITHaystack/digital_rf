@@ -583,14 +583,11 @@ class digital_rf_channel_sink(gr.sync_block):
                 or self._next_rel_sample == 0
             ):
                 # write continuous data from this chunk first
-                _py_rf_write_hdf5.rf_block_write(
+                last_rel_sample = _py_rf_write_hdf5.rf_block_write(
                     self._Writer._channelObj,
                     in_data,
                     data_rel_samples[:1],
                     data_blk_idxs[:1],
-                )
-                last_rel_sample = data_rel_samples[0] + (
-                    data_blk_idxs[1] - data_blk_idxs[0]
                 )
                 last_sample = last_rel_sample + self._start_sample
                 idx = np.searchsorted(md_samples, last_sample, "right")
