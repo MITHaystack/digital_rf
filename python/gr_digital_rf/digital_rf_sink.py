@@ -356,6 +356,16 @@ class digital_rf_channel_sink(gr.sync_block):
             # the correct time (samples in 1970 are immediately obvious)
             self._start_sample = 0
         self._next_rel_sample = 0
+        if self._debug:
+            tidx = self._start_sample
+            timedelta = util.samples_to_timedelta(tidx, self._samples_per_second)
+            tsec = timedelta.seconds
+            tfrac = timedelta.microseconds / 1e6
+            tagstr = ("\n|{0}|start @ sample 0: {1}+{2} ({3})").format(
+                self._channel_name, tsec, tfrac, tidx
+            )
+            sys.stdout.write(tagstr)
+            sys.stdout.flush()
 
         # stream tags to read (in addition to rx_time, handled specially)
         if LooseVersion(gr.version()) >= LooseVersion("3.7.12"):
