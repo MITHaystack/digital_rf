@@ -132,12 +132,16 @@ Directory : string
     timestamped subdirectories with Digital RF files. The basename (last
     component) of the path is considered the channel's name.
 
-Start : string
+Start : None | int | float | string, optional
     A value giving the start of the channel's playback.
+
     If None or '', the start of the channel's available data is used.
+
     If an integer, it is interpreted as a sample index giving the
     number of samples since the epoch (t_since_epoch*sample_rate).
+
     If a float, it is interpreted as a timestamp (seconds since epoch).
+
     If a string, four forms are permitted:
         1) a string which can be evaluated to an integer/float and
             interpreted as above,
@@ -147,9 +151,11 @@ Start : string
         3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
         4) 'now' ('nowish'), indicating the current time (rounded up)
 
-End : string
+End : None | int | float | string, optional
     A value giving the end of the channel's playback.
+
     If None or '', the end of the channel's available data is used.
+
     Otherwise, this is interpreted in the same way as the start value.
 
 Repeat : bool
