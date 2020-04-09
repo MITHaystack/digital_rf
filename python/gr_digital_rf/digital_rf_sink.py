@@ -623,6 +623,28 @@ class digital_rf_channel_sink(gr.sync_block):
             # just print the exception so we can return WORK_DONE to notify
             # other blocks to shut down cleanly
             traceback.print_exc()
+            errstr = (
+                "\n************************************************************"
+                "\nWriting data failed in 'rf_block_write' with state:"
+                "\n\tself._start_sample = {start_sample}"
+                "\n\tself._next_rel_sample = {next_rel_sample}"
+                "\nand inputs (in_data, data_rel_samples, data_blk_idxs):"
+                "\n\tdata_rel_samples = {data_rel_samples}"
+                "\n\tdata_blk_idxs = {data_blk_idxs}"
+                "\n\tin_data.dtype = {dtype}"
+                "\n\tin_data.shape = {shape}"
+                "\n\tin_data[:10] = {head}"
+                "\n************************************************************"
+            ).format(
+                start_sample=self._start_sample,
+                next_rel_sample=self._next_rel_sample,
+                dtype=in_data.dtype,
+                shape=in_data.shape,
+                head=in_data[:10],
+                data_rel_samples=data_rel_samples,
+                data_blk_idxs=data_blk_idxs,
+            )
+            print(errstr)
             return -1
 
         return nsamples
