@@ -162,13 +162,16 @@ class digital_rf_channel_sink(gr.sync_block):
             `ignore_tags` is False, 'rx_time' tags will be used to identify
             data gaps and skip the sample index forward appropriately (tags
             that refer to an earlier time will be ignored).
-            If None or '' and `ignore_tags` is False, drop data until an
-            'rx_time' tag arrives and sets the start time (a ValueError is
-            raised if `ignore_tags` is True).
+
+            If None or '' and `ignore_tags` is False, a default value of 0
+            is used (a ValueError is raised if `ignore_tags` is True).
+
             If an integer, it is interpreted as a sample index given in the
             number of samples since the epoch (time_since_epoch*sample_rate).
+
             If a float, it is interpreted as a UTC timestamp (seconds since
             epoch).
+
             If a string, three forms are permitted:
                 1) a string which can be evaluated to an integer/float and
                     interpreted as above,
@@ -739,13 +742,16 @@ class digital_rf_sink(gr.hier_block2):
             `ignore_tags` is False, 'rx_time' tags will be used to identify
             data gaps and skip the sample index forward appropriately (tags
             that refer to an earlier time will be ignored).
-            If None or '' and `ignore_tags` is False, drop data until an
-            'rx_time' tag arrives and sets the start time (a ValueError is
-            raised if `ignore_tags` is True).
+
+            If None or '' and `ignore_tags` is False, a default value of 0
+            is used (a ValueError is raised if `ignore_tags` is True).
+
             If an integer, it is interpreted as a sample index given in the
             number of samples since the epoch (time_since_epoch*sample_rate).
+
             If a float, it is interpreted as a UTC timestamp (seconds since
             epoch).
+
             If a string, three forms are permitted:
                 1) a string which can be evaluated to an integer/float and
                     interpreted as above,

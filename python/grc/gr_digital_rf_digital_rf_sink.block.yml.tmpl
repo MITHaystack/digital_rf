@@ -66,7 +66,7 @@ parameters:
     default: '1'
 -   id: start
     label: Start
-    dtype: string
+    dtype: raw
     hide: ${ 'none' if start else 'part' }
 -   id: uuid
     label: UUID
@@ -172,13 +172,17 @@ templates:
     make: >
         gr_digital_rf.digital_rf_sink(
             ${top_level_dir},
-            channels=${ [context['channel{n}'.format(n=n)].strip('\'\"') for n in range(int(nchan))] },
+            channels=[
+            % for n in range(int(nchan)):
+                ${ context['channel{n}'.format(n=n)] },
+            % endfor
+            ],
             dtype=${input.dtype},
             subdir_cadence_secs=${subdir_cadence_s},
             file_cadence_millisecs=${file_cadence_ms},
             sample_rate_numerator=${sample_rate_numerator},
             sample_rate_denominator=${sample_rate_denominator},
-            start=${start},
+            start=${ start if start else None },
             ignore_tags=${ignore_tags},
             is_complex=${input.complex},
             num_subchannels=${vlen},
@@ -254,16 +258,20 @@ documentation: |-
     Sample Rate (den) : int
         Denominator of sample rate in Hz.
 
-    Start : int | float | string, optional
-        A value giving the time/index of the channel's first sample. An
-        'rx_time' tag on the first sample will override this value when
-        `ignore_tags` is False.
-        If empty and `ignore_tags` is False, drop data until an
-        'rx_time' tag arrives and sets the start time (a ValueError is
-        raised if `ignore_tags` is True).
+    Start : None | int | float | string, optional
+        A value giving the time/index of the channel's first sample. When
+        `ignore_tags` is False, 'rx_time' tags will be used to identify
+        data gaps and skip the sample index forward appropriately (tags
+        that refer to an earlier time will be ignored).
+
+        If None or '' and `ignore_tags` is False, a default value of 0
+        is used (a ValueError is raised if `ignore_tags` is True).
+
         If an integer, it is interpreted as a sample index given in the
         number of samples since the epoch (time_since_epoch*sample_rate).
+
         If a float, it is interpreted as a timestamp (seconds since epoch).
+
         If a string, three forms are permitted:
             1) a string which can be evaluated to an integer/float and
                 interpreted as above,

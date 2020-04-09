@@ -109,11 +109,15 @@ class digital_rf_channel_source(gr.sync_block):
         ----------------
         start : None | int | float | string, optional
             A value giving the start of the channel's playback.
+
             If None or '', the start of the channel's available data is used.
+
             If an integer, it is interpreted as a sample index given in the
             number of samples since the epoch (time_since_epoch*sample_rate).
+
             If a float, it is interpreted as a UTC timestamp (seconds since
             epoch).
+
             If a string, four forms are permitted:
                 1) a string which can be evaluated to an integer/float and
                     interpreted as above,
@@ -125,7 +129,9 @@ class digital_rf_channel_source(gr.sync_block):
 
         end : None | int | float | string, optional
             A value giving the end of the channel's playback.
+
             If None or '', the end of the channel's available data is used.
+
             See `start` for a description of how this value is interpreted.
 
         repeat : bool, optional
@@ -508,11 +514,15 @@ class digital_rf_source(gr.hier_block2):
         start : None | string | int | iterable of previous, optional
             Can be a single value or an iterable of values corresponding to
             `channels` giving the start of the channel's playback.
+
             If None or '', the start of the channel's available data is used.
+
             If an integer, it is interpreted as a sample index given in the
             number of samples since the epoch (time_since_epoch*sample_rate).
+
             If a float, it is interpreted as a UTC timestamp (seconds since
             epoch).
+
             If a string, four forms are permitted:
                 1) a string which can be evaluated to an integer/float and
                     interpreted as above,
@@ -525,7 +535,9 @@ class digital_rf_source(gr.hier_block2):
         end : None | string | int | iterable of previous, optional
             Can be a single value or an iterable of values corresponding to
             `channels` giving the end of the channel's playback.
+
             If None or '', the end of the channel's available data is used.
+
             See `start` for a description of how this value is interpreted.
 
         repeat : bool, optional
