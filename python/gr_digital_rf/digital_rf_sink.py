@@ -362,7 +362,7 @@ class digital_rf_channel_sink(gr.sync_block):
         if self._debug:
             tidx = self._start_sample
             timedelta = util.samples_to_timedelta(tidx, self._samples_per_second)
-            tsec = timedelta.seconds
+            tsec = int(timedelta.total_seconds() // 1)
             tfrac = timedelta.microseconds / 1e6
             tagstr = ("\n|{0}|start @ sample 0: {1}+{2} ({3})").format(
                 self._channel_name, tsec, tfrac, tidx
