@@ -17,10 +17,10 @@ build:
 requirements:
   build:
     - {{ compiler('c') }}
-    - cmake >=3.0
+    - cmake >=3.15
+    - make  # [not win]
 
   host:
-    - h5py  # included only to ensure that a compatible hdf5 version is used to build
     - hdf5
     - mako
     - numpy
@@ -29,40 +29,36 @@ requirements:
     - setuptools
 
   run:
-    - gnuradio  # [(not win) and py27]
     - h5py
     - hdf5
-    - matplotlib
     - {{ pin_compatible('numpy') }}
     - packaging
-    - pandas
     - python
     - python-dateutil
     - pytz
-    - scipy
     - six
     - watchdog
 
 test:
   requires:
+    - gnuradio-core
     - pytest >=3.6
   imports:
     - digital_rf
     - digital_rf.digital_rf_hdf5
-    - gr_digital_rf  # [not win and py27]
+    - gr_digital_rf
   source_files:
+    - python/setup.cfg
     - python/tests/*.py
     - python/examples/*.py
   commands:
     - pytest --maxfail=10
     - python python/examples/example_write_digital_metadata.py
     - python python/examples/example_read_digital_metadata.py
-    - conda inspect linkages -p $PREFIX digital_rf  # [not win]
-    - conda inspect objects -p $PREFIX digital_rf  # [osx]
 
 about:
   home: https://github.com/MITHaystack/digital_rf
-  license: BSD
+  license: BSD-3-Clause
   license_file: LICENSE
   summary: 'Work with data in the Digital RF and Digital Metadata formats.'
   description: |
