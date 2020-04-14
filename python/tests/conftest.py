@@ -8,6 +8,13 @@
 # ----------------------------------------------------------------------------
 
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "firstonly(fixturename1, fixturename2, ...): Generate a test only for the first parameter of the listed fixtures.",
+    )
+
+
 def pytest_collection_modifyitems(items):
     selected_items = []
 
