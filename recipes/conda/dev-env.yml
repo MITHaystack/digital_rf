@@ -1,0 +1,8 @@
+name: dev-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - conda-forge-pinning
+  - conda-verify
+  - ripgrep
