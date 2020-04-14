@@ -164,3 +164,6 @@ CTestTestfile.cmake
 
 # Rever
 rever/
+
+# dotdirectory
+.directory
