@@ -48,7 +48,6 @@ test:
     - digital_rf.digital_rf_hdf5
     - gr_digital_rf
   source_files:
-    - python/setup.cfg
     - python/tests/*.py
     - python/examples/*.py
   commands:
