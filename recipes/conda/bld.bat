@@ -15,9 +15,9 @@ cmake -G "NMake Makefiles" ^
 if errorlevel 1 exit 1
 
 :: build
-nmake
+cmake --build .
 if errorlevel 1 exit 1
 
 :: install
-nmake install
+cmake --build . --target install
 if errorlevel 1 exit 1
