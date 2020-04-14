@@ -3,7 +3,7 @@ name: lint
 on: [push, pull_request]
 
 jobs:
-  build:
+  flake8-black:
     runs-on: ubuntu-latest
     name: flake8-black
     steps:
