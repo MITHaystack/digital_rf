@@ -7,12 +7,13 @@
 #
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
-"""Record data from SDRs using osmo pakcage to Digital RF format."""
+"""Record data from the ADALM Pluto using GNURadio to Digital RF format."""
 from __future__ import absolute_import, division, print_function
 
 import argparse
 import math
 import os
+import re
 import sys
 import time
 from ast import literal_eval
@@ -30,7 +31,6 @@ from gnuradio import blocks
 from gnuradio import filter as grfilter
 from gnuradio import gr
 from gnuradio import iio
-import osmosdr
 
 
 def equiripple_lpf(cutoff=0.9, transition_width=0.2, attenuation=80, pass_ripple=None):
@@ -141,9 +141,7 @@ class Thorpluto(object):
             time_sources=[""],
             # receiver group (apply to all)
             samplerate=1e6,
-            dev_args=["recv_buff_size=32000", "num_recv_frames=512"],
-            stream_args=[],
-            tune_args=[],
+            buff_size=0x8000,
             time_sync=True,
             wait_for_lock=True,
             stop_on_dropped=False,
@@ -156,7 +154,6 @@ class Thorpluto(object):
             bbdc_track=[False],
             gains=[0],
             bandwidths=[0],
-            antennas=[""],
             # output channel group (num: len of channel_names)
             channel_names=["ch0"],
             channels=[None],
@@ -183,7 +180,7 @@ class Thorpluto(object):
         if op.test_settings:
             if op.verbose:
                 print("Initialization: testing device settings.")
-            self._osmosdr_setup()
+            self._pluto_setup()
 
             # finalize options (for settings that depend on USRP setup)
             self._finalize_options()
@@ -278,10 +275,9 @@ class Thorpluto(object):
             mbnums = list(repeat(mbnum, 1))
             op.mboards_bychan.extend(mbs)
             op.mboardnum_bychan.extend(mbnums)
-
+        op.nrchs = len(mboards)
         # repeat receiver channel arguments as necessary
         for rch_arg in (
-            "antennas",
             "bandwidths",
             "centerfreqs",
             "quad_track",
@@ -347,11 +343,20 @@ class Thorpluto(object):
         ]
 
 
+        # create device_addr string to identify the requested device(s)
         op.mboard_strs = []
-        for mb in op.mboards:
-            s = "numchan=1 {type}={mb}".format(type=radio_type, mb=mb.strip())
-
-            s = ",".join(chain([s], op.dev_args))
+        for n, mb in enumerate(op.mboards):
+            if re.match(r"[^0-9]+:.+", mb):
+                idtype, mb = mb.split(":")
+            elif re.match(r"[0-9]{1,2}\.[0-9]{1,2}\.[0-9]{1,2}", mb):
+                idtype = "usb"
+            elif re.match(r"[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}", mb):
+                idtype = "ip"
+            if len(op.mboards) == 1:
+                # do not use identifier numbering if only using one mainboard
+                s = "{type}:{mb}".format(type=idtype, mb=mb.strip())
+            else:
+                s = "{type}{n}:{mb}".format(type=idtype, n=n, mb=mb.strip())
             op.mboard_strs.append(s)
 
         if op.verbose:
@@ -363,16 +368,13 @@ class Thorpluto(object):
                 Clock sources: {clock_sources}
                 Time sources: {time_sources}
                 Sample rate: {samplerate}
-                Device arguments: {dev_args}
-                Tune arguments: {tune_args}
-                Antenna: {antennas}
+                Buffer Size: {buff_size}
                 Bandwidth: {bandwidths}
                 Frequency: {centerfreqs}
                 Gain: {gains}
                 Quadrature Tracking: {quad_track}
                 RF DC Tracking: {rfdc_track}
                 Baseband DC Tracking: {bbdc_track}
-                IQ balance: {iq_balances}
                 Output channels: {channels}
                 Output channel names: {channel_names}
                 Output sample rate: {ch_samplerates}
@@ -774,18 +776,17 @@ class Thorpluto(object):
                     # receiver metadata for USRP
                     receiver=dict(
                         description="ADALM-PLUTO Recording using GNU Radio block",
-                        antenna=op.antennas[kr],
                         bandwidth=op.bandwidths[kr],
                         center_freq=op.centerfreqs[kr],
                         clock_rate=op.clock_rates[mbnum],
                         clock_source=op.clock_sources[mbnum],
-                        quad_track=op.quad_track[mbnum]
-                        rfdc_track=op.rfdc_track[mbnum]
-                        bbdc_track=op.bbdc_track[mbnum]
+                        quad_track=op.quad_track[mbnum],
+                        rfdc_track=op.rfdc_track[mbnum],
+                        bbdc_track=op.bbdc_track[mbnum],
                         gain=op.gains[kr],
                         id=op.mboards_bychan[kr],
                         otw_format=op.otw_format,
-                        samp_rate=op.samplerate # need to get sample ratertl_chan.get_sample_rate(),
+                        samp_rate=op.samplerate, # need to get sample ratertl_chan.get_sample_rate(),
                         time_source=op.time_sources[mbnum],
                     ),
                     processing=dict(
@@ -835,9 +836,9 @@ class Thorpluto(object):
                     ct_td = et - drf.util.epoch
                     ct_secs = ct_td.total_seconds() // 1.0
                     ct_frac = ct_td.microseconds / 1000000.0
-                    cmd_time = osmosdr.time_spec_t(ct_secs) + osmosdr.time_spec_t(
-                        ct_frac
-                    )
+                    # cmd_time = osmosdr.time_spec_t(ct_secs) + osmosdr.time_spec_t(
+                    #     ct_frac
+                    # )
 
                     # sleep until after end time
                     time.sleep(2)
@@ -1019,29 +1020,21 @@ def _add_receiver_group(parser):
         help="""Sample rate in Hz. (default: 1e6)""",
     )
     recgroup.add_argument(
-        "-A",
-        "--devargs",
-        dest="dev_args",
-        action=Extend,
-        help="""Device arguments, e.g. "master_clock_rate=30e6".
-                (default: 'recv_buff_size=100000000,num_recv_frames=512')""",
+        "-d",
+        "--buffersize",
+        dest="buff_size",
+        type=evalint,
+        help="""Size of buffer for the pluto.""",
     )
-    recgroup.add_argument(
-        "-a",
-        "--streamargs",
-        dest="stream_args",
-        action=Extend,
-        help="""Stream arguments, e.g. "peak=0.125,fullscale=1.0".
-                (default: '')""",
-    )
-    recgroup.add_argument(
-        "-T",
-        "--tuneargs",
-        dest="tune_args",
-        action=Extend,
-        help="""Tune request arguments, e.g. "mode_n=integer,int_n_step=100e3".
-                (default: '')""",
-    )
+    # recgroup.add_argument(
+    #     "-A",
+    #     "--devargs",
+    #     dest="dev_args",
+    #     action=Extend,
+    #     help="""Device arguments, e.g. "master_clock_rate=30e6".
+    #             (default: 'recv_buff_size=100000000,num_recv_frames=512')""",
+    # )
+
 
     recgroup.add_argument(
         "--stop_on_dropped",
@@ -1114,15 +1107,7 @@ def _add_rchannel_group(parser):
         type=evalfloat,
         help="""Frontend bandwidth in Hz. (default: 0 == frontend default)""",
     )
-    chgroup.add_argument(
-        "-y",
-        "--antenna",
-        dest="antennas",
-        action=Extend,
-        type=noneorstr,
-        help="""Name of antenna to select on the frontend.
-                (default: frontend default))""",
-    )
+
     return parser
 
 
@@ -1328,9 +1313,9 @@ def _build_thor_parser(Parser, *args):
     formatter = argparse.RawDescriptionHelpFormatter(scriptname)
     width = formatter._width
 
-    title = "THOROSMO (The Haystack Observatory Recorder)"
+    title = "THORPLUTO (The Haystack Observatory Recorder) for the Pluto"
     copyright = "Copyright (c) 2020 Massachusetts Institute of Technology"
-    shortdesc = "Record data from osmo compatible SDRs in DigitalRF format."
+    shortdesc = "Record data from ADALM Pluto SDRs in DigitalRF format."
     desc = "\n".join(
         (
             "*" * width,
@@ -1343,7 +1328,7 @@ def _build_thor_parser(Parser, *args):
     )
 
     usage = (
-        "%(prog)s [-m MBOARD] [-d SUBDEV] [-c CH] [-y ANT] [-f FREQ]"
+        "%(prog)s [-m MBOARD] [-c CH]  [-f FREQ]"
         " [-F OFFSET] \\\n"
         "{0:8}[-g GAIN] [-b BANDWIDTH] [-r RATE] [options] DIR\n".format("")
     )
@@ -1381,11 +1366,11 @@ def _build_thor_parser(Parser, *args):
 
     egs = [
         """\
-        {0} -m usb:192.168.20.2 -d "A:A A:B" -c h,v -f 95e6 -r 100e6/24
+        {0} -m 20.27.5 -c h,v -f 95e6 -r 100e6/24
         /data/test
         """,
         """\
-        {0} -m 192.168.10.2 -d "A:0" -c ch1 -y "TX/RX" -f 20e6 -F 10e3 -g 20
+        {0} -m 192.168.10.2  -c ch1  -f 20e6 -F 10e3 -g 20
         -b 0 -r 1e6 /data/test
         """,
     ]
@@ -1442,14 +1427,6 @@ def _run_thor(args):
         args.ch_samplerates = [args.samplerate / d for d in args.decimations]
     del args.decimations
 
-    # handle deprecated sync_source argument, converting it to clock_sources
-    # and time_sources
-    if args.sync_source is not None:
-        if args.clock_sources is None:
-            args.clock_sources = [args.sync_source]
-        if args.time_sources is None:
-            args.time_sources = [args.sync_source]
-    del args.sync_source
 
     # separate args.chs (num, name) tuples into args.channels and
     # args.channel_names
@@ -1457,25 +1434,6 @@ def _run_thor(args):
         args.channels, args.channel_names = map(list, zip(*args.chs))
     del args.chs
 
-    # remove redundant arguments in dev_args, stream_args, tune_args
-    if args.dev_args is not None:
-        try:
-            dev_args_dict = dict([a.split("=") for a in args.dev_args])
-        except ValueError:
-            raise ValueError("Device arguments must be {KEY}={VALUE} pairs.")
-        args.dev_args = ["{0}={1}".format(k, v) for k, v in dev_args_dict.items()]
-    if args.stream_args is not None:
-        try:
-            stream_args_dict = dict([a.split("=") for a in args.stream_args])
-        except ValueError:
-            raise ValueError("Stream arguments must be {KEY}={VALUE} pairs.")
-        args.stream_args = ["{0}={1}".format(k, v) for k, v in stream_args_dict.items()]
-    if args.tune_args is not None:
-        try:
-            tune_args_dict = dict([a.split("=") for a in args.tune_args])
-        except ValueError:
-            raise ValueError("Tune request arguments must be {KEY}={VALUE} pairs.")
-        args.tune_args = ["{0}={1}".format(k, v) for k, v in tune_args_dict.items()]
 
     # convert metadata strings to a dictionary
     if args.metadata is not None:
