@@ -99,6 +99,7 @@ Runtime [optional feature]
 python
   * gnuradio [gr_digital_rf] (``gnuradio``)
   * gr-osmosdr [thorosmo] (``gr-osmosdr``)
+  * gr-iio [thorpluto] (``gr-iio``)
   * gr-uhd [thor] (``libgnuradio-uhd``)
   * matplotlib [tools] (``python-matplotlib``)
   * pandas [digital_metadata] (``python-pandas``)
