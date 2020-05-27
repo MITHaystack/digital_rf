@@ -300,7 +300,7 @@ setup(
         "tools/drf_sound.py",
         "tools/thor.py",
         "tools/thorosmo.py",
-        "tools/thorpluto.py"
+        "tools/thorpluto.py",
         "tools/uhdtodrf.py",
         "tools/verify_digital_rf_upconvert.py",
     ],
