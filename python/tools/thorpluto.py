@@ -176,7 +176,7 @@ class Thorpluto(object):
         op = self._parse_options(datadir=datadir, **options)
         self.op = op
 
-        # test usrp device settings, release device when done
+        # test device settings, release device when done
         if op.test_settings:
             if op.verbose:
                 print("Initialization: testing device settings.")
@@ -189,8 +189,6 @@ class Thorpluto(object):
     def _parse_options(**kwargs):
         """Put all keyword options in a namespace and normalize them."""
         op = argparse.Namespace(**kwargs)
-
-
 
         # get USRP cpu_format based on output type and decimation requirements
         processing_required = (
@@ -342,7 +340,6 @@ class Thorpluto(object):
             for f, rch in zip(op.ch_centerfreqs, op.channels)
         ]
 
-
         # create device_addr string to identify the requested device(s)
         op.mboard_strs = []
         for n, mb in enumerate(op.mboards):
@@ -408,9 +405,9 @@ class Thorpluto(object):
         # sup_sr = [1.024e6, 1.4e6, 1.8e6, 1.92e6, 2.048e6, 2.4e6, 2.56e6]
 
         for mnum in range(op.nmboards):
-            #HACK two questions
-            #1 Do I need to use the pluto source or you use the iio device source?
-            #ans: Can use fmcomms2_source
+            # HACK two questions
+            # 1 Do I need to use the pluto source or you use the iio device source?
+            # ans: Can use fmcomms2_source
             """make(std::string const & uri, unsigned long long frequency,
             unsigned long samplerate, unsigned long bandwidth, bool ch1_en,
             bool ch2_en, bool ch3_en, bool ch4_en, unsigned long buffer_size,
@@ -418,14 +415,23 @@ class Thorpluto(object):
             double gain1_value, char const * gain2, double gain2_value,
             char const * rf_port_select, char const * filter, bool auto_filter=True)
             """
-            pluto_sources[mnum] = iio.pluto_source(uri=op.mboard_strs[mnum],
-                frequency=int(op.centerfreqs[mnum]), samplerate=int(op.samplerate),
-                bandwidth=int(op.bandwidths[mnum]), buffer_size=0x8000,
-                quadrature=op.quad_track[mnum], rfdc=op.rfdc_track[mnum], bbdc=op.bbdc_track[mnum],
-                gain="manual", gain_value=op.gains[mnum], filter='', auto_filter=True)
+            pluto_sources[mnum] = iio.pluto_source(
+                uri=op.mboard_strs[mnum],
+                frequency=int(op.centerfreqs[mnum]),
+                samplerate=int(op.samplerate),
+                bandwidth=int(op.bandwidths[mnum]),
+                buffer_size=0x8000,
+                quadrature=op.quad_track[mnum],
+                rfdc=op.rfdc_track[mnum],
+                bbdc=op.bbdc_track[mnum],
+                gain="manual",
+                gain_value=op.gains[mnum],
+                filter="",
+                auto_filter=True,
+            )
 
             # set master clock rate
-            #HACK can you set clock rates
+            # HACK can you set clock rates
             # clock_rate = op.clock_rates[mnum]
             # if clock_rate is not None:
             #     osmo_sources[mnum].set_clock_rate(clock_rate, 0)
@@ -435,8 +441,7 @@ class Thorpluto(object):
         # calculate longdouble precision/rational sample rate
         # (integer division of clock rate)
         # HACK Get clock rate too
-        #cr = osmo_sources[0].get_clock_rate(0)
-
+        # cr = osmo_sources[0].get_clock_rate(0)
 
         op.samplerate = samplerate
         op.samplerate_frac = Fraction(samplerate).limit_denominator()
@@ -454,7 +459,7 @@ class Thorpluto(object):
 
         for ko, (osr, nsc) in enumerate(zip(op.ch_samplerates, op.ch_nsubchannels)):
             # get output sample rate fraction
-            # (op.samplerate_frac final value is set in _usrp_setup
+            # (op.samplerate_frac final value is set in _pluto_setup
             #  so can't get output sample rate until after that is done)
             if osr is None:
                 ch_samplerate_frac = op.samplerate_frac
@@ -786,7 +791,7 @@ class Thorpluto(object):
                         gain=op.gains[kr],
                         id=op.mboards_bychan[kr],
                         otw_format=op.otw_format,
-                        samp_rate=op.samplerate, # need to get sample ratertl_chan.get_sample_rate(),
+                        samp_rate=op.samplerate,  # need to get sample ratertl_chan.get_sample_rate(),
                         time_source=op.time_sources[mbnum],
                     ),
                     processing=dict(
@@ -1034,7 +1039,6 @@ def _add_receiver_group(parser):
     #     help="""Device arguments, e.g. "master_clock_rate=30e6".
     #             (default: 'recv_buff_size=100000000,num_recv_frames=512')""",
     # )
-
 
     recgroup.add_argument(
         "--stop_on_dropped",
@@ -1427,13 +1431,11 @@ def _run_thor(args):
         args.ch_samplerates = [args.samplerate / d for d in args.decimations]
     del args.decimations
 
-
     # separate args.chs (num, name) tuples into args.channels and
     # args.channel_names
     if args.chs is not None:
         args.channels, args.channel_names = map(list, zip(*args.chs))
     del args.chs
-
 
     # convert metadata strings to a dictionary
     if args.metadata is not None:
