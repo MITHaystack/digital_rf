@@ -3,7 +3,7 @@
   alternate_emails:
   - ryan.volz@gmail.com
   - rvolz@haystack.mit.edu
-  num_commits: 407
+  num_commits: 440
   first_commit: 2017-04-07 17:54:29
 - name: Frank Lind
   email: flind@mit.edu
@@ -16,7 +16,7 @@
   first_commit: 2017-05-26 09:24:02
 - name: John Swoboda
   email: swoboj@mit.edu
-  num_commits: 53
+  num_commits: 60
   first_commit: 2017-04-12 15:28:37
 - name: Juha Vierinen
   email: jvi019@uit.no
