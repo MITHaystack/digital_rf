@@ -4,6 +4,27 @@ digital_rf Change Log
 
 .. current developments
 
+v2.6.4
+====================
+
+**Added:**
+
+* Add the "thorpluto" tool for writing data from the ADALM PLUTO using GNU Radio. This script requires gr-iio to run. Note that this script duplicates some of the functionality of the existing "thor" recorder script, and may be subsumed or arguments may change in a future consolidation.
+* Option to use the CMake variable ``Python_EXECUTABLE`` to manually set the path to the Python interpreter (useful if autodetection fails or Python 2 is preferred).
+* Add ``stop_on_time_tag`` parameter to the Digital RF Sink blocks, useful when time tags only happen for USRP dropped samples but the 'rx_time' tag value falsely indicates no drop.
+* Add the "thorosmo" tool for writing data from osmosdr-supported receivers using GNU Radio, and add the "uhdtodrf" tool for writing data from UHD devices using the UHD Python API *without* using GNU Radio. Note that these scripts duplicate some of the functionality of the existing "thor" recorder script, and they may be subsumed or their arguments may change in a future consolidation.
+* Add option to force polling for watchdog functions (ringbuffer, mirror, etc.), which is useful as a fallback when the default watchdog observer fails silently.
+
+**Changed:**
+
+* The ``thor.py`` script's ``stop_on_dropped`` parameter now includes the new ``stop_on_time_tag`` behavior.
+
+**Fixed:**
+
+* Fix an IndexError when using `stop_on_skipped` or `stop_on_time_tag` with `gr_digital_rf.digital_rf_channel_sink`. If the skip/tag happened with only one data block to be written, the IndexError would trigger upon trying to index to a second data block.
+
+
+
 
 v2.6.3
 ====================
