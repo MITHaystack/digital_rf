@@ -1,3 +1,9 @@
+import datetime
+import os
+
+import rever
+import xonsh
+
 $PROJECT = "digital_rf"
 $WEBSITE_URL = "https://github.com/MITHaystack/digital_rf"
 $GITHUB_ORG = "MITHaystack"
@@ -8,14 +14,15 @@ $ACTIVITIES = [
     "authors",
     "bibtex",
     "changelog",
-    "pytest",
     "tag",
+    "pytest",
+    "copy_dist",
     "push_tag",
-    "conda_forge",
     "ghrelease",
+    "pypi_upload",
+    "conda_forge",
 ]
 
-import datetime
 $VERSION_BUMP_PATTERNS = [
     (
         "python/CMakeLists.txt",
@@ -76,6 +83,29 @@ $DOCKER_APT_DEPS = [
     "python3-six",
     "python3-tz",
 ]
-$DOCKER_INSTALL_COMMAND = "git clean -fdx && mkdir build-rever && cd build-rever && cmake .. && make && make install && cd .. && rm -rf build-rever"
+$DOCKER_INSTALL_COMMAND = "git clean -fdx && mkdir build-rever && cd build-rever && cmake .. && make && make install && make sdist && cp -a dist $HOME/ && cd .. && rm -rf build-rever"
 
 $PYTEST_COMMAND = "pytest-3"
+
+@rever.activity.activity(deps={"pytest"})
+def copy_dist():
+    """Copy dist tarballs from install docker container to rever dist directory."""
+    dist_dir = os.path.join($REVER_DIR, "dist")
+    if os.path.exists(dist_dir):
+        xonsh.lib.os.rmtree(dist_dir, force=True)
+    $install_image = xonsh.tools.expand_path($DOCKER_INSTALL_IMAGE)
+    $install_container_id = $(docker ps -aq --filter ancestor=$install_image).strip()
+    docker cp $install_container_id:$DOCKER_HOME/dist $REVER_DIR/
+    del $install_image
+    del $install_container_id
+copy_dist.requires = {"commands": {"docker": "docker"}}
+
+@rever.activity.activity(deps={"version_bump", "copy_dist"})
+def pypi_upload():
+    """Uploads packages from the rever dist directory to the Python Package Index."""
+    $dist_dir = os.path.join($REVER_DIR, "dist")
+    p = ![twine upload --sign $dist_dir/*]
+    if p.rtn != 0:
+        raise RuntimeError("PyPI upload failed!")
+    del $dist_dir
+pypi_upload.requires = {"commands": {"twine": "twine"}}
