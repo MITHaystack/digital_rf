@@ -20,7 +20,6 @@ Create a cross spectral time intensity summary plot for the given data sets.
 import datetime
 import itertools as it
 import optparse
-import string
 import sys
 import time
 import traceback
@@ -53,7 +52,7 @@ class DataPlotter:
 
         for idx, p in enumerate(self.control.path):
 
-            ch = string.split(self.control.channel[idx], ":")
+            ch = self.control.channel[idx].split(":")
             self.channel.append(ch[0])
             self.sub_channel.append(int(ch[1]))
 
@@ -332,8 +331,8 @@ class DataPlotter:
                 vmax2 = np.pi * 1.05
 
                 if self.control.zaxis:
-                    vmin = int(string.split(self.control.zaxis, ":")[0])
-                    vmax = int(string.split(self.control.zaxis, ":")[1])
+                    vmin = int(self.control.zaxis.split(":")[0])
+                    vmax = int(self.control.zaxis.split(":")[1])
                 else:
                     vmin = np.real(np.median(Pss) - 6.0)
                     vmax = np.real(

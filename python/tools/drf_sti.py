@@ -13,7 +13,6 @@
 import datetime
 import optparse
 import os
-import string
 import sys
 import time
 import traceback
@@ -35,7 +34,7 @@ class DataPlotter(object):
     def __init__(self, control):
         """Initialize a data plotter for STI plotting."""
         self.control = control
-        ch = string.split(self.control.channel, ":")
+        ch = self.control.channel.split(":")
         self.channel = ch[0]
         self.sub_channel = int(ch[1])
 
@@ -214,8 +213,8 @@ class DataPlotter(object):
             )
 
             if self.control.zaxis:
-                vmin = int(string.split(self.control.zaxis, ":")[0])
-                vmax = int(string.split(self.control.zaxis, ":")[1])
+                vmin = int(self.control.zaxis.split(":")[0])
+                vmax = int(self.control.zaxis.split(":")[1])
             else:
                 vmin = np.real(np.median(Pss) - 6.0)
                 vmax = np.real(

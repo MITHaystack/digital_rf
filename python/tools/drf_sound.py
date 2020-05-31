@@ -20,7 +20,6 @@ from __future__ import absolute_import, division, print_function
 import datetime
 import optparse
 import os
-import string
 import sys
 
 import dateutil
@@ -38,7 +37,7 @@ class SoundDRF(object):
         """ Initializes the SoundDRF class."""
 
         self.control = control
-        ch = string.split(self.control.channel, ":")
+        ch = self.control.channel.split(":")
         self.channel = ch[0]
         self.sub_channel = int(ch[1])
 
