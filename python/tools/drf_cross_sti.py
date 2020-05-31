@@ -34,8 +34,6 @@ import pytz
 import scipy
 import scipy.signal
 
-matplotlib.rc("axes", hold=False)
-
 
 class DataPlotter:
     def __init__(self, control):
@@ -216,13 +214,13 @@ class DataPlotter:
             # changes
             xmdf = self.dio[xidx].read_metadata(st0, et0, self.channel[xidx])
             try:
-                xmd = xmdf[xmdf.keys()[0]]
+                xmd = xmdf[list(xmdf.keys())[0]]
                 xcfreq = xmd["center_frequencies"].ravel()[self.sub_channel[xidx]]
             except (IndexError, KeyError):
                 xcfreq = 0.0
             ymdf = self.dio[yidx].read_metadata(st0, et0, self.channel[yidx])
             try:
-                ymd = ymdf[ymdf.keys()[0]]
+                ymd = ymdf[list(ymdf.keys())[0]]
                 ycfreq = ymd["center_frequencies"].ravel()[self.sub_channel[yidx]]
             except (IndexError, KeyError):
                 ycfreq = 0.0

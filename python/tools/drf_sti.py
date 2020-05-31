@@ -27,8 +27,6 @@ import pytz
 import scipy
 import scipy.signal
 
-matplotlib.rc("axes", hold=False)
-
 
 class DataPlotter(object):
     def __init__(self, control):
@@ -138,7 +136,7 @@ class DataPlotter(object):
         # changes
         mdt = self.dio.read_metadata(st0, et0, self.channel)
         try:
-            md = mdt[mdt.keys()[0]]
+            md = mdt[list(mdt.keys())[0]]
             cfreq = md["center_frequencies"].ravel()[self.sub_channel]
         except (IndexError, KeyError):
             cfreq = 0.0

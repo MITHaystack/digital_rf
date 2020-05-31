@@ -437,13 +437,11 @@ def histogram_plot(data, sfreq, toffset, bins, log_scale, title):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     ax.hist(np.real(data), bins, log=log_scale, histtype="bar", color=["green"])
-    ax.hold(True)
     ax.hist(np.imag(data), bins, log=log_scale, histtype="bar", color=["blue"])
     ax.grid(True)
     ax.set_xlabel("adc value")
     ax.set_ylabel("frequency")
     ax.set_title(title)
-    ax.hold(False)
 
     return fig
 
