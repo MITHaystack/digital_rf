@@ -151,12 +151,12 @@ class Thorpluto(object):
             realtime=False,
             test_settings=True,
             # receiver ch. group (num: matching channels from mboards)
-            centerfreqs=[100e6],
+            centerfreqs=[2.4e9],
             quad_track=[False],
             rfdc_track=[False],
             bbdc_track=[False],
-            gains=[0],
-            bandwidths=[0],
+            gains=[73],
+            bandwidths=[20e6],
             # output channel group (num: len of channel_names)
             channel_names=["ch0"],
             channels=[None],
@@ -270,13 +270,12 @@ class Thorpluto(object):
         # all mainboards
         op.mboards_bychan = []
         op.mboardnum_bychan = []
-        mboards = op.mboards if op.mboards else ["default"]
-        for mbnum, mb in enumerate(mboards):
-            mbs = list(repeat(mb, 1))
-            mbnums = list(repeat(mbnum, 1))
-            op.mboards_bychan.extend(mbs)
-            op.mboardnum_bychan.extend(mbnums)
-        op.nrchs = len(mboards)
+        # add a default mboard if the argument was empty
+        op.mboards = op.mboards if op.mboards else [""]
+        for mbnum, mb in enumerate(op.mboards):
+            op.mboards_bychan.extend([mb])
+            op.mboardnum_bychan.extend([mbnum])
+        op.nrchs = op.nmboards
         # repeat receiver channel arguments as necessary
         for rch_arg in (
             "bandwidths",
@@ -352,6 +351,11 @@ class Thorpluto(object):
                 idtype = "usb"
             elif re.match(r"[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}", mb):
                 idtype = "ip"
+            else:
+                # no idtype specified, not a format that we recognize, so just pass it
+                # (this will catch empty string for using default device)
+                op.mboard_strs.append(mb)
+                continue
             if len(op.mboards) == 1:
                 # do not use identifier numbering if only using one mainboard
                 s = "{type}:{mb}".format(type=idtype, mb=mb.strip())
@@ -427,7 +431,7 @@ class Thorpluto(object):
                 quadrature=op.quad_track[mnum],
                 rfdc=op.rfdc_track[mnum],
                 bbdc=op.bbdc_track[mnum],
-                gain="manual",
+                gain="manual" if op.gains[mnum] >= 0 else "fast_attack",
                 gain_value=op.gains[mnum],
                 filter="",
                 auto_filter=True,
@@ -631,11 +635,11 @@ class Thorpluto(object):
         # populate flowgraph one channel at a time
         fg = gr.top_block()
         for ko in range(op.nochs):
-            pluto_chan = pluto_dict[ko]
             # receiver channel number corresponding to this output channel
             kr = op.channels[ko]
             # mainboard number corresponding to this receiver's channel
             mbnum = op.mboardnum_bychan[kr]
+            pluto_chan = pluto_dict[mbnum]
 
             # output settings that get modified depending on processing
             ch_samplerate_frac = op.ch_samplerates_frac[ko]
@@ -1074,7 +1078,7 @@ def _add_rchannel_group(parser):
         dest="centerfreqs",
         action=Extend,
         type=evalfloat,
-        help="""Center frequency in Hz. (default: 100e6)""",
+        help="""Center frequency in Hz. (default: 2.4e9)""",
     )
     chgroup.add_argument(
         "--quad_track",
@@ -1104,7 +1108,7 @@ def _add_rchannel_group(parser):
         dest="gains",
         action=Extend,
         type=evalfloat,
-        help="""Gain in dB. (default: 0)""",
+        help="""Gain in dB. (default: 73)""",
     )
     chgroup.add_argument(
         "-b",
@@ -1112,7 +1116,7 @@ def _add_rchannel_group(parser):
         dest="bandwidths",
         action=Extend,
         type=evalfloat,
-        help="""Frontend bandwidth in Hz. (default: 0 == frontend default)""",
+        help="""Frontend bandwidth in Hz. (default: 20e6)""",
     )
 
     return parser
@@ -1373,12 +1377,15 @@ def _build_thor_parser(Parser, *args):
 
     egs = [
         """\
-        {0} -m 20.27.5 -c h,v -f 95e6 -r 100e6/24
+        {0} -m usb:20.27.5 -c hpol -f 2.4e9 -r 100e6/24
         /data/test
         """,
         """\
-        {0} -m 192.168.10.2  -c ch1  -f 20e6 -F 10e3 -g 20
-        -b 0 -r 1e6 /data/test
+        {0} -m 192.168.10.2 -c ch0 -f 440e6 -g 64
+        -b 800e3 -r 1e6 /data/test
+        """,
+        """\
+        {0} -c ch0 -f 437.5e6 -r 5e6 /data/test
         """,
     ]
 
