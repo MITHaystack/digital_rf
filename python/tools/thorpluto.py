@@ -30,7 +30,10 @@ import gr_digital_rf as gr_drf
 from gnuradio import blocks
 from gnuradio import filter as grfilter
 from gnuradio import gr
-from gnuradio import iio
+try:
+    import iio
+except ImportError:
+    from gnuradio import iio
 
 
 def equiripple_lpf(cutoff=0.9, transition_width=0.2, attenuation=80, pass_ripple=None):
