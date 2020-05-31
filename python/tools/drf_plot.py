@@ -22,7 +22,6 @@
 import calendar
 import getopt
 import os
-import string
 import sys
 import time
 import traceback
@@ -1111,7 +1110,7 @@ if __name__ == "__main__":
         elif opt in ("-p"):
             plot_type = val
         elif opt in ("-c"):
-            sp = string.split(val, ":")
+            sp = val.split(":")
             if len(sp) > 0:
                 channel = sp[0]
             if len(sp) > 1:
@@ -1125,7 +1124,7 @@ if __name__ == "__main__":
             print(atime)
 
         elif opt in ("-r"):
-            sp = string.split(val, ":")
+            sp = val.split(":")
 
             if len(sp) > 0:
                 start_sample = int(sp[0])
@@ -1145,7 +1144,7 @@ if __name__ == "__main__":
                 sys.exit()
 
         elif opt in ("-z"):
-            zl, zh = string.split(val, ":")
+            zl, zh = val.split(":")
             zscale = (float(zl), float(zh))
 
         elif opt in ("-b"):
@@ -1157,7 +1156,7 @@ if __name__ == "__main__":
         elif opt in ("-d"):
             detrend = True
         elif opt in ("-m"):
-            cl, bl = string.split(val, ":")
+            cl, bl = val.split(":")
             msl_code_length = int(cl)
             msl_baud_length = int(bl)
 
