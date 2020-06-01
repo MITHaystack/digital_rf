@@ -2113,12 +2113,3 @@ class _top_level_dir_properties(object):
             last_start_sample = rf_data_index[-1][0]
             last_index = rf_data_index[-1][1]
             return int(last_start_sample + (total_samples - (last_index + 1)))
-
-    def __del__(self):
-        # Make sure cached file is closed - does not happen automatically
-        try:
-            if self._cachedFile is not None:
-                self._cachedFile.close()
-        except ValueError:
-            # already closed
-            pass
