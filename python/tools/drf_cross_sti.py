@@ -329,11 +329,7 @@ class DataPlotter:
                     med_Pss = np.nanmedian(Pss)
                     max_Pss = np.nanmax(Pss)
                     vmin = np.real(med_Pss - 6.0)
-                    vmax = np.real(
-                        med_Pss
-                        + (max_Pss - med_Pss) * 0.61803398875
-                        + 50.0
-                    )
+                    vmax = np.real(med_Pss + (max_Pss - med_Pss) * 0.61803398875 + 50.0)
 
                 im = ax.imshow(
                     Pss,
