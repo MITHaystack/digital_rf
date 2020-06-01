@@ -205,19 +205,17 @@ class DataPlotter(object):
 
             # determine image color extent in log scale units
             Pss = sti_psd_data
-            vmin = np.real(np.median(Pss) - 6.0)
-            vmax = np.real(
-                np.median(Pss) + (np.max(Pss) - np.median(Pss)) * 0.61803398875 + 50.0
-            )
 
             if self.control.zaxis:
                 vmin = int(self.control.zaxis.split(":")[0])
                 vmax = int(self.control.zaxis.split(":")[1])
             else:
-                vmin = np.real(np.median(Pss) - 6.0)
+                med_Pss = np.nanmedian(Pss)
+                max_Pss = np.nanmax(Pss)
+                vmin = np.real(med_Pss - 6.0)
                 vmax = np.real(
-                    np.median(Pss)
-                    + (np.max(Pss) - np.median(Pss)) * 0.61803398875
+                    med_Pss
+                    + (max_Pss - med_Pss) * 0.61803398875
                     + 50.0
                 )
 

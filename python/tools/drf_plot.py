@@ -73,8 +73,8 @@ def voltage_plot(data, sfreq, toffset, log_scale, title):
     ax0 = fig.add_subplot(2, 1, 1)
     ax0.plot(t_axis, data.real)
     ax0.grid(True)
-    maxr = np.max(data.real)
-    minr = np.min(data.real)
+    maxr = np.nanmax(data.real)
+    minr = np.nanmin(data.real)
 
     if minr == 0.0 and maxr == 0.0:
         minr = -1.0
@@ -86,8 +86,8 @@ def voltage_plot(data, sfreq, toffset, log_scale, title):
     ax1 = fig.add_subplot(2, 1, 2)
     ax1.plot(t_axis, data.imag)
     ax1.grid(True)
-    maxi = np.max(data.imag)
-    mini = np.min(data.imag)
+    maxi = np.nanmax(data.imag)
+    mini = np.nanmin(data.imag)
 
     if mini == 0.0 and maxi == 0.0:
         mini = -1.0
@@ -154,11 +154,11 @@ def power_plot(data, sfreq, toffset, log_scale, zscale, title):
 
     if zscale_low == 0 and zscale_high == 0:
         if log_scale:
-            zscale_low = np.min(lrxpwr[np.where(lrxpwr.real != -np.Inf)])
-            zscale_high = np.max(lrxpwr) + 3.0
+            zscale_low = np.nanmin(lrxpwr)
+            zscale_high = np.nanmax(lrxpwr) + 3.0
         else:
-            zscale_low = np.min(lrxpwr)
-            zscale_high = np.max(lrxpwr)
+            zscale_low = np.nanmin(lrxpwr)
+            zscale_high = np.nanmax(lrxpwr)
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
@@ -226,7 +226,7 @@ def iq_plot(data, toffset, log_scale, title):
     ax = fig.add_subplot(1, 1, 1)
     ax.plot(rx_raster_r, rx_raster_i, ".")
 
-    axmx = np.max([np.max(rx_raster_r), np.max(rx_raster_i)])
+    axmx = np.max([np.nanmax(rx_raster_r), np.nanmax(rx_raster_i)])
 
     ax.axis([-axmx, axmx, -axmx, axmx])
     ax.grid(True)
@@ -379,11 +379,11 @@ def spectrum_plot(data, freq, cfreq, toffset, log_scale, zscale, title, clr):
 
     if zscale_low == 0 and zscale_high == 0:
         if log_scale:
-            zscale_low = np.median(np.min(pss[np.where(pss.real != -np.Inf)])) - 3.0
-            zscale_high = np.median(np.max(pss)) + 3.0
+            zscale_low = np.median(np.nanmin(pss)) - 3.0
+            zscale_high = np.median(np.nanmax(pss)) + 3.0
         else:
-            zscale_low = np.median(np.min(pss))
-            zscale_high = np.median(np.max(pss))
+            zscale_low = np.median(np.nanmin(pss))
+            zscale_high = np.median(np.nanmax(pss))
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
@@ -559,11 +559,11 @@ def specgram_plot(data, extent, log_scale, zscale, title):
 
     if zscale_low == 0 and zscale_high == 0:
         if log_scale:
-            zscale_low = np.median(np.min(Pss)) - 3.0
-            zscale_high = np.median(np.max(Pss)) + 10.0
+            zscale_low = np.median(np.nanmin(Pss)) - 3.0
+            zscale_high = np.median(np.nanmax(Pss)) + 10.0
         else:
-            zscale_low = np.median(np.min(Pss))
-            zscale_high = np.median(np.max(Pss))
+            zscale_low = np.median(np.nanmin(Pss))
+            zscale_high = np.median(np.nanmax(Pss))
 
     vmin = zscale_low
     vmax = zscale_high
@@ -662,7 +662,7 @@ def rti_process(
     rx_axis *= range_scale  # km range scale
 
     # determine image x-y extent
-    extent = 0, rti_bins, 0, np.max(rx_axis)
+    extent = 0, rti_bins, 0, np.nanmax(rx_axis)
 
     yield rti_plot(
         RTIdata.real, extent, tick_locs, tick_labels, log_scale, zscale, title
@@ -680,11 +680,11 @@ def rti_plot(data, extent, tick_locs, tick_labels, log_scale, zscale, title):
     zscale_low, zscale_high = zscale
     if zscale_low == 0 and zscale_high == 0:
         if log_scale:
-            zscale_low = np.median(np.min(RTId[np.where(RTId.real != -np.Inf)])) - 3.0
-            zscale_high = np.median(np.max(RTId)) + 10.0
+            zscale_low = np.median(np.nanmin(RTId)) - 3.0
+            zscale_high = np.median(np.nanmax(RTId)) + 10.0
         else:
-            zscale_low = np.median(np.min(RTId))
-            zscale_high = np.median(np.max(RTId))
+            zscale_low = np.median(np.nanmin(RTId))
+            zscale_high = np.median(np.nanmax(RTId))
 
     vmin = zscale_low
     vmax = zscale_high
@@ -830,11 +830,11 @@ def sti_plot(data, freq, extent, tick_locs, tick_labels, log_scale, zscale, titl
     zscale_low, zscale_high = zscale
     if zscale_low == 0 and zscale_high == 0:
         if log_scale:
-            zscale_low = np.median(np.min(STId)) - 3.0
-            zscale_high = np.median(np.max(STId)) + 10.0
+            zscale_low = np.median(np.nanmin(STId)) - 3.0
+            zscale_high = np.median(np.nanmax(STId)) + 10.0
         else:
-            zscale_low = np.median(np.min(STId))
-            zscale_high = np.median(np.max(STId))
+            zscale_low = np.median(np.nanmin(STId))
+            zscale_high = np.median(np.nanmax(STId))
 
     vmin = zscale_low
     vmax = zscale_high

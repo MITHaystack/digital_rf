@@ -319,12 +319,6 @@ class DataPlotter:
 
                 Pss = sti_csd_data_coherence
                 Pss2 = sti_csd_data_phase
-                vmin = np.real(np.median(Pss) - 6.0)
-                vmax = np.real(
-                    np.median(Pss)
-                    + (np.max(Pss) - np.median(Pss)) * 0.61803398875
-                    + 50.0
-                )
                 vmin2 = -np.pi * 1.05
                 vmax2 = np.pi * 1.05
 
@@ -332,10 +326,12 @@ class DataPlotter:
                     vmin = int(self.control.zaxis.split(":")[0])
                     vmax = int(self.control.zaxis.split(":")[1])
                 else:
-                    vmin = np.real(np.median(Pss) - 6.0)
+                    med_Pss = np.nanmedian(Pss)
+                    max_Pss = np.nanmax(Pss)
+                    vmin = np.real(med_Pss - 6.0)
                     vmax = np.real(
-                        np.median(Pss)
-                        + (np.max(Pss) - np.median(Pss)) * 0.61803398875
+                        med_Pss
+                        + (max_Pss - med_Pss) * 0.61803398875
                         + 50.0
                     )
 
