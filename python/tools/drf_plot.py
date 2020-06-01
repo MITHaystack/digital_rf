@@ -641,7 +641,7 @@ def rti_process(
         raise ValueError("Must have a modulus for an RTI!")
 
     # create time axis
-    tick_locs = np.arange(0, rti_bins, rti_bins / len(RTItimes))
+    tick_locs = np.arange(0, rti_bins, rti_bins / len(RTItimes), dtype=np.int_)
     tick_labels = []
 
     for s in tick_locs:
@@ -792,7 +792,7 @@ def sti_process(
         raise ValueError("Must have a modulus for an STI!")
 
     # create time axis
-    tick_locs = np.arange(0, sti_bins, sti_bins / len(STItimes))
+    tick_locs = np.arange(0, sti_bins, sti_bins / len(STItimes), dtype=np.int_)
     tick_labels = []
 
     for s in tick_locs:

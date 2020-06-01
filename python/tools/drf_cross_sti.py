@@ -246,7 +246,7 @@ class DataPlotter:
 
                 sti_times = np.zeros([self.control.bins], np.complex128)
 
-                for b in np.arange(self.control.bins):
+                for b in np.arange(self.control.bins, dtype=np.int_):
 
                     if self.control.verbose:
                         print(
@@ -365,7 +365,10 @@ class DataPlotter:
                 # plot dates
 
                 tick_spacing = np.arange(
-                    self.control.bins / 8, self.control.bins, self.control.bins / 8
+                    self.control.bins / 8,
+                    self.control.bins,
+                    self.control.bins / 8,
+                    dtype=np.int_,
                 )
                 ax.set_xticks(tick_spacing)
                 ax1.set_xticks(tick_spacing)
