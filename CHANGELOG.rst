@@ -4,6 +4,21 @@ digital_rf Change Log
 
 .. current developments
 
+v2.6.4.2
+====================
+
+**Fixed:**
+
+* Fix an error seen when deleting the Digital RF Reader object (such as on interpreter shutdown) caused by trying to close the cached HDF5 file handle.
+* Fix another Python 3 issue with the plotting tools caused by getting a float from division when an integer is required.
+* Fix automatic plot scaling in the plotting tools to handle data with NaNs.
+
+**Authors:**
+
+* Ryan Volz
+
+
+
 v2.6.4.1
 ====================
 
