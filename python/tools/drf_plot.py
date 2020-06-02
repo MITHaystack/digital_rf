@@ -1010,7 +1010,9 @@ def apply_msl_filter(data, msl_code_length, msl_baud_length):
             )
         idx += 1
 
-    dc = np.correlate(data, x_msl, "full")[(len(x_msl) - 1):(len(data) + len(x_msl) - 1)]
+    dc = np.correlate(data, x_msl, "full")[
+        (len(x_msl) - 1) : (len(data) + len(x_msl) - 1)
+    ]
 
     return dc
 
