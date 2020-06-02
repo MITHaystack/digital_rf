@@ -4,6 +4,16 @@ digital_rf Change Log
 
 .. current developments
 
+v2.6.4.3
+====================
+
+**Fixed:**
+
+* Fix matched filtering in drf_plot.py to run with Python 3 and use the correct code (not reversed). Also shift the filtered result so that ranges are the same before and after filtering.
+* Fix RTI and STI plots in drf_plot.py tool for Python 3. Once again the assumption of an integer result from division rears its ugly head.
+
+
+
 v2.6.4.2
 ====================
 
