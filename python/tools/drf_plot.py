@@ -602,12 +602,12 @@ def rti_process(
         block_size = integration * modulus
         block_toffset = toffset
 
-        rti_bins = len(data) / block_size
+        rti_bins = len(data) // block_size
 
         RTIdata = np.zeros([modulus, rti_bins], np.complex64)
         RTItimes = np.zeros([rti_bins])
 
-        while block < len(data) / block_size:
+        while block < rti_bins:
 
             vblock = data[block * block_size : block * block_size + modulus]
             pblock = vblock * np.conjugate(vblock)
@@ -740,12 +740,12 @@ def sti_process(
         block_size = integration * modulus
         block_toffset = toffset
 
-        sti_bins = len(data) / block_size
+        sti_bins = len(data) // block_size
 
         STIdata = np.zeros([bins, sti_bins], np.complex64)
         STItimes = np.zeros([sti_bins])
 
-        while block < len(data) / block_size:
+        while block < sti_bins:
 
             vblock = data[block * block_size : block * block_size + modulus]
             pblock, freq = matplotlib.mlab.psd(
