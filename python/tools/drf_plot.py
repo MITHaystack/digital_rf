@@ -153,12 +153,13 @@ def power_plot(data, sfreq, toffset, log_scale, zscale, title):
     zscale_low, zscale_high = zscale
 
     if zscale_low == 0 and zscale_high == 0:
+        lrxpwr_ma = np.ma.masked_invalid(lrxpwr)
         if log_scale:
-            zscale_low = np.nanmin(lrxpwr)
-            zscale_high = np.nanmax(lrxpwr) + 3.0
+            zscale_low = lrxpwr_ma.min()
+            zscale_high = lrxpwr_ma.max() + 3.0
         else:
-            zscale_low = np.nanmin(lrxpwr)
-            zscale_high = np.nanmax(lrxpwr)
+            zscale_low = lrxpwr_ma.min()
+            zscale_high = lrxpwr_ma.max()
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
@@ -378,12 +379,13 @@ def spectrum_plot(data, freq, cfreq, toffset, log_scale, zscale, title, clr):
     zscale_low, zscale_high = zscale
 
     if zscale_low == 0 and zscale_high == 0:
+        pss_ma = np.ma.masked_invalid(pss)
         if log_scale:
-            zscale_low = np.median(np.nanmin(pss)) - 3.0
-            zscale_high = np.median(np.nanmax(pss)) + 3.0
+            zscale_low = np.median(pss_ma.min()) - 3.0
+            zscale_high = np.median(pss_ma.max()) + 3.0
         else:
-            zscale_low = np.median(np.nanmin(pss))
-            zscale_high = np.median(np.nanmax(pss))
+            zscale_low = np.median(pss_ma.min())
+            zscale_high = np.median(pss_ma.max())
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
@@ -558,12 +560,13 @@ def specgram_plot(data, extent, log_scale, zscale, title):
     zscale_low, zscale_high = zscale
 
     if zscale_low == 0 and zscale_high == 0:
+        Pss_ma = np.ma.masked_invalid(Pss)
         if log_scale:
-            zscale_low = np.median(np.nanmin(Pss)) - 3.0
-            zscale_high = np.median(np.nanmax(Pss)) + 10.0
+            zscale_low = np.median(Pss_ma.min()) - 3.0
+            zscale_high = np.median(Pss_ma.max()) + 10.0
         else:
-            zscale_low = np.median(np.nanmin(Pss))
-            zscale_high = np.median(np.nanmax(Pss))
+            zscale_low = np.median(Pss_ma.min())
+            zscale_high = np.median(Pss_ma.max())
 
     vmin = zscale_low
     vmax = zscale_high
@@ -673,18 +676,19 @@ def rti_plot(data, extent, tick_locs, tick_labels, log_scale, zscale, title):
 
     # set to log scaling
     if log_scale:
-        RTId = 10.0 * np.log10(data)
+        RTId = 10.0 * np.log10(data + 1e-12)
     else:
         RTId = data
 
     zscale_low, zscale_high = zscale
     if zscale_low == 0 and zscale_high == 0:
+        RTId_ma = np.ma.masked_invalid(RTId)
         if log_scale:
-            zscale_low = np.median(np.nanmin(RTId)) - 3.0
-            zscale_high = np.median(np.nanmax(RTId)) + 10.0
+            zscale_low = np.median(RTId_ma.min()) - 3.0
+            zscale_high = np.median(RTId_ma.max()) + 10.0
         else:
-            zscale_low = np.median(np.nanmin(RTId))
-            zscale_high = np.median(np.nanmax(RTId))
+            zscale_low = np.median(RTId_ma.min())
+            zscale_high = np.median(RTId_ma.max())
 
     vmin = zscale_low
     vmax = zscale_high
@@ -823,18 +827,19 @@ def sti_plot(data, freq, extent, tick_locs, tick_labels, log_scale, zscale, titl
 
     # set to log scaling
     if log_scale:
-        STId = 10.0 * np.log10(pss)
+        STId = 10.0 * np.log10(pss + 1e-12)
     else:
         STId = pss
 
     zscale_low, zscale_high = zscale
     if zscale_low == 0 and zscale_high == 0:
+        STId_ma = np.ma.masked_invalid(STId)
         if log_scale:
-            zscale_low = np.median(np.nanmin(STId)) - 3.0
-            zscale_high = np.median(np.nanmax(STId)) + 10.0
+            zscale_low = np.median(STId_ma.min()) - 3.0
+            zscale_high = np.median(STId_ma.max()) + 10.0
         else:
-            zscale_low = np.median(np.nanmin(STId))
-            zscale_high = np.median(np.nanmax(STId))
+            zscale_low = np.median(STId_ma.min())
+            zscale_high = np.median(STId_ma.max())
 
     vmin = zscale_low
     vmax = zscale_high
@@ -1345,7 +1350,7 @@ if __name__ == "__main__":
                     print("saving plot")
                     fig.savefig(plot_file, bbox_inches="tight", pad_inches=0.05)
                 else:
-                    plt.show(fig)
+                    plt.show()
         except:
             traceback.print_exc(file=sys.stdout)
             sys.exit()
