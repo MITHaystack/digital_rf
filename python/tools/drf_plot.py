@@ -996,11 +996,10 @@ def apply_msl_filter(data, msl_code_length, msl_baud_length):
 
     print(("msl filter data with code ", msl_code_length))
     code = code_table[msl_code_length]
-    # note that the codes are time reversed as defined compared to what we send
+    block = msl_baud_length
     x_msl = np.zeros(msl_baud_length * len(code), dtype=np.complex64)
     idx = 0
     for c in code:
-        block = len(x_msl) / len(code)
         if c == 1:
             x_msl[idx * block : idx * block + block] = (
                 np.ones(block, dtype=np.float64) + 0j
@@ -1011,7 +1010,7 @@ def apply_msl_filter(data, msl_code_length, msl_baud_length):
             )
         idx += 1
 
-    dc = np.convolve(d, x_msl, "same")
+    dc = np.correlate(data, x_msl, "full")[(len(x_msl) - 1):(len(data) + len(x_msl) - 1)]
 
     return dc
 
@@ -1190,7 +1189,7 @@ if __name__ == "__main__":
                 atime = int(np.uint64(atime * sfreq_ld))
 
             sstart = atime + int(toffset)
-            dlen = stop_sample - start_sample + 1
+            dlen = stop_sample - start_sample
 
             print(sstart, dlen)
 
