@@ -32,9 +32,9 @@ from gnuradio import filter as grfilter
 from gnuradio import gr
 
 try:
-    import iio
-except ImportError:
     from gnuradio import iio
+except ImportError:
+    import iio
 
 
 def equiripple_lpf(cutoff=0.9, transition_width=0.2, attenuation=80, pass_ripple=None):
