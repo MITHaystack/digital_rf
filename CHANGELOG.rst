@@ -4,6 +4,20 @@ digital_rf Change Log
 
 .. current developments
 
+v2.6.4.4
+====================
+
+**Fixed:**
+
+* Fix to drf_plot.py to ignore negative infinity values when autoscaling.
+* Fix thorpluto.py for better compatibility when both the libiio python bindings (iio.py module) and the gr-iio package (either gnuradio.iio or just iio) are installed.
+
+**Authors:**
+
+* Ryan Volz
+
+
+
 v2.6.4.3
 ====================
 
