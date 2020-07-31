@@ -183,7 +183,9 @@ templates:
             is_complex=${input.complex},
             num_subchannels=${vlen},
             uuid_str=${ None if uuid == "''" else uuid },
-            center_frequencies=${ None if not center_freqs else center_freqs },
+            center_frequencies=(
+                ${ None if center_freqs in ('', '[]', '()') else  center_freqs }
+            ),
             metadata=${metadata},
             is_continuous=${is_continuous},
             compression_level=${compression_level},
