@@ -374,7 +374,7 @@ class digital_rf_channel_sink(gr.sync_block):
         if metadata is None:
             metadata = {}
         self._metadata = metadata.copy()
-        if center_frequencies is None:
+        if not center_frequencies:
             center_frequencies = np.array([0.0] * self._num_subchannels)
         else:
             center_frequencies = np.ascontiguousarray(center_frequencies)
