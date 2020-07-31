@@ -1078,7 +1078,7 @@ if __name__ == "__main__":
     subchan = 0  # sub channel to plot
     atime = 0
     start_sample = 0
-    stop_sample = -1
+    stop_sample = 0
     modulus = None
     integration = 1
 
