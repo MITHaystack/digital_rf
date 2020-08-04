@@ -27,7 +27,6 @@ from watchdog.observers import Observer
 from watchdog.observers.api import BaseObserver, ObservedWatch
 from watchdog.observers.polling import PollingObserver
 from watchdog.utils import unicode_paths
-from watchdog.utils.bricks import OrderedSetQueue
 
 from . import list_drf, util
 from .list_drf import RE_DMD, RE_DMDPROP, RE_DRF, RE_DRFDMD, RE_DRFDMDPROP, RE_DRFPROP
@@ -212,6 +211,30 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
     for a directory that doesn't yet exist, and they will be enacted once it is
     created.
 
+    Notes
+    -----
+    Watchdog uses the following nomenclature:
+
+    watch :
+        A directory to be monitored, paired with a flag for whether it should be
+        monitored recursively.
+
+    event :
+        A filesystem event (created/deleted/modified/moved) for a file or directory.
+
+    emitter :
+        A thread that adds (event, watch) pairs to a shared queue for processing.
+
+    handler :
+        A class whose dispatch method is called to process events from the queue.
+
+    observer :
+        A thread that owns the event queue and manages emitters and handlers for a
+        collection of watches. Watches are returned from the `schedule` method, which
+        registers a handler with the observer and creates an emitter if necessary.
+        Calling `unschedule` on a watch stops the emitter and deletes the associated
+        handlers so that no further events are processed.
+
     """
 
     def __init__(self, path, force_polling=False, **kwargs):
@@ -227,9 +250,7 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
         BaseObserver.__init__(
             self, emitter_class=self.root_observer._emitter_class, **kwargs
         )
-        # replace default event queue with ordered set queue to disallow
-        # duplicate events even if added out of order
-        self._event_queue = OrderedSetQueue()
+        # initialize as an event handler as well for handling the root observer events
         RegexMatchingEventHandler.__init__(self)
 
         self.path = os.path.abspath(path)
@@ -301,14 +322,16 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
 
     def _start_watching_path(self):
         """Schedule handlers for self.path now that it exists."""
+        # re-schedule the saved watches/handlers immediately so we miss as few events
+        # as possible
         for watch, handlers in self._stopped_handlers.items():
             for handler in handlers:
                 self.schedule(
                     event_handler=handler, path=watch.path, recursive=watch.is_recursive
                 )
-        # generate any events for files/dirs in self.path that were
-        # created before the watch started (since dispatching is stopped,
-        # duplicate events will be caught and ignored)
+
+        # generate any events for files/dirs in self.path that were created before the
+        # watch started (these events might come out of order relative to)
         with self._lock:
             for emitter in self.emitters:
                 dirs = [emitter.watch.path]
@@ -324,13 +347,9 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
                         else:
                             event = FileCreatedEvent(path)
                         emitter.queue_event(event)
-        # start dispatching events
-        self._start_dispatching()
 
     def _stop_watching_path(self):
         """Save handlers for self.path so they can be reinstated, clean up."""
-        # stop further event dispatching
-        self._stop_dispatching()
         with self._lock:
             # copy all watches/handlers so we can restart them
             self._stopped_handlers.update(self._handlers.copy())
@@ -345,15 +364,16 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
     def on_created(self, event):
         """Adjust watches for just-created directory in self.path hierarchy."""
         if event.is_directory:
-            # directory in self.path tree has been created
-            # add watch for directory
-            self._set_root(event.src_path)
             if event.src_path == self.path:
-                # if it is self.path, start watching
+                # if event is our path, start watching it immediately
                 self._start_watching_path()
+                # then update the root to be our path to catch when it is deleted
+                self._set_root(event.src_path)
             else:
-                # generate event for sub-directory in path that was
-                # created before the watch started
+                # just update the root to the new leaf level
+                self._set_root(event.src_path)
+                # check to see if the next directory in the path already exists
+                # and generate an event (that may have been missed) if it does
                 nextdir = self._get_next_dir_in_path(event.src_path)
                 if os.path.isdir(nextdir):
                     emitter = self.root_observer._emitter_for_watch[self.root_watch]

@@ -683,22 +683,24 @@ class DigitalRFRingbuffer(object):
 
     def _add_existing_files(self):
         """Add existing files on disk to ringbuffer."""
-        # pause dispatching while we add existing files so files are added
-        # to the ringbuffer in the correct order
-        with self.observer.paused_dispatching():
-            # add existing files to ringbuffer handler
-            existing = list_drf.ilsdrf(
-                self.path,
-                starttime=self.starttime,
-                endtime=self.endtime,
-                include_drf=self.include_drf,
-                include_dmd=self.include_dmd,
-                include_drf_properties=False,
-                include_dmd_properties=False,
-            )
-            # do not sort because existing will already be sorted and we
-            # don't want to convert to a list
-            self.event_handler.add_files(existing, sort=False)
+        # since expiration will always remove the oldest files by sample index,
+        # and the handler has exception handling for duplicate / out of order events,
+        # we can add the existing files while the watch is handling events and the
+        # ringbuffer will still be good (with maybe some error messages when verbose)
+
+        # add existing files to ringbuffer handler
+        existing = list_drf.ilsdrf(
+            self.path,
+            starttime=self.starttime,
+            endtime=self.endtime,
+            include_drf=self.include_drf,
+            include_dmd=self.include_dmd,
+            include_drf_properties=False,
+            include_dmd_properties=False,
+        )
+        # do not sort because existing will already be sorted and we
+        # don't want to convert to a list
+        self.event_handler.add_files(existing, sort=False)
 
     def start(self):
         """Start ringbuffer process."""

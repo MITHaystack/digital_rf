@@ -293,7 +293,7 @@ class DigitalRFMirror(object):
         sys.stdout.flush()
 
         if os.path.isdir(self.src):
-            # don't need to pause dispatching because mirror ordering is not
+            # send events as they come because mirror ordering is not
             # critical and duplicate events are not harmful (we will either
             # copy again or fail to move because the source doesn't exist)
             # mirror properties at minimum
