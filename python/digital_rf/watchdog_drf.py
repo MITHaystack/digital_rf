@@ -14,7 +14,6 @@ import os
 import re
 import sys
 import time
-from contextlib import contextmanager
 
 import pytz
 from watchdog.events import (
@@ -256,7 +255,6 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
         self.path = os.path.abspath(path)
         self.root_watch = None
         self._stopped_handlers = dict()
-        self._dispatching_enabled = True
 
     def _get_next_dir_in_path(self, start):
         """From `start`, find the next directory from self.path."""
@@ -311,14 +309,6 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
                 pass
 
         self.root_watch = watch
-
-    def _start_dispatching(self):
-        self._dispatching_enabled = True
-
-    def _stop_dispatching(self):
-        # wait until event queue is cleared
-        self.event_queue.join()
-        self._dispatching_enabled = False
 
     def _start_watching_path(self):
         """Schedule handlers for self.path now that it exists."""
@@ -452,22 +442,6 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
             return False
 
         return True
-
-    def dispatch_events(self, event_queue, timeout):
-        """Get events from queue and dispatch them to handlers."""
-        # override this so that we can schedule without dispatching events
-        # immediately even while thread is running
-        if self._dispatching_enabled:
-            super(DirWatcher, self).dispatch_events(event_queue, timeout)
-        else:
-            time.sleep(timeout)
-
-    @contextmanager
-    def paused_dispatching(self):
-        """Context manager that pauses event dispatching while held."""
-        self._stop_dispatching()
-        yield
-        self._start_dispatching()
 
 
 def _add_watchdog_group(parser):
