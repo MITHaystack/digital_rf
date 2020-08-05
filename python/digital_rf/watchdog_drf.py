@@ -265,6 +265,10 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
 
     def _set_root(self, root):
         """Set up watching `root` or closest existing parent."""
+        if self.root_watch is not None and self.root_watch.path == root:
+            # already watching the specified root, return early
+            return
+
         # schedule new root watch
         while True:
             try:
@@ -410,6 +414,17 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
             self._stop_watching_path()
         super(DirWatcher, self).start()
 
+    def stop(self):
+        """Stop watching and shut down threads."""
+        # stop watching the path
+        self._stop_watching_path()
+
+        # stop the root observer
+        self.root_observer.stop()
+        self.root_watch = None
+
+        super(DirWatcher, self).stop()
+
     def all_alive(self):
         """Check if all observer and emitter threads are running."""
         # check if self thread is running
@@ -525,6 +540,12 @@ def _run_watch(args):
     sys.stdout.flush()
     try:
         while True:
+            if not observer.all_alive():
+                observer.stop()
+                # catch any dead threads and create a new observer
+                observer = DirWatcher(args.dir, force_polling=args.force_polling)
+                observer.schedule(event_handler, args.dir, recursive=True)
+                observer.start()
             time.sleep(1)
     except (KeyboardInterrupt, SystemExit):
         observer.stop()
