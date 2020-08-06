@@ -17,6 +17,7 @@ v2.6.5
 
 **Fixed:**
 
+* The drf_watchdog module is now compatible with watchdog 0.10+. There may be a slight change of behavior (duplicate or out of order events) but the mirror and ringbuffer utilities can handle it gracefully.
 * Better error message when no samples are specified with drf_plot.py.
 * Fix the Digital RF sink blocks and GRC yaml to prevent an empty array for center_frequencies being written as Digital Metadata (currently happens with default GRC block with GNU Radio 3.8).
 * Clarified docstrings (and updated to actual modern behavior) for 'start' and 'end' in Digital RF source/sinks.
