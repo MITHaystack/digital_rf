@@ -4,6 +4,29 @@ digital_rf Change Log
 
 .. current developments
 
+v2.6.5
+====================
+
+**Added:**
+
+* Added start sample to debug printing of 'digital_rf_channel_sink' to complement the debug printing of rx_time tags.
+
+**Changed:**
+
+* The Digital RF (Channel) Source/Sink blocks for gnuradio-companion have been modified to accept 'raw' input for the start and end identifiers instead of strings, allowing variables to be used. Existing flowgraphs may require quotes to be placed around existing string input.
+
+**Fixed:**
+
+* Better error message when no samples are specified with drf_plot.py.
+* Fix the Digital RF sink blocks and GRC yaml to prevent an empty array for center_frequencies being written as Digital Metadata (currently happens with default GRC block with GNU Radio 3.8).
+* Clarified docstrings (and updated to actual modern behavior) for 'start' and 'end' in Digital RF source/sinks.
+
+**Authors:**
+
+* Ryan Volz
+
+
+
 v2.6.4.4
 ====================
 
