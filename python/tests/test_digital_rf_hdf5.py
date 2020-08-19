@@ -842,9 +842,10 @@ class TestDigitalRFChannel(object):
                     dstart = sstart - bounds[0]
                     dstop = sstart + (bstop - bstart) - bounds[0]
                     test_data = data[dstart:dstop]
-                    np.testing.assert_equal(
-                        blk_data, test_data.reshape((-1, num_subchannels))
-                    )
+                    with np.errstate(invalid="ignore"):
+                        np.testing.assert_equal(
+                            blk_data, test_data.reshape((-1, num_subchannels))
+                        )
 
     def test_writer_get_total_samples_written(self, data_block_slices, drf_writer):
         """Test writer object's get_total_samples_written method."""
@@ -1087,9 +1088,10 @@ class TestDigitalRFChannel(object):
             assert len(rdata.shape) == 2
             bstart = sstart - bounds[0]
             bstop = sstop - bounds[0]
-            np.testing.assert_equal(
-                rdata, data.reshape((-1, num_subchannels))[bstart:bstop, :]
-            )
+            with np.errstate(invalid="ignore"):
+                np.testing.assert_equal(
+                    rdata, data.reshape((-1, num_subchannels))[bstart:bstop, :]
+                )
 
         # test reading a single subchannel (the first)
         for sstart, sstop in data_block_slices:
@@ -1099,18 +1101,20 @@ class TestDigitalRFChannel(object):
             assert sample == sstart
             bstart = sstart - bounds[0]
             bstop = sstop - bounds[0]
-            np.testing.assert_equal(
-                rdata, data.reshape((-1, num_subchannels))[bstart:bstop, 0]
-            )
+            with np.errstate(invalid="ignore"):
+                np.testing.assert_equal(
+                    rdata, data.reshape((-1, num_subchannels))[bstart:bstop, 0]
+                )
 
         # check that we get all of the data if we read entire bounds
         data_dict = drf_reader.read(bounds[0], bounds[1], channel)
         for (sstart, rdata) in data_dict.items():
             bstart = sstart - bounds[0]
             bstop = sstart + len(rdata) - bounds[0]
-            np.testing.assert_equal(
-                rdata, data.reshape((-1, num_subchannels))[bstart:bstop, :]
-            )
+            with np.errstate(invalid="ignore"):
+                np.testing.assert_equal(
+                    rdata, data.reshape((-1, num_subchannels))[bstart:bstop, :]
+                )
 
         # test read where data doesn't exist
         data_dict = drf_reader.read(bounds[0] - 100, bounds[0] - 1, channel)
@@ -1135,7 +1139,8 @@ class TestDigitalRFChannel(object):
             rdata = drf_reader.read_vector_raw(sstart, sstop - sstart, channel)
             bstart = sstart - bounds[0]
             bstop = sstop - bounds[0]
-            np.testing.assert_equal(rdata, data[bstart:bstop])
+            with np.errstate(invalid="ignore"):
+                np.testing.assert_equal(rdata, data[bstart:bstop])
 
         # test reading a single subchannel (the first)
         for sstart, sstop in data_block_slices:
@@ -1144,9 +1149,10 @@ class TestDigitalRFChannel(object):
             )
             bstart = sstart - bounds[0]
             bstop = sstop - bounds[0]
-            np.testing.assert_equal(
-                rdata, data.reshape((-1, num_subchannels))[bstart:bstop, 0]
-            )
+            with np.errstate(invalid="ignore"):
+                np.testing.assert_equal(
+                    rdata, data.reshape((-1, num_subchannels))[bstart:bstop, 0]
+                )
 
         # fail to read all data at once because of gap
         with pytest.raises(IOError):
@@ -1187,7 +1193,8 @@ class TestDigitalRFChannel(object):
             rdata = drf_reader.read_vector(sstart, sstop - sstart, channel)
             bstart = sstart - bounds[0]
             bstop = sstop - bounds[0]
-            np.testing.assert_equal(rdata, c8data[bstart:bstop])
+            with np.errstate(invalid="ignore"):
+                np.testing.assert_equal(rdata, c8data[bstart:bstop])
 
         # test reading a single subchannel (the first)
         for sstart, sstop in data_block_slices:
@@ -1196,9 +1203,10 @@ class TestDigitalRFChannel(object):
             )
             bstart = sstart - bounds[0]
             bstop = sstop - bounds[0]
-            np.testing.assert_equal(
-                rdata, c8data.reshape((-1, num_subchannels))[bstart:bstop, 0]
-            )
+            with np.errstate(invalid="ignore"):
+                np.testing.assert_equal(
+                    rdata, c8data.reshape((-1, num_subchannels))[bstart:bstop, 0]
+                )
 
         # fail to read all data at once because of gap
         with pytest.raises(IOError):
@@ -1241,7 +1249,8 @@ class TestDigitalRFChannel(object):
             rdata = drf_reader.read_vector_c81d(sstart, sstop - sstart, channel)
             bstart = sstart - bounds[0]
             bstop = sstop - bounds[0]
-            np.testing.assert_equal(rdata, c8data[bstart:bstop, 0])
+            with np.errstate(invalid="ignore"):
+                np.testing.assert_equal(rdata, c8data[bstart:bstop, 0])
 
         # test reading a different subchannel (the last)
         for sstart, sstop in data_block_slices:
@@ -1250,7 +1259,10 @@ class TestDigitalRFChannel(object):
             )
             bstart = sstart - bounds[0]
             bstop = sstop - bounds[0]
-            np.testing.assert_equal(rdata, c8data[bstart:bstop, num_subchannels - 1])
+            with np.errstate(invalid="ignore"):
+                np.testing.assert_equal(
+                    rdata, c8data[bstart:bstop, num_subchannels - 1]
+                )
 
         # fail to read all data at once because of gap
         with pytest.raises(IOError):
@@ -1316,6 +1328,7 @@ class TestDigitalRFChannel(object):
                     assert sample == sstart
                     bstart = sstart - bounds[0]
                     bstop = sstop - bounds[0]
-                    np.testing.assert_equal(
-                        rdata, data.reshape((-1, num_subchannels))[bstart:bstop]
-                    )
+                    with np.errstate(invalid="ignore"):
+                        np.testing.assert_equal(
+                            rdata, data.reshape((-1, num_subchannels))[bstart:bstop]
+                        )
