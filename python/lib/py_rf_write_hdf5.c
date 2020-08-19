@@ -83,11 +83,11 @@ static PyObject * _py_rf_write_hdf5_init(PyObject * self, PyObject * args)
 	char * byteorder = NULL;
 	char * dtype_char = NULL;
 	int bytecount = 0;
-	unsigned long long subdir_cadence_secs = 0;
-	unsigned long long file_cadence_millisecs = 0;
-	unsigned long long start_global_index = 0;
-	unsigned long long sample_rate_numerator = 0;
-	unsigned long long sample_rate_denominator = 0;
+	uint64_t subdir_cadence_secs = 0;
+	uint64_t file_cadence_millisecs = 0;
+	uint64_t start_global_index = 0;
+	uint64_t sample_rate_numerator = 0;
+	uint64_t sample_rate_denominator = 0;
 	char * uuid_str = NULL;
 	int compression_level = 0;
 	int checksum = 0;
@@ -201,7 +201,7 @@ static PyObject * _py_rf_write_hdf5_rf_write(PyObject * self, PyObject * args)
 	}
 
 	/* success */
-	retObj = Py_BuildValue("k", hdf5_write_data_object->global_index);
+	retObj = Py_BuildValue("K", hdf5_write_data_object->global_index);
 	return(retObj);
 
 }
@@ -302,7 +302,7 @@ static PyObject * _py_rf_write_hdf5_rf_block_write(PyObject * self, PyObject * a
 	}
 
 	/* success */
-	retObj = Py_BuildValue("k", hdf5_write_data_object->global_index);
+	retObj = Py_BuildValue("K", hdf5_write_data_object->global_index);
 	return(retObj);
 
 }
@@ -412,7 +412,7 @@ static PyObject * _py_rf_write_hdf5_get_last_utc_timestamp(PyObject * self, PyOb
 	last_timestamp = digital_rf_get_last_write_time(hdf5_write_data_object);
 
 	/* success */
-	retObj = Py_BuildValue("i", last_timestamp);
+	retObj = Py_BuildValue("K", last_timestamp);
 	return(retObj);
 
 }
