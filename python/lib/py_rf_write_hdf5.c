@@ -237,7 +237,7 @@ static PyObject * _py_rf_write_hdf5_rf_block_write(PyObject * self, PyObject * a
 	uint64_t * block_arr; /* will point to numpy pyGlobalArr's data block */
 	uint64_t vector_length;
 	uint64_t index_length;
-	int i;
+	uint64_t i;
 	uint64_t block_length;
 	uint64_t block_index;
 	uint64_t next_block_index;

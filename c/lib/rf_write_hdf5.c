@@ -1557,7 +1557,7 @@ uint64_t * digital_rf_create_rf_data_index(Digital_rf_write_object *hdf5_data_ob
  * 		Returns NULL and rows_to_write = -1 and error printed to stderr if error detected
  */
 {
-	int i; /* block loop variable */
+	uint64_t i; /* block loop variable */
 	uint64_t this_index, this_sample;
 	uint64_t last_global_sample;  /* last possible global sample that be written to this file */
 	int64_t top_index = -1, bottom_index = -1; /* temp indecies used to calc samples_to write */
@@ -1599,28 +1599,28 @@ uint64_t * digital_rf_create_rf_data_index(Digital_rf_write_object *hdf5_data_ob
 		/* more input data sanity checks */
 		if (this_index >= vector_len)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "index %i (%" PRIu64 ") in data_index_arr is beyond end of data (len %" PRIu64 ")", i, this_index, vector_len);
+			snprintf(error_str, BIG_HDF5_STR, "index %" PRIu64 " (%" PRIu64 ") in data_index_arr is beyond end of data (len %" PRIu64 ")", i, this_index, vector_len);
 			fprintf(stderr, "%s", error_str);
 			*rows_to_write = -1;
 			return(NULL);
 		}
 		if (i>0 && prev_index >= this_index)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "indices in data_index_arr out of order - index %i and %i\n", i-1,i);
+			snprintf(error_str, BIG_HDF5_STR, "indices in data_index_arr out of order - index %" PRIu64 " and %" PRIu64 "\n", i-1,i);
 			fprintf(stderr, "%s", error_str);
 			*rows_to_write = -1;
 			return(NULL);
 		}
 		if (i>0 && prev_sample >= this_sample)
 		{
-			snprintf(error_str, BIG_HDF5_STR, "indices in global_index_arr out of order - index %i and %i\n", i-1,i);
+			snprintf(error_str, BIG_HDF5_STR, "indices in global_index_arr out of order - index %" PRIu64 " and %" PRIu64 "\n", i-1,i);
 			fprintf(stderr, "%s", error_str);
 			*rows_to_write = -1;
 			return(NULL);
 		}
 		if (i>0 && ((this_index - prev_index) > (this_sample - prev_sample)))
 		{
-			snprintf(error_str, BIG_HDF5_STR, "error - indices advancing faster than global index at index %i, illegal\n", i);
+			snprintf(error_str, BIG_HDF5_STR, "error - indices advancing faster than global index at index %" PRIu64 ", illegal\n", i);
 			fprintf(stderr, "%s", error_str);
 			*rows_to_write = -1;
 			return(NULL);
@@ -1842,7 +1842,7 @@ uint64_t digital_rf_get_global_sample(uint64_t samples_written, uint64_t * globa
  */
 {
 	/* local variables */
-	int i;
+	uint64_t i;
 	uint64_t ret_value;
 
 	ret_value = global_index_arr[0] + (samples_written - data_index_arr[0]);
