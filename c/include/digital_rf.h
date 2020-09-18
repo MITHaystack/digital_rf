@@ -162,6 +162,12 @@ EXPORT int digital_rf_write_blocks_hdf5(
 #endif
 
 /* Private method declarations */
+int digital_rf_get_timestamp_floor(uint64_t sample_index, uint64_t sample_rate_numerator,
+								   uint64_t sample_rate_denominator, uint64_t * second, uint64_t * picosecond);
+int digital_rf_get_sample_ceil(uint64_t second, uint64_t picosecond,
+							   uint64_t sample_rate_numerator, uint64_t sample_rate_denominator, uint64_t * sample_index);
+int digital_rf_get_time_parts(time_t unix_second, int * year, int * month, int *day,
+		                     int * hour, int * minute, int * second);
 int digital_rf_get_subdir_file(Digital_rf_write_object *hdf5_data_object, uint64_t global_sample,
 							   char * subdir, char * basename, uint64_t * samples_left, uint64_t * max_samples_this_file);
 int digital_rf_free_hdf5_data_object(Digital_rf_write_object *hdf5_data_object);
