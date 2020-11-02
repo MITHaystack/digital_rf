@@ -468,7 +468,7 @@ def parse_command_line(str_input=None):
 # Setup Defaults
 if __name__ == "__main__":
     """
-        Needed to add main function to use outside functions outside of module.
+    Needed to add main function to use outside functions outside of module.
     """
 
     # Parse the Command Line for configuration

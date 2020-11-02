@@ -33,7 +33,7 @@ import numpy as np
 
 
 def voltage_process(data, sfreq, toffset, modulus, integration, log_scale, title):
-    """ Break voltages by modulus and display each block. Integration here acts
+    """Break voltages by modulus and display each block. Integration here acts
     as a pure average on the voltage level data.
     """
     if modulus:
@@ -104,7 +104,7 @@ def voltage_plot(data, sfreq, toffset, log_scale, title):
 
 
 def power_process(data, sfreq, toffset, modulus, integration, log_scale, zscale, title):
-    """ Break power by modulus and display each block. Integration here acts
+    """Break power by modulus and display each block. Integration here acts
     as a pure average on the power level data.
     """
     if modulus:
@@ -178,7 +178,7 @@ def power_plot(data, sfreq, toffset, log_scale, zscale, title):
 
 
 def iq_process(data, sfreq, toffset, modulus, integration, log_scale, title):
-    """ Break voltages by modulus and display each block. Integration here acts
+    """Break voltages by modulus and display each block. Integration here acts
     as a pure average on the voltage level data prior to iq plotting.
     """
     if modulus:
@@ -239,7 +239,7 @@ def iq_plot(data, toffset, log_scale, title):
 
 
 def phase_process(data, sfreq, toffset, modulus, integration, log_scale, title):
-    """ Break voltages by modulus and display the phase of each block. Integration here acts
+    """Break voltages by modulus and display the phase of each block. Integration here acts
     as a pure average on the voltage level data prior to iq plotting.
     """
     if modulus:
@@ -301,7 +301,7 @@ def spectrum_process(
     title,
     clr,
 ):
-    """ Break spectrum by modulus and display each block. Integration here acts
+    """Break spectrum by modulus and display each block. Integration here acts
     as a pure average on the spectral data.
     """
     if detrend:
@@ -403,7 +403,7 @@ def spectrum_plot(data, freq, cfreq, toffset, log_scale, zscale, title, clr):
 def histogram_process(
     data, sfreq, toffset, modulus, integration, bins, log_scale, title
 ):
-    """ Break voltages by modulus and display each block. Integration here acts
+    """Break voltages by modulus and display each block. Integration here acts
     as a pure average on the voltage level data prior to the histogram.
     """
     if modulus:
@@ -461,7 +461,7 @@ def specgram_process(
     zscale,
     title,
 ):
-    """ Break spectrum by modulus and display each block. Integration here acts
+    """Break spectrum by modulus and display each block. Integration here acts
     as a pure average on the spectral data.
     """
 
@@ -597,7 +597,7 @@ def specgram_plot(data, extent, log_scale, zscale, title):
 def rti_process(
     data, sfreq, toffset, modulus, integration, detrend, log_scale, zscale, title
 ):
-    """ Break power by modulus and make an RTI stripe for each block. Integration here acts
+    """Break power by modulus and make an RTI stripe for each block. Integration here acts
     as a pure average on the power level data.
     """
     if modulus:
@@ -730,7 +730,7 @@ def sti_process(
     zscale,
     title,
 ):
-    """ Break data by modulus and make an STI stripe for each block. Integration here acts
+    """Break data by modulus and make an STI stripe for each block. Integration here acts
     as a pure average on the spectrum level data.
     """
 

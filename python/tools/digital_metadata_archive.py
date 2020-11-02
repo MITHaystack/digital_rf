@@ -27,8 +27,7 @@ import numpy as np
 
 
 class archive(object):
-    """archive is a class to archive a digital rf data set
-    """
+    """archive is a class to archive a digital rf data set"""
 
     def __init__(self, startDT, endDT, source, dest, verbose=False):
         """
@@ -117,8 +116,7 @@ class archive(object):
             print("WARNING - no digital metadata files backed up")
 
     def _get_file_list(self, sample0, sample1):
-        """_get_file_list returns an ordered list of full file names of metadata files that contain metadata.
-        """
+        """_get_file_list returns an ordered list of full file names of metadata files that contain metadata."""
         start_ts = int(sample0 / self._samples_per_second)
         end_ts = int(sample1 / self._samples_per_second)
 

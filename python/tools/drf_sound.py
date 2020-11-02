@@ -54,7 +54,7 @@ class SoundDRF(object):
     def makeasound(self):
         """
 
-            Iterate over the data set and output a sound through sounddevice.
+        Iterate over the data set and output a sound through sounddevice.
 
         """
         sr = self.dio.get_properties(self.channel)["samples_per_second"]
@@ -171,7 +171,7 @@ class SoundDRF(object):
 
 def parse_command_line(str_input=None):
     """
-        This will parse through the command line arguments
+    This will parse through the command line arguments
     """
     if str_input is None:
         parser = optparse.OptionParser()
@@ -276,7 +276,7 @@ def parse_command_line(str_input=None):
 # Setup Defaults
 if __name__ == "__main__":
     """
-        Needed to add main function to use outside functions outside of module.
+    Needed to add main function to use outside functions outside of module.
     """
 
 
