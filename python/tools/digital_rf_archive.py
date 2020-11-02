@@ -322,8 +322,7 @@ def archive_subdirectory_local_remote(args):
 
 
 def _is_h5_file_compressed(filename):
-    """_is_h5_file_compressed returns True if Hdf5 file gzip compresses, False otherwise
-    """
+    """_is_h5_file_compressed returns True if Hdf5 file gzip compresses, False otherwise"""
     cmd = "h5stat %s" % (filename)
     output = subprocess.check_output(cmd.split())
     for line in output.split("\n"):
@@ -336,8 +335,7 @@ def _is_h5_file_compressed(filename):
 
 
 class archive(object):
-    """archive is a class to archive a digital rf data set
-    """
+    """archive is a class to archive a digital rf data set"""
 
     def __init__(
         self,
@@ -489,8 +487,7 @@ class archive(object):
             print("digital_rf_archive took %f seconds" % (time.time() - t))
 
     def _archive_channel(self, channel):
-        """_archive_channel will archive the channel.  Returns True if any data archived, False otherwise
-        """
+        """_archive_channel will archive the channel.  Returns True if any data archived, False otherwise"""
         # to simplify the code, break into for subroutines depending on
         # self._source_type self._dest_type
         if self._source_type == "local":
@@ -503,8 +500,7 @@ class archive(object):
             raise ValueError("nyi")
 
     def _archive_channel_local_local(self, channel):
-        """_archive_channel_local_local archives local input data to a local destination
-        """
+        """_archive_channel_local_local archives local input data to a local destination"""
         is_compressed = None  # not yet known
         subdir_list = self._chan_dict[channel]
         # make channel dir in self._top_level_dest_dir/self._next_level_dir
@@ -555,8 +551,7 @@ class archive(object):
             print("WARNING: No files backed up in channel %s" % (channel))
 
     def _archive_channel_local_remote(self, channel):
-        """_archive_channel_local_remote archives local input data to a remote destination
-        """
+        """_archive_channel_local_remote archives local input data to a remote destination"""
         is_compressed = None  # not yet known
         subdir_list = self._chan_dict[channel]
         file_count = 0
@@ -631,8 +626,7 @@ class archive(object):
             print("WARNING: No files backed up in channel %s" % (channel))
 
     def _get_hostname(self):
-        """_get_hostname returns the hostname of the local system or the remote system of the source data
-        """
+        """_get_hostname returns the hostname of the local system or the remote system of the source data"""
         if self._source_type == "local":
             return socket.gethostname()
         else:
@@ -749,8 +743,7 @@ class archive(object):
         return (needed_GB / (1024 * 1024 * 1024.0), avail_GB)
 
     def _test_compression(self, testHdf5File):
-        """_test_compression returns the gzip compression ratio for test file testHdf5File
-        """
+        """_test_compression returns the gzip compression ratio for test file testHdf5File"""
         if self.gzip == 0:
             return 1.0
         resultFile = "/tmp/test.h5"
@@ -778,8 +771,8 @@ class archive(object):
 
     def get_chan_dict_local(self):
         """get_chan_dict_local returns a dictionary with keys = channels found,
-            values = list of two lists - 1: list of
-            subdirectory basenames, 2: list of properties files in channel directory
+        values = list of two lists - 1: list of
+        subdirectory basenames, 2: list of properties files in channel directory
         """
         ret_dict = {}
         subdirectories = glob.glob(
@@ -810,8 +803,8 @@ class archive(object):
 
     def get_chan_dict_remote(self):
         """get_chan_dict_local returns a dictionary with keys = channels found,
-            values = list of two lists - 1: list of
-            subdirectory basenames, 2: list of metadata files in channel directory
+        values = list of two lists - 1: list of
+        subdirectory basenames, 2: list of metadata files in channel directory
         """
         return "nyi"
 

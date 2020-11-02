@@ -73,21 +73,21 @@ def update_progress(progress):
 
 def ephem_doponly(maindir, tleoff=10.0):
     """
-        This function will output a dictionary that can be used to remove the
-        frequency offset.
+    This function will output a dictionary that can be used to remove the
+    frequency offset.
 
-        Args:
-            maindir (:obj:'str'): Directory that holds the digital rf and metadata.
-            tleoff (:obj:'float'): Offset of the tle from the actual data.
+    Args:
+        maindir (:obj:'str'): Directory that holds the digital rf and metadata.
+        tleoff (:obj:'float'): Offset of the tle from the actual data.
 
-        Returns:
-            outdict (dict[str, obj]): Output data dictionary::
+    Returns:
+        outdict (dict[str, obj]): Output data dictionary::
 
-                {
-                        't': Time in posix,
-                        'dop1': Doppler frequency of 150 MHz channel from TLE ,
-                        'dop2': Doppler frequency of 400 MHz channel from TLE ,
-                }
+            {
+                    't': Time in posix,
+                    'dop1': Doppler frequency of 150 MHz channel from TLE ,
+                    'dop2': Doppler frequency of 400 MHz channel from TLE ,
+            }
     """
 
     #%% Get Ephem info
@@ -210,16 +210,16 @@ def outlier_removed_fit(m, w=None, n_iter=10, polyord=7):
 
 def open_file(maindir):
     """
-        Creates the digital RF reading object.
+    Creates the digital RF reading object.
 
-        Args:
-            maindir (:obj:'str'): The directory where the data is located.
+    Args:
+        maindir (:obj:'str'): The directory where the data is located.
 
-        Returns:
-            drfObj (obj:"DigitalRFReader"): Digital RF Reader object.
-            chandict (obj:"dict"): Dictionary that holds info for the channels.
-            start_indx (obj:'long'): Start index in samples.
-            end_indx (obj:'long'): End index in samples.
+    Returns:
+        drfObj (obj:"DigitalRFReader"): Digital RF Reader object.
+        chandict (obj:"dict"): Dictionary that holds info for the channels.
+        start_indx (obj:'long'): Start index in samples.
+        end_indx (obj:'long'): End index in samples.
     """
     mainpath = os.path.expanduser(maindir)
     drfObj = drf.DigitalRFReader(mainpath)
@@ -251,9 +251,9 @@ def corr_tle_rf(
     maindir, e=None, window=2 ** 18, n_measure=100, timewin=[0, 0], tleoff=0
 ):
     """
-        Coorelates the tle derived frequency and the rf frequency. A flag is output
-        that specifies if the two frequencies correlate. A time offset between
-        the two is also calculated if there is a correlation.
+    Coorelates the tle derived frequency and the rf frequency. A flag is output
+    that specifies if the two frequencies correlate. A time offset between
+    the two is also calculated if there is a correlation.
 
     """
     if e is None:
@@ -368,27 +368,27 @@ def corr_tle_rf(
 
 def calc_resid(maindir, e, window=2 ** 13, n_measure=500, timewin=[0, 0]):
     """
-        Calculate the residual difference between the Doppler frequencies from the
-        TLEs and measured data.
+    Calculate the residual difference between the Doppler frequencies from the
+    TLEs and measured data.
 
-        Args:
-            maindir (:obj:'str'): The directory where the data is located.
-            e (:obj:'dict'): The dictionary with information on the output
-            window (:obj:'int'): Window length in samples.
-            n_window (:obj:'int'): Number of windows integrated.
-            bandwidth (:obj:'int'): Number of bins in lowest sub-band to find max frequency.
-        Returns:
-             outdict (dict[str, obj]): Output data dictionary::
+    Args:
+        maindir (:obj:'str'): The directory where the data is located.
+        e (:obj:'dict'): The dictionary with information on the output
+        window (:obj:'int'): Window length in samples.
+        n_window (:obj:'int'): Number of windows integrated.
+        bandwidth (:obj:'int'): Number of bins in lowest sub-band to find max frequency.
+    Returns:
+         outdict (dict[str, obj]): Output data dictionary::
 
-                    {
-                            'cspec': Correlated phase residuals,
-                            'max_bin': Frequency bin with max return,
-                            'doppler_residual': Doppler residual,
-                            'tvec': Time vector for each measurment,
-                            'fvec': Frequency values array,
-                            'res1': Phase residual channel 1,
-                            'res0': Phase residual channel 0
-                    }
+                {
+                        'cspec': Correlated phase residuals,
+                        'max_bin': Frequency bin with max return,
+                        'doppler_residual': Doppler residual,
+                        'tvec': Time vector for each measurment,
+                        'fvec': Frequency values array,
+                        'res1': Phase residual channel 1,
+                        'res0': Phase residual channel 0
+                }
     """
     # number of Hz to search over for max
     bw_search0 = 0.5e3
@@ -693,13 +693,13 @@ def plotsti_vel(
     Nt=512,
 ):
     """
-        Plot the velocity data over the sti data. This can be used to determie offsets so the data is properly aligned.
+    Plot the velocity data over the sti data. This can be used to determie offsets so the data is properly aligned.
 
-        Args:
-            maindir (:obj:`str`): Path for data.
-            window (:obj:'int'): Window length in samples.
-            incoh_int (:obj:'int'): Number of incoherent integrations.
-            sfactor (:obj:'int'): Overlap factor.
+    Args:
+        maindir (:obj:`str`): Path for data.
+        window (:obj:'int'): Window length in samples.
+        incoh_int (:obj:'int'): Number of incoherent integrations.
+        sfactor (:obj:'int'): Overlap factor.
     """
     # Get the frequency information
     e = ephem_doponly(maindir, offset)
@@ -834,7 +834,7 @@ def plotsti_vel(
 
 def plot_resid(d, savename="resfig1.png"):
     """
-        Plots the residual frequency after the first wipe using the TLE velocity.
+    Plots the residual frequency after the first wipe using the TLE velocity.
     """
     flim = [-2.0e3, 2.0e3]
     t = d["tvec"]
@@ -891,20 +891,20 @@ def plot_resid(d, savename="resfig1.png"):
 
 def plot_measurements(outdict, savename="measured.png"):
     """
-        Plots the rTEC and S4 measurements.
+    Plots the rTEC and S4 measurements.
 
-        Args:
-             outdict (dict[str, obj]): Output data dictionary::
+    Args:
+         outdict (dict[str, obj]): Output data dictionary::
 
-                 {
-                            "rTEC": Relative TEC in TECU,
-                            "rTEC_sig":Relative TEC STD in TECU,
-                            "S4": The S4 parameter,
-                            "snr0":snr0,
-                            "snr1":snr1,
-                            "time": Time for each measurement in posix format,
-                 }
-            savename (obj:'str'): Name of the file that it will be saved to.
+             {
+                        "rTEC": Relative TEC in TECU,
+                        "rTEC_sig":Relative TEC STD in TECU,
+                        "S4": The S4 parameter,
+                        "snr0":snr0,
+                        "snr1":snr1,
+                        "time": Time for each measurement in posix format,
+             }
+        savename (obj:'str'): Name of the file that it will be saved to.
     """
 
     dates = [dt.datetime.fromtimestamp(ts) for ts in outdict["time"]]
@@ -990,15 +990,15 @@ def plot_measurements(outdict, savename="measured.png"):
 
 def plot_map(outdict, e, savename, fig1=None, m=None):
     """
-        This function will plot the output data in a scatter plot over a map of the
-        satellite path.
+    This function will plot the output data in a scatter plot over a map of the
+    satellite path.
 
-        Args:
-            outdict (dict[str, obj]): Output dictionary from analyzebeacons.
-            e (dict[str, obj]): Output dictionary from ephem_doponly.
-            savename(:obj:`str`): Name of the file the image will be saved to.
-            fig1(:obj:'matplotlib figure'): Figure.
-            m (:obj:'basemap obj'): Basemap object
+    Args:
+        outdict (dict[str, obj]): Output dictionary from analyzebeacons.
+        e (dict[str, obj]): Output dictionary from ephem_doponly.
+        savename(:obj:`str`): Name of the file the image will be saved to.
+        fig1(:obj:'matplotlib figure'): Figure.
+        m (:obj:'basemap obj'): Basemap object
     """
 
     t = outdict["time"]
@@ -1058,21 +1058,21 @@ def plot_map(outdict, e, savename, fig1=None, m=None):
 #%% I/O for measurements
 def save_output(maindirmeta, outdict, e):
     """
-        This function saves the output of the relative TEC measurement processing.
+    This function saves the output of the relative TEC measurement processing.
 
-        Args:
-            maindir (:obj:`str`): Path for data.
-            outdict (dict[str, obj]): Output data dictionary::
+    Args:
+        maindir (:obj:`str`): Path for data.
+        outdict (dict[str, obj]): Output data dictionary::
 
-                {
-                           "rTEC": Relative TEC in TECU,
-                           "rTEC_sig":Relative TEC STD in TECU,
-                           "S4": The S4 parameter,
-                           "snr0":snr0,
-                           "snr1":snr1,
-                           "time": Time for each measurement in posix format,
-                }
-        """
+            {
+                       "rTEC": Relative TEC in TECU,
+                       "rTEC_sig":Relative TEC STD in TECU,
+                       "S4": The S4 parameter,
+                       "snr0":snr0,
+                       "snr1":snr1,
+                       "time": Time for each measurement in posix format,
+            }
+    """
 
     if not os.path.exists(maindirmeta):
         os.mkdir(maindirmeta)
@@ -1093,25 +1093,25 @@ def save_output(maindirmeta, outdict, e):
 
 def readoutput(maindirmeta):
     """
-        This function reads the saved output of the relative TEC measurement processing.
-        If the processed data directory doesn't exist it returns None.
+    This function reads the saved output of the relative TEC measurement processing.
+    If the processed data directory doesn't exist it returns None.
 
-        Args:
-            maindir (:obj:`str`): Path for RF data.
+    Args:
+        maindir (:obj:`str`): Path for RF data.
 
-        Returns:
-            outdict (dict[str, obj]): Output data dictionary. If the directory
-            doesn't exists it returns None::
+    Returns:
+        outdict (dict[str, obj]): Output data dictionary. If the directory
+        doesn't exists it returns None::
 
-                {
-                           "rTEC": Relative TEC in TECU,
-                           "rTEC_sig":Relative TEC STD in TECU,
-                           "S4": The S4 parameter,
-                           "snr0":snr0,
-                           "snr1":snr1,
-                           "time": Time for each measurement in posix format,
-                }
-        """
+            {
+                       "rTEC": Relative TEC in TECU,
+                       "rTEC_sig":Relative TEC STD in TECU,
+                       "S4": The S4 parameter,
+                       "snr0":snr0,
+                       "snr1":snr1,
+                       "time": Time for each measurement in posix format,
+            }
+    """
     try:
         dmeta = drf.DigitalMetadataReader(maindirmeta)
     except IOError:
@@ -1125,8 +1125,8 @@ def readoutput(maindirmeta):
 #%% Run from commandline material
 def analyzebeacons(input_args):
     """
-        This function will run the analysis code and save the data. Plots will be
-        made as well if desired.
+    This function will run the analysis code and save the data. Plots will be
+    made as well if desired.
     """
     # makes sure theres no trailing / for the path
     mainpath = os.path.expanduser(os.path.dirname(os.path.join(input_args.path, "")))
@@ -1199,7 +1199,7 @@ def analyzebeacons(input_args):
 
 def parse_command_line(str_input=None):
     """
-        This will parse through the command line arguments
+    This will parse through the command line arguments
     """
     # if str_input is None:
     parser = argparse.ArgumentParser()
@@ -1318,7 +1318,7 @@ def parse_command_line(str_input=None):
 
 if __name__ == "__main__":
     """
-        Main way run from command line
+    Main way run from command line
     """
     args_commd = parse_command_line()
 

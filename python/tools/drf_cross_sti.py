@@ -37,9 +37,7 @@ import scipy.signal
 
 class DataPlotter:
     def __init__(self, control):
-        """__init__: Initializes a data plotter for STI plotting.
-
-        """
+        """__init__: Initializes a data plotter for STI plotting."""
         self.control = control
 
         self.dio = []
@@ -116,10 +114,10 @@ class DataPlotter:
     def plot(self):
         """
 
-            Iterate over the data set and plot the Cross STI into the subplot panels. Each
-            panel is divided into a provided number of bins of a given integration
-            length. Strides between the panels are made between integrations. Both coherence and
-            phase are plotted.
+        Iterate over the data set and plot the Cross STI into the subplot panels. Each
+        panel is divided into a provided number of bins of a given integration
+        length. Strides between the panels are made between integrations. Both coherence and
+        phase are plotted.
 
         """
 

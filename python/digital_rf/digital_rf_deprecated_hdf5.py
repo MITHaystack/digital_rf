@@ -98,10 +98,10 @@ class read_hdf5(object):
     def reload(self, load_all_metadata=None):
         """reload updates the attribute self._channel_dict.
 
-            Inputs:
-                load_all_metadata - If load_all_metadata is True, then get complete metadata.  If
-                    load_all_metadata is False, only get high level metadata. Default is None, in which
-                    case load_all_metadata=self._load_all_metadata, as set in init.
+        Inputs:
+            load_all_metadata - If load_all_metadata is True, then get complete metadata.  If
+                load_all_metadata is False, only get high level metadata. Default is None, in which
+                case load_all_metadata=self._load_all_metadata, as set in init.
         """
         if load_all_metadata is None:
             load_all_metadata = self._load_all_metadata
@@ -184,15 +184,13 @@ class read_hdf5(object):
                 chan_obj.update(complete_update=load_all_metadata)
 
     def get_channels(self):
-        """get_channels returns a alphabetically sorted list of channels in this read_hdf5 object
-        """
+        """get_channels returns a alphabetically sorted list of channels in this read_hdf5 object"""
         channels = list(self._channel_dict.keys())
         channels.sort()
         return channels
 
     def get_bounds(self, channel_name):
-        """get_bounds returns a tuple of (first_unix_sample, last_unix_sample) for a given channel name
-        """
+        """get_bounds returns a tuple of (first_unix_sample, last_unix_sample) for a given channel name"""
         channel_metadata = self._channel_dict[channel_name]
         return (
             int(channel_metadata.unix_start_sample),
@@ -657,8 +655,7 @@ class _channel_metadata(object):
         self.reset_indicies()
 
     def reset_indices(self):
-        """reset_indices recalculates self.unix_start_sample and self.sample_extent based on self.top_level_dir_meta_list
-        """
+        """reset_indices recalculates self.unix_start_sample and self.sample_extent based on self.top_level_dir_meta_list"""
         if len(self.top_level_dir_meta_list) == 0:
             # set to unknown
             self.unix_start_sample = int(0)
@@ -674,8 +671,7 @@ class _channel_metadata(object):
         )
 
     def _verify_non_overlapping_data(self):
-        """_verify_non_overlapping_data raises an error if any overlapping top level directories found
-        """
+        """_verify_non_overlapping_data raises an error if any overlapping top level directories found"""
         for i, record in enumerate(self.top_level_dir_meta_list):
             if i == 0:
                 last_unix_start_sample = record.unix_start_sample
@@ -949,8 +945,7 @@ class _top_level_dir_metadata(object):
             return (ret_array, start_unix_sample)
 
     def _high_level_reload(self):
-        """_high_level_reload updates only high level metadata.  Basically this is only the first and last sample
-        """
+        """_high_level_reload updates only high level metadata.  Basically this is only the first and last sample"""
         base_subdirectory_list = self._get_subdirectories()
         dt1970 = datetime.datetime(1970, 1, 1)
 
@@ -1019,8 +1014,7 @@ class _top_level_dir_metadata(object):
         self.sample_extent = int(last_sample - self.unix_start_sample)
 
     def _full_update(self):
-        """_full_update will cause this _top_level_dir_metadata object to update all possible metadata
-        """
+        """_full_update will cause this _top_level_dir_metadata object to update all possible metadata"""
         update_needed = False  # will be set to True if any subdirectory updated
         base_subdirectory_list = self._get_subdirectories(verify_files=True)
 
@@ -1117,8 +1111,7 @@ class _top_level_dir_metadata(object):
             self.sample_extent = int(last_sample - self.unix_start_sample)
 
     def _verify_non_overlapping_data(self):
-        """_verify_non_overlapping_data raises an error if any overlapping subdirectories found
-        """
+        """_verify_non_overlapping_data raises an error if any overlapping subdirectories found"""
         for i, record in enumerate(self.sub_directory_recarray):
             if i == 0:
                 last_unix_start_sample = record["unix_start_sample"]
@@ -1291,8 +1284,7 @@ class _top_level_dir_metadata(object):
     def _read_data_from_file(
         self, file_to_search, start_unix_sample, stop_unix_sample, ret_array
     ):
-        """_read_data_from_file reads data (if any) from file.  Used with minimal metadata
-        """
+        """_read_data_from_file reads data (if any) from file.  Used with minimal metadata"""
         # make sure cache is clear if this called
         if self._last_start_sample:
             try:
@@ -1420,8 +1412,7 @@ class _top_level_dir_metadata(object):
         )
 
     def __eq__(self, other):
-        """__eq__ compares two _top_level_dir_metadata objects for equality
-        """
+        """__eq__ compares two _top_level_dir_metadata objects for equality"""
         # only the same channel can be compared
         if self.channel_name != other.channel_name:
             raise ValueError(
@@ -1466,13 +1457,11 @@ class _top_level_dir_metadata(object):
         return first_subdirectory == second_subdirectory
 
     def __ne__(self, other):
-        """__ne__ compares two _top_level_dir_metadata objects for inequality
-        """
+        """__ne__ compares two _top_level_dir_metadata objects for inequality"""
         return not (self == other)
 
     def __lt__(self, other):
-        """__lt__ compares two _top_level_dir_metadata objects
-        """
+        """__lt__ compares two _top_level_dir_metadata objects"""
         # only the same channel can be compared
         if self.channel_name != other.channel_name:
             raise ValueError(
@@ -1517,8 +1506,7 @@ class _top_level_dir_metadata(object):
         return first_subdirectory < second_subdirectory
 
     def __del__(self):
-        """__del__makes sure self._last_file is closed.  Does not happen automatically.
-        """
+        """__del__makes sure self._last_file is closed.  Does not happen automatically."""
         if not self._last_file is None:
             try:
                 self._last_file.close()
@@ -1656,8 +1644,7 @@ class _sub_directory_metadata(object):
         return False
 
     def update(self):
-        """update updates self.metadata.  If it was a file name, it reads that data into memory, and then updates it
-        """
+        """update updates self.metadata.  If it was a file name, it reads that data into memory, and then updates it"""
         # for now only local access
         if self.access_mode not in ("local"):
             raise ValueError("access_mode %s not yet implemented" % (self.access_mode))
@@ -1936,8 +1923,7 @@ class _sub_directory_metadata(object):
         return new_rows["unix_sample_index"][0]
 
     def get_last_sample(self):
-        """get_last_sample returns the last sample in a subdirectory.
-        """
+        """get_last_sample returns the last sample in a subdirectory."""
         if len(self.metadata) > 0 and len(list(self.metadata_dict.keys())):
             return (
                 self.metadata["unix_sample_index"][-1]
@@ -2080,8 +2066,7 @@ class _sub_directory_metadata(object):
         return True
 
     def _verify_no_gaps(self, start_unix_sample, stop_unix_sample):
-        """_verify_no_gaps raises an IOError if there is a gap between start_unix_sample, stop_unix_sample
-        """
+        """_verify_no_gaps raises an IOError if there is a gap between start_unix_sample, stop_unix_sample"""
         # to improve speed, do searchsorted to get first index to look into
         first_index = numpy.searchsorted(
             self.cont_metadata["unix_sample_index"], numpy.array([start_unix_sample])
@@ -2196,8 +2181,7 @@ class _sub_directory_metadata(object):
             return numpy.concatenate([first_array, second_array])
 
     def _update_cont_metadata(self):
-        """_update_cont_metadata completely rebuilds self.cont_metadata
-        """
+        """_update_cont_metadata completely rebuilds self.cont_metadata"""
         cont_meta = []
         # handle empty dir case
         if len(self.metadata) == 0:
@@ -2239,8 +2223,7 @@ class _sub_directory_metadata(object):
         self.cont_metadata["sample_extent"] = cont_meta[:, 1]
 
     def _file_is_open(self, rf_file):
-        """_file_is_open returns True if rf_file might be open (or corrupt), False otherwise
-        """
+        """_file_is_open returns True if rf_file might be open (or corrupt), False otherwise"""
         if time.time() - os.path.getmtime(rf_file) < 3:
             return True
         else:
@@ -2257,8 +2240,7 @@ class _sub_directory_metadata(object):
                 return True
 
     def _get_utc_timestamp(self, fullfile):
-        """_get_utc_timestamp returns the last modification timestamp of fullfile in UTC
-        """
+        """_get_utc_timestamp returns the last modification timestamp of fullfile in UTC"""
         # for now only local access
         if self.access_mode not in ("local"):
             raise ValueError("access_mode %s not yet implemented" % (self.access_mode))
@@ -2282,8 +2264,7 @@ class _sub_directory_metadata(object):
 
 
 class _MissingMetadata(Exception):
-    """_MissingMetadata is a Exception that will be raised when metadata needs to be updated
-    """
+    """_MissingMetadata is a Exception that will be raised when metadata needs to be updated"""
 
     def __init__(self, value):
         self.value = value
