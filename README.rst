@@ -1,6 +1,6 @@
 .. -*- mode: rst -*-
 
-|GitHub|_ |PyPI|_ |Conda|_ |Travis|_ |AppVeyor|_
+|GitHub|_ |PyPI|_ |Conda|_ |CI|_
 
 .. |GitHub| image:: https://badge.fury.io/gh/MITHaystack%2Fdigital_rf.svg
 .. _GitHub: https://badge.fury.io/gh/MITHaystack%2Fdigital_rf
@@ -8,14 +8,11 @@
 .. |PyPI| image:: https://badge.fury.io/py/digital-rf.svg
 .. _PyPI: https://pypi.python.org/pypi/digital-rf/
 
-.. |Conda| image:: https://anaconda.org/ryanvolz/digital_rf/badges/version.svg
-.. _Conda: https://anaconda.org/ryanvolz/digital_rf
+.. |Conda| image:: https://anaconda.org/conda-forge/digital_rf/badges/version.svg
+.. _Conda: https://anaconda.org/conda-forge/digital_rf
 
-.. |Travis| image:: https://travis-ci.org/MITHaystack/digital_rf.svg?branch=master
-.. _Travis: https://travis-ci.org/MITHaystack/digital_rf
-
-.. |AppVeyor| image:: https://ci.appveyor.com/api/projects/status/vt741g5mjsh841ai?svg=true
-.. _AppVeyor: https://ci.appveyor.com/project/ryanvolz/digital-rf
+.. |CI| image:: https://github.com/MITHaystack/digital_rf/workflows/conda-matrix/badge.svg
+.. _CI: https://github.com/MITHaystack/digital_rf/actions?query=workflow%3Aconda-matrix+branch%3Amaster
 
 |DigitalRF|
 ===========
