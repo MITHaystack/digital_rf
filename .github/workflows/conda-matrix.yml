@@ -4,13 +4,12 @@ on: [push, pull_request]
 
 jobs:
   conda-build:
-    name: ${{ matrix.os }} (python ${{ matrix.python-version }})
+    name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
-        python-version: ['3.6', '3.7', '3.8']
     steps:
       - uses: actions/checkout@v2
         with:
@@ -30,4 +29,4 @@ jobs:
       - name: Build and Test
         shell: bash -l {0}
         run: |
-          conda build -m $CONDA_PREFIX/conda_build_config.yaml --variants "{python: [${{ matrix.python-version }}]}" recipes/conda
+          conda build -m $CONDA_PREFIX/conda_build_config.yaml recipes/conda
