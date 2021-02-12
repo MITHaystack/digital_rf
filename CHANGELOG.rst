@@ -4,6 +4,26 @@ digital_rf Change Log
 
 .. current developments
 
+v2.6.6
+====================
+
+**Deprecated:**
+
+* The `digital_rf_get_unix_time` function is now deprecated, as it relies on a `long double` sample rate. Use `digital_rf_get_unix_time_rational` instead.
+
+**Fixed:**
+
+* Fix incorrect file bound calculation in `digital_rf_get_subdir_file` on platforms that have a `long double` that is different from amd64, notably at least the aarch64 ARM platform. This fixes a bug where writes failed with error messages "Failed to write data" and "Request index M before first expected index N".
+* Regularized use of 64 bit integer types and their conversion to Python values, perhaps correcting behavior when compiled on 32-bit architectures.
+* Cleaned up compiler warnings about comparing signed and unsigned values.
+* Cleaned up testing warnings about invalid values in equals comparison.
+
+**Authors:**
+
+* Ryan Volz
+
+
+
 v2.6.5
 ====================
 
