@@ -132,6 +132,10 @@ EXPORT int digital_rf_write_blocks_hdf5(
 		uint64_t, long double, int*, int*, int*, int*, int*, int*, uint64_t*);
 	extern "C" EXPORT int digital_rf_get_unix_time_rational(
 		uint64_t, uint64_t, uint64_t, int*, int*, int*, int*, int*, int*, uint64_t*);
+	extern "C" EXPORT int digital_rf_get_timestamp_floor(
+		uint64_t, uint64_t, uint64_t, uint64_t*, uint64_t*);
+	extern "C" EXPORT int digital_rf_get_sample_ceil(
+		uint64_t, uint64_t, uint64_t, uint64_t, uint64_t*);
 	extern "C" EXPORT Digital_rf_write_object * digital_rf_create_write_hdf5(
 		char*, hid_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, char *, int, int, int, int, int, int);
 	extern "C" EXPORT int digital_rf_write_hdf5(Digital_rf_write_object*, uint64_t, void*,uint64_t);
@@ -149,6 +153,10 @@ EXPORT int digital_rf_write_blocks_hdf5(
 		uint64_t sample_rate_numerator, uint64_t sample_rate_denominator,
 		int * year, int * month, int *day, int * hour, int * minute,
 		int * second, uint64_t * picosecond);
+	EXPORT int digital_rf_get_timestamp_floor(
+		uint64_t sample_index, uint64_t sample_rate_numerator, uint64_t sample_rate_denominator, uint64_t * second, uint64_t * picosecond);
+	EXPORT int digital_rf_get_sample_ceil(
+		uint64_t second, uint64_t picosecond, uint64_t sample_rate_numerator, uint64_t sample_rate_denominator, uint64_t * sample_index);
 	EXPORT Digital_rf_write_object * digital_rf_create_write_hdf5(
 		char * directory, hid_t dtype_id, uint64_t subdir_cadence_secs,
 		uint64_t file_cadence_millisecs, uint64_t global_start_sample,
@@ -166,10 +174,6 @@ EXPORT int digital_rf_write_blocks_hdf5(
 #endif
 
 /* Private method declarations */
-int digital_rf_get_timestamp_floor(uint64_t sample_index, uint64_t sample_rate_numerator,
-								   uint64_t sample_rate_denominator, uint64_t * second, uint64_t * picosecond);
-int digital_rf_get_sample_ceil(uint64_t second, uint64_t picosecond,
-							   uint64_t sample_rate_numerator, uint64_t sample_rate_denominator, uint64_t * sample_index);
 int digital_rf_get_time_parts(time_t unix_second, int * year, int * month, int *day,
 		                     int * hour, int * minute, int * second);
 int digital_rf_get_subdir_file(Digital_rf_write_object *hdf5_data_object, uint64_t global_sample,
