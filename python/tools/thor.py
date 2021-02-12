@@ -594,9 +594,9 @@ class Thor(object):
         # (integer division of clock rate)
         cr = op.clock_rates[0]
         srdec = int(round(cr / samplerate))
+        op.samplerate_frac = Fraction(cr).limit_denominator(2 ** 32) / srdec
         samplerate_ld = np.longdouble(cr) / srdec
         op.samplerate = samplerate_ld
-        op.samplerate_frac = Fraction(cr).limit_denominator() / srdec
 
         # set per-channel options
         # set command time so settings are synced
@@ -718,7 +718,7 @@ class Thor(object):
                 info["lo_off"] = op.lo_offsets[ch_num]
                 info["lo_source"] = op.lo_sources[ch_num]
                 info["lo_export"] = op.lo_exports[ch_num]
-                info["sr"] = op.samplerate
+                info["sr"] = op.samplerate_frac
                 print(chinfo.format(**info))
                 print("-" * 78)
 
@@ -754,18 +754,17 @@ class Thor(object):
         op.channelizer_filter_taps = []
         op.channelizer_filter_delays = []
         for ko, (osr, nsc) in enumerate(zip(op.ch_samplerates, op.ch_nsubchannels)):
-            # get output sample rate fraction
+            # get output resampling ratio
             # (op.samplerate_frac final value is set in _usrp_setup
             #  so can't get output sample rate until after that is done)
             if osr is None:
-                ch_samplerate_frac = op.samplerate_frac
+                ratio = Fraction(1)
             else:
-                ch_samplerate_frac = Fraction(osr).limit_denominator()
-            op.ch_samplerates_frac.append(ch_samplerate_frac)
-
-            # get resampling ratio
-            ratio = ch_samplerate_frac / op.samplerate_frac
+                ratio = (Fraction(osr) / op.samplerate_frac).limit_denominator(2 ** 16)
             op.resampling_ratios.append(ratio)
+
+            # get output samplerate fraction
+            op.ch_samplerates_frac.append(op.samplerate_frac * ratio)
 
             # get resampling low-pass filter taps
             if ratio == 1:
