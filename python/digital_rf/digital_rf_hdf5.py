@@ -1082,7 +1082,7 @@ class DigitalRFReader(object):
             num_subchannels : int
             sample_rate_numerator : int
             sample_rate_denominator : int
-            samples_per_second : np.longdouble
+            samples_per_second : np.longdouble (don't rely on this!)
             subdir_cadence_secs : int
 
         The additional properties particular to each file are:
@@ -1235,7 +1235,7 @@ class DigitalRFReader(object):
 
             sample_rate_numerator : int
             sample_rate_denominator : int
-            samples_per_second : np.longdouble
+            samples_per_second : np.longdouble (don't rely on this!)
 
         """
         properties = self.get_properties(channel_name)
@@ -1824,8 +1824,9 @@ class _channel_properties(object):
         """Create a new _channel_properties object.
 
         This populates `self.properties`, which is a dictionary of
-        attributes found in the HDF5 files (eg, samples_per_second). It also
-        sets the attribute `max_samples_per_file`.
+        attributes found in the HDF5 files (e.g. sample_rate_numerator /
+        sample_rate_denominator). It also sets the attribute
+        `max_samples_per_file`.
 
 
         Parameters
