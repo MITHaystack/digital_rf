@@ -127,9 +127,9 @@ def hdf_filter_params(request):
     scope="session",
     params=[
         # srnum, srden, sdcsec, fcms
-        (200, 3, 10, 1000)
+        (200, 3, 2, 400)
     ],
-    ids=["200/3hz,10s,1000ms"],
+    ids=["200/3hz,2s,400ms"],
 )
 def sample_params(request):
     return dict(
@@ -361,21 +361,14 @@ def data_file_list(sample_params):
     # get params as a tuple of values sorted in key order
     params = tuple(v for k, v in sorted(sample_params.items()))
     file_lists = {
-        (1000, 3, 200, 10): [
+        (400, 3, 200, 2): [
             os.path.join("2014-03-09T12-30-30", "rf@1394368230.000.h5"),
-            os.path.join("2014-03-09T12-30-30", "rf@1394368231.000.h5"),
-            os.path.join("2014-03-09T12-30-30", "rf@1394368232.000.h5"),
-            os.path.join("2014-03-09T12-30-30", "rf@1394368233.000.h5"),
-            os.path.join("2014-03-09T12-30-30", "rf@1394368234.000.h5"),
-            os.path.join("2014-03-09T12-30-30", "rf@1394368236.000.h5"),
-            os.path.join("2014-03-09T12-30-30", "rf@1394368237.000.h5"),
-            os.path.join("2014-03-09T12-30-30", "rf@1394368238.000.h5"),
-            os.path.join("2014-03-09T12-30-30", "rf@1394368239.000.h5"),
-            os.path.join("2014-03-09T12-30-40", "rf@1394368240.000.h5"),
-            os.path.join("2014-03-09T12-30-40", "rf@1394368241.000.h5"),
-            os.path.join("2014-03-09T12-30-40", "rf@1394368242.000.h5"),
-            os.path.join("2014-03-09T12-30-40", "rf@1394368243.000.h5"),
-            os.path.join("2014-03-09T12-30-40", "rf@1394368244.000.h5"),
+            os.path.join("2014-03-09T12-30-30", "rf@1394368230.400.h5"),
+            os.path.join("2014-03-09T12-30-30", "rf@1394368230.800.h5"),
+            os.path.join("2014-03-09T12-30-30", "rf@1394368231.200.h5"),
+            os.path.join("2014-03-09T12-30-30", "rf@1394368231.600.h5"),
+            os.path.join("2014-03-09T12-30-32", "rf@1394368232.400.h5"),
+            os.path.join("2014-03-09T12-30-32", "rf@1394368232.800.h5"),
         ]
     }
     return file_lists[params]
@@ -685,7 +678,7 @@ class TestDigitalRFChannel(object):
                 global_sample_arr=global_sample_arr,
                 block_sample_arr=block_sample_arr,
             )
-            assert next_rel_index == (block_stops[-1] - bounds[0])
+            assert next_rel_index == (block_stops[-1] - start_global_index)
 
             # fail with non-matching length of sample lists
             with pytest.raises(ValueError):

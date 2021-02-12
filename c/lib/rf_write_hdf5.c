@@ -555,25 +555,19 @@ int digital_rf_get_unix_time(uint64_t global_sample, long double sample_rate, in
 /* get_unix_time converts a global_sample and a sample rate into year, month, day
  * 	hour, minute, second, picosecond
  *
+ *  ***DEPRECATED*** Use digital_rf_get_unix_time_rational instead.
+ *
  * 	Returns 0 if success, -1 if failure.
  *
  */
 {
-	struct tm *gm;
 	time_t unix_second;
 	long double unix_remainder;
 
 	/* set values down to second using gmtime */
 	unix_second = (time_t)(global_sample / sample_rate);
-	gm = gmtime(&unix_second);
-	if (gm == NULL)
+	if (digital_rf_get_time_parts(unix_second, year, month, day, hour, minute, second))
 		return(-1);
-	*year = gm->tm_year + 1900;
-	*month = gm->tm_mon + 1;
-	*day = gm->tm_mday;
-	*hour = gm->tm_hour;
-	*minute = gm->tm_min;
-	*second = gm->tm_sec;
 
 	/* set picoseconds */
 	if (fmod(sample_rate, 1.0) == 0.0) /* use integer logic when sample rate can be converted to an integer */
@@ -581,6 +575,137 @@ int digital_rf_get_unix_time(uint64_t global_sample, long double sample_rate, in
 	else
 		unix_remainder = fmodl((long double)global_sample, sample_rate);
 	*picosecond = (uint64_t)floorl((unix_remainder/sample_rate)*1.0E12L + 0.5L);
+	return(0);
+}
+
+
+int digital_rf_get_timestamp_floor(uint64_t sample_index,
+	uint64_t sample_rate_numerator, uint64_t sample_rate_denominator,
+	uint64_t * second, uint64_t * picosecond)
+/* get_timestamp_floor converts a sample index into the nearest earlier timestamp
+ *  (flooring) divided into second and picosecond parts, using the sample rate
+ *  expressed as a rational fraction.
+ *
+ *  Flooring is used so that sample falls in the window of time represented by
+ *  the returned timestamp, which includes that time up until the next possible
+ *  timestamp: second + [picosecond, picosecond + 1).
+ *
+ * 	Returns 0 if success, -1 if failure.
+ *
+ */
+{
+	uint64_t tmp_div;
+	uint64_t tmp_mod;
+	uint64_t tmp;
+
+	/* calculate with divide/modulus split to avoid overflow */
+	/* second = si * d / n = ((si / n) * d) + ((si % n) * d) / n */
+	tmp_div = sample_index / sample_rate_numerator;
+	tmp_mod = sample_index % sample_rate_numerator;
+	*second = tmp_div * sample_rate_denominator;
+	tmp = tmp_mod * sample_rate_denominator;
+	tmp_div = tmp / sample_rate_numerator;
+	tmp_mod = tmp % sample_rate_numerator;
+	*second += tmp_div;
+	/* picoseconds calculated from remainder of division to calculate seconds */
+	/* picsecond = rem * 1e12 / n = rem * (1e12 / n) + (rem * (1e12 % n)) / n */
+	tmp = tmp_mod;
+	tmp_div = 1000000000000 / sample_rate_numerator;
+	tmp_mod = 1000000000000 % sample_rate_numerator;
+	*picosecond = (tmp * tmp_div) + (tmp * tmp_mod / sample_rate_numerator);
+
+	return(0);
+}
+
+
+int digital_rf_get_sample_ceil(uint64_t second, uint64_t picosecond,
+	uint64_t sample_rate_numerator, uint64_t sample_rate_denominator,
+	uint64_t * sample_index)
+/* get_sample_ceil converts a timestamp (divided into second and picosecond parts)
+ *  into the next nearest sample (ceil), using the sample rate expressed as a
+ *  rational fraction.
+ *
+ *  Ceiling is used to complement the flooring in get_timestamp_floor, so that
+ *  get_sample_ceil(get_timestamp_floor(sample_index)) == sample_index.
+ *
+ * 	Returns 0 if success, -1 if failure.
+ *
+ */
+{
+	uint64_t nanosecond;
+	uint64_t quotient;
+	uint64_t remainder;
+	uint64_t tmp_div;
+	uint64_t tmp_mod;
+
+	/* divide picosecond into nanosecond and remainder so both use < 32 bits */
+	nanosecond = picosecond / 1000;
+	picosecond = picosecond % 1000;
+
+	/* calculate with divide/modulus split to avoid overflow */
+	/* si = ts * n / d = (sec + (nsec / 1e9) + (psec / 1e12)) * n / d */
+
+	/* start with picosecond part */
+	tmp_div = picosecond / sample_rate_denominator;
+	tmp_mod = picosecond % sample_rate_denominator;
+	tmp_div *= sample_rate_numerator;
+	tmp_mod *= sample_rate_numerator;
+	tmp_div += tmp_mod / sample_rate_denominator;
+	tmp_mod = tmp_mod % sample_rate_denominator;
+	/* quotient and remainder are in terms of (samples * 1e12) */
+	quotient = tmp_div;
+	remainder = tmp_mod;  /* remainder w.r.t sample_rate_denominator */
+
+	/* multiply and divide nanosecond part */
+	tmp_div = nanosecond / sample_rate_denominator;
+	tmp_mod = nanosecond % sample_rate_denominator;
+	tmp_div *= sample_rate_numerator;
+	tmp_mod *= sample_rate_numerator;
+	tmp_div += tmp_mod / sample_rate_denominator;
+	tmp_mod = tmp_mod % sample_rate_denominator;
+	/* consolidate: tmp_div + tmp_mod / d + quotient / 1e3 + remainder / 1e3 / d */
+	/* add nanosecond remainder to picosecond part in terms of (samples * 1e12) */
+	remainder += tmp_mod * 1000;
+	quotient += remainder / sample_rate_denominator;
+	remainder = remainder % sample_rate_denominator;
+	/* now have: tmp_div + quotient / 1e3 + remainder / 1e3 / d */
+	/* consolidate into a single quotient and remainder */
+	tmp_div += quotient / 1000;
+	quotient = quotient % 1000;
+	remainder += quotient * sample_rate_denominator;
+	quotient = tmp_div;
+	/* now have: quotient + remainder / 1e3 / d */
+	/* update remainder to be in terms of (samples * 1e9) using ceiling rounding */
+	remainder = remainder / 1000 + (remainder % 1000 != 0);
+	/* now have in terms of (samples * 1e9): quotient + remainder / d */
+
+	/* multiply and divide second part */
+	tmp_div = second / sample_rate_denominator;
+	tmp_mod = second % sample_rate_denominator;
+	tmp_div *= sample_rate_numerator;
+	tmp_mod *= sample_rate_numerator;
+	tmp_div += tmp_mod / sample_rate_denominator;
+	tmp_mod = tmp_mod % sample_rate_denominator;
+	/* consolidate: tmp_div + tmp_mod / d + quotient / 1e9 + remainder / 1e9 / d */
+	/* add second remainder to nanosecond part in terms of (samples * 1e9) */
+	remainder += tmp_mod * 1000000000;
+	quotient += remainder / sample_rate_denominator;
+	remainder = remainder % sample_rate_denominator;
+	/* now have: tmp_div + quotient / 1e9 + remainder / 1e9 / d */
+	/* consolidate into a single quotient and remainder */
+	tmp_div += quotient / 1000000000;
+	quotient = quotient % 1000000000;
+	remainder += quotient * sample_rate_denominator;
+	quotient = tmp_div;
+	/* now have: quotient + remainder / 1e9 / d */
+	/* update remainder to be in terms of samples using ceiling rounding */
+	remainder = remainder / 1000000000 + (remainder % 1000000000 != 0);
+	/* now have in terms of samples: quotient + remainder / d */
+	/* finally ceiling round remainder into quotient */
+	quotient += (remainder != 0);
+
+	*sample_index = quotient;
+
 	return(0);
 }
 
@@ -596,12 +721,37 @@ int digital_rf_get_unix_time_rational(uint64_t global_sample,
  *
  */
 {
-	struct tm *gm;
+	uint64_t timestamp_second;
 	time_t unix_second;
-	uint64_t unix_remainder;
 
-	/* set values down to second using gmtime */
-	unix_second = (time_t)(global_sample * sample_rate_denominator / sample_rate_numerator);
+	/* get second timestamp and picosecond value */
+	if (digital_rf_get_timestamp_floor(global_sample, sample_rate_numerator, sample_rate_denominator, &timestamp_second, picosecond))
+		return(-1);
+
+	/* set values down to second from timestamp*/
+	unix_second = (time_t)timestamp_second;
+	if (digital_rf_get_time_parts(unix_second, year, month, day, hour, minute, second))
+		return(-1);
+
+	return(0);
+}
+
+
+
+/* Private Method implementations */
+
+
+int digital_rf_get_time_parts(time_t unix_second, int * year, int * month, int *day,
+		                     int * hour, int * minute, int * second)
+/* get_time_parts converts a Unix timestamp into year, month, day
+ * 	hour, minute, second
+ *
+ * 	Returns 0 if success, -1 if failure.
+ *
+ */
+{
+	struct tm *gm;
+
 	gm = gmtime(&unix_second);
 	if (gm == NULL)
 		return(-1);
@@ -612,15 +762,8 @@ int digital_rf_get_unix_time_rational(uint64_t global_sample,
 	*minute = gm->tm_min;
 	*second = gm->tm_sec;
 
-	/* set picoseconds */
-	unix_remainder = global_sample - (unix_second * sample_rate_numerator / sample_rate_denominator);
-	*picosecond = unix_remainder * 1000000000000 * sample_rate_denominator / sample_rate_numerator;
 	return(0);
 }
-
-
-
-/* Private Method implementations */
 
 
 int digital_rf_get_subdir_file(Digital_rf_write_object *hdf5_data_object, uint64_t global_sample,
@@ -653,6 +796,7 @@ int digital_rf_get_subdir_file(Digital_rf_write_object *hdf5_data_object, uint64
 	uint64_t file_sec_part; 		/* second part of file name */
 	uint64_t file_millisec_part; 	/* millisecond part of file name */
 	uint64_t file_start_sample;		/* first sample in file */
+	uint64_t next_file_millisec;	/* the unix millisecond the *next* file starts */
 	uint64_t next_file_sec_part;	/* second part of *next* file name */
 	uint64_t next_file_millisec_part;		/* millisecond part of *next* file name */
 	uint64_t next_file_start_sample;		/* first sample in *next* file */
@@ -660,27 +804,36 @@ int digital_rf_get_subdir_file(Digital_rf_write_object *hdf5_data_object, uint64
 	/* convert global_sample to absolute samples since 1970 */
 	global_sample += hdf5_data_object->global_start_sample;
 
+	/* get floored millisecond timestamp corresponding to sample */
+	if (digital_rf_get_timestamp_floor(global_sample, hdf5_data_object->sample_rate_numerator, hdf5_data_object->sample_rate_denominator, &sample_sec, &picosecond))
+		return(-1);
+	sample_millisec = sample_sec * 1000 + picosecond / 1000000000;
+
 	/* first derive the subdirectory name */
-	sample_sec = (uint64_t)(global_sample/hdf5_data_object->sample_rate);
 	dir_sec = (sample_sec / hdf5_data_object->subdir_cadence_secs) * hdf5_data_object->subdir_cadence_secs;
-	if (digital_rf_get_unix_time(dir_sec, 1.0, &year, &month, &day, &hour, &minute, &second, &picosecond))
+	if (digital_rf_get_time_parts((time_t)dir_sec, &year, &month, &day, &hour, &minute, &second))
 		return(-1);
 	snprintf(subdir, BIG_HDF5_STR, "%04i-%02i-%02iT%02i-%02i-%02i", year, month, day, hour, minute, second);
 
 	/* next derive the file name */
-	sample_millisec = (uint64_t)((global_sample/hdf5_data_object->sample_rate)*1000);
 	file_millisec = (sample_millisec / hdf5_data_object->file_cadence_millisecs) * hdf5_data_object->file_cadence_millisecs;
 	file_sec_part = file_millisec / 1000; /* second part of file name */
 	file_millisec_part = file_millisec % 1000; /* millisecond part of file name */
 	snprintf(basename, SMALL_HDF5_STR, "tmp.rf@%" PRIu64 ".%03" PRIu64 ".h5", file_sec_part, file_millisec_part);
-	file_millisec += hdf5_data_object->file_cadence_millisecs; /* now file_millisec is the unix start millisecond of the *next* file */
-	next_file_sec_part = file_millisec / 1000;
-	next_file_millisec_part = file_millisec % 1000;
+	next_file_millisec = file_millisec + hdf5_data_object->file_cadence_millisecs;
+	next_file_sec_part = next_file_millisec / 1000;
+	next_file_millisec_part = next_file_millisec % 1000;
 
 	/* finally derive the number of samples available to write in this file (independent of whether file exists) */
 	/* ceil needed because implicit flooring puts sample at time just before file starts */
-	file_start_sample = (uint64_t)ceill(file_sec_part*hdf5_data_object->sample_rate + (file_millisec_part*hdf5_data_object->sample_rate)/1000);
-	next_file_start_sample = (uint64_t)ceill(next_file_sec_part*hdf5_data_object->sample_rate + (next_file_millisec_part*hdf5_data_object->sample_rate)/1000);
+	if (digital_rf_get_sample_ceil(file_sec_part, file_millisec_part * 1000000000,
+	hdf5_data_object->sample_rate_numerator, hdf5_data_object->sample_rate_denominator,
+	&file_start_sample))
+		return(-1);
+	if (digital_rf_get_sample_ceil(next_file_sec_part, next_file_millisec_part * 1000000000,
+	hdf5_data_object->sample_rate_numerator, hdf5_data_object->sample_rate_denominator,
+	&next_file_start_sample))
+		return(-1);
 	*samples_left = next_file_start_sample - global_sample;
 	*max_samples_this_file = next_file_start_sample - file_start_sample;
 

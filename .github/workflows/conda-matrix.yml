@@ -15,7 +15,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up conda environment
-        uses: goanpeca/setup-miniconda@v1
+        uses: conda-incubator/setup-miniconda@v2
         with:
           activate-environment: dev-env
           environment-file: recipes/conda/dev-env.yml
