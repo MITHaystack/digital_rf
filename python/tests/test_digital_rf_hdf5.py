@@ -30,11 +30,6 @@ def start_datetime():
     return datetime.datetime(2014, 3, 9, 12, 30, 30, 0, None)
 
 
-@pytest.fixture(scope="session")
-def start_global_index(samples_per_second, start_datetime):
-    return digital_rf.util.time_to_sample(start_datetime, samples_per_second)
-
-
 ###############################################################################
 #  parametrized fixtures  #####################################################
 ###############################################################################
@@ -127,6 +122,7 @@ def hdf_filter_params(request):
 @pytest.fixture(
     scope="session",
     params=[
+        # sample rates must be set so that start_datetime is an exact sample time
         # srnum, srden, sdcsec, fcms
         (200, 3, 2, 400)
     ],
@@ -226,6 +222,11 @@ def file_cadence_millisecs(sample_params):
 @pytest.fixture(scope="session")
 def samples_per_second(sample_rate_numerator, sample_rate_denominator):
     return np.longdouble(sample_rate_numerator) / sample_rate_denominator
+
+
+@pytest.fixture(scope="session")
+def start_global_index(samples_per_second, start_datetime):
+    return digital_rf.util.time_to_sample(start_datetime, samples_per_second)
 
 
 @pytest.fixture(scope="session")
@@ -441,13 +442,26 @@ def drf_reader(chdir):
 def test_get_unix_time(
     sample_rate_numerator, sample_rate_denominator, start_datetime, start_global_index
 ):
-    global_index = start_global_index + 1
-    index_dt = start_datetime + datetime.timedelta(microseconds=15000)
+    # test conversion of the start time
     dt, picoseconds = digital_rf.get_unix_time(
-        global_index, sample_rate_numerator, sample_rate_denominator
+        start_global_index, sample_rate_numerator, sample_rate_denominator
     )
-    assert dt == index_dt
-    assert picoseconds == index_dt.microsecond * 1000000
+    assert dt == start_datetime
+    assert picoseconds == start_datetime.microsecond * 1000000
+
+
+def test_sample_timestamp_conversion(
+    sample_rate_numerator, sample_rate_denominator, start_datetime, start_global_index
+):
+    # test that sample index round trips through get_sample_ceil(get_timestamp_floor())
+    for global_index in range(start_global_index, start_global_index + 100):
+        second, picosecond = digital_rf._py_rf_write_hdf5.get_timestamp_floor(
+            global_index, sample_rate_numerator, sample_rate_denominator
+        )
+        rt_global_index = digital_rf._py_rf_write_hdf5.get_sample_ceil(
+            second, picosecond, sample_rate_numerator, sample_rate_denominator
+        )
+        assert rt_global_index == global_index
 
 
 class TestDigitalRFChannel(object):
