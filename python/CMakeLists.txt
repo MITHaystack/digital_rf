@@ -27,7 +27,7 @@ else()
     endif(Python_FOUND)
 endif(Python_EXECUTABLE)
 
-set(digital_rf_VERSION 2.6.5)
+set(digital_rf_VERSION 2.6.6)
 project(digital_rf LANGUAGES C VERSION ${digital_rf_VERSION})
 
 include(GNUInstallDirs)
