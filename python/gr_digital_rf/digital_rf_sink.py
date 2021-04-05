@@ -14,7 +14,6 @@ import sys
 import traceback
 import warnings
 from collections import defaultdict
-from distutils.version import LooseVersion
 from itertools import chain, tee
 
 import numpy as np
@@ -371,16 +370,12 @@ class digital_rf_channel_sink(gr.sync_block):
             sys.stdout.flush()
 
         # stream tags to read (in addition to rx_time, handled specially)
-        if LooseVersion(gr.version()) >= LooseVersion("3.7.12"):
-            self._stream_tag_translators = {
-                # disable rx_freq until we figure out what to do with polyphase
-                # pmt.intern('rx_freq'): translate_rx_freq,
-                pmt.intern("metadata"): translate_metadata
-            }
-        else:
-            # USRP source in gnuradio < 3.7.12 has bad rx_freq tags, so avoid
-            # trouble by ignoring rx_freq tags for those gnuradio versions
-            self._stream_tag_translators = {pmt.intern("metadata"): translate_metadata}
+        self._stream_tag_translators = {
+            # disable rx_freq until we figure out what to do with polyphase
+            # also, USRP source in gr < 3.7.12 has bad rx_freq tags
+            # pmt.intern('rx_freq'): translate_rx_freq,
+            pmt.intern("metadata"): translate_metadata
+        }
 
         # create metadata dictionary that will be updated and written whenever
         # new metadata is received in stream tags
