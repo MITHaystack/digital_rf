@@ -1,7 +1,7 @@
 [build-system]
 requires = [
+    "oldest-supported-numpy",
     "pkgconfig",
-    "numpy",
     "setuptools",
     "wheel",
 ]
