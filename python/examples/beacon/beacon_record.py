@@ -35,7 +35,7 @@ from six.moves import configparser
 
 
 class ExceptionString(Exception):
-    """ Simple exception handling string """
+    """Simple exception handling string"""
 
     def __str__(self):
         return repr(self.args[0])
@@ -411,7 +411,7 @@ def __read_config__(inifile):
 
 
 def get_next_object(opt, site, objects, ctime):
-    """ Not too efficent but works for now. """
+    """Not too efficent but works for now."""
     rise_list = {}
 
     for obj in objects:
