@@ -20,6 +20,10 @@ requirements:
     - {{ compiler('c') }}
     - cmake >=3.15
     - make  # [not win]
+    # cross-compilation dependencies
+    - python                                 # [build_platform != target_platform]
+    - cross-python_{{ target_platform }}     # [build_platform != target_platform]
+    - numpy                                  # [build_platform != target_platform]
 
   host:
     - hdf5
@@ -60,7 +64,7 @@ about:
   home: https://github.com/MITHaystack/digital_rf
   license: BSD-3-Clause
   license_file: LICENSE
-  summary: 'Work with data in the Digital RF and Digital Metadata formats.'
+  summary: Work with data in the Digital RF and Digital Metadata formats.
   description: |
     The Digital RF project encompasses a standardized HDF5 format for reading
     and writing of radio frequency data and the software for doing so. The
