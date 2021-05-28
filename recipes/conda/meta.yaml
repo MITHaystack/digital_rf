@@ -11,6 +11,7 @@ source:
 
 build:
   number: 0
+  skip: true  # [py==36]
   run_exports:
     # can't use pin_subpackage here because GIT_DESCRIBE_* variables are undefined when evaluating it
     - digital_rf >={{ GIT_DESCRIBE_TAG[:1] }},<{{ (GIT_DESCRIBE_TAG[:1]|int + 1)|string }}

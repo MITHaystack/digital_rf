@@ -13,10 +13,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - CONFIG: linux_64_numpy1.17python3.6.____cpython
-            UPLOAD_PACKAGES: True
-            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-comp7
-            os: ubuntu
           - CONFIG: linux_64_numpy1.17python3.7.____cpython
             UPLOAD_PACKAGES: True
             DOCKER_IMAGE: quay.io/condaforge/linux-anvil-comp7
@@ -28,10 +24,6 @@ jobs:
           - CONFIG: linux_64_numpy1.19python3.9.____cpython
             UPLOAD_PACKAGES: True
             DOCKER_IMAGE: quay.io/condaforge/linux-anvil-comp7
-            os: ubuntu
-          - CONFIG: linux_aarch64_numpy1.17python3.6.____cpython
-            UPLOAD_PACKAGES: True
-            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-aarch64
             os: ubuntu
           - CONFIG: linux_aarch64_numpy1.17python3.7.____cpython
             UPLOAD_PACKAGES: True
@@ -45,10 +37,6 @@ jobs:
             UPLOAD_PACKAGES: True
             DOCKER_IMAGE: quay.io/condaforge/linux-anvil-aarch64
             os: ubuntu
-          - CONFIG: linux_ppc64le_numpy1.17python3.6.____cpython
-            UPLOAD_PACKAGES: True
-            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-ppc64le
-            os: ubuntu
           - CONFIG: linux_ppc64le_numpy1.17python3.7.____cpython
             UPLOAD_PACKAGES: True
             DOCKER_IMAGE: quay.io/condaforge/linux-anvil-ppc64le
@@ -61,9 +49,6 @@ jobs:
             UPLOAD_PACKAGES: True
             DOCKER_IMAGE: quay.io/condaforge/linux-anvil-ppc64le
             os: ubuntu
-          - CONFIG: win_64_numpy1.17python3.6.____cpython
-            UPLOAD_PACKAGES: True
-            os: windows
           - CONFIG: win_64_numpy1.17python3.7.____cpython
             UPLOAD_PACKAGES: True
             os: windows
@@ -73,9 +58,6 @@ jobs:
           - CONFIG: win_64_numpy1.19python3.9.____cpython
             UPLOAD_PACKAGES: True
             os: windows
-          - CONFIG: osx_64_numpy1.17python3.6.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
           - CONFIG: osx_64_numpy1.17python3.7.____cpython
             UPLOAD_PACKAGES: True
             os: macos
@@ -104,6 +86,7 @@ jobs:
         UPLOAD_PACKAGES: ${{ matrix.UPLOAD_PACKAGES }}
         DOCKERIMAGE: ${{ matrix.DOCKERIMAGE }}
         CI: github_actions
+        UPLOAD_ON_BRANCH: master
         BINSTAR_TOKEN: ${{ secrets.BINSTAR_TOKEN }}
       shell: bash
       run: |
@@ -120,6 +103,7 @@ jobs:
         CONFIG: ${{ matrix.CONFIG }}
         UPLOAD_PACKAGES: ${{ matrix.UPLOAD_PACKAGES }}
         CI: github_actions
+        UPLOAD_ON_BRANCH: master
         BINSTAR_TOKEN: ${{ secrets.BINSTAR_TOKEN }}
       shell: bash
       run: |
@@ -154,5 +138,6 @@ jobs:
         CONFIG: ${{ matrix.CONFIG }}
         CI: github_actions
         UPLOAD_PACKAGES: ${{ matrix.UPLOAD_PACKAGES }}
+        UPLOAD_ON_BRANCH: master
         BINSTAR_TOKEN: ${{ secrets.BINSTAR_TOKEN }}
       if: matrix.os == 'windows'
