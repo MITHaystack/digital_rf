@@ -1,11 +1,12 @@
 {% set rev = "HEAD" %}
+{% set version = (environ.get('GIT_DESCRIBE_TAG', 'untagged')|string|replace('-','_')) + '.dev' + environ.get('GIT_DESCRIBE_NUMBER', '0') + '+' + environ.get('GIT_DESCRIBE_HASH', 'local') %}
 
 package:
   name: digital_rf
-  version: {{ GIT_DESCRIBE_TAG }}+{{ GIT_DESCRIBE_NUMBER }}.{{ GIT_DESCRIBE_HASH[:8] }}
+  version: {{ version }}
 
 source:
-  git_url: ../../
+  git_url: {{ environ.get("FEEDSTOCK_ROOT", "../../") }}
   git_rev: {{ rev }}
 
 build:
