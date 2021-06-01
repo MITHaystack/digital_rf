@@ -1587,7 +1587,7 @@ class DigitalRFReader(object):
                 " `.astype('c8', casting='unsafe', copy=False)` if a strict return"
                 " dtype of complex64 is desired."
             ),
-            DeprecationWarning,
+            FutureWarning,
         )
         return self.read_vector(
             start_sample, vector_length, channel_name, sub_channel
