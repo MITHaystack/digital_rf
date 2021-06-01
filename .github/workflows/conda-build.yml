@@ -1,0 +1,143 @@
+# This file was generated automatically from conda-smithy. To update this configuration,
+# update the conda-forge.yml and/or the recipe/meta.yaml.
+# -*- mode: yaml -*-
+
+name: Build conda package
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: ${{ matrix.CONFIG }}
+    runs-on: ${{ matrix.os }}-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - CONFIG: linux_64_numpy1.17python3.7.____cpython
+            UPLOAD_PACKAGES: True
+            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-comp7
+            os: ubuntu
+          - CONFIG: linux_64_numpy1.17python3.8.____cpython
+            UPLOAD_PACKAGES: True
+            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-comp7
+            os: ubuntu
+          - CONFIG: linux_64_numpy1.19python3.9.____cpython
+            UPLOAD_PACKAGES: True
+            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-comp7
+            os: ubuntu
+          - CONFIG: linux_aarch64_numpy1.17python3.7.____cpython
+            UPLOAD_PACKAGES: True
+            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-aarch64
+            os: ubuntu
+          - CONFIG: linux_aarch64_numpy1.17python3.8.____cpython
+            UPLOAD_PACKAGES: True
+            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-aarch64
+            os: ubuntu
+          - CONFIG: linux_aarch64_numpy1.19python3.9.____cpython
+            UPLOAD_PACKAGES: True
+            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-aarch64
+            os: ubuntu
+          - CONFIG: linux_ppc64le_numpy1.17python3.7.____cpython
+            UPLOAD_PACKAGES: True
+            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-ppc64le
+            os: ubuntu
+          - CONFIG: linux_ppc64le_numpy1.17python3.8.____cpython
+            UPLOAD_PACKAGES: True
+            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-ppc64le
+            os: ubuntu
+          - CONFIG: linux_ppc64le_numpy1.19python3.9.____cpython
+            UPLOAD_PACKAGES: True
+            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-ppc64le
+            os: ubuntu
+          - CONFIG: win_64_numpy1.17python3.7.____cpython
+            UPLOAD_PACKAGES: True
+            os: windows
+          - CONFIG: win_64_numpy1.17python3.8.____cpython
+            UPLOAD_PACKAGES: True
+            os: windows
+          - CONFIG: win_64_numpy1.19python3.9.____cpython
+            UPLOAD_PACKAGES: True
+            os: windows
+          - CONFIG: osx_64_numpy1.17python3.7.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+          - CONFIG: osx_64_numpy1.17python3.8.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+          - CONFIG: osx_64_numpy1.19python3.9.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+          - CONFIG: osx_arm64_python3.8.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+          - CONFIG: osx_arm64_python3.9.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Build on Linux
+      if: matrix.os == 'ubuntu'
+      env:
+        CONFIG: ${{ matrix.CONFIG }}
+        UPLOAD_PACKAGES: ${{ matrix.UPLOAD_PACKAGES }}
+        DOCKERIMAGE: ${{ matrix.DOCKERIMAGE }}
+        CI: github_actions
+        UPLOAD_ON_BRANCH: master
+        BINSTAR_TOKEN: ${{ secrets.BINSTAR_TOKEN }}
+      shell: bash
+      run: |
+        echo "::group::Configure binfmt_misc"
+        docker run --rm --privileged multiarch/qemu-user-static:register --reset --credential yes
+        export FEEDSTOCK_NAME="$(basename $GITHUB_REPOSITORY)"
+        export GIT_BRANCH="$(basename $GITHUB_REF)"
+        echo "::endgroup::"
+        ./.scripts/run_docker_build.sh
+
+    - name: Build on macOS
+      if: matrix.os == 'macos'
+      env:
+        CONFIG: ${{ matrix.CONFIG }}
+        UPLOAD_PACKAGES: ${{ matrix.UPLOAD_PACKAGES }}
+        CI: github_actions
+        UPLOAD_ON_BRANCH: master
+        BINSTAR_TOKEN: ${{ secrets.BINSTAR_TOKEN }}
+      shell: bash
+      run: |
+        export FEEDSTOCK_NAME="$(basename $GITHUB_REPOSITORY)"
+        export GIT_BRANCH="$(basename $GITHUB_REF)"
+        ./.scripts/run_osx_build.sh
+
+    - name: Install Miniconda for windows
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        miniconda-version: latest
+      if: matrix.os == 'windows'
+
+    - name: Build on windows
+      shell: cmd
+      run: |
+        call activate base
+        conda.exe install -c conda-forge 'python=3.6' conda-build conda "conda-forge-ci-setup=3" pip
+        if errorlevel 1 exit 1
+        setup_conda_rc .\ ".\recipes/conda" .\.ci_support\%CONFIG%.yaml
+        if errorlevel 1 exit 1
+        
+        conda.exe build "recipes/conda" -m .ci_support\%CONFIG%.yaml
+        if errorlevel 1 exit 1
+        set "FEEDSTOCK_NAME=%GITHUB_REPOSITORY:*/=%"
+        set "GIT_BRANCH=%GITHUB_REF:refs/heads/=%"
+        if /i "%UPLOAD_PACKAGES%" == "true" (
+          upload_package  .\ ".\recipes/conda" .ci_support\%CONFIG%.yaml
+        )
+      env:
+        PYTHONUNBUFFERED: 1
+        CONFIG: ${{ matrix.CONFIG }}
+        CI: github_actions
+        UPLOAD_PACKAGES: ${{ matrix.UPLOAD_PACKAGES }}
+        UPLOAD_ON_BRANCH: master
+        BINSTAR_TOKEN: ${{ secrets.BINSTAR_TOKEN }}
+      if: matrix.os == 'windows'

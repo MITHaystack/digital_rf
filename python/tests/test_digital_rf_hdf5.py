@@ -1175,11 +1175,11 @@ class TestDigitalRFChannel(object):
     ):
         """Test reader object's read_vector method."""
         if data.dtype.names is not None:
-            c8data = np.empty(data.shape, dtype=np.complex64)
-            c8data.real = data["r"]
-            c8data.imag = data["i"]
+            data_real = data["r"]
+            data_imag = data["i"]
         else:
-            c8data = np.array(data, dtype=np.complex64, copy=False)
+            data_real = data.real
+            data_imag = data.imag
 
         # read all of the data blocks that were written in writer test
         for sstart, sstop in data_block_slices:
@@ -1187,7 +1187,8 @@ class TestDigitalRFChannel(object):
             bstart = sstart - bounds[0]
             bstop = sstop - bounds[0]
             with np.errstate(invalid="ignore"):
-                np.testing.assert_equal(rdata, c8data[bstart:bstop])
+                np.testing.assert_equal(rdata.real, data_real[bstart:bstop])
+                np.testing.assert_equal(rdata.imag, data_imag[bstart:bstop])
 
         # test reading a single subchannel (the first)
         for sstart, sstop in data_block_slices:
@@ -1198,14 +1199,17 @@ class TestDigitalRFChannel(object):
             bstop = sstop - bounds[0]
             with np.errstate(invalid="ignore"):
                 np.testing.assert_equal(
-                    rdata, c8data.reshape((-1, num_subchannels))[bstart:bstop, 0]
+                    rdata.real,
+                    data_real.reshape((-1, num_subchannels))[bstart:bstop, 0],
+                )
+                np.testing.assert_equal(
+                    rdata.imag,
+                    data_imag.reshape((-1, num_subchannels))[bstart:bstop, 0],
                 )
 
         # fail to read all data at once because of gap
         with pytest.raises(IOError):
-            rdata = drf_reader.read_vector(
-                bounds[0], bounds[1] - bounds[0] + 1, channel
-            )
+            drf_reader.read_vector(bounds[0], bounds[1] - bounds[0] + 1, channel)
 
         # fail when data doesn't exist
         with pytest.raises(IOError):
@@ -1224,56 +1228,59 @@ class TestDigitalRFChannel(object):
                 sub_channel=num_subchannels,
             )
 
-    def test_reader_read_vector_c81d(
+    def test_reader_read_vector_1d(
         self, bounds, channel, data, data_block_slices, drf_reader, num_subchannels
     ):
-        """Test reader object's read_vector_c81d method."""
+        """Test reader object's read_vector_1d method."""
         if data.dtype.names is not None:
-            c8data = np.empty(data.shape, dtype=np.complex64)
-            c8data.real = data["r"]
-            c8data.imag = data["i"]
+            data_real = data["r"]
+            data_imag = data["i"]
         else:
-            c8data = np.array(data, dtype=np.complex64, copy=False)
-        # make c8data have two dimensions regardless of shape
-        c8data = c8data.reshape((-1, num_subchannels))
+            data_real = data.real
+            data_imag = data.imag
+        # make data have two dimensions regardless of shape, for reliable indexing
+        data_real = data_real.reshape((-1, num_subchannels))
+        data_imag = data_imag.reshape((-1, num_subchannels))
 
         # read all of the data blocks that were written in writer test
         for sstart, sstop in data_block_slices:
-            rdata = drf_reader.read_vector_c81d(sstart, sstop - sstart, channel)
+            rdata = drf_reader.read_vector_1d(sstart, sstop - sstart, channel)
             bstart = sstart - bounds[0]
             bstop = sstop - bounds[0]
             with np.errstate(invalid="ignore"):
-                np.testing.assert_equal(rdata, c8data[bstart:bstop, 0])
+                np.testing.assert_equal(rdata.real, data_real[bstart:bstop, 0])
+                np.testing.assert_equal(rdata.imag, data_imag[bstart:bstop, 0])
 
         # test reading a different subchannel (the last)
         for sstart, sstop in data_block_slices:
-            rdata = drf_reader.read_vector_c81d(
+            rdata = drf_reader.read_vector_1d(
                 sstart, sstop - sstart, channel, sub_channel=num_subchannels - 1
             )
             bstart = sstart - bounds[0]
             bstop = sstop - bounds[0]
             with np.errstate(invalid="ignore"):
                 np.testing.assert_equal(
-                    rdata, c8data[bstart:bstop, num_subchannels - 1]
+                    rdata.real, data_real[bstart:bstop, num_subchannels - 1]
+                )
+                np.testing.assert_equal(
+                    rdata.imag, data_imag[bstart:bstop, num_subchannels - 1]
                 )
 
         # fail to read all data at once because of gap
         with pytest.raises(IOError):
-            rdata = drf_reader.read_vector_c81d(
-                bounds[0], bounds[1] - bounds[0] + 1, channel
-            )
+            drf_reader.read_vector_1d(bounds[0], bounds[1] - bounds[0] + 1, channel)
 
         # fail when data doesn't exist
         with pytest.raises(IOError):
-            drf_reader.read_vector_c81d(bounds[0] - 100, 99, channel)
+            drf_reader.read_vector_1d(bounds[0] - 100, 99, channel)
         # fail when channel doesn't exist
         with pytest.raises(KeyError):
-            drf_reader.read_vector_c81d(
+            drf_reader.read_vector_1d(
                 bounds[0], bounds[1] - bounds[0] + 1, "not_a_channel"
             )
         # fail when subchannel doesn't exist
         with pytest.raises(ValueError):
-            drf_reader.read_vector_c81d(
+            drf_reader.read_vector_1d(
                 bounds[0],
                 bounds[1] - bounds[0] + 1,
                 channel,

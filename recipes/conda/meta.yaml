@@ -1,15 +1,17 @@
 {% set rev = "HEAD" %}
+{% set version = (environ.get('GIT_DESCRIBE_TAG', 'untagged')|string|replace('-','_')) + '.dev' + environ.get('GIT_DESCRIBE_NUMBER', '0') + '+' + environ.get('GIT_DESCRIBE_HASH', 'local') %}
 
 package:
   name: digital_rf
-  version: {{ GIT_DESCRIBE_TAG }}+{{ GIT_DESCRIBE_NUMBER }}.{{ GIT_DESCRIBE_HASH[:8] }}
+  version: {{ version }}
 
 source:
-  git_url: ../../
+  git_url: {{ environ.get("FEEDSTOCK_ROOT", "../../") }}
   git_rev: {{ rev }}
 
 build:
   number: 0
+  skip: true  # [py==36]
   run_exports:
     # can't use pin_subpackage here because GIT_DESCRIBE_* variables are undefined when evaluating it
     - digital_rf >={{ GIT_DESCRIBE_TAG[:1] }},<{{ (GIT_DESCRIBE_TAG[:1]|int + 1)|string }}
@@ -19,6 +21,10 @@ requirements:
     - {{ compiler('c') }}
     - cmake >=3.15
     - make  # [not win]
+    # cross-compilation dependencies
+    - python                                 # [build_platform != target_platform]
+    - cross-python_{{ target_platform }}     # [build_platform != target_platform]
+    - numpy                                  # [build_platform != target_platform]
 
   host:
     - hdf5
@@ -59,7 +65,7 @@ about:
   home: https://github.com/MITHaystack/digital_rf
   license: BSD-3-Clause
   license_file: LICENSE
-  summary: 'Work with data in the Digital RF and Digital Metadata formats.'
+  summary: Work with data in the Digital RF and Digital Metadata formats.
   description: |
     The Digital RF project encompasses a standardized HDF5 format for reading
     and writing of radio frequency data and the software for doing so. The

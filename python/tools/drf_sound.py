@@ -34,7 +34,7 @@ import sounddevice as sd
 
 class SoundDRF(object):
     def __init__(self, control):
-        """ Initializes the SoundDRF class."""
+        """Initializes the SoundDRF class."""
 
         self.control = control
         ch = self.control.channel.split(":")
