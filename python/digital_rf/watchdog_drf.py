@@ -25,7 +25,12 @@ from watchdog.events import (
 from watchdog.observers import Observer
 from watchdog.observers.api import BaseObserver, ObservedWatch
 from watchdog.observers.polling import PollingObserver
-from watchdog.utils import unicode_paths
+
+try:
+    from os import fsdecode
+except ImportError:
+    # must be using Python 2, which implies a watchdog version with unicode_paths
+    from watchdog.utils.unicode_paths import decode as fsdecode
 
 from . import list_drf, util
 from .list_drf import RE_DMD, RE_DMDPROP, RE_DRF, RE_DRFDMD, RE_DRFDMDPROP, RE_DRFPROP
@@ -144,7 +149,7 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
 
         src_match = False
         if event.src_path:
-            src_path = unicode_paths.decode(event.src_path)
+            src_path = fsdecode(event.src_path)
             if not any(r.match(src_path) for r in self.ignore_regexes):
                 for r in self.regexes:
                     m = r.match(src_path)
@@ -154,7 +159,7 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
 
         dest_match = False
         if getattr(event, "dest_path", None) is not None:
-            dest_path = unicode_paths.decode(event.dest_path)
+            dest_path = fsdecode(event.dest_path)
             if not any(r.match(dest_path) for r in self.ignore_regexes):
                 for r in self.regexes:
                     m = r.match(dest_path)
@@ -190,15 +195,8 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
                     return
 
         # the event matched, including time if applicable, dispatch
-        self.on_any_event(event)
-        _method_map = {
-            "modified": self.on_modified,
-            "moved": self.on_moved,
-            "created": self.on_created,
-            "deleted": self.on_deleted,
-        }
-        event_type = event.event_type
-        _method_map[event_type](event)
+        # we've handled matching, so jump to the regex handler's parent for dispatching
+        super(RegexMatchingEventHandler, self).dispatch(event)
 
 
 class DirWatcher(BaseObserver, RegexMatchingEventHandler):
