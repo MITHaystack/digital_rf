@@ -52,6 +52,7 @@ test:
   imports:
     - digital_rf
     - digital_rf.digital_rf_hdf5
+    - digital_rf.watchdog_drf
     - gr_digital_rf
   source_files:
     - python/tests/*.py
