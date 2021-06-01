@@ -945,8 +945,8 @@ class DigitalRFReader(object):
         See Also
         --------
         get_continuous_blocks : Similar, except no data is read.
-        read_vector : Read data into a vector of complex64 type.
-        read_vector_c81d : Read data into a 1-d vector of complex64 type.
+        read_vector : Read data into a vector of floating-point type.
+        read_vector_1d : Read data into a 1-d vector of floating-point type.
         read_vector_raw : Read data into a vector of HDF5-native type.
 
         """
@@ -1359,12 +1359,12 @@ class DigitalRFReader(object):
         return (None, None)
 
     def read_vector(self, start_sample, vector_length, channel_name, sub_channel=None):
-        """Read a complex vector of data beginning at the given sample index.
+        """Read a vector of data beginning at the given sample index.
 
         This method returns the vector of the data beginning at `start_sample`
         with length `vector_length` for the given channel and sub_channel(s).
-        The vector is always cast to a complex64 dtype no matter the original
-        type of the data.
+        The vector is always cast to the smallest safe floating-point dtype no
+        matter the original type of the data.
 
         This method calls `read` and converts the data appropriately. It will
         raise an IOError error if the returned vector would include any missing
@@ -1393,13 +1393,13 @@ class DigitalRFReader(object):
         Returns
         -------
         array
-            An array of dtype complex64 and shape (`vector_length`,) or
+            An array of floating-point dtype and shape (`vector_length`,) or
             (`vector_length`, N) where N is the number of subchannels.
 
 
         See Also
         --------
-        read_vector_c81d : Read data into a 1-d vector of complex64 type.
+        read_vector_1d : Read data into a 1-d vector of floating-point type.
         read_vector_raw : Read data into a vector of HDF5-native type.
         read : Read continuous blocks of data between start and end samples.
 
@@ -1407,12 +1407,14 @@ class DigitalRFReader(object):
         z = self.read_vector_raw(start_sample, vector_length, channel_name, sub_channel)
 
         if z.dtype.names is not None:
-            y = np.empty(z.shape, dtype=np.complex64)
+            out_dtype = np.promote_types("c8", z.dtype["r"])
+            y = np.empty(z.shape, dtype=out_dtype)
             y.real = z["r"]
             y.imag = z["i"]
             return y
         else:
-            return np.array(z, dtype=np.complex64, copy=False)
+            out_dtype = np.promote_types("f4", z.dtype)
+            return np.array(z, dtype=out_dtype, copy=False)
 
     def read_vector_raw(
         self, start_sample, vector_length, channel_name, sub_channel=None
@@ -1457,8 +1459,8 @@ class DigitalRFReader(object):
 
         See Also
         --------
-        read_vector : Read data into a vector of complex64 type.
-        read_vector_c81d : Read data into a 1-d vector of complex64 type.
+        read_vector : Read data into a vector of floating-point type.
+        read_vector_1d : Read data into a 1-d vector of floating-point type.
         read : Read continuous blocks of data between start and end samples.
 
         """
@@ -1493,14 +1495,12 @@ class DigitalRFReader(object):
 
         return z
 
-    def read_vector_c81d(
-        self, start_sample, vector_length, channel_name, sub_channel=0
-    ):
-        """Read a complex vector of data beginning at the given sample index.
+    def read_vector_1d(self, start_sample, vector_length, channel_name, sub_channel=0):
+        """Read a 1-d vector of data beginning at the given sample index.
 
         This method is identical to `read_vector`, except the default
         subchannel is 0 instead of None. As such, it always returns a 1-d
-        vector of type complex64.
+        vector of the smallest safe floating-point type.
 
 
         Parameters
@@ -1525,17 +1525,73 @@ class DigitalRFReader(object):
         Returns
         -------
         array
-            An array of dtype complex64 and shape (`vector_length`,).
+            An array of floating-point dtype and shape (`vector_length`,).
 
 
         See Also
         --------
-        read_vector : Read data into a vector of complex64 type.
+        read_vector : Read data into a vector of floating-point type.
         read_vector_raw : Read data into a vector of HDF5-native type.
         read : Read continuous blocks of data between start and end samples.
 
         """
         return self.read_vector(start_sample, vector_length, channel_name, sub_channel)
+
+    def read_vector_c81d(
+        self, start_sample, vector_length, channel_name, sub_channel=0
+    ):
+        """Read a c8 1-d vector of data beginning at the given sample index.
+
+        This method is similar to `read_vector`, except the default
+        subchannel is 0 instead of None and the returned dtype is always
+        complex64.
+
+
+        Parameters
+        ----------
+        start_sample : int
+            Sample index for start of read, given in the number of samples
+            since the epoch (time_since_epoch*sample_rate).
+
+        vector_length : int
+            Number of samples to read per subchannel.
+
+        channel_name : string
+            Name of channel to read from, one of ``get_channels()``.
+
+        sub_channel : None | int, optional
+            If None, the return array will contain all subchannels of data and
+            be 2-d or 1-d depending on the number of subchannels. If an
+            integer, the return array will be 1-d and contain the data of the
+            subchannel given by that integer index.
+
+
+        Returns
+        -------
+        array
+            An array of complex64 dtype and shape (`vector_length`,).
+
+
+        See Also
+        --------
+        read_vector : Read data into a vector of floating-point type.
+        read_vector_1d : Read data into a 1-d vector of floating-point type.
+        read_vector_raw : Read data into a vector of HDF5-native type.
+        read : Read continuous blocks of data between start and end samples.
+
+        """
+        warnings.warn(
+            (
+                "The read_vector_c81d method is deprecated and will be removed in"
+                " digital_rf version 3. Use read_vector_1d instead and append"
+                " `.astype('c8', casting='unsafe', copy=False)` if a strict return"
+                " dtype of complex64 is desired."
+            ),
+            DeprecationWarning,
+        )
+        return self.read_vector(
+            start_sample, vector_length, channel_name, sub_channel
+        ).astype("c8", casting="unsafe", copy=False)
 
     @staticmethod
     def _get_file_list(
