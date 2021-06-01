@@ -17,7 +17,6 @@ try:
     from .ringbuffer import _build_ringbuffer_parser
     from .watchdog_drf import _build_watch_parser
 except ImportError:
-    # if no watchdog package, these fail to import, so just ignore
     _WATCHDOG = False
 else:
     _WATCHDOG = True
