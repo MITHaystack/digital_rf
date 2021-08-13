@@ -869,6 +869,8 @@ class Thor(object):
 
         # populate flowgraph one channel at a time
         fg = gr.top_block()
+        # store the graph so that the blocks are not garbage collected
+        graph = []
         for ko in range(op.nochs):
             # receiver channel number corresponding to this output channel
             kr = op.channels[ko]
@@ -1075,6 +1077,9 @@ class Thor(object):
 
             # make channel connections in flowgraph
             fg.connect(*connections)
+
+            # store the graph so that the blocks are not garbage collected
+            graph.append(connections)
 
         # start the flowgraph, samples should start at launch time
         fg.start()
