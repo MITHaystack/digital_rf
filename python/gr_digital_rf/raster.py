@@ -432,8 +432,10 @@ class raster_select_aggregate(gr.basic_block):
             out_arr[out_idx : (out_idx + self._select_length)] = out_rasters
 
             # read tags for selected input (only first raster if nagg > 1)
-            tags = self.get_tags_in_window(
-                0, in_idx + self._select_start, in_idx + self._select_stop
+            tags = self.get_tags_in_range(
+                0,
+                nread + in_idx + self._select_start,
+                nread + in_idx + self._select_stop,
             )
 
             # write tags to output

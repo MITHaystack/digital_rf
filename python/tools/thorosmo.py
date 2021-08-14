@@ -646,16 +646,11 @@ class Thorosmo(object):
             ltstr = lt.strftime("%a %b %d %H:%M:%S.%f %Y")
             msg = "Launch time: {0} ({1})\nSample index: {2}"
             print(msg.format(ltstr, repr(ltts), lt_rsamples))
-        # command launch time
-        ct_td = lt - drf.util.epoch
-        ct_secs = ct_td.total_seconds() // 1.0
-        ct_frac = ct_td.microseconds / 1000000.0
-        # rtl_chan.set_start_time(
-        #     osmosdr.time_spec_t(ct_secs) + osmosdr.time_spec_t(ct_frac)
-        # )
 
         # populate flowgraph one channel at a time
         fg = gr.top_block()
+        # store the graph so that the blocks are not garbage collected
+        graph = []
         for ko in range(op.nochs):
             rtl_chan = osmo_dict[ko]
             # receiver channel number corresponding to this output channel
@@ -858,6 +853,13 @@ class Thorosmo(object):
             # make channel connections in flowgraph
             fg.connect(*connections)
 
+            # store the graph so that the blocks are not garbage collected
+            graph.append(connections)
+
+        # start the flowgraph once we are near the launch time
+        while (lt - pytz.utc.localize(datetime.utcnow())) > timedelta(seconds=0.5):
+            time.sleep(0.1)
+
         # start the flowgraph, samples should start at launch time
         fg.start()
 
@@ -867,29 +869,25 @@ class Thorosmo(object):
             if et is None:
                 fg.wait()
             else:
-                # sleep until end time nears
-
+                # sleep until end time
                 while pytz.utc.localize(datetime.utcnow()) < et - timedelta(seconds=2):
                     time.sleep(1)
                 else:
-                    # issue stream stop command at end time
-                    ct_td = et - drf.util.epoch
-                    ct_secs = ct_td.total_seconds() // 1.0
-                    ct_frac = ct_td.microseconds / 1000000.0
-                    cmd_time = osmosdr.time_spec_t(ct_secs) + osmosdr.time_spec_t(
-                        ct_frac
-                    )
-
-                    # sleep until after end time
-                    time.sleep(2)
+                    # (actually a little after to allow for inexact computer time)
+                    while pytz.utc.localize(datetime.utcnow()) < et + timedelta(
+                        seconds=0.2
+                    ):
+                        time.sleep(0.1)
         except KeyboardInterrupt:
             # catch keyboard interrupt and simply exit
             pass
-        fg.stop()
-        # need to wait for the flowgraph to clean up, otherwise it won't exit
-        fg.wait()
-        print("done")
-        sys.stdout.flush()
+        finally:
+            fg.stop()
+            # need to wait for the flowgraph to clean up, otherwise it won't
+            # exit and we will wait forever after finishing this process
+            fg.wait()
+            print("done")
+            sys.stdout.flush()
 
 
 def evalint(s):

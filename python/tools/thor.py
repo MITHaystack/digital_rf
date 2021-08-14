@@ -442,6 +442,8 @@ class Thor(object):
                 channels=list(range(op.nrchs)),
                 args=",".join(op.stream_args),
             ),
+            # we will manually set the command to start streaming after fg start
+            issue_stream_cmd_on_start=False,
         )
 
         # set mainboard options
@@ -819,11 +821,7 @@ class Thor(object):
             # device time)
             # this fixes timing with the B210
             u.start()
-            # need to wait >0.1 s (constant in usrp_source_impl.c) for start
-            # to actually take effect, so sleep, (0.5 s seems more reliable)
-            time.sleep(0.5)
             u.stop()
-            time.sleep(0.2)
 
         # set device time
         tt = time.time()
@@ -865,10 +863,18 @@ class Thor(object):
         ct_td = lt - drf.util.epoch
         ct_secs = ct_td.total_seconds() // 1.0
         ct_frac = ct_td.microseconds / 1000000.0
-        u.set_start_time(uhd.time_spec(ct_secs) + uhd.time_spec(ct_frac))
+        try:
+            stream_mode_start = uhd.STREAM_MODE_START_CONTINUOUS
+        except AttributeError:
+            stream_mode_start = uhd.stream_cmd.STREAM_MODE_START_CONTINUOUS
+        start_stream_cmd = uhd.stream_cmd(stream_mode_start)
+        start_stream_cmd.stream_now = False
+        start_stream_cmd.time_spec = uhd.time_spec(ct_secs) + uhd.time_spec(ct_frac)
 
         # populate flowgraph one channel at a time
         fg = gr.top_block()
+        # store the graph so that the blocks are not garbage collected
+        graph = []
         for ko in range(op.nochs):
             # receiver channel number corresponding to this output channel
             kr = op.channels[ko]
@@ -1076,8 +1082,14 @@ class Thor(object):
             # make channel connections in flowgraph
             fg.connect(*connections)
 
+            # store the graph so that the blocks are not garbage collected
+            graph.append(connections)
+
         # start the flowgraph, samples should start at launch time
         fg.start()
+        # manually issuing start stream command (i.e. not as u.start()) makes
+        # time tagging more reliable on startup on some radios (e.g. B2xx)
+        u.issue_stream_cmd(start_stream_cmd)
 
         # check that we get samples after launch
         while not u.nitems_written(0):
@@ -1097,23 +1109,15 @@ class Thor(object):
             if et is None:
                 fg.wait()
             else:
-                # sleep until end time nears
+                # sleep until end time
                 while pytz.utc.localize(datetime.utcnow()) < et - timedelta(seconds=2):
                     time.sleep(1)
                 else:
-                    # issue stream stop command at end time
-                    ct_td = et - drf.util.epoch
-                    ct_secs = ct_td.total_seconds() // 1.0
-                    ct_frac = ct_td.microseconds / 1000000.0
-                    u.set_command_time(
-                        (uhd.time_spec(ct_secs) + uhd.time_spec(ct_frac)),
-                        uhd.ALL_MBOARDS,
-                    )
-                    stop_enum = uhd.stream_cmd.STREAM_MODE_STOP_CONTINUOUS
-                    u.issue_stream_cmd(uhd.stream_cmd(stop_enum))
-                    u.clear_command_time(uhd.ALL_MBOARDS)
-                    # sleep until after end time
-                    time.sleep(2)
+                    # (actually a little after to allow for inexact computer time)
+                    while pytz.utc.localize(datetime.utcnow()) < et + timedelta(
+                        seconds=0.2
+                    ):
+                        time.sleep(0.1)
         except KeyboardInterrupt:
             # catch keyboard interrupt and simply exit
             pass
