@@ -911,12 +911,9 @@ class Recorder(object):
 
         # Craft and send the Stream Command
         stream_cmd = uhd.types.StreamCMD(uhd.types.StreamMode.start_cont)
-        # Need to set this to False if using Multiple receive channels. This is
-        # buried pretty deep in uhd.
-        stream_cmd.stream_now = op.nrchs == 1
+        # Need to set this to False so that the time is used
+        stream_cmd.stream_now = False
         stream_cmd.time_spec = uhd.types.TimeSpec(ct_secs) + uhd.types.TimeSpec(ct_frac)
-
-        stream.issue_stream_cmd(stream_cmd)
 
         # Set up drf writers
         drfObjs = []
@@ -1054,8 +1051,8 @@ class Recorder(object):
                 os.makedirs(mdata_path)
             mdatawrite = drf.DigitalMetadataWriter(
                 mdata_path,
-                3600,
-                60,
+                op.subdir_cadence_s,
+                1,
                 ch_samplerate_frac.numerator,
                 ch_samplerate_frac.denominator,
                 "uhdtodrf",
@@ -1095,6 +1092,8 @@ class Recorder(object):
             )
             read_th.start()
             read_th.setName("Read Thread")
+            # now that we're ready to accept samples, send the start streaming command
+            stream.issue_stream_cmd(stream_cmd)
             while not end_rec.is_set():
 
                 if et is not None:
@@ -1115,7 +1114,7 @@ class Recorder(object):
                     proc_threads.append(cur_pt)
                     proc_count += 1
                 if proc_threads:
-                    if not proc_threads[0].isAlive():
+                    if not proc_threads[0].is_alive():
                         write_data = write_fifo.get()
                         cur_wt = threading.Thread(
                             target=write_samples, args=(drfObjs, write_data)
@@ -1124,10 +1123,8 @@ class Recorder(object):
                         cur_wt.setName("Save to drf")
                         write_threads.append(cur_wt)
                         proc_threads.pop(0)
-                        sys.stdout.write(".")
-                        sys.stdout.flush()
                 if write_threads:
-                    if not write_threads[0].isAlive():
+                    if not write_threads[0].is_alive():
                         write_threads.pop(0)
 
             time.sleep(1)
@@ -1154,7 +1151,7 @@ class Recorder(object):
                     proc_threads.append(cur_pt)
                     proc_count += 1
                 if proc_threads:
-                    if not proc_threads[0].isAlive():
+                    if not proc_threads[0].is_alive():
                         write_data = write_fifo.get()
 
                         cur_wt = threading.Thread(
@@ -1164,10 +1161,8 @@ class Recorder(object):
                         cur_wt.setName("Save to drf")
                         write_threads.append(cur_wt)
                         proc_threads.pop(0)
-                        sys.stdout.write(".")
-                        sys.stdout.flush()
                 if write_threads:
-                    if not write_threads[0].isAlive():
+                    if not write_threads[0].is_alive():
                         write_threads.pop(0)
 
                 time.sleep(0.1)
