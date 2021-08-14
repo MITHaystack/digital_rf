@@ -453,7 +453,10 @@ class digital_rf_channel_sink(gr.sync_block):
         data_rel_samples = [self._next_rel_sample]
 
         # read time tags
-        time_tags = self.get_tags_in_window(0, 0, nsamples, pmt.intern("rx_time"))
+        # get_tags_in_window convenience function is broken, so use get_tags_in_range
+        time_tags = self.get_tags_in_range(
+            0, nread, nread + nsamples, pmt.intern("rx_time")
+        )
         if time_tags and self._stop_on_time_tag and self._next_rel_sample != 0:
             self._work_done = True
         # separate data into blocks to be written
@@ -538,7 +541,7 @@ class digital_rf_channel_sink(gr.sync_block):
             tags_by_offset = {}
             # read tags, translate to metadata dict, add to tag dict
             for tag_name, translator in self._stream_tag_translators.items():
-                tags = self.get_tags_in_window(0, bidx, bend, tag_name)
+                tags = self.get_tags_in_range(0, nread + bidx, nread + bend, tag_name)
                 collect_tags_in_dict(tags, translator, tags_by_offset)
             # add tags to metadata sample dictionary
             for offset, tag_dict in tags_by_offset.items():
