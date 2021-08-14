@@ -4,6 +4,40 @@ digital_rf Change Log
 
 .. current developments
 
+v2.6.7
+====================
+
+**Added:**
+
+* Added the `DigitalRFReader.read_vector_1d` method for reading data and always returning a 1-D array of the smallest safe floating point type, replacing `DigitalRFReader.read_vector_c81d`.
+* Basic logging support has been added, with the case of failing to import the `watchdog_drf` module being the only instance of logged information so far. The logging level can be set using either the `DRF_LOGLEVEL` or `LOGLEVEL` environment variables. The default level is `WARNING`, and the `watchdog_drf` import error is logged at the `INFO` level.
+
+**Changed:**
+
+* Renamed the GNU Radio companion block tree title from "gr_digital_rf" to "Digital RF" to better match the style of other out-of-tree modules.
+* `DigitalRFReader.read_vector` no longer always returns an array with a `np.complex64` dtype. Instead, the array will always have be of the smallest floating point type (either complex or real) that will safely fit hold the underlying data without loss of precision. We recommend manually changing to a smaller type if a loss of precision is acceptable. The benefit over this function over `DigitalRFReader.read_vector_raw` is that you don't have to worry about handling complex integer data with a compound dtype.
+* The Python package now depends on `oldest-supported-numpy` instead of just `numpy`, so that source builds can maintain maximum compatibility with different `numpy` versions.
+
+**Deprecated:**
+
+* The `DigitalRFReader.read_vector_c81d` method is deprecated and will be removed in digital_rf version 3. Use read_vector_1d instead and append `.astype('c8', casting='unsafe', copy=False)` if a strict return dtype of complex64 is desired.
+
+**Fixed:**
+
+* Fixed #25 (digital_rf_sink: version check on GNU Radio causes TypeError) by removing the GNU Radio version check since it wasn't actually doing anything helpful anymore.
+* Fix thor.py failures when recording multiple channels (e.g. `AttributeError: 'list_iterator' object has no attribute 'start'`). Some flowgraph blocks were being garbage-collected before/during execution because no references were stored to the Python objects with GNU Radio 3.9+. Now thor.py keeps these references itself.
+* Fix thor.py error when setting a stop time with GNU Radio 3.9+.
+* Improve thor.py start time tagging with at least the B2xx radios.
+* Improve thor.py reliability with stop times by not attempting to stop at an exact time, but instead just stop when we are sure we are past the stopping time.
+* Fix stream tag handling in Digital RF Sink and Raster blocks. The `get_tags_in_window` function is broken in GNU Radio 3.9.2.0, so use `get_tags_in_range` instead.
+* The `watchdog_drf` module is now compatible with recent versions of the `watchdog` package, from version 1 up through at least version 2.1.2.
+
+**Authors:**
+
+* Ryan Volz
+
+
+
 v2.6.6
 ====================
 
