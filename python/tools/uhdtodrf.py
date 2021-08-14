@@ -1333,7 +1333,7 @@ class Recorder(object):
                 rec_data = data_samples[kr]
                 n_data = rec_data.shape[0]
                 m_over = op.max_filter
-                h_len = (m_over - 1) / 2
+                h_len = (m_over - 1) // 2
                 rs = op.resampling_ratios[ko]
                 rs_taps = op.resampling_filter_taps[ko]
 
