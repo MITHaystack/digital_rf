@@ -93,7 +93,7 @@ class SoundDRF(object):
         decimate = int(self.control.timedilation * sr / self.control.audiosampling)
         blocks = self.control.blocks
 
-        dsamps = int(2 ** 15)
+        dsamps = int(2**15)
 
         samples_per_stripe = dsamps * decimate
         total_samples = blocks * samples_per_stripe

@@ -949,7 +949,7 @@ class DigitalMetadataReader(object):
             method=method,
         )
         dict_of_lists = defaultdict(lambda: [np.nan] * len(res))
-        dict_of_lists[u"index"] = list(res.keys())
+        dict_of_lists["index"] = list(res.keys())
         for k, sample_dict in enumerate(res.values()):
             for key, val in _recursive_items(sample_dict):
                 dict_of_lists[key][k] = val
@@ -1018,8 +1018,8 @@ class DigitalMetadataReader(object):
 
         """
         # need to go through numpy uint64 to prevent conversion to float
-        start_ts = int(np.uint64(sample0 / self._samples_per_second))
-        end_ts = int(np.uint64(sample1 / self._samples_per_second))
+        start_ts = int(np.uint64(np.uint64(sample0) / self._samples_per_second))
+        end_ts = int(np.uint64(np.uint64(sample1) / self._samples_per_second))
 
         # convert ts to be divisible by self._file_cadence_secs
         start_ts = (start_ts // self._file_cadence_secs) * self._file_cadence_secs

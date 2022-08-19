@@ -248,7 +248,7 @@ def open_file(maindir):
 
 
 def corr_tle_rf(
-    maindir, e=None, window=2 ** 18, n_measure=100, timewin=[0, 0], tleoff=0
+    maindir, e=None, window=2**18, n_measure=100, timewin=[0, 0], tleoff=0
 ):
     """
     Coorelates the tle derived frequency and the rf frequency. A flag is output
@@ -300,8 +300,8 @@ def corr_tle_rf(
         F1 = scfft.fftshift(scfft.fft(z01 * wfun))
 
         res_temp = F0 * F1.conj()
-        res_noise = sp.median(res_temp.real ** 2 + res_temp.imag ** 2) / sp.log(2.0)
-        res0[i_t, :] = res_temp.real ** 2 + res_temp.imag ** 2
+        res_noise = sp.median(res_temp.real**2 + res_temp.imag**2) / sp.log(2.0)
+        res0[i_t, :] = res_temp.real**2 + res_temp.imag**2
         freqm0[i_t] = fvec[fidx0[sp.argmax(res0[i_t, fidx0])]]
         snr0[i_t] = res0[i_t, fidx0].max() / res_noise
         # Cross correlation for second channel and get residual frequency
@@ -309,8 +309,8 @@ def corr_tle_rf(
         F1 = scfft.fftshift(scfft.fft(z11 * wfun))
 
         res_temp = F0 * F1.conj()
-        res_noise = sp.median(res_temp.real ** 2 + res_temp.imag ** 2) / sp.log(2.0)
-        res1[i_t, :] = res_temp.real ** 2 + res_temp.imag ** 2
+        res_noise = sp.median(res_temp.real**2 + res_temp.imag**2) / sp.log(2.0)
+        res1[i_t, :] = res_temp.real**2 + res_temp.imag**2
         # find max frequency over restricted sub-band
         freqm1[i_t] = fvec[fidx1[sp.argmax(res1[i_t, fidx1])]]
         snr1[i_t] = res1[i_t, fidx1].max() / res_noise
@@ -366,7 +366,7 @@ def corr_tle_rf(
     return rfexist, tshift, tvec, dopfit0, dopfit1, doppler0, doppler1
 
 
-def calc_resid(maindir, e, window=2 ** 13, n_measure=500, timewin=[0, 0]):
+def calc_resid(maindir, e, window=2**13, n_measure=500, timewin=[0, 0]):
     """
     Calculate the residual difference between the Doppler frequencies from the
     TLEs and measured data.
@@ -443,7 +443,7 @@ def calc_resid(maindir, e, window=2 ** 13, n_measure=500, timewin=[0, 0]):
         F0 = scfft.fftshift(scfft.fft(z00 * osc00.astype(z00.dtype)))
         F1 = scfft.fftshift(scfft.fft(z01 * osc01.astype(z01.dtype)))
         res_temp = F0 * F1.conj()
-        res0[i_t, :] = res_temp.real ** 2 + res_temp.imag ** 2
+        res0[i_t, :] = res_temp.real**2 + res_temp.imag**2
         freqm0[i_t] = fvec[fidx0[sp.argmax(res0[i_t, fidx0])]]
         nc0 = sp.median(res0[i_t, :]) / sp.log(2.0)
         snr0[i_t] = res0[i_t, fidx0].max() / nc0
@@ -451,7 +451,7 @@ def calc_resid(maindir, e, window=2 ** 13, n_measure=500, timewin=[0, 0]):
         F0 = scfft.fftshift(scfft.fft(z10 * osc10.astype(z10.dtype)))
         F1 = scfft.fftshift(scfft.fft(z11 * osc11.astype(z11.dtype)))
         res_temp = F0 * F1.conj()
-        res1[i_t, :] = res_temp.real ** 2 + res_temp.imag ** 2
+        res1[i_t, :] = res_temp.real**2 + res_temp.imag**2
         # find max frequency over restricted sub-band
         freqm1[i_t] = fvec[fidx1[sp.argmax(res1[i_t, fidx1])]]
         # normalize residuals
@@ -630,7 +630,7 @@ def calc_TEC(
     phasecurve = sp.cumsum(sp.angle(phase0) * freq_ratio - sp.angle(phase1))
     phasecurve_amp = phase_cs0 * freq_ratio - phase_cs1
     stdcurve = sp.sqrt(
-        sp.cumsum(float(sfactor) * incoh_int * (std0 ** 2.0 + std1 ** 2.0))
+        sp.cumsum(float(sfactor) * incoh_int * (std0**2.0 + std1**2.0))
     )
 
     # SNR windowing, picking values with minimum snr
@@ -648,14 +648,14 @@ def calc_TEC(
     Lmat, Tmat = sp.meshgrid(lvec, sp.arange(len(tvec)))
     Sampmat = Lmat + Tmat
     Sampclip = sp.clip(Sampmat, 0, len(tvec) - 1)
-    eps = s_const.e ** 2 / (8.0 * s_const.pi ** 2 * s_const.m_e * s_const.epsilon_0)
-    aconst = s_const.e ** 2 / (2 * s_const.m_e * s_const.epsilon_0 * s_const.c)
+    eps = s_const.e**2 / (8.0 * s_const.pi**2 * s_const.m_e * s_const.epsilon_0)
+    aconst = s_const.e**2 / (2 * s_const.m_e * s_const.epsilon_0 * s_const.c)
     na = 9.0
     nb = 24.0
     f0 = 16.668e6
 
     # cTEC = f0*((na*nb**2)/(na**2-nb**2))*s_const.c/(2.*s_const.pi*eps)
-    cTEC = 1e-16 * sp.power(om1 / om0 ** 2 - 1.0 / om1, -1) / aconst
+    cTEC = 1e-16 * sp.power(om1 / om0**2 - 1.0 / om1, -1) / aconst
     rTEC = cTEC * phasecurve
     rTEC = rTEC - rTEC.min()
     rTEC_amp = cTEC * phasecurve_amp
@@ -758,8 +758,8 @@ def plotsti_vel(
         fft0 = scfft.fftshift(scfft.fft(z0 * wmat, axis=-1), axes=-1)
         fft1 = scfft.fftshift(scfft.fft(z1 * wmat, axis=-1), axes=-1)
 
-        psd0 = sp.sum(fft0.real ** 2 + fft0.imag ** 2, axis=0).real
-        psd1 = sp.sum(fft1.real ** 2 + fft1.imag ** 2, axis=0).real
+        psd0 = sp.sum(fft0.real**2 + fft0.imag**2, axis=0).real
+        psd1 = sp.sum(fft1.real**2 + fft1.imag**2, axis=0).real
         sti0[i_t] = psd0
         sti1[i_t] = psd1
 

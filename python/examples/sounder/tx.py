@@ -184,7 +184,7 @@ def read_timing_mode_waveform(mode_ini, iq_dir=None):
     # an IPP between each
     waveforms_int = [np.fromfile(f, dtype=np.int16) for f in sweep_files]
     # cast to complex64 and scale integer range to [0, 1]
-    waveforms = [(w_i[0::2] + 1j * w_i[1::2]) / (2 ** 15 - 1) for w_i in waveforms_int]
+    waveforms = [(w_i[0::2] + 1j * w_i[1::2]) / (2**15 - 1) for w_i in waveforms_int]
 
     # join waveform sequence into single waveform assuming no extra IPP
     waveform = np.concatenate(waveforms)

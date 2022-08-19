@@ -1,19 +1,23 @@
+BUILD:
+- aarch64-conda_cos7-linux-gnu
 c_compiler:
 - gcc
 c_compiler_version:
-- '9'
+- '10'
+cdt_arch:
+- aarch64
 cdt_name:
 - cos7
 channel_sources:
-- conda-forge,defaults
+- conda-forge
 channel_targets:
 - ryanvolz main
 docker_image:
-- quay.io/condaforge/linux-anvil-ppc64le
+- quay.io/condaforge/linux-anvil-aarch64
 gnuradio_core:
-- 3.8.3
+- 3.10.3
 hdf5:
-- 1.10.6
+- 1.12.1
 numpy:
 - '1.19'
 pin_run_as_build:
@@ -23,7 +27,7 @@ pin_run_as_build:
 python:
 - 3.9.* *_cpython
 target_platform:
-- linux-ppc64le
+- linux-aarch64
 zip_keys:
 - - python
   - numpy
