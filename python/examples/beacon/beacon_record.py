@@ -693,11 +693,14 @@ def ephemeris_passes(opt, st0, et0):
                             int(freq / 1.0e6),
                         )
 
-                        cmd_line2 = " -g %s -m %s --devargs num_recv_frames=1024 --devargs master_clock_rate=24.0e6 -o %s/%s" % (
-                            radio_gain[idx],
-                            radio_address[idx],
-                            site["recorder"]["data_path"],
-                            cmd_fname,
+                        cmd_line2 = (
+                            " -g %s -m %s --devargs num_recv_frames=1024 --devargs master_clock_rate=24.0e6 -o %s/%s"
+                            % (
+                                radio_gain[idx],
+                                radio_address[idx],
+                                site["recorder"]["data_path"],
+                                cmd_fname,
+                            )
                         )
                         cmd_line2 += " {0}".format(
                             site["radio"].get("extra_args", "")

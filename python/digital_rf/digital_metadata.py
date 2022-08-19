@@ -949,7 +949,7 @@ class DigitalMetadataReader(object):
             method=method,
         )
         dict_of_lists = defaultdict(lambda: [np.nan] * len(res))
-        dict_of_lists[u"index"] = list(res.keys())
+        dict_of_lists["index"] = list(res.keys())
         for k, sample_dict in enumerate(res.values()):
             for key, val in _recursive_items(sample_dict):
                 dict_of_lists[key][k] = val

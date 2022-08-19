@@ -234,19 +234,19 @@ class Thor(object):
             supported_out_types = {
                 "sc8": dict(
                     convert="float_to_char",
-                    convert_kwargs=dict(vlen=2, scale=float(2 ** 7 - 1)),
+                    convert_kwargs=dict(vlen=2, scale=float(2**7 - 1)),
                     dtype=np.dtype([(str("r"), np.int8), (str("i"), np.int8)]),
                     name="sc8",
                 ),
                 "sc16": dict(
                     convert="float_to_short",
-                    convert_kwargs=dict(vlen=2, scale=float(2 ** 15 - 1)),
+                    convert_kwargs=dict(vlen=2, scale=float(2**15 - 1)),
                     dtype=np.dtype([(str("r"), np.int16), (str("i"), np.int16)]),
                     name="sc16",
                 ),
                 "sc32": dict(
                     convert="float_to_int",
-                    convert_kwargs=dict(vlen=2, scale=float(2 ** 31 - 1)),
+                    convert_kwargs=dict(vlen=2, scale=float(2**31 - 1)),
                     dtype=np.dtype([(str("r"), np.int32), (str("i"), np.int32)]),
                     name="sc32",
                 ),
