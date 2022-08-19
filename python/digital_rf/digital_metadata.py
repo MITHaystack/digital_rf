@@ -1018,8 +1018,8 @@ class DigitalMetadataReader(object):
 
         """
         # need to go through numpy uint64 to prevent conversion to float
-        start_ts = int(np.uint64(sample0 / self._samples_per_second))
-        end_ts = int(np.uint64(sample1 / self._samples_per_second))
+        start_ts = int(np.uint64(np.uint64(sample0) / self._samples_per_second))
+        end_ts = int(np.uint64(np.uint64(sample1) / self._samples_per_second))
 
         # convert ts to be divisible by self._file_cadence_secs
         start_ts = (start_ts // self._file_cadence_secs) * self._file_cadence_secs

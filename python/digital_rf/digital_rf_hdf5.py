@@ -1642,10 +1642,10 @@ class DigitalRFReader(object):
         sample0 = int(sample0)
         sample1 = int(sample1)
         # need to go through numpy uint64 to prevent conversion to float
-        start_ts = int(np.uint64(sample0 / samples_per_second))
-        end_ts = int(np.uint64(sample1 / samples_per_second)) + 1
-        start_msts = int(np.uint64(sample0 / samples_per_second * 1000))
-        end_msts = int(np.uint64(sample1 / samples_per_second * 1000))
+        start_ts = int(np.uint64(np.uint64(sample0) / samples_per_second))
+        end_ts = int(np.uint64(np.uint64(sample1) / samples_per_second)) + 1
+        start_msts = int(np.uint64(np.uint64(sample0) / samples_per_second * 1000))
+        end_msts = int(np.uint64(np.uint64(sample1) / samples_per_second * 1000))
 
         # get subdirectory start and end ts
         start_sub_ts = int(
