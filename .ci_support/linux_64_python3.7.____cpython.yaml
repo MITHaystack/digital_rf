@@ -1,19 +1,19 @@
 c_compiler:
 - gcc
 c_compiler_version:
-- '9'
+- '10'
 cdt_name:
 - cos6
 channel_sources:
-- conda-forge,defaults
+- conda-forge
 channel_targets:
 - ryanvolz main
 docker_image:
-- quay.io/condaforge/linux-anvil-comp7
+- quay.io/condaforge/linux-anvil-cos7-x86_64
 gnuradio_core:
-- 3.8.3
+- 3.10.3
 hdf5:
-- 1.10.6
+- 1.12.1
 numpy:
 - '1.19'
 pin_run_as_build:
@@ -21,11 +21,9 @@ pin_run_as_build:
     min_pin: x.x
     max_pin: x.x
 python:
-- 3.9.* *_cpython
+- 3.7.* *_cpython
 target_platform:
 - linux-64
 zip_keys:
-- - cdt_name
-  - docker_image
 - - python
   - numpy

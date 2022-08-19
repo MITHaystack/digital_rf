@@ -3,7 +3,7 @@ BUILD:
 c_compiler:
 - gcc
 c_compiler_version:
-- '9'
+- '10'
 cdt_arch:
 - aarch64
 cdt_name:
@@ -15,9 +15,9 @@ channel_targets:
 docker_image:
 - quay.io/condaforge/linux-anvil-aarch64
 gnuradio_core:
-- 3.8.3
+- 3.10.3
 hdf5:
-- 1.10.6
+- 1.12.1
 numpy:
 - '1.19'
 pin_run_as_build:
@@ -25,7 +25,7 @@ pin_run_as_build:
     min_pin: x.x
     max_pin: x.x
 python:
-- 3.9.* *_cpython
+- 3.8.* *_cpython
 target_platform:
 - linux-aarch64
 zip_keys:
