@@ -273,6 +273,14 @@ class Thor(object):
         # replace out_types to fill in None values with type name
         op.ch_out_types = [os["name"] for os in op.ch_out_specs]
 
+        # set clock/time source defaults depending on time_sync/wait_for_lock
+        if op.time_sync:
+            # if unset, change source to "external"
+            op.time_sources = [src if src else "external" for src in op.time_sources]
+        if op.wait_for_lock:
+            # if unset, change source to "external"
+            op.clock_sources = [src if src else "external" for src in op.clock_sources]
+
         # repeat mainboard arguments as necessary
         op.nmboards = len(op.mboards) if len(op.mboards) > 0 else 1
         for mb_arg in ("subdevs", "clock_rates", "clock_sources", "time_sources"):
@@ -466,8 +474,6 @@ class Thor(object):
 
             # set time source
             time_source = op.time_sources[mb_num]
-            if not time_source and op.time_sync:
-                time_source = "external"
             if time_source:
                 try:
                     u.set_time_source(time_source, mb_num)
@@ -481,8 +487,6 @@ class Thor(object):
 
             # set clock source
             clock_source = op.clock_sources[mb_num]
-            if not clock_source and op.wait_for_lock:
-                clock_source = "external"
             if clock_source:
                 try:
                     u.set_clock_source(clock_source, mb_num)
