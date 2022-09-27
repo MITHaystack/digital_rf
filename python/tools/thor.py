@@ -455,20 +455,14 @@ class Thor(object):
             if clock_rate is not None:
                 u.set_clock_rate(clock_rate, mb_num)
 
-            # set clock source
-            clock_source = op.clock_sources[mb_num]
-            if not clock_source and op.wait_for_lock:
-                clock_source = "external"
-            if clock_source:
-                try:
-                    u.set_clock_source(clock_source, mb_num)
-                except RuntimeError:
-                    errstr = (
-                        "Setting mainboard {0} clock_source to '{1}' failed."
-                        " Must be one of {2}. If setting is valid, check that"
-                        " the source (REF) is operational."
-                    ).format(mb_num, clock_source, u.get_clock_sources(mb_num))
-                    raise ValueError(errstr)
+            # gr-uhd multi-usrp object does not have set_sync_source (which
+            # is a thing on modern USRPs) so we need to set time and clock
+            # sources as separate calls. Only some pairs of time and clock
+            # source are valid, so it seems optimal to set the time source
+            # first to reduce the overall number of re-syncs since
+            # (clock=external, time=internal) is generally valid but unlikely
+            # whereas (clock=internal, time=external) is generally invalid,
+            # and the unset default is for internal sources.
 
             # set time source
             time_source = op.time_sources[mb_num]
@@ -483,6 +477,21 @@ class Thor(object):
                         " Must be one of {2}. If setting is valid, check that"
                         " the source (PPS) is operational."
                     ).format(mb_num, time_source, u.get_time_sources(mb_num))
+                    raise ValueError(errstr)
+
+            # set clock source
+            clock_source = op.clock_sources[mb_num]
+            if not clock_source and op.wait_for_lock:
+                clock_source = "external"
+            if clock_source:
+                try:
+                    u.set_clock_source(clock_source, mb_num)
+                except RuntimeError:
+                    errstr = (
+                        "Setting mainboard {0} clock_source to '{1}' failed."
+                        " Must be one of {2}. If setting is valid, check that"
+                        " the source (REF) is operational."
+                    ).format(mb_num, clock_source, u.get_clock_sources(mb_num))
                     raise ValueError(errstr)
 
         # check for ref lock
