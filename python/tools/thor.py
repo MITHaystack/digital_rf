@@ -141,9 +141,9 @@ class Thor(object):
             time_sources=[""],
             # receiver group (apply to all)
             samplerate=1e6,
-            dev_args=["recv_buff_size=100000000", "num_recv_frames=512"],
-            stream_args=[],
-            tune_args=[],
+            dev_args=dict(recv_buff_size="100000000", num_recv_frames="512"),
+            stream_args={},
+            tune_args={},
             time_sync=True,
             wait_for_lock=True,
             stop_on_dropped=False,
@@ -273,6 +273,14 @@ class Thor(object):
         # replace out_types to fill in None values with type name
         op.ch_out_types = [os["name"] for os in op.ch_out_specs]
 
+        # set clock/time source defaults depending on time_sync/wait_for_lock
+        if op.time_sync:
+            # if unset, change source to "external"
+            op.time_sources = [src if src else "external" for src in op.time_sources]
+        if op.wait_for_lock:
+            # if unset, change source to "external"
+            op.clock_sources = [src if src else "external" for src in op.clock_sources]
+
         # repeat mainboard arguments as necessary
         op.nmboards = len(op.mboards) if len(op.mboards) > 0 else 1
         for mb_arg in ("subdevs", "clock_rates", "clock_sources", "time_sources"):
@@ -365,7 +373,7 @@ class Thor(object):
         ]
 
         # create device_addr string to identify the requested device(s)
-        op.mboard_strs = []
+        mboard_strs = []
         for n, mb in enumerate(op.mboards):
             if re.match(r"[^0-9]+=.+", mb):
                 idtype, mb = mb.split("=")
@@ -386,21 +394,44 @@ class Thor(object):
                 s = "{type}={mb}".format(type=idtype, mb=mb.strip())
             else:
                 s = "{type}{n}={mb}".format(type=idtype, n=n, mb=mb.strip())
-            op.mboard_strs.append(s)
+            mboard_strs.append(s)
+        op.mboard_str = ",".join(mboard_strs)
+
+        # set device arguments for default parameters that can be set on init
+        # this only works for certain devices, but others will ignore the arguments
+        if op.time_sources[0] and "time_source" not in op.dev_args:
+            op.dev_args["time_source"] = op.time_sources[0]
+        if op.clock_sources[0] and "clock_source" not in op.dev_args:
+            op.dev_args["clock_source"] = op.clock_sources[0]
+        if op.clock_rates[0] and "master_clock_rate" not in op.dev_args:
+            op.dev_args["master_clock_rate"] = op.clock_rates[0]
+        if op.lo_sources[0] and "rx_lo_source" not in op.dev_args:
+            op.dev_args["rx_lo_source"] = op.lo_sources[0]
+
+        # convert arg dicts to string arguments
+        dev_args_strs = ["{0}={1}".format(k, v) for k, v in op.dev_args.items()]
+        op.dev_args_str = ",".join(dev_args_strs)
+        op.mboard_dev_args_str = ",".join(chain(mboard_strs, dev_args_strs))
+        op.stream_args_str = ",".join(
+            "{0}={1}".format(k, v) for k, v in op.stream_args.items()
+        )
+        op.tune_args_str = ",".join(
+            "{0}={1}".format(k, v) for k, v in op.tune_args.items()
+        )
 
         if op.verbose:
             opstr = (
                 dedent(
                     """\
-                Main boards: {mboard_strs}
+                Main boards: {mboard_str}
                 Subdevices: {subdevs}
                 Clock rates: {clock_rates}
                 Clock sources: {clock_sources}
                 Time sources: {time_sources}
                 Sample rate: {samplerate}
-                Device arguments: {dev_args}
-                Stream arguments: {stream_args}
-                Tune arguments: {tune_args}
+                Device arguments: {dev_args_str}
+                Stream arguments: {stream_args_str}
+                Tune arguments: {tune_args_str}
                 Antenna: {antennas}
                 Bandwidth: {bandwidths}
                 Frequency: {centerfreqs}
@@ -435,12 +466,12 @@ class Thor(object):
         # create usrp source block
         op.otw_format = "sc16"
         u = uhd.usrp_source(
-            device_addr=",".join(chain(op.mboard_strs, op.dev_args)),
+            device_addr=op.mboard_dev_args_str,
             stream_args=uhd.stream_args(
                 cpu_format=op.cpu_format,
                 otw_format=op.otw_format,
                 channels=list(range(op.nrchs)),
-                args=",".join(op.stream_args),
+                args=op.stream_args_str,
             ),
             # we will manually set the command to start streaming after fg start
             issue_stream_cmd_on_start=False,
@@ -452,29 +483,21 @@ class Thor(object):
 
             # set master clock rate
             clock_rate = op.clock_rates[mb_num]
-            if clock_rate is not None:
+            if clock_rate is not None and clock_rate != u.get_clock_rate(mb_num):
                 u.set_clock_rate(clock_rate, mb_num)
 
-            # set clock source
-            clock_source = op.clock_sources[mb_num]
-            if not clock_source and op.wait_for_lock:
-                clock_source = "external"
-            if clock_source:
-                try:
-                    u.set_clock_source(clock_source, mb_num)
-                except RuntimeError:
-                    errstr = (
-                        "Setting mainboard {0} clock_source to '{1}' failed."
-                        " Must be one of {2}. If setting is valid, check that"
-                        " the source (REF) is operational."
-                    ).format(mb_num, clock_source, u.get_clock_sources(mb_num))
-                    raise ValueError(errstr)
+            # gr-uhd multi-usrp object does not have set_sync_source (which
+            # is a thing on modern USRPs) so we need to set time and clock
+            # sources as separate calls. Only some pairs of time and clock
+            # source are valid, so it seems optimal to set the time source
+            # first to reduce the overall number of re-syncs since
+            # (clock=external, time=internal) is generally valid but unlikely
+            # whereas (clock=internal, time=external) is generally invalid,
+            # and the unset default is for internal sources.
 
             # set time source
             time_source = op.time_sources[mb_num]
-            if not time_source and op.time_sync:
-                time_source = "external"
-            if time_source:
+            if time_source and time_source != u.get_time_source(mb_num):
                 try:
                     u.set_time_source(time_source, mb_num)
                 except RuntimeError:
@@ -483,6 +506,19 @@ class Thor(object):
                         " Must be one of {2}. If setting is valid, check that"
                         " the source (PPS) is operational."
                     ).format(mb_num, time_source, u.get_time_sources(mb_num))
+                    raise ValueError(errstr)
+
+            # set clock source
+            clock_source = op.clock_sources[mb_num]
+            if clock_source and clock_source != u.get_clock_source(mb_num):
+                try:
+                    u.set_clock_source(clock_source, mb_num)
+                except RuntimeError:
+                    errstr = (
+                        "Setting mainboard {0} clock_source to '{1}' failed."
+                        " Must be one of {2}. If setting is valid, check that"
+                        " the source (REF) is operational."
+                    ).format(mb_num, clock_source, u.get_clock_sources(mb_num))
                     raise ValueError(errstr)
 
         # check for ref lock
@@ -557,7 +593,7 @@ class Thor(object):
         for ch_num in range(op.nrchs):
             # local oscillator sharing settings
             lo_source = op.lo_sources[ch_num]
-            if lo_source:
+            if lo_source and lo_source != u.get_lo_sources(uhd.ALL_LOS, ch_num):
                 try:
                     u.set_lo_source(lo_source, uhd.ALL_LOS, ch_num)
                 except RuntimeError:
@@ -581,7 +617,7 @@ class Thor(object):
                 uhd.tune_request(
                     op.centerfreqs[ch_num],
                     op.lo_offsets[ch_num],
-                    args=uhd.device_addr(",".join(op.tune_args)),
+                    args=uhd.device_addr(op.tune_args_str),
                 ),
                 ch_num,
             )
@@ -1045,7 +1081,7 @@ class Thor(object):
                         lo_source=op.lo_sources[kr],
                         otw_format=op.otw_format,
                         samp_rate=u.get_samp_rate(),
-                        stream_args=",".join(op.stream_args),
+                        stream_args=op.stream_args_str,
                         subdev=op.subdevs_bychan[kr],
                         time_source=op.time_sources[mbnum],
                     ),
@@ -1780,19 +1816,19 @@ def _run_thor(args):
             dev_args_dict = dict([a.split("=") for a in args.dev_args])
         except ValueError:
             raise ValueError("Device arguments must be {KEY}={VALUE} pairs.")
-        args.dev_args = ["{0}={1}".format(k, v) for k, v in dev_args_dict.items()]
+        args.dev_args = dev_args_dict
     if args.stream_args is not None:
         try:
             stream_args_dict = dict([a.split("=") for a in args.stream_args])
         except ValueError:
             raise ValueError("Stream arguments must be {KEY}={VALUE} pairs.")
-        args.stream_args = ["{0}={1}".format(k, v) for k, v in stream_args_dict.items()]
+        args.stream_args = stream_args_dict
     if args.tune_args is not None:
         try:
             tune_args_dict = dict([a.split("=") for a in args.tune_args])
         except ValueError:
             raise ValueError("Tune request arguments must be {KEY}={VALUE} pairs.")
-        args.tune_args = ["{0}={1}".format(k, v) for k, v in tune_args_dict.items()]
+        args.tune_args = tune_args_dict
 
     # convert metadata strings to a dictionary
     if args.metadata is not None:
