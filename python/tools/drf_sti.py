@@ -27,6 +27,7 @@ import pytz
 import scipy
 import scipy.signal
 
+
 def intinttuple(s):
     """Get (int,int) tuple from int:int strings."""
     parts = [p.strip() for p in s.split(":", 1)]
@@ -35,6 +36,7 @@ def intinttuple(s):
     else:
         return None
 
+
 def strinttuple(s):
     """Get (string,int) tuple from str:int strings."""
     parts = [p.strip() for p in s.split(":", 1)]
@@ -42,6 +44,7 @@ def strinttuple(s):
         return parts[0], int(parts[1])
     else:
         return parts[0], None
+
 
 class Extend(argparse.Action):
     """Action to split comma-separated arguments and add to a list."""
@@ -68,6 +71,7 @@ class Extend(argparse.Action):
         cur_list.extend(values)
         setattr(namespace, self.dest, cur_list)
 
+
 class DataPlotter(object):
     def __init__(self, opt):
         """Initialize a data plotter for STI plotting."""
@@ -82,13 +86,19 @@ class DataPlotter(object):
         self.sr = self.dio.get_properties(self.channels[0])["samples_per_second"]
 
         self.bounds = self.dio.get_bounds(self.channels[0])
-        self.dt_start = datetime.datetime.utcfromtimestamp(int(self.bounds[0]/self.sr))
-        self.dt_stop = datetime.datetime.utcfromtimestamp(int(self.bounds[1]/self.sr))
+        self.dt_start = datetime.datetime.utcfromtimestamp(
+            int(self.bounds[0] / self.sr)
+        )
+        self.dt_stop = datetime.datetime.utcfromtimestamp(int(self.bounds[1] / self.sr))
 
-        print("bound times ", self.dt_start.utcnow().isoformat()," to ", self.dt_stop.utcnow().isoformat()," UTC")
+        print(
+            "bound times {0} to {1} UTC".format(
+                self.dt_start.utcnow().isoformat(), self.dt_stop.utcnow().isoformat()
+            )
+        )
 
-        if (self.opt.verbose):
-            print("bound sample index ", self.bounds)
+        if self.opt.verbose:
+            print("bound sample index {0}".format(self.bounds))
 
         # Figure setup
 
@@ -124,20 +134,20 @@ class DataPlotter(object):
         vmax = 0
 
         if self.opt.verbose:
-            print("sample rate: ", self.sr )
+            print("sample rate: {0}".format(self.sr))
 
             # initial time info
         b = self.bounds
 
         if self.opt.verbose:
-            print("channel data bounds: ", b)
+            print("channel data bounds: {0}".format(b))
 
         if self.opt.start:
             dtst0 = dateutil.parser.parse(self.opt.start)
             st0 = (
                 dtst0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
             ).total_seconds()
-            st0 = int(st0 * self.sr )
+            st0 = int(st0 * self.sr)
         else:
             st0 = int(b[0])
 
@@ -146,14 +156,14 @@ class DataPlotter(object):
             et0 = (
                 dtst0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
             ).total_seconds()
-            et0 = int(et0 * self.sr )
+            et0 = int(et0 * self.sr)
         else:
             et0 = int(b[1])
 
         if self.opt.verbose:
 
-            print("start sample st0: ", st0)
-            print("end sample et0: ", et0)
+            print("start sample st0: {0}".format(st0))
+            print("end sample et0: {0}".format(et0))
 
         blocks = self.opt.length * self.opt.frames
 
@@ -164,8 +174,10 @@ class DataPlotter(object):
 
         if total_samples > (et0 - st0):
             print(
-                "Insufficient samples for %d samples per stripe and %d blocks between %ld and %ld"
-                % (samples_per_stripe, blocks, st0, et0)
+                (
+                    "Insufficient samples for {0} samples per stripe and {1} blocks"
+                    " between {2} and {3}"
+                ).format(samples_per_stripe, blocks, st0, et0)
             )
             return
 
@@ -175,7 +187,7 @@ class DataPlotter(object):
 
         start_sample = st0
 
-        print("first ", start_sample)
+        print("first {0}".format(start_sample))
 
         # get metadata
         # this could be done better to ensure we catch frequency or sample rate
@@ -189,11 +201,9 @@ class DataPlotter(object):
 
         if self.opt.verbose:
             print(
-                "processing info : ",
-                self.opt.frames,
-                self.opt.length,
-                samples_per_stripe,
-                bin_stride,
+                "processing info : {0} {1} {2} {3}".format(
+                    self.opt.frames, self.opt.length, samples_per_stripe, bin_stride
+                ),
             )
 
         for p in np.arange(self.opt.frames):
@@ -204,58 +214,76 @@ class DataPlotter(object):
 
                 if self.opt.verbose:
                     print(
-                        "read vector :", self.channels, start_sample, samples_per_stripe
+                        "read vector : {0} {1} {2}".format(
+                            self.channels, start_sample, samples_per_stripe
+                        )
                     )
 
                 # if beamforming then load and beamform channels
                 if self.opt.beamform:
                     if self.opt.verbose:
-                        print("beamform: ", self.opt.beamform)
+                        print("beamform: {0}".format(self.opt.beamform))
 
-                    if self.opt.beamform == 'sum':
+                    if self.opt.beamform == "sum":
                         if len(self.opt.phases) != len(self.channels):
-                            print("Number of phases must match number of channels for beamforming.")
+                            print(
+                                "Number of phases must match number of channels for"
+                                " beamforming."
+                            )
 
-                        data = np.zeros([samples_per_stripe],np.complex128)
+                        data = np.zeros([samples_per_stripe], np.complex128)
 
-                        for idx,c in enumerate(self.channels):
+                        for idx, c in enumerate(self.channels):
                             if self.opt.verbose:
-                                print("beamform sum channel ", c)
+                                print("beamform sum channel {0}".format(c))
 
                             channel = c
                             subchannel = int(self.subchannels[idx])
 
                             try:
                                 dv = self.dio.read_vector(
-                                    start_sample, samples_per_stripe, channel, subchannel
-                                    )
-                            except:
+                                    start_sample,
+                                    samples_per_stripe,
+                                    channel,
+                                    subchannel,
+                                )
+                            except Exception:
                                 # handle data gaps better
-                                dv = np.empty(samples_per_stripe,np.complex64)
+                                dv = np.empty(samples_per_stripe, np.complex64)
                                 dv[:] = np.nan
 
-                            dv = dv*np.exp(1j*np.deg2rad(float(self.opt.phases[idx])))
+                            dv = dv * np.exp(
+                                1j * np.deg2rad(float(self.opt.phases[idx]))
+                            )
 
                         data = data + dv
 
                     else:
-                        print("Unknown beamforming method ", self.opt.beamform)
+                        print(
+                            "Unknown beamforming method {0}".format(self.opt.beamform)
+                        )
                         return
                 else:
                     if self.opt.verbose:
-                        print("Using channel ", self.channels[0])
+                        print("Using channel {0}".format(self.channels[0]))
                     channel = self.channels[0]
                     subchannel = int(self.subchannels[0])
 
                     try:
                         data = self.dio.read_vector(
                             start_sample, samples_per_stripe, channel, subchannel
-                            )
+                        )
                     except IOError:
                         if self.opt.verbose:
-                            print("IO Error for channel ", channel, ":", subchannel, " start sample ",start_sample)
+                            print(
+                                "IO Error for channel {0}:{1} start sample {2}".format(
+                                    channel,
+                                    subchannel,
+                                    start_sample,
+                                )
+                            )
                         # handle data gaps better
-                        data = np.empty(samples_per_stripe,np.complex64)
+                        data = np.empty(samples_per_stripe, np.complex64)
                         data[:] = np.nan
 
                 if self.opt.decimation > 1:
@@ -277,7 +305,7 @@ class DataPlotter(object):
                         detrend=detrend_fn,
                         scale_by_freq=False,
                     )
-                except:
+                except Exception:
                     traceback.print_exc(file=sys.stdout)
 
                 sti_psd_data[:, b] = np.real(10.0 * np.log10(np.abs(psd_data) + 1e-12))
@@ -362,10 +390,10 @@ class DataPlotter(object):
                 tk.set_size(8)
             del tl
 
-        print("last ", start_sample)
+        print("last {0}".format(start_sample))
 
         # create a time stamp
-        start_time = int(st0 / self.sr )
+        start_time = int(st0 / self.sr)
         srt_time = time.gmtime(start_time)
         sub_second = int(round((start_time - int(start_time)) * 100))
 
@@ -410,7 +438,7 @@ class DataPlotter(object):
             fname, ext = os.path.splitext(self.opt.outname)
             if ext == "":
                 ext = ".png"
-            print("Save plot as {}".format(fname + ext))
+            print("Save plot as {0}".format(fname + ext))
             matplotlib.pyplot.savefig(fname + ext)
         if self.opt.appear or not self.opt.outname:
             print("Show plot")
@@ -438,16 +466,8 @@ def parse_command_line():
         )
     )
 
-    usage = (
-        "%(prog)s [-t title] [-f frames] [-s start_time] [-e end_time] [-c channel] \\\n"
-        " {0:8}[-B sum] [-p chan:phase_in_deg] [-l time_bins] [-b fft_bins] \\\n"
-        " {0:8}[-i integration] [-d decimation] [-m] [-z low:high] [-v] [-o plot_file] [-a] \\\n"
-        " {0:8}[-g GAIN] [-b BANDWIDTH] [-r RATE] [options] DIR\n".format("")
-    )
-
     parser = argparse.ArgumentParser(
         description=desc,
-        usage=usage,
         prefix_chars="-",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -456,9 +476,9 @@ def parse_command_line():
         "path",
         nargs="?",
         default=None,
-        help="""Path to data directory which has the DigitalRF channel subdirectories.""",
+        metavar="datadir_path",
+        help="Path to data directory which has the DigitalRF channel subdirectories.",
     )
-
     parser.add_argument(
         "-t",
         "--title",
@@ -467,37 +487,33 @@ def parse_command_line():
         help="Use title provided for the data.",
     )
     parser.add_argument(
+        "-f",
+        "--frames",
+        dest="frames",
+        default=1,
+        type=int,
+        help="The number of sub-panel frames in the plot.",
+    )
+    parser.add_argument(
         "-s",
         "--start",
         dest="start",
         default=None,
-        help="Use the provided start time instead of the first time in the data. format is ISO8601: 2015-11-01T15:24:00Z",
+        help=(
+            "Use the provided start time instead of the first time in the data."
+            " format is ISO8601: 2015-11-01T15:24:00Z"
+        ),
     )
     parser.add_argument(
         "-e",
         "--end",
         dest="end",
         default=None,
-        help="Use the provided end time for the plot. format is ISO8601: 2015-11-01T15:24:00Z",
+        help=(
+            "Use the provided end time for the plot."
+            " format is ISO8601: 2015-11-01T15:24:00Z"
+        ),
     )
-
-    parser.add_argument(
-        "-p",
-        "--phases",
-        dest="phases",
-        action=Extend,
-        default=[],
-        help="Change the phase of Digital RF channel relative to other channels. In degrees.",
-    )
-
-    parser.add_argument(
-        "-B",
-        "--beamform",
-        dest="beamform",
-        default=None,
-        help="Enable beamforming of multiple channels prior to plotting. Beamformer types: sum",
-    )
-
     parser.add_argument(
         "-c",
         "--channel",
@@ -513,7 +529,26 @@ def parse_command_line():
                 colon are optional; if omitted, the receive sub-channel is zero.
                 (default: "ch0")""",
     )
-
+    parser.add_argument(
+        "-B",
+        "--beamform",
+        dest="beamform",
+        default=None,
+        choices=("sum",),
+        help="Enable beamforming of multiple channels prior to plotting.",
+    )
+    parser.add_argument(
+        "-p",
+        "--phases",
+        dest="phases",
+        action=Extend,
+        default=[],
+        metavar="CHAN:PHASE_IN_DEG",
+        help=(
+            "Change the phase of Digital RF channel relative to other channels."
+            " In degrees."
+        ),
+    )
     parser.add_argument(
         "-l",
         "--length",
@@ -521,14 +556,6 @@ def parse_command_line():
         default=1024,
         type=int,
         help="The number of time bins for the STI.",
-    )
-    parser.add_argument(
-        "-f",
-        "--frames",
-        dest="frames",
-        default=1,
-        type=int,
-        help="The number of sub-panel frames in the plot.",
     )
     parser.add_argument(
         "-b",
@@ -568,15 +595,11 @@ def parse_command_line():
         dest="zaxis",
         type=intinttuple,
         default=None,
-        help="zaxis colorbar setting e.g. -z=-50:50 ; = needed due to argparse issue with negative numbers",
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        dest="verbose",
-        default=False,
-        help="Print status messages to stdout.",
+        metavar="ZLOW:ZHIGH",
+        help=(
+            "zaxis colorbar setting e.g. -z=-50:50 ;"
+            " = needed due to argparse issue with negative numbers"
+        ),
     )
     parser.add_argument(
         "-o",
@@ -593,6 +616,14 @@ def parse_command_line():
         dest="appear",
         default=False,
         help="Makes the plot appear through pyplot show.",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        dest="verbose",
+        default=False,
+        help="Print status messages to stdout.",
     )
 
     options = parser.parse_args()
@@ -618,7 +649,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if options.verbose:
-        print("options: ", options)
+        print("options: {0}".format(options))
 
     # Activate the DataPlotter
     dpc = DataPlotter(options)
