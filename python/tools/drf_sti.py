@@ -77,9 +77,12 @@ class DataPlotter(object):
         """Initialize a data plotter for STI plotting."""
         self.opt = opt
 
-        # convert channel arguments to arrays
-        self.channels = list(zip(*self.opt.channels))[0]
-        self.subchannels = list(zip(*self.opt.channels))[1]
+        # convert channel argument to separate tuples for channels and subchannels
+        self.channels, self.subchannels = zip(*self.opt.channels)
+        # replace None subchannels with 0
+        self.subchannels = tuple(
+            0 if subch is None else subch for subch in self.subchannels
+        )
 
         # open digital RF path
         self.dio = drf.DigitalRFReader(self.opt.path)
