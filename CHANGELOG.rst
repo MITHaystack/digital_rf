@@ -4,6 +4,26 @@ digital_rf Change Log
 
 .. current developments
 
+v2.6.8
+====================
+
+**Changed:**
+
+* drf_sti: Updated to have better arguments (consistent with more recent tools), handle data gaps, and add simple channel sum beamforming.
+* thor: Swap order of setting USRP clock and time sources, time first. This should reduce the number of re-syncs necessary with modern USRPs (N3xx, X4xx) in the absence of being able to do a set_sync_source call.
+* thor: Put USRP clock, time, and lo arguments into device string, and do not set those arguments after device initialization if they do not change. This means that thor will do less re-initialization of the device settings during startup.
+
+**Fixed:**
+
+* Fixed Python DigitalRFReader and DigitalMetadataReader for compatibility with numpy 1.23 on Windows (and possibly other platforms with np.longdouble==np.double).
+
+**Authors:**
+
+* Ryan Volz
+* Frank Lind
+
+
+
 v2.6.7
 ====================
 
