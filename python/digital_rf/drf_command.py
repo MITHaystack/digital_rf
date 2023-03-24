@@ -10,7 +10,12 @@ from __future__ import absolute_import, division, print_function
 
 from argparse import ArgumentParser
 
-from .list_drf import _build_cp_parser, _build_ls_parser, _build_mv_parser
+from .list_drf import (
+    _build_cp_parser,
+    _build_ln_parser,
+    _build_ls_parser,
+    _build_mv_parser,
+)
 
 try:
     from .mirror import _build_mirror_parser
@@ -34,6 +39,7 @@ def main(args=None):
     subparsers = parser.add_subparsers(title="Available commands")
 
     _build_cp_parser(subparsers.add_parser, "cp")
+    _build_ln_parser(subparsers.add_parser, "ln")
     _build_ls_parser(subparsers.add_parser, "ls")
     _build_mv_parser(subparsers.add_parser, "mv")
     if _WATCHDOG:

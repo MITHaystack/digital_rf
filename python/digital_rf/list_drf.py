@@ -697,6 +697,37 @@ def _run_cp(args):
             shutil.copy2(srcpath, destpath)
 
 
+def _build_ln_parser(Parser, *args):
+    desc = "Link Digital RF/Metadata files from source to destination."
+    parser = Parser(*args, description=desc)
+    parser = _add_srcdest_arguments(parser)
+    parser.add_argument(
+        "--symbolic",
+        "--sym",
+        action="store_true",
+        help="""Make symbolic links instead of hard links.
+                (default: False)""",
+    )
+    parser.set_defaults(func=_run_ln)
+    return parser
+
+
+def _run_ln(args):
+    if args.symbolic:
+        link_fun = os.symlink
+    else:
+        link_fun = os.link
+    del args.symbolic
+    args, kwargs = _parse_srcdest_args(args)
+    for (src, dest) in args.srcdests:
+        for srcpath in ilsdrf(src, **kwargs):
+            destpath = os.path.join(dest, os.path.relpath(srcpath, src))
+            destdir = os.path.dirname(destpath)
+            if not os.path.exists(destdir):
+                os.makedirs(destdir)
+            link_fun(srcpath, destpath)
+
+
 def _build_mv_parser(Parser, *args):
     desc = "Move Digital RF/Metadata files from source to destination."
     parser = Parser(*args, description=desc)
