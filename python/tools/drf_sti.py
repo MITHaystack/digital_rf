@@ -164,7 +164,6 @@ class DataPlotter(object):
             et0 = int(b[1])
 
         if self.opt.verbose:
-
             print("start sample st0: {0}".format(st0))
             print("end sample et0: {0}".format(et0))
 
@@ -214,7 +213,6 @@ class DataPlotter(object):
             sti_times = np.zeros([self.opt.length], np.complex128)
 
             for b in np.arange(self.opt.length, dtype=np.int_):
-
                 if self.opt.verbose:
                     print(
                         "read vector : {0} {1} {2}".format(
@@ -449,7 +447,6 @@ class DataPlotter(object):
 
 
 def parse_command_line():
-
     scriptname = os.path.basename(sys.argv[0])
 
     formatter = argparse.RawDescriptionHelpFormatter(scriptname)

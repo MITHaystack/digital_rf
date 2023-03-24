@@ -151,6 +151,7 @@ class DigitalRFMirror(object):
         dest,
         method="move",
         ignore_existing=False,
+        link=False,
         verbose=False,
         starttime=None,
         endtime=None,
@@ -168,10 +169,11 @@ class DigitalRFMirror(object):
         dest : str
             Destination directory.
 
-        method : 'move' | 'copy'
+        method : 'move' | 'copy' | 'link'
             Mirroring method. New Digital RF files in the source directory will
-            be moved or copied to the destination directory depending on this
-            parameter. Metadata is always copied regardless of this parameter.
+            be moved or copied/hardlinked to the destination directory depending
+            on this parameter. Metadata is always copied/hardlinked regardless
+            of this parameter.
 
 
         Other Parameters
@@ -181,6 +183,13 @@ class DigitalRFMirror(object):
             mirrored. Otherwise, they will be mirrored to the destination
             directory along with any existing channel metadata files
             when mirroring starts.
+
+        link : bool
+            If True, files that would be copied (because `method` is copy or
+            because the files are Digital Metadata) are instead hard linked.
+            When hard linking is not possible, files will be copied instead.
+            Linking is enabled regardless of this value when the `method` is
+            'link'.
 
         verbose : bool
             If True, print the name of mirrored files.
@@ -208,10 +217,11 @@ class DigitalRFMirror(object):
         """
         self.src = os.path.abspath(src)
         self.dest = os.path.abspath(dest)
-        if method not in ("move", "copy"):
-            raise ValueError('Mirror method must be either "move" or "copy".')
+        if method not in ("move", "copy", "link"):
+            raise ValueError('Mirror method must be either "move", "copy", or "link"')
         self.method = method
         self.ignore_existing = ignore_existing
+        self.link = link
         self.verbose = verbose
         self.starttime = starttime
         self.endtime = endtime
@@ -223,6 +233,40 @@ class DigitalRFMirror(object):
             errstr = "One of `include_drf` or `include_dmd` must be True."
             raise ValueError(errstr)
 
+        if self.method == "link":
+            self.link = True
+        elif self.method == "copy" and self.link:
+            self.method = "link"
+
+        if self.link:
+            # set up a hard linking function that falls back to copying
+            class LinkWithFallback(object):
+                def __init__(self):
+                    self.unlinkable_path_pairs = set()
+
+                def __call__(self, src, dst):
+                    src_dir = os.path.dirname(src)
+                    dst_dir = os.path.dirname(dst)
+                    if (src_dir, dst_dir) not in self.unlinkable_path_pairs:
+                        try:
+                            os.link(src, dst)
+                        except FileExistsError:
+                            # assume we've already linked this file
+                            # (e.g. a Digital Metadata file has been newly written to,
+                            #  but we've already hard linked it)
+                            pass
+                        except OSError:
+                            print((src_dir, dst_dir))
+                            self.unlinkable_path_pairs.add((src_dir, dst_dir))
+                            # fall back to copying
+                            shutil.copy2(src, dst)
+                    else:
+                        shutil.copy2(src, dst)
+
+            copylike_mirror_fun = LinkWithFallback()
+        else:
+            copylike_mirror_fun = shutil.copy2
+
         self.event_handlers = []
         # have to copy properties files because static,
         # have to copy metadata because can be modified
@@ -230,10 +274,10 @@ class DigitalRFMirror(object):
             self.src,
             self.dest,
             verbose=verbose,
-            mirror_fun=shutil.copy2,
+            mirror_fun=copylike_mirror_fun,
             starttime=self.starttime,
             endtime=self.endtime,
-            include_drf=(self.include_drf and self.method == "copy"),
+            include_drf=(self.include_drf and self.method in ("copy", "link")),
             include_dmd=self.include_dmd,
             include_drf_properties=self.include_drf,
             include_dmd_properties=self.include_dmd,
@@ -364,7 +408,7 @@ def _build_mirror_parser(Parser, *args):
     desc = "Mirror Digital RF files from one directory to another."
     parser = Parser(*args, description=desc)
 
-    parser.add_argument("method", choices=["mv", "cp"], help="Mirroring method.")
+    parser.add_argument("method", choices=["mv", "cp", "ln"], help="Mirroring method.")
     parser.add_argument("src", help="Source directory to monitor.")
     parser.add_argument("dest", help="Destination directory.")
     parser.add_argument(
@@ -374,6 +418,12 @@ def _build_mirror_parser(Parser, *args):
         "--ignore_existing",
         action="store_true",
         help="Ignore existing files in source directory.",
+    )
+    parser.add_argument(
+        "--link",
+        action="store_true",
+        help="""Use hardlinking in place of copying when possible. This is always
+                enabled when the `method` is 'ln'. (default: False)""",
     )
 
     parser = list_drf._add_time_group(parser)
@@ -404,7 +454,7 @@ def _build_mirror_parser(Parser, *args):
 def _run_mirror(args):
     import signal
 
-    methods = {"mv": "move", "cp": "copy"}
+    methods = {"mv": "move", "cp": "copy", "ln": "link"}
     args.method = methods[args.method]
 
     if args.starttime is not None:

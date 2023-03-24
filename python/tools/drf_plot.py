@@ -112,13 +112,11 @@ def power_process(data, sfreq, toffset, modulus, integration, log_scale, zscale,
         block_size = integration * modulus
         block_toffset = toffset
         while block < len(data) / block_size:
-
             vblock = data[block * block_size : block * block_size + modulus]
             pblock = (vblock * np.conjugate(vblock)).real
 
             # complete integration
             for idx in range(1, integration):
-
                 vblock = data[
                     block * block_size
                     + idx * modulus : block * block_size
@@ -316,7 +314,6 @@ def spectrum_process(
         block_size = integration * modulus
         block_toffset = toffset
         while block < len(data) / block_size:
-
             vblock = data[block * block_size : block * block_size + modulus]
             pblock, freq = matplotlib.mlab.psd(
                 vblock,
@@ -329,7 +326,6 @@ def spectrum_process(
 
             # complete integration
             for idx in range(1, integration):
-
                 vblock = data[
                     block * block_size
                     + idx * modulus : block * block_size
@@ -477,7 +473,6 @@ def specgram_process(
         block_size = integration * modulus
         block_toffset = toffset
         while block < len(data) / block_size:
-
             vblock = data[(block * block_size) : (block * block_size + modulus)]
             pblock, freq, tm = matplotlib.mlab.specgram(
                 vblock,
@@ -491,7 +486,6 @@ def specgram_process(
 
             # complete integration
             for idx in range(1, integration):
-
                 vblock = data[
                     (block * block_size + idx * modulus) : (
                         block * block_size + idx * modulus + modulus
@@ -611,13 +605,11 @@ def rti_process(
         RTItimes = np.zeros([rti_bins])
 
         while block < rti_bins:
-
             vblock = data[block * block_size : block * block_size + modulus]
             pblock = vblock * np.conjugate(vblock)
 
             # complete integration
             for idx in range(1, integration):
-
                 vblock = data[
                     block * block_size
                     + idx * modulus : block * block_size
@@ -673,7 +665,6 @@ def rti_process(
 
 
 def rti_plot(data, extent, tick_locs, tick_labels, log_scale, zscale, title):
-
     # set to log scaling
     if log_scale:
         RTId = 10.0 * np.log10(data + 1e-12)
@@ -750,7 +741,6 @@ def sti_process(
         STItimes = np.zeros([sti_bins])
 
         while block < sti_bins:
-
             vblock = data[block * block_size : block * block_size + modulus]
             pblock, freq = matplotlib.mlab.psd(
                 vblock,
@@ -763,7 +753,6 @@ def sti_process(
 
             # complete integration
             for idx in range(1, integration):
-
                 vblock = data[
                     block * block_size
                     + idx * modulus : block * block_size
@@ -822,7 +811,6 @@ def sti_process(
 
 
 def sti_plot(data, freq, extent, tick_locs, tick_labels, log_scale, zscale, title):
-
     pss = data
 
     # set to log scaling
@@ -909,7 +897,6 @@ def hex2vec(h, ell):
 
 
 def apply_msl_filter(data, msl_code_length, msl_baud_length):
-
     code_table = {
         2: [0, 1],  # barker codes
         3: [0, 0, 1],
@@ -1103,7 +1090,6 @@ if __name__ == "__main__":
         sys.exit()
 
     for opt, val in opts:
-
         if opt in ("-h"):
             usage()
             sys.exit()

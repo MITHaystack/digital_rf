@@ -47,7 +47,6 @@ class DataPlotter:
         self.bounds = []
 
         for idx, p in enumerate(self.control.path):
-
             ch = self.control.channel[idx].split(":")
             self.channel.append(ch[0])
             self.sub_channel.append(int(ch[1]))
@@ -126,7 +125,6 @@ class DataPlotter:
         vmax = 0
 
         for fidx, xpair in enumerate(self.xlist):
-
             xidx, yidx = xpair
 
             if self.control.verbose:
@@ -177,7 +175,6 @@ class DataPlotter:
                 et0 = int(b[1])
 
             if self.control.verbose:
-
                 print(("start sample st0: ", st0))
                 print(("end sample et0: ", et0))
 
@@ -234,7 +231,6 @@ class DataPlotter:
                 )
 
             for p in np.arange(0, self.control.frames * 2, 2):
-
                 sti_csd_data_coherence = np.zeros(
                     [self.control.num_fft, self.control.bins], np.float
                 )
@@ -245,7 +241,6 @@ class DataPlotter:
                 sti_times = np.zeros([self.control.bins], np.complex128)
 
                 for b in np.arange(self.control.bins, dtype=np.int_):
-
                     if self.control.verbose:
                         print(
                             "read vector :",

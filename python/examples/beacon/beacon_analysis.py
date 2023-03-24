@@ -45,6 +45,7 @@ TLE_def = (
 )
 debug_plot = False
 
+
 # update_progress() : Displays or updates a console progress bar
 ## Accepts a float between 0 and 1. Any int will be converted to a float.
 ## A value under 0 represents a 'halt'.
@@ -90,7 +91,7 @@ def ephem_doponly(maindir, tleoff=10.0):
             }
     """
 
-    #%% Get Ephem info
+    # %% Get Ephem info
     # Assuming this will stay the same
     ut0 = 25567.5
     e2p = 3600.0 * 24  # ephem day to utc seconds
@@ -566,7 +567,6 @@ def calc_TEC(
     outspec1 = sp.zeros((len(tvec), window))
     print("Start Beacon Processing")
     for i_t, c_st in enumerate(start_vec):
-
         update_progress(float(i_t) / float(len(start_vec)))
         t_cur = tvec[i_t]
 
@@ -681,7 +681,7 @@ def calc_TEC(
     return outdict
 
 
-#%% Plotting
+# %% Plotting
 def plotsti_vel(
     maindir,
     savename="chancomp.png",
@@ -745,7 +745,6 @@ def plotsti_vel(
     sti0 = sp.zeros((Nt, window), float)
     sti1 = sp.zeros_like(sti0)
     for i_t, c_st in enumerate(start_vec):
-
         z0 = drfObj.read_vector(c_st, Nr, chans[0], subchan)
         z1 = drfObj.read_vector(c_st, Nr, chans[1], subchan)
         for idec in dec_vec:
@@ -1055,7 +1054,7 @@ def plot_map(outdict, e, savename, fig1=None, m=None):
     plt.close(fig1)
 
 
-#%% I/O for measurements
+# %% I/O for measurements
 def save_output(maindirmeta, outdict, e):
     """
     This function saves the output of the relative TEC measurement processing.
@@ -1122,7 +1121,7 @@ def readoutput(maindirmeta):
     return outdict
 
 
-#%% Run from commandline material
+# %% Run from commandline material
 def analyzebeacons(input_args):
     """
     This function will run the analysis code and save the data. Plots will be
@@ -1160,7 +1159,6 @@ def analyzebeacons(input_args):
             plot_measurements(outdict, savename)
             plot_map(outdict, e, os.path.join(figspath, "mapdata.png"))
     else:
-
         outdict = calc_TEC(
             mainpath,
             window=input_args.window,

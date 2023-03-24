@@ -811,7 +811,6 @@ class archive(object):
 
 ### main begins here ###
 if __name__ == "__main__":
-
     # command line interface
     parser = argparse.ArgumentParser(
         description="digital_rf_archive.py is a tool for archiving Digital RF data.."
