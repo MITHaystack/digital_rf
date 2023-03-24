@@ -1247,7 +1247,6 @@ def _add_ochannel_group(parser):
 
 
 def _add_drf_group(parser):
-
     drfgroup = parser.add_argument_group(title="digital_rf")
     drfgroup.add_argument(
         "-n",

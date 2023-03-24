@@ -86,7 +86,6 @@ class SoundDRF(object):
             et0 = int(bound[1])
 
         if self.control.verbose:
-
             print("start sample st0: ", st0)
             print("end sample et0: ", et0)
 
@@ -123,9 +122,7 @@ class SoundDRF(object):
             )
 
         for iblock in range(blocks):
-
             for iread in range(reads_per_block):
-
                 if self.control.verbose:
                     print(
                         "read vector :", self.channel, start_sample, samples_per_stripe

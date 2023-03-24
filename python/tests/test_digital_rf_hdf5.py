@@ -1101,7 +1101,7 @@ class TestDigitalRFChannel(object):
 
         # check that we get all of the data if we read entire bounds
         data_dict = drf_reader.read(bounds[0], bounds[1], channel)
-        for (sstart, rdata) in data_dict.items():
+        for sstart, rdata in data_dict.items():
             bstart = sstart - bounds[0]
             bstop = sstart + len(rdata) - bounds[0]
             with np.errstate(invalid="ignore"):

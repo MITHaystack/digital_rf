@@ -499,7 +499,6 @@ def ephemeris_passes(opt, st0, et0):
     last_sat_rise = ctime
 
     while ctime < etime:
-
         obj = get_next_object(opt, site, objects, ctime)
 
         obj_id = obj
@@ -666,7 +665,6 @@ def ephemeris_passes(opt, st0, et0):
                     cmd_line0 = "%s " % (site["recorder"]["command"])
 
                     if site["radio"]["type"] == "b210":
-
                         # just record a fixed frequency, needs a dual radio Thor3 script. This can be done!
                         idx = 0
                         freq = obj_freqs[1]
@@ -727,7 +725,6 @@ def ephemeris_passes(opt, st0, et0):
                         print("\n")
 
                     elif site["radio"]["type"] == "n200_tvrx2":
-
                         cmd_line1 = (
                             ' -r %s -d "%s %s" -s %s -e %s -c %s,%s -f %4.3f,%4.3f '
                             % (
@@ -804,7 +801,6 @@ def ephemeris_passes(opt, st0, et0):
                             print("#    %d sec" % (start0 - time.time()))
 
                     for cmd_tuple in cmd_lines:
-
                         cmd, cmd_fname, pass_md, info_md = cmd_tuple
 
                         print("# Executing command %s " % (cmd))
@@ -823,7 +819,6 @@ def ephemeris_passes(opt, st0, et0):
                         # eventually we will add this feature to digital metadata
 
                         for k in site:
-
                             try:
                                 os.makedirs(mdata_dir + "/config/%s" % (k))
                             except:

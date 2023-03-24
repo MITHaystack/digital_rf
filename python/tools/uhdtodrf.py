@@ -1095,7 +1095,6 @@ class Recorder(object):
             # now that we're ready to accept samples, send the start streaming command
             stream.issue_stream_cmd(stream_cmd)
             while not end_rec.is_set():
-
                 if et is not None:
                     stop_bool = pytz.utc.localize(datetime.utcnow()) >= et - timedelta(
                         seconds=1
@@ -1138,7 +1137,6 @@ class Recorder(object):
             time.sleep(1)
 
         finally:
-
             while write_threads or proc_threads or (not radfifo.empty()):
                 if not radfifo.empty():
                     d1 = radfifo.get()
@@ -1277,7 +1275,6 @@ class Recorder(object):
                     bpnt = self.pntlist[a]
 
                 if num_rx_dropped:
-
                     end_pnt = min(self.bufflen, bpnt + num_rx_dropped)
                     self.bufflist[a][:, bpnt:end_pnt] = np.nan
                     self.pntlist[a] += num_rx_dropped
@@ -1402,7 +1399,6 @@ def write_samples(drfObj, data_samples):
 
     """
     try:
-
         for i_num, iobj in enumerate(drfObj):
             iobj.rf_write(data_samples[i_num])
     except Exception as error:
@@ -2025,7 +2021,6 @@ def _build_parser(Parser, *args):
 
 
 def _ops_setup(args):
-
     if args.datadir is None:
         args.datadir = args.outdir
     del args.outdir
@@ -2105,7 +2100,6 @@ def _ops_setup(args):
 
 
 if __name__ == "__main__":
-
     parser = _build_parser(argparse.ArgumentParser)
     args = parser.parse_args()
     options, runopts = _ops_setup(args)

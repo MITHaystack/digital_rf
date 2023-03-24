@@ -26,7 +26,6 @@ read_len = 1000000  # default read len
 
 ### main begins here ###
 if __name__ == "__main__":
-
     # command line interface
     parser = argparse.ArgumentParser(
         description="verify_digital_rf_upconvert will test if a digital rf 2 subdirectory matches sample for sample a digital rf 1 subdirectory. Prints True or False"

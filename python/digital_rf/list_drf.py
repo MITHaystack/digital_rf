@@ -688,7 +688,7 @@ def _build_cp_parser(Parser, *args):
 
 def _run_cp(args):
     args, kwargs = _parse_srcdest_args(args)
-    for (src, dest) in args.srcdests:
+    for src, dest in args.srcdests:
         for srcpath in ilsdrf(src, **kwargs):
             destpath = os.path.join(dest, os.path.relpath(srcpath, src))
             destdir = os.path.dirname(destpath)
@@ -719,7 +719,7 @@ def _run_ln(args):
         link_fun = os.link
     del args.symbolic
     args, kwargs = _parse_srcdest_args(args)
-    for (src, dest) in args.srcdests:
+    for src, dest in args.srcdests:
         for srcpath in ilsdrf(src, **kwargs):
             destpath = os.path.join(dest, os.path.relpath(srcpath, src))
             destdir = os.path.dirname(destpath)
@@ -738,7 +738,7 @@ def _build_mv_parser(Parser, *args):
 
 def _run_mv(args):
     args, kwargs = _parse_srcdest_args(args)
-    for (src, dest) in args.srcdests:
+    for src, dest in args.srcdests:
         for srcpath in ilsdrf(src, **kwargs):
             destpath = os.path.join(dest, os.path.relpath(srcpath, src))
             destdir = os.path.dirname(destpath)

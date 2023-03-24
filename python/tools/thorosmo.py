@@ -614,7 +614,6 @@ class Thorosmo(object):
                 time.sleep(0.01)
                 tt = time.time()
             if op.verbose:
-
                 print("Latching at " + str(tt))
             # waits for the next pps to happen
             # (at time math.ceil(tt))
@@ -1338,7 +1337,6 @@ def _add_ochannel_group(parser):
 
 
 def _add_drf_group(parser):
-
     drfgroup = parser.add_argument_group(title="digital_rf")
     drfgroup.add_argument(
         "-n",
