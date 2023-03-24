@@ -64,13 +64,13 @@ data_dict["single_int"] = np.int32(single_int)
 single_float = 6.0
 data_dict["single_float"] = np.float64(single_float)
 single_complex = 7.0 + 8.0j
-data_dict["single_complex"] = np.complex(single_complex)
+data_dict["single_complex"] = np.complex64(single_complex)
 
 # now create subdirectories
 sub_dict = {}
 sub_dict["single_int"] = np.int32(single_int)
 sub_dict["single_float"] = np.float64(single_float)
-sub_dict["single_complex"] = np.complex(single_complex)
+sub_dict["single_complex"] = np.complex64(single_complex)
 level2_dict = {}  # embed yey another level
 level2_dict["single_float"] = np.float64(single_float)
 sub_dict["level2"] = level2_dict
