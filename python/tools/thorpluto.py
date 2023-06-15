@@ -156,7 +156,7 @@ class Thorpluto(object):
             quad_track=[False],
             rfdc_track=[False],
             bbdc_track=[False],
-            gains=[73],
+            gains=[62],
             bandwidths=[20e6],
             # output channel group (num: len of channel_names)
             channel_names=["ch0"],
@@ -272,7 +272,7 @@ class Thorpluto(object):
         op.mboards_bychan = []
         op.mboardnum_bychan = []
         # add a default mboard if the argument was empty
-        op.mboards = op.mboards if op.mboards else [""]
+        op.mboards = op.mboards if op.mboards else [iio.get_pluto_uri()]
         for mbnum, mb in enumerate(op.mboards):
             op.mboards_bychan.extend([mb])
             op.mboardnum_bychan.extend([mbnum])
@@ -413,30 +413,19 @@ class Thorpluto(object):
         # sup_sr = [1.024e6, 1.4e6, 1.8e6, 1.92e6, 2.048e6, 2.4e6, 2.56e6]
 
         for mnum in range(op.nmboards):
-            # HACK two questions
-            # 1 Do I need to use the pluto source or you use the iio device source?
-            # ans: Can use fmcomms2_source
-            """make(std::string const & uri, unsigned long long frequency,
-            unsigned long samplerate, unsigned long bandwidth, bool ch1_en,
-            bool ch2_en, bool ch3_en, bool ch4_en, unsigned long buffer_size,
-            bool quadrature, bool rfdc, bool bbdc, char const * gain1,
-            double gain1_value, char const * gain2, double gain2_value,
-            char const * rf_port_select, char const * filter, bool auto_filter=True)
-            """
-            pluto_sources[mnum] = iio.pluto_source(
-                uri=op.mboard_strs[mnum],
-                frequency=int(op.centerfreqs[mnum]),
-                samplerate=int(op.samplerate),
-                bandwidth=int(op.bandwidths[mnum]),
-                buffer_size=0x8000,
-                quadrature=op.quad_track[mnum],
-                rfdc=op.rfdc_track[mnum],
-                bbdc=op.bbdc_track[mnum],
-                gain="manual" if op.gains[mnum] >= 0 else "fast_attack",
-                gain_value=op.gains[mnum],
-                filter="",
-                auto_filter=True,
+            # Use the fmcomms 2 source does only fc32 over the wire data.
+            pluto_sources[mnum] = iio.fmcomms2_source_fc32(
+                op.mboard_strs[mnum], [True, True], 32768
             )
+            pluto_sources[mnum].set_len_tag_key("packet_len")
+            pluto_sources[mnum].set_frequency(int(op.centerfreqs[mnum]))
+            pluto_sources[mnum].set_samplerate(int(op.samplerate))
+            pluto_sources[mnum].set_gain_mode(0, "manual")
+            pluto_sources[mnum].set_gain(0, op.gains[mnum])
+            pluto_sources[mnum].set_quadrature(op.quad_track[mnum])
+            pluto_sources[mnum].set_rfdc(op.rfdc_track[mnum])
+            pluto_sources[mnum].set_bbdc(op.bbdc_track[mnum])
+            pluto_sources[mnum].set_filter_params("Auto", "", 0, 0)
 
             # set master clock rate
             # HACK can you set clock rates
