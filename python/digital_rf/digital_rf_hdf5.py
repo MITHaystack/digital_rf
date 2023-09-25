@@ -2022,6 +2022,7 @@ class _top_level_dir_properties(object):
                 fullfile = os.path.join(self.top_level_dir, self.channel_name, fp)
                 if not os.access(fullfile, os.R_OK):
                     continue
+
                 if fullfile != self._cachedFilename:
                     if self._cachedFile is not None:
                         try:
@@ -2029,21 +2030,24 @@ class _top_level_dir_properties(object):
                         except ValueError:
                             # already closed
                             pass
+
                     self._cachedFile = h5py.File(fullfile, "r")
                     self._cachedFilename = fullfile
-                rf_data = self._cachedFile["rf_data"]
-                rf_data_len = rf_data.shape[0]
 
-                rf_index = self._cachedFile["rf_data_index"][...]
-                rf_index_len = rf_index.shape[0]
+                    self.rf_data = self._cachedFile["rf_data"][()]
+                    self.rf_data_len = self.rf_data.shape[0]
+
+                    self.rf_index = self._cachedFile["rf_data_index"][...]
+                    self.rf_index_len = self.rf_index.shape[0]
+                    
                 # loop through each row in rf_index
-                for row in range(rf_index_len):
-                    block_start_sample = int(rf_index[row, 0])
-                    block_start_index = int(rf_index[row, 1])
-                    if row + 1 == rf_index_len:
-                        block_stop_index = rf_data_len
+                for row in range(self.rf_index_len):
+                    block_start_sample = int(self.rf_index[row, 0])
+                    block_start_index = int(self.rf_index[row, 1])
+                    if row + 1 == self.rf_index_len:
+                        block_stop_index = self.rf_data_len
                     else:
-                        block_stop_index = int(rf_index[row + 1, 1])
+                        block_stop_index = int(self.rf_index[row + 1, 1])
                     block_stop_sample = block_start_sample + (
                         block_stop_index - block_start_index
                     )
@@ -2072,9 +2076,9 @@ class _top_level_dir_properties(object):
                         continue
                     if not len_only:
                         if sub_channel is None:
-                            data = rf_data[read_start_index:read_stop_index]
+                            data = self.rf_data[read_start_index:read_stop_index]
                         else:
-                            data = rf_data[
+                            data = self.rf_data[
                                 read_start_index:read_stop_index, sub_channel
                             ]
                         cont_data_dict[read_start_sample] = data
