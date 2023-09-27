@@ -792,7 +792,7 @@ class DigitalRFReader(object):
 
     """
 
-    def __init__(self, top_level_directory_arg):
+    def __init__(self, top_level_directory_arg, rdcc_nbytes=4000000):
         """Initialize reader to directory containing Digital RF channels.
 
         Parameters
@@ -804,6 +804,10 @@ class DigitalRFReader(object):
             must be a local path, or start with 'http://'', 'file://'', or
             'ftp://''.
 
+        rdcc_nbytes : int, optional
+            HDF5 chunk cache size. Needs to be at least file size
+            for efficient access of compressed or checksummed files to
+            avoid serious performance penalties with sparse data access.
 
         Notes
         -----
@@ -862,7 +866,10 @@ class DigitalRFReader(object):
             top_level_dir_properties_list = []
             for top_level_dir in channel_dict[channel_name]:
                 new_top_level_metadata = _top_level_dir_properties(
-                    top_level_dir, channel_name, self._top_level_dir_dict[top_level_dir]
+                    top_level_dir,
+                    channel_name,
+                    self._top_level_dir_dict[top_level_dir],
+                    rdcc_nbytes=rdcc_nbytes,
                 )
                 top_level_dir_properties_list.append(new_top_level_metadata)
             new_channel_properties = _channel_properties(
@@ -1855,7 +1862,7 @@ class _top_level_dir_properties(object):
         packaging.version.parse(__version__).base_version
     )
 
-    def __init__(self, top_level_dir, channel_name, access_mode):
+    def __init__(self, top_level_dir, channel_name, access_mode, rdcc_nbytes=4000000):
         """Create a new _top_level_dir_properties object.
 
         Parameters
@@ -1870,10 +1877,16 @@ class _top_level_dir_properties(object):
         access_mode : string
             String giving the access mode ('local', 'file', or 'http').
 
+        rdcc_nbytes : int, optional
+            HDF5 chunk cache size. Needs to be at least file size
+            for efficient access of compressed or checksummed files to
+            avoid serious performance penalties with sparse data access.
+
         """
         self.top_level_dir = top_level_dir
         self.channel_name = channel_name
         self.access_mode = access_mode
+        self.rdcc_nbytes = rdcc_nbytes
         self._cachedFilename = None  # full name of last file opened
         self._cachedFile = None  # h5py.File object of last file opened
         # expect that _read_properties() will not raise error since we
@@ -2029,21 +2042,24 @@ class _top_level_dir_properties(object):
                         except ValueError:
                             # already closed
                             pass
-                    self._cachedFile = h5py.File(fullfile, "r")
+                    self._cachedFile = h5py.File(
+                        fullfile, "r", rdcc_nbytes=self.rdcc_nbytes
+                    )
                     self._cachedFilename = fullfile
-                rf_data = self._cachedFile["rf_data"]
-                rf_data_len = rf_data.shape[0]
+                    self.rf_data = self._cachedFile["rf_data"]
+                    self.rf_data_len = self.rf_data.shape[0]
 
-                rf_index = self._cachedFile["rf_data_index"][...]
-                rf_index_len = rf_index.shape[0]
+                    self.rf_index = self._cachedFile["rf_data_index"][...]
+                    self.rf_index_len = self.rf_index.shape[0]
+
                 # loop through each row in rf_index
-                for row in range(rf_index_len):
-                    block_start_sample = int(rf_index[row, 0])
-                    block_start_index = int(rf_index[row, 1])
-                    if row + 1 == rf_index_len:
-                        block_stop_index = rf_data_len
+                for row in range(self.rf_index_len):
+                    block_start_sample = int(self.rf_index[row, 0])
+                    block_start_index = int(self.rf_index[row, 1])
+                    if row + 1 == self.rf_index_len:
+                        block_stop_index = self.rf_data_len
                     else:
-                        block_stop_index = int(rf_index[row + 1, 1])
+                        block_stop_index = int(self.rf_index[row + 1, 1])
                     block_stop_sample = block_start_sample + (
                         block_stop_index - block_start_index
                     )
@@ -2072,9 +2088,9 @@ class _top_level_dir_properties(object):
                         continue
                     if not len_only:
                         if sub_channel is None:
-                            data = rf_data[read_start_index:read_stop_index]
+                            data = self.rf_data[read_start_index:read_stop_index]
                         else:
-                            data = rf_data[
+                            data = self.rf_data[
                                 read_start_index:read_stop_index, sub_channel
                             ]
                         cont_data_dict[read_start_sample] = data
