@@ -805,9 +805,9 @@ class DigitalRFReader(object):
             'ftp://''.
 
         rdcc_nbytes : int, optional
-        HDF5 chunk cache size. Needs to be at least file size
-        for efficient access of compressed or checksummed files to
-        avoid serious performance penalties with sparse data access.
+            HDF5 chunk cache size. Needs to be at least file size
+            for efficient access of compressed or checksummed files to
+            avoid serious performance penalties with sparse data access.
 
         Notes
         -----
@@ -1878,9 +1878,9 @@ class _top_level_dir_properties(object):
             String giving the access mode ('local', 'file', or 'http').
 
         rdcc_nbytes : int, optional
-        HDF5 chunk cache size. Needs to be at least file size
-        for efficient access of compressed or checksummed files to
-        avoid serious performance penalties with sparse data access.
+            HDF5 chunk cache size. Needs to be at least file size
+            for efficient access of compressed or checksummed files to
+            avoid serious performance penalties with sparse data access.
 
         """
         self.top_level_dir = top_level_dir
