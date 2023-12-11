@@ -8,7 +8,7 @@ from .digital_rf_hdf5 import *  # noqa: F401,F403
 from . import list_drf  # noqa: F401
 from .list_drf import ilsdrf, lsdrf  # noqa: F401
 from . import util  # noqa: F401
-from ._version import get_versions
+from . import _version
 
 _logging.basicConfig(
     level=_os.environ.get(
@@ -31,5 +31,4 @@ except ImportError:
     )
     _logger.info(watchdog_msg, exc_info=True)
 
-__version__ = get_versions()["version"]
-del get_versions
+__version__ = _version.get_versions()["version"]
