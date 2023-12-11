@@ -47,6 +47,12 @@ jobs:
             os: ubuntu
             runs_on: ['ubuntu-latest']
             DOCKER_IMAGE: quay.io/condaforge/linux-anvil-cos7-x86_64
+          - CONFIG: linux_64_numpy1.26python3.12.____cpython
+            SHORT_CONFIG: linux_64_numpy1.26python3.12.____cpython
+            UPLOAD_PACKAGES: True
+            os: ubuntu
+            runs_on: ['ubuntu-latest']
+            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-cos7-x86_64
           - CONFIG: linux_aarch64_numpy1.22python3.10.____cpython
             SHORT_CONFIG: linux_aarch64_numpy1.22python3.10.____cpython
             UPLOAD_PACKAGES: True
@@ -67,6 +73,12 @@ jobs:
             DOCKER_IMAGE: quay.io/condaforge/linux-anvil-cos7-x86_64
           - CONFIG: linux_aarch64_numpy1.23python3.11.____cpython
             SHORT_CONFIG: linux_aarch64_numpy1.23python3.11.____cpython
+            UPLOAD_PACKAGES: True
+            os: ubuntu
+            runs_on: ['ubuntu-latest']
+            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-cos7-x86_64
+          - CONFIG: linux_aarch64_numpy1.26python3.12.____cpython
+            SHORT_CONFIG: linux_aarch64_numpy1.26python3.12.____cpython
             UPLOAD_PACKAGES: True
             os: ubuntu
             runs_on: ['ubuntu-latest']
@@ -95,6 +107,12 @@ jobs:
             os: ubuntu
             runs_on: ['ubuntu-latest']
             DOCKER_IMAGE: quay.io/condaforge/linux-anvil-cos7-x86_64
+          - CONFIG: linux_ppc64le_numpy1.26python3.12.____cpython
+            SHORT_CONFIG: linux_ppc64le_numpy1.26python3.12.____cpython
+            UPLOAD_PACKAGES: True
+            os: ubuntu
+            runs_on: ['ubuntu-latest']
+            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-cos7-x86_64
           - CONFIG: win_64_numpy1.22python3.10.____cpython
             SHORT_CONFIG: win_64_numpy1.22python3.10.____cpython
             UPLOAD_PACKAGES: True
@@ -112,6 +130,11 @@ jobs:
             runs_on: ['windows-latest']
           - CONFIG: win_64_numpy1.23python3.11.____cpython
             SHORT_CONFIG: win_64_numpy1.23python3.11.____cpython
+            UPLOAD_PACKAGES: True
+            os: windows
+            runs_on: ['windows-latest']
+          - CONFIG: win_64_numpy1.26python3.12.____cpython
+            SHORT_CONFIG: win_64_numpy1.26python3.12.____cpython
             UPLOAD_PACKAGES: True
             os: windows
             runs_on: ['windows-latest']
@@ -135,6 +158,11 @@ jobs:
             UPLOAD_PACKAGES: True
             os: macos
             runs_on: ['macos-latest']
+          - CONFIG: osx_64_numpy1.26python3.12.____cpython
+            SHORT_CONFIG: osx_64_numpy1.26python3.12.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+            runs_on: ['macos-latest']
           - CONFIG: osx_arm64_numpy1.22python3.10.____cpython
             SHORT_CONFIG: osx_arm64_numpy1.22python3.10.____cpython
             UPLOAD_PACKAGES: True
@@ -152,6 +180,11 @@ jobs:
             runs_on: ['macos-latest']
           - CONFIG: osx_arm64_numpy1.23python3.11.____cpython
             SHORT_CONFIG: osx_arm64_numpy1.23python3.11.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+            runs_on: ['macos-latest']
+          - CONFIG: osx_arm64_numpy1.26python3.12.____cpython
+            SHORT_CONFIG: osx_arm64_numpy1.26python3.12.____cpython
             UPLOAD_PACKAGES: True
             os: macos
             runs_on: ['macos-latest']
