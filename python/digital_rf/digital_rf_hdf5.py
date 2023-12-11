@@ -34,7 +34,7 @@ import packaging.version
 import six
 
 # local imports
-from . import _py_rf_write_hdf5, digital_metadata, list_drf
+from . import _py_rf_write_hdf5, digital_metadata, list_drf, util
 from ._version import __version__, __version_tuple__
 
 __all__ = (
@@ -1233,6 +1233,7 @@ class DigitalRFReader(object):
         For convenience, some pertinent metadata inherent to the Digital RF
         channel is added to the Digital Metadata, including:
 
+            sample_rate : fractions.Fraction
             sample_rate_numerator : int
             sample_rate_denominator : int
             samples_per_second : np.longdouble (don't rely on this!)
@@ -1242,6 +1243,7 @@ class DigitalRFReader(object):
         added_metadata = {
             key: properties[key]
             for key in (
+                "sample_rate",
                 "sample_rate_numerator",
                 "sample_rate_denominator",
                 "samples_per_second",
@@ -1996,13 +1998,15 @@ class _top_level_dir_properties(object):
             # if no sample_rate_numerator/sample_rate_denominator, then we must
             # have an older version with samples_per_second as uint64
             sps = ret_dict["samples_per_second"]
-            spsfrac = fractions.Fraction(sps).limit_denominator()
+            spsfrac = util.get_samplerate_frac(sps)
             ret_dict["samples_per_second"] = np.longdouble(sps)
             ret_dict["sample_rate_numerator"] = spsfrac.numerator
             ret_dict["sample_rate_denominator"] = spsfrac.denominator
+            ret_dict["sample_rate"] = spsfrac
         else:
             sps = np.longdouble(np.uint64(srn)) / np.longdouble(np.uint64(srd))
             ret_dict["samples_per_second"] = sps
+            ret_dict["sample_rate"] = util.get_samplerate_frac(srn, srd)
 
         # success
         return ret_dict

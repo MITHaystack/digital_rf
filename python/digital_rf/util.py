@@ -12,6 +12,7 @@ from __future__ import absolute_import, division, print_function
 import ast
 import datetime
 import fractions
+import warnings
 
 import dateutil.parser
 import numpy as np
@@ -19,17 +20,22 @@ import numpy as np
 import six
 
 __all__ = (
+    "datetime_to_timedelta_tuple",
     "datetime_to_timestamp",
     "epoch",
+    "get_samplerate_frac",
     "parse_identifier_to_sample",
     "parse_identifier_to_time",
+    "sample_to_time_floor",
     "sample_to_datetime",
     "samples_to_timedelta",
     "time_to_sample",
+    "time_to_sample_ceil",
 )
 
 
-epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+_default_epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+epoch = _default_epoch
 
 
 def get_samplerate_frac(sr_or_numerator, denominator=None):
@@ -64,18 +70,18 @@ def get_samplerate_frac(sr_or_numerator, denominator=None):
         # try converting sr to str, then to fraction (works for np.longdouble)
         sr_frac = fractions.Fraction(str(sr_or_numerator))
         frac = fractions.Fraction(sr_frac, denominator)
-    return frac.limit_denominator(2 ** 32)
+    return frac.limit_denominator(2**32)
 
 
-def time_to_sample_ceil(timedelta, samples_per_second):
+def time_to_sample_ceil(timedelta, sample_rate):
     """Convert a timedelta into a number of samples using a given sample rate.
 
     Ceiling rounding is used so that the value is the whole number of samples
     that spans *at least* the given `timedelta` but no more than
-    ``timedelta + 1 / samples_per_second``. This complements the flooring in
+    ``timedelta + 1 / sample_rate``. This complements the flooring in
     `sample_to_time_floor`, so that::
 
-        time_to_sample_ceil(sample_to_time_floor(sample, sps), sps) == sample
+        time_to_sample_ceil(sample_to_time_floor(sample, sr), sr) == sample
 
 
     Parameters
@@ -86,7 +92,7 @@ def time_to_sample_ceil(timedelta, samples_per_second):
         seconds and additional picoseconds. Float values are interpreted as a
         number of seconds.
 
-    samples_per_second : fractions.Fraction | arg tuple for ``get_samplerate_frac``
+    sample_rate : fractions.Fraction | first argument to ``get_samplerate_frac``
         Sample rate in Hz.
 
 
@@ -94,7 +100,7 @@ def time_to_sample_ceil(timedelta, samples_per_second):
     -------
     nsamples : int
         Number of samples in the `timedelta` time span at a rate of
-        `samples_per_second`, using ceiling rounding (up to the next whole sample).
+        `sample_rate`, using ceiling rounding (up to the next whole sample).
 
     """
     if isinstance(timedelta, tuple):
@@ -109,23 +115,23 @@ def time_to_sample_ceil(timedelta, samples_per_second):
     else:
         t_sec = int(timedelta)
         t_psec = int(np.round((timedelta % 1) * 1e12))
-    # ensure that samples_per_seconds is a fractions.Fraction
-    if not isinstance(samples_per_second, fractions.Fraction):
-        samples_per_second = get_samplerate_frac(*samples_per_second)
+    # ensure that sample_rate is a fractions.Fraction
+    if not isinstance(sample_rate, fractions.Fraction):
+        sample_rate = get_samplerate_frac(sample_rate)
     # calculate rational values for the second and picosecond parts
-    s_frac = t_sec * samples_per_second + t_psec * samples_per_second / 10 ** 12
+    s_frac = t_sec * sample_rate + t_psec * sample_rate / 10**12
     # get an integer value through ceiling rounding
     return int(s_frac) + ((s_frac % 1) != 0)
 
 
-def sample_to_time_floor(nsamples, samples_per_second):
+def sample_to_time_floor(nsamples, sample_rate):
     """Convert a number of samples into a timedelta using a given sample rate.
 
     Floor rounding is used so that the given whole number of samples spans
     *at least* the returned amount of time, accurate to the picosecond.
     This complements the ceiling rounding in `time_to_sample_ceil`, so that::
 
-        time_to_sample_ceil(sample_to_time_floor(sample, sps), sps) == sample
+        time_to_sample_ceil(sample_to_time_floor(sample, sr), sr) == sample
 
 
     Parameters
@@ -133,7 +139,7 @@ def sample_to_time_floor(nsamples, samples_per_second):
     nsamples : int
         Whole number of samples to convert into a span of time.
 
-    samples_per_second : fractions.Fraction | arg tuple for ``get_samplerate_frac``
+    sample_rate : fractions.Fraction | first argument to ``get_samplerate_frac``
         Sample rate in Hz.
 
 
@@ -141,7 +147,7 @@ def sample_to_time_floor(nsamples, samples_per_second):
     -------
     seconds : int
         Number of whole seconds in the time span covered by `nsamples` at a rate
-        of `samples_per_second`.
+        of `sample_rate`.
 
     picoseconds : int
         Number of additional picoseconds in the time span covered by `nsamples`,
@@ -149,15 +155,15 @@ def sample_to_time_floor(nsamples, samples_per_second):
 
     """
     nsamples = int(nsamples)
-    # ensure that samples_per_seconds is a fractions.Fraction
-    if not isinstance(samples_per_second, fractions.Fraction):
-        samples_per_second = get_samplerate_frac(*samples_per_second)
+    # ensure that sample_rate is a fractions.Fraction
+    if not isinstance(sample_rate, fractions.Fraction):
+        sample_rate = get_samplerate_frac(sample_rate)
 
     # get the timedelta as a Fraction
-    t_frac = nsamples / samples_per_second
+    t_frac = nsamples / sample_rate
 
     seconds = int(t_frac)
-    picoseconds = int((t_frac % 1) * 10 ** 12)
+    picoseconds = int((t_frac % 1) * 10**12)
 
     return (seconds, picoseconds)
 
@@ -183,6 +189,11 @@ def time_to_sample(time, samples_per_second):
         the epoch (time_since_epoch*sample_per_second).
 
     """
+    warnings.warn(
+        "`time_to_sample` is deprecated. Use `time_to_sample_ceil` instead in"
+        " combination with `datetime_to_timedelta_tuple` if necessary.",
+        DeprecationWarning,
+    )
     if isinstance(time, datetime.datetime):
         if time.tzinfo is None:
             # assume UTC if timezone was not specified
@@ -196,7 +207,7 @@ def time_to_sample(time, samples_per_second):
         return int(np.uint64(time * samples_per_second))
 
 
-def sample_to_datetime(sample, samples_per_second):
+def sample_to_datetime(sample, sample_rate, epoch=None):
     """Get datetime corresponding to the given sample index.
 
     Parameters
@@ -205,12 +216,11 @@ def sample_to_datetime(sample, samples_per_second):
     sample : int
         Sample index in number of samples since epoch.
 
-    samples_per_second : np.longdouble
+    sample_rate : fractions.Fraction | first argument to ``get_samplerate_frac``
         Sample rate in Hz.
 
     epoch : datetime, optional
-        Epoch time for converting absolute `time` values to a number of seconds
-        since `epoch`. If None, the Digital RF default (the Unix epoch,
+        Epoch time. If None, the Digital RF default (the Unix epoch,
         January 1, 1970) is used.
 
 
@@ -221,7 +231,11 @@ def sample_to_datetime(sample, samples_per_second):
         Datetime corresponding to the given sample index.
 
     """
-    return epoch + samples_to_timedelta(sample, samples_per_second)
+    if epoch is None:
+        epoch = _default_epoch
+    seconds, picoseconds = sample_to_time_floor(sample, sample_rate)
+    td = datetime.timedelta(seconds=seconds, microseconds=picoseconds // 1000000)
+    return epoch + td
 
 
 def samples_to_timedelta(samples, samples_per_second):
@@ -244,6 +258,12 @@ def samples_to_timedelta(samples, samples_per_second):
         Timedelta corresponding to the number of samples.
 
     """
+    warnings.warn(
+        "`samples_to_timedelta` is deprecated. Use `sample_to_time_floor` instead"
+        " and create a timedelta object if necessary:"
+        " `datetime.timedelta(seconds=seconds, microseconds=picoseconds // 1000000)`",
+        DeprecationWarning,
+    )
     # splitting into secs/frac lets us get a more accurate datetime
     secs = int(samples // samples_per_second)
     frac = (samples % samples_per_second) / samples_per_second
@@ -252,7 +272,40 @@ def samples_to_timedelta(samples, samples_per_second):
     return datetime.timedelta(seconds=secs, microseconds=microseconds)
 
 
-def datetime_to_timestamp(dt):
+def datetime_to_timedelta_tuple(dt, epoch=None):
+    """Return timedelta (seconds, picoseconds) tuple from epoch for a datetime object.
+
+    Parameters
+    ----------
+
+    dt : datetime
+        Time specified as a datetime object.
+
+    epoch : datetime, optional
+        Epoch time for converting absolute `dt` value to a number of seconds
+        since `epoch`. If None, the Digital RF default (the Unix epoch,
+        January 1, 1970) is used.
+
+
+    Returns
+    -------
+
+    ts : float
+        Time stamp (seconds since epoch).
+
+    """
+    if dt.tzinfo is None:
+        # assume UTC if timezone was not specified
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+    if epoch is None:
+        epoch = _default_epoch
+    timedelta = dt - epoch
+    seconds = timedelta.seconds
+    picoseconds = timedelta.microseconds * 1000000
+    return (seconds, picoseconds)
+
+
+def datetime_to_timestamp(dt, epoch=None):
     """Return time stamp (seconds since epoch) for a given datetime object.
 
     Parameters
@@ -261,21 +314,28 @@ def datetime_to_timestamp(dt):
     dt : datetime
         Time specified as a datetime object.
 
+    epoch : datetime, optional
+        Epoch time for converting absolute `dt` value to a number of seconds
+        since `epoch`. If None, the Digital RF default (the Unix epoch,
+        January 1, 1970) is used.
+
 
     Returns
     -------
 
     ts : float
-        Time stamp (seconds since epoch of digital_rf.util.epoch).
+        Time stamp (seconds since epoch).
 
     """
     if dt.tzinfo is None:
         # assume UTC if timezone was not specified
         dt = dt.replace(tzinfo=datetime.timezone.utc)
+    if epoch is None:
+        epoch = _default_epoch
     return (dt - epoch).total_seconds()
 
 
-def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
+def parse_identifier_to_sample(iden, sample_rate=None, ref_index=None, epoch=None):
     """Get a sample index from different forms of identifiers.
 
     Parameters
@@ -296,12 +356,17 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
             3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
             4) 'now' ('nowish'), indicating the current time (rounded up)
 
-    samples_per_second : np.longdouble, required for float and time `iden`
-        Sample rate in Hz used to convert a time to a sample index.
+    sample_rate : fractions.Fraction | first argument to ``get_samplerate_frac``
+        Sample rate in Hz used to convert a time to a sample index. Required
+        when `iden` is given as a float or a time.
 
-    ref_index : int/long, required for '+' string form of `iden`
+    ref_index : int
         Reference index from which string `iden` beginning with '+' are
-        offset.
+        offset. Required when `iden` is a string that begins with '+'.
+
+    epoch : datetime, optional
+        Epoch time to use in converting an `iden` representing an absolute time.
+        If None, the Digital RF default (the Unix epoch, January 1, 1970) is used.
 
 
     Returns
@@ -337,11 +402,19 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
                 iden = dateutil.parser.parse(iden)
 
     if not isinstance(iden, six.integer_types):
-        if samples_per_second is None:
-            raise ValueError(
-                "samples_per_second required when time identifier is used."
-            )
-        idx = time_to_sample(iden, samples_per_second)
+        if sample_rate is None:
+            raise ValueError("sample_rate required when time identifier is used.")
+        if epoch is None:
+            epoch = _default_epoch
+        if isinstance(iden, datetime.datetime):
+            iden = iden - epoch
+        elif not is_relative:
+            # interpret float time as timestamp from unix epoch, so adjust from
+            # unix epoch to specified sample epoch
+            iden -= (
+                epoch - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+            ).total_seconds()
+        idx = time_to_sample_ceil(iden, sample_rate)
     else:
         idx = iden
 
@@ -353,7 +426,7 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
         return idx
 
 
-def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
+def parse_identifier_to_time(iden, sample_rate=None, ref_datetime=None, epoch=None):
     """Get a time from different forms of identifiers.
 
     Parameters
@@ -365,7 +438,7 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
         If a float, it is interpreted as a UTC timestamp (seconds since epoch)
         and the corresponding datetime is returned.
         If an integer, it is interpreted as a sample index when
-        `samples_per_second` is not None and a UTC timestamp otherwise.
+        `sample_rate` is not None and a UTC timestamp otherwise.
         If a string, four forms are permitted:
             1) a string which can be evaluated to an integer/float and
                 interpreted as above,
@@ -375,12 +448,17 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
             3) a time in ISO8601 format, e.g. '2016-01-01T16:24:00Z'
             4) 'now' ('nowish'), indicating the current time (rounded up)
 
-    samples_per_second : np.longdouble, required for integer `iden`
-        Sample rate in Hz used to convert a sample index to a time.
+    sample_rate : fractions.Fraction | first argument to ``get_samplerate_frac``
+        Sample rate in Hz used to convert a sample index to a time. Required
+        when `iden` is given as an integer.
 
     ref_datetime : datetime, required for '+' string form of `iden`
         Reference time from which string `iden` beginning with '+' are
         offset. Must be timezone-aware.
+
+    epoch : datetime, optional
+        Epoch time to use in converting an `iden` representing a sample index.
+        If None, the Digital RF default (the Unix epoch, January 1, 1970) is used.
 
 
     Returns
@@ -417,10 +495,17 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
                     dt = dt.replace(tzinfo=datetime.timezone.utc)
             return dt
 
-    if isinstance(iden, float) or samples_per_second is None:
+    if isinstance(iden, float) or sample_rate is None:
         td = datetime.timedelta(seconds=iden)
+        # timestamp is relative to unix epoch always
+        epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
     else:
-        td = samples_to_timedelta(iden, samples_per_second)
+        seconds, picoseconds = sample_to_time_floor(iden, sample_rate)
+        td = datetime.timedelta(seconds=seconds, microseconds=picoseconds // 1000000)
+        # identifier is a sample converted to a timedelta, now it should be
+        # converted to an absolute time using the specified sample epoch
+        if epoch is None:
+            epoch = _default_epoch
 
     if is_relative:
         if ref_datetime is None:
