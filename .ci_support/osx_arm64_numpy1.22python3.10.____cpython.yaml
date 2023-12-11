@@ -1,29 +1,29 @@
+MACOSX_DEPLOYMENT_TARGET:
+- '11.0'
 c_compiler:
-- gcc
+- clang
 c_compiler_version:
-- '10'
-cdt_name:
-- cos7
+- '16'
 channel_sources:
 - conda-forge
 channel_targets:
 - ryanvolz main
-docker_image:
-- quay.io/condaforge/linux-anvil-ppc64le
 gnuradio_core:
-- 3.10.3
+- 3.10.8
 hdf5:
-- 1.12.1
+- 1.14.3
+macos_machine:
+- arm64-apple-darwin20.0.0
 numpy:
-- '1.19'
+- '1.22'
 pin_run_as_build:
   python:
     min_pin: x.x
     max_pin: x.x
 python:
-- 3.8.* *_cpython
+- 3.10.* *_cpython
 target_platform:
-- linux-ppc64le
+- osx-arm64
 zip_keys:
 - - python
   - numpy
