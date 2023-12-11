@@ -165,7 +165,7 @@ class build_ext(_build_ext):
             if os.path.isabs(lib):
                 libdir, libfile = os.path.split(lib)
                 libfilename, _ = os.path.splitext(libfile)
-                libname = libname_re.sub("\g<libname>", libfilename)
+                libname = libname_re.sub(r"\g<libname>", libfilename)
                 # replace library entry with its name and add dir to path
                 self.libraries[k] = libname
                 if libdir not in self.library_dirs:
