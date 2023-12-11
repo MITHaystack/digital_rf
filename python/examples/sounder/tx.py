@@ -134,7 +134,7 @@ def read_timing_mode_waveform(mode_ini, iq_dir=None):
         mode_ini = mode_ini + ".iq.ini"
 
     # parse mode INI file (so we can fail early if it's bad)
-    cparser = configparser.SafeConfigParser()
+    cparser = configparser.ConfigParser()
     try:
         cparser.read(mode_ini)
     except configparser.MissingSectionHeaderError:
@@ -238,6 +238,18 @@ class Tx(object):
         """Put all keyword options in a namespace and normalize them."""
         op = Namespace(**kwargs)
 
+        if op.waveform is not None:
+            if op.waveform.dtype == np.complex64:
+                op.cpu_format = "fc32"
+            elif op.waveform.dtype == np.int16:
+                op.cpu_format = "sc16"
+                wrn = "Waveform dtype is int16, amplitudes and phases will be ignored!"
+                print(f"\033[93m{wrn}\033[00m")
+            else:
+                raise ValueError(
+                    f"Waveform dtype {op.waveform.dtype} must be complex64 or int16"
+                )
+
         # determine mboard and subdev per channel, get number of channels
         op.mboards_bychan = []
         op.subdevs_bychan = []
@@ -339,7 +351,7 @@ class Tx(object):
         u = uhd.usrp_sink(
             device_addr=",".join(chain(op.mboard_strs, op.dev_args)),
             stream_args=uhd.stream_args(
-                cpu_format="fc32",
+                cpu_format=op.cpu_format,
                 otw_format="sc16",
                 channels=list(range(op.nchs)),
                 args=",".join(op.stream_args),
@@ -636,8 +648,13 @@ class Tx(object):
         for k in range(op.nchs):
             mult_k = op.amplitudes[k] * np.exp(1j * op.phases[k])
             if op.waveform is not None:
-                waveform_k = mult_k * op.waveform
-                src_k = blocks.vector_source_c(waveform_k.tolist(), repeat=True)
+                if op.waveform.dtype == np.complex64:
+                    waveform_k = mult_k * op.waveform
+                    src_k = blocks.vector_source_c(waveform_k.tolist(), repeat=True)
+                else:
+                    src_k = blocks.vector_source_s(
+                        op.waveform.tolist(), repeat=True, vlen=2
+                    )
             else:
                 src_k = analog.sig_source_c(0, analog.GR_CONST_WAVE, 0, 0, mult_k)
             fg.connect(src_k, (u, k))
@@ -774,8 +791,16 @@ if __name__ == "__main__":
         "file",
         nargs="?",
         default=None,
-        help="""INI file specifying the waveform timing mode or complex64
+        help="""INI file specifying the waveform timing mode or --type
                 binary file giving the waveform directly.""",
+    )
+    wavgroup.add_argument(
+        "--type",
+        dest="dtype",
+        default=np.complex64,
+        type=np.dtype,
+        help="""String giving numpy dtype for the waveform binary file,
+                either `complex64` (default) or `int16`.""",
     )
     wavgroup.add_argument(
         "--iq_dir",
@@ -1021,6 +1046,7 @@ if __name__ == "__main__":
 
     options = {k: v for k, v in op._get_kwargs() if v is not None}
     fpath = options.pop("file")
+    dtype = options.pop("dtype")
     iq_dir = options.pop("iq_dir", None)
     tone = options.pop("tone", False)
     runopts = {
@@ -1040,7 +1066,7 @@ if __name__ == "__main__":
             options.setdefault("samplerate", tm_dict["samplerate"])
             options.setdefault("centerfreqs", [tm_dict["center_freq"]])
         except ValueError:
-            options["waveform"] = np.fromfile(op.file, dtype=np.complex64)
+            options["waveform"] = np.fromfile(op.file, dtype=dtype)
 
     tx = Tx(**options)
     tx.run(**runopts)

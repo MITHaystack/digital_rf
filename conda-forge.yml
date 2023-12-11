@@ -25,16 +25,17 @@
 # See https://conda-forge.org/docs/maintainer/conda_forge_yml.html for
 # documentation on possible keys and values.
 
-build_platform: {osx_arm64: osx_64}
+build_platform:
+  osx_arm64: osx_64
 clone_depth: 0
 github_actions:
   store_build_artifacts: true
 provider:
-  linux: github_actions
+  linux_64: github_actions
   linux_aarch64: github_actions
-  linux_ppc64le: github_actions
-  osx: github_actions
-  win: github_actions
+  #linux_ppc64le: github_actions
+  osx_64: github_actions
+  win_64: github_actions
 recipe_dir: recipes/conda
 # skip unnecessary files since this is not a full-fledged conda-forge feedstock
 skip_render:
@@ -48,7 +49,7 @@ skip_render:
   - .github/ISSUE_TEMPLATE.md
   - .github/PULL_REQUEST_TEMPLATE.md
   - .github/workflows
-test_on_native_only: true
+test: native_and_emulated
 # enable uploads to Anaconda Cloud from specified branches only
 # ***** UPDATE THIS FOR MAINTENANCE BRANCHES ********************************
 upload_on_branch: master
