@@ -26,8 +26,14 @@ import pytest
 
 
 @pytest.fixture(scope="session")
-def start_datetime():
-    return datetime.datetime(2014, 3, 9, 12, 30, 30, 0, None)
+def start_timestamp_tuple():
+    start_dt = datetime.datetime(
+        2014, 3, 9, 12, 30, 30, 0, tzinfo=datetime.timezone.utc
+    )
+    timedelta = start_dt - digital_rf.util.epoch
+    seconds = int(timedelta.total_seconds())
+    picoseconds = timedelta.microseconds * 1000000
+    return (seconds, picoseconds)
 
 
 ###############################################################################
@@ -122,7 +128,7 @@ def hdf_filter_params(request):
 @pytest.fixture(
     scope="session",
     params=[
-        # sample rates must be set so that start_datetime is an exact sample time
+        # sample rates must be set so that start_timestamp_tuple is an exact sample time
         # srnum, srden, sdcsec, fcms
         (200, 3, 2, 400)
     ],
@@ -220,31 +226,39 @@ def file_cadence_millisecs(sample_params):
 
 
 @pytest.fixture(scope="session")
-def samples_per_second(sample_rate_numerator, sample_rate_denominator):
-    return np.longdouble(sample_rate_numerator) / sample_rate_denominator
+def sample_rate(sample_rate_numerator, sample_rate_denominator):
+    return digital_rf.util.get_samplerate_frac(
+        sample_rate_numerator, sample_rate_denominator
+    )
 
 
 @pytest.fixture(scope="session")
-def start_global_index(samples_per_second, start_datetime):
-    return digital_rf.util.time_to_sample(start_datetime, samples_per_second)
+def start_global_index(sample_rate, start_timestamp_tuple):
+    return digital_rf.util.time_to_sample_ceil(start_timestamp_tuple, sample_rate)
+
+
+@pytest.fixture(scope="session")
+def start_datetime(start_timestamp_tuple):
+    seconds, picoseconds = start_timestamp_tuple
+    start_dt = datetime.datetime.fromtimestamp(seconds, tz=datetime.timezone.utc)
+    start_dt += datetime.timedelta(microseconds=picoseconds // 1000000)
+    return start_dt
 
 
 @pytest.fixture(scope="session")
 def end_global_index(
     file_cadence_millisecs,
-    sample_rate_numerator,
-    sample_rate_denominator,
-    samples_per_second,
+    sample_rate,
     start_global_index,
     subdir_cadence_secs,
 ):
     # want data to span at least two subdirs to test creation + naming
     # also needs to span at least 8 files to accommodate write blocks (below)
-    nsamples_subdirs = int(
-        (1.5 * subdir_cadence_secs * sample_rate_numerator) // sample_rate_denominator
+    nsamples_subdirs = digital_rf.util.time_to_sample_ceil(
+        1.5 * subdir_cadence_secs, sample_rate
     )
-    nsamples_files = int(
-        np.ceil(8 * file_cadence_millisecs * (samples_per_second / 1000))
+    nsamples_files = digital_rf.util.time_to_sample_ceil(
+        8 * file_cadence_millisecs / 1000, sample_rate
     )
     nsamples = max(nsamples_subdirs, nsamples_files)
     return start_global_index + nsamples - 1
@@ -283,12 +297,14 @@ def data_block_slices(
     bounds,
     end_global_index,
     file_cadence_millisecs,
-    samples_per_second,
+    sample_rate,
     start_global_index,
 ):
     # blocks = [(start_sample, stop_sample)]
     blocks = []
-    samples_per_file = file_cadence_millisecs * (samples_per_second / 1000)
+    samples_per_file = digital_rf.util.time_to_sample_ceil(
+        file_cadence_millisecs / 1000, sample_rate
+    )
 
     # first block stops in middle of second file
     sstart = start_global_index
@@ -446,22 +462,31 @@ def test_get_unix_time(
     dt, picoseconds = digital_rf.get_unix_time(
         start_global_index, sample_rate_numerator, sample_rate_denominator
     )
-    assert dt == start_datetime
+    assert dt == start_datetime.replace(tzinfo=None)
     assert picoseconds == start_datetime.microsecond * 1000000
 
 
 def test_sample_timestamp_conversion(
-    sample_rate_numerator, sample_rate_denominator, start_datetime, start_global_index
+    sample_rate_numerator, sample_rate_denominator, sample_rate, start_global_index
 ):
     # test that sample index round trips through get_sample_ceil(get_timestamp_floor())
     for global_index in range(start_global_index, start_global_index + 100):
         second, picosecond = digital_rf._py_rf_write_hdf5.get_timestamp_floor(
             global_index, sample_rate_numerator, sample_rate_denominator
         )
+        second2, picosecond2 = digital_rf.util.sample_to_time_floor(
+            global_index, sample_rate
+        )
+        assert second == second2
+        assert picosecond == picosecond2
         rt_global_index = digital_rf._py_rf_write_hdf5.get_sample_ceil(
             second, picosecond, sample_rate_numerator, sample_rate_denominator
         )
         assert rt_global_index == global_index
+        rt_global_index2 = digital_rf.util.time_to_sample_ceil(
+            (second, picosecond), sample_rate
+        )
+        assert rt_global_index == rt_global_index2
 
 
 class TestDigitalRFChannel(object):
@@ -920,8 +945,8 @@ class TestDigitalRFChannel(object):
         channel,
         drf_reader,
         drf_writer_param_dict,
-        samples_per_second,
-        start_datetime,
+        sample_rate,
+        start_timestamp_tuple,
         start_global_index,
     ):
         """Test reader object's get_properties method."""
@@ -939,9 +964,12 @@ class TestDigitalRFChannel(object):
             is_complex=p["is_complex"],
             is_continuous=p["is_continuous"],
             num_subchannels=p["num_subchannels"],
-            samples_per_second=samples_per_second,
+            samples_per_second=(
+                np.longdouble(sample_rate.numerator) / sample_rate.denominator
+            ),
             sample_rate_numerator=p["sample_rate_numerator"],
             sample_rate_denominator=p["sample_rate_denominator"],
+            sample_rate=sample_rate,
             subdir_cadence_secs=p["subdir_cadence_secs"],
         )
         props = drf_reader.get_properties(channel)
@@ -953,9 +981,7 @@ class TestDigitalRFChannel(object):
 
         expected_sample_properties = dict(
             computer_time=None,
-            init_utc_timestamp=int(
-                digital_rf.util.datetime_to_timestamp(start_datetime)
-            ),
+            init_utc_timestamp=start_timestamp_tuple[0],
             sequence_num=0,
             uuid_str=p["uuid_str"],
         )
@@ -1005,7 +1031,7 @@ class TestDigitalRFChannel(object):
         bounds,
         channel,
         drf_reader,
-        samples_per_second,
+        sample_rate,
         sample_rate_numerator,
         sample_rate_denominator,
         start_global_index,
@@ -1014,9 +1040,12 @@ class TestDigitalRFChannel(object):
         # must be run after test_reader_get_digital_metadata which creates
         # the metadata that we'll be reading
         expected_metadata = dict(
-            samples_per_second=samples_per_second,
+            samples_per_second=(
+                np.longdouble(sample_rate.numerator) / sample_rate.denominator
+            ),
             sample_rate_numerator=sample_rate_numerator,
             sample_rate_denominator=sample_rate_denominator,
+            sample_rate=sample_rate,
         )
         # read the blocks channel first, which has no Digital Metadata channel
         # all metadata
