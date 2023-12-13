@@ -594,7 +594,7 @@ class Thor(object):
         # (integer division of clock rate)
         cr = op.clock_rates[0]
         srdec = int(round(cr / samplerate))
-        op.samplerate_frac = Fraction(cr).limit_denominator(2 ** 32) / srdec
+        op.samplerate_frac = Fraction(cr).limit_denominator(2**32) / srdec
         samplerate_ld = np.longdouble(cr) / srdec
         op.samplerate = samplerate_ld
 
@@ -760,7 +760,7 @@ class Thor(object):
             if osr is None:
                 ratio = Fraction(1)
             else:
-                ratio = (Fraction(osr) / op.samplerate_frac).limit_denominator(2 ** 16)
+                ratio = (Fraction(osr) / op.samplerate_frac).limit_denominator(2**16)
             op.resampling_ratios.append(ratio)
 
             # get output samplerate fraction
