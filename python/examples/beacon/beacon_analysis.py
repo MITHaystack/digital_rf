@@ -248,9 +248,7 @@ def open_file(maindir):
     return (drfObj, chandict, start_indx, end_indx)
 
 
-def corr_tle_rf(
-    maindir, e=None, window=2**18, n_measure=100, timewin=[0, 0], tleoff=0
-):
+def corr_tle_rf(maindir, e=None, window=2**18, n_measure=100, timewin=[0, 0], tleoff=0):
     """
     Coorelates the tle derived frequency and the rf frequency. A flag is output
     that specifies if the two frequencies correlate. A time offset between
@@ -629,9 +627,7 @@ def calc_TEC(
     #
     phasecurve = sp.cumsum(sp.angle(phase0) * freq_ratio - sp.angle(phase1))
     phasecurve_amp = phase_cs0 * freq_ratio - phase_cs1
-    stdcurve = sp.sqrt(
-        sp.cumsum(float(sfactor) * incoh_int * (std0**2.0 + std1**2.0))
-    )
+    stdcurve = sp.sqrt(sp.cumsum(float(sfactor) * incoh_int * (std0**2.0 + std1**2.0)))
 
     # SNR windowing, picking values with minimum snr
     snrwin = sp.logical_and(snr0 > snrmin, snr1 > snrmin)

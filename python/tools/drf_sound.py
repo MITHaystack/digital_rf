@@ -140,9 +140,9 @@ class SoundDRF(object):
                     data_fs = data
 
                 if decimate > 1:
-                    audiostuff[
-                        iblock, iread * dsamps : (iread + 1) * dsamps
-                    ] = scipy.signal.decimate(data_fs, decimate).real
+                    audiostuff[iblock, iread * dsamps : (iread + 1) * dsamps] = (
+                        scipy.signal.decimate(data_fs, decimate).real
+                    )
 
                 start_sample += samples_per_stripe
         audiostuff_cent = audiostuff - audiostuff.flatten().mean()
