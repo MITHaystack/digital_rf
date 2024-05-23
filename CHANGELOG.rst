@@ -4,6 +4,28 @@ digital_rf Change Log
 
 .. current developments
 
+v2.6.9
+====================
+
+**Added:**
+
+* Add "link" method to mirror module and "ln" to `drf mirror`, to hard link files instead of copying. When hard linking is not possible (e.g. across different partitions), it will fall back to copying.
+* Add `drf ln` command to link files (hard or symbolic).
+* Added option `rdcc_nbytes` to `DigitalRFReader` to allow specification of HDF5 chunk cache size (see HDF5 documentation for details). This also increases the default chunk cache size from 1 MB to 4 MB to speed up reading of compressed or checksummed data in a typical use case.
+* The sounder/tx.py example script has been updated to accept waveform files in complex int16 format through use of the new `--type int16` argument.
+
+**Fixed:**
+
+* Fixed thorpluto.py, changed the iio.pluto_source to iio.fmcomms2_source_fc32 as the pluto_source was removed in newer versions of iio.
+
+**Authors:**
+
+* Ryan Volz
+* John Swoboda
+* Juha Vierinen
+
+
+
 v2.6.8
 ====================
 
