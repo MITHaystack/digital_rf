@@ -14,12 +14,12 @@ $ACTIVITIES = [
     "authors",
     "bibtex",
     "changelog",
-    "tag",
+#    "tag",
     "pytest",
     "copy_dist",
-    "push_tag",
-    "ghrelease",
-    "pypi_upload",
+#    "push_tag",
+#    "ghrelease",
+#    "pypi_upload",
 ]
 
 $VERSION_BUMP_PATTERNS = [
