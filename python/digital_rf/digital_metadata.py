@@ -14,6 +14,7 @@ Reading/writing functionality is available from two classes:
 DigitalMetadataReader and DigitalMetadataWriter.
 
 """
+
 from __future__ import absolute_import, division, print_function
 
 import collections
@@ -458,8 +459,8 @@ class DigitalMetadataWriter(object):
             f.attrs["sample_rate_numerator"] = self._sample_rate_numerator
             f.attrs["sample_rate_denominator"] = self._sample_rate_denominator
             # use np.string_ to store as fixed-length ascii strings
-            f.attrs["file_name"] = np.string_(self._file_name)
-            f.attrs["digital_metadata_version"] = np.string_(
+            f.attrs["file_name"] = np.bytes_(self._file_name)
+            f.attrs["digital_metadata_version"] = np.bytes_(
                 self._digital_metadata_version
             )
 
