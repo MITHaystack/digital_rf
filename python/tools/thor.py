@@ -8,6 +8,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Record data from synchronized USRPs in Digital RF format."""
+
 from __future__ import absolute_import, division, print_function
 
 import argparse
@@ -21,14 +22,13 @@ from datetime import datetime, timedelta, timezone
 from fractions import Fraction
 from itertools import chain, cycle, islice, repeat
 from subprocess import call
-from textwrap import dedent, fill, TextWrapper
+from textwrap import TextWrapper, dedent, fill
 
 import digital_rf as drf
 import gr_digital_rf as gr_drf
 import numpy as np
-from gnuradio import blocks
+from gnuradio import blocks, gr, uhd
 from gnuradio import filter as grfilter
-from gnuradio import gr, uhd
 
 try:
     from gnuradio import zeromq
@@ -590,13 +590,11 @@ class Thor(object):
 
         # read back actual sample rate value
         samplerate = u.get_samp_rate()
-        # calculate longdouble precision/rational sample rate
+        # calculate rational sample rate
         # (integer division of clock rate)
         cr = op.clock_rates[0]
         srdec = int(round(cr / samplerate))
-        op.samplerate_frac = Fraction(cr).limit_denominator(2**32) / srdec
-        samplerate_ld = np.longdouble(cr) / srdec
-        op.samplerate = samplerate_ld
+        op.samplerate = drf.util.get_samplerate_frac(cr, srdec)
 
         # set per-channel options
         # set command time so settings are synced
@@ -718,7 +716,7 @@ class Thor(object):
                 info["lo_off"] = op.lo_offsets[ch_num]
                 info["lo_source"] = op.lo_sources[ch_num]
                 info["lo_export"] = op.lo_exports[ch_num]
-                info["sr"] = op.samplerate_frac
+                info["sr"] = op.samplerate
                 print(chinfo.format(**info))
                 print("-" * 78)
 
@@ -747,7 +745,7 @@ class Thor(object):
     def _finalize_options(self):
         op = self.op
 
-        op.ch_samplerates_frac = []
+        op.ch_samplerates = []
         op.resampling_ratios = []
         op.resampling_filter_taps = []
         op.resampling_filter_delays = []
@@ -755,16 +753,16 @@ class Thor(object):
         op.channelizer_filter_delays = []
         for ko, (osr, nsc) in enumerate(zip(op.ch_samplerates, op.ch_nsubchannels)):
             # get output resampling ratio
-            # (op.samplerate_frac final value is set in _usrp_setup
+            # (op.samplerate final value is set in _usrp_setup
             #  so can't get output sample rate until after that is done)
             if osr is None:
                 ratio = Fraction(1)
             else:
-                ratio = (Fraction(osr) / op.samplerate_frac).limit_denominator(2**16)
+                ratio = (Fraction(osr) / op.samplerate).limit_denominator(2**16)
             op.resampling_ratios.append(ratio)
 
             # get output samplerate fraction
-            op.ch_samplerates_frac.append(op.samplerate_frac * ratio)
+            op.ch_samplerates.append(op.samplerate * ratio)
 
             # get resampling low-pass filter taps
             if ratio == 1:
@@ -916,15 +914,14 @@ class Thor(object):
             now = datetime.now(tz=timezone.utc)
             # launch on integer second by default for convenience (ceil + 2)
             lt = now.replace(microsecond=0) + timedelta(seconds=3)
-        ltts = (lt - drf.util.epoch).total_seconds()
+        lttd = lt - drf.util.epoch
         # adjust launch time forward so it falls on an exact sample since epoch
-        lt_rsamples = int(np.ceil(ltts * op.samplerate))
-        ltts = lt_rsamples / op.samplerate
+        lt_rsamples = drf.util.time_to_sample_ceil(lttd, op.samplerate)
         lt = drf.util.sample_to_datetime(lt_rsamples, op.samplerate)
         if op.verbose:
             ltstr = lt.strftime("%a %b %d %H:%M:%S.%f %Y")
             msg = "Launch time: {0} ({1})\nSample index: {2}"
-            print(msg.format(ltstr, repr(ltts), lt_rsamples))
+            print(msg.format(ltstr, repr(lt.timestamp()), lt_rsamples))
         # command launch time
         ct_td = lt - drf.util.epoch
         ct_secs = ct_td.total_seconds() // 1.0
@@ -948,7 +945,7 @@ class Thor(object):
             mbnum = op.mboardnum_bychan[kr]
 
             # output settings that get modified depending on processing
-            ch_samplerate_frac = op.ch_samplerates_frac[ko]
+            ch_samplerate = op.ch_samplerates[ko]
             ch_centerfreq = op.ch_centerfreqs[ko]
             start_sample_adjust = 0
 
@@ -1007,7 +1004,7 @@ class Thor(object):
             # make frequency shift block if necessary
             if ch_centerfreq is not False:
                 f_shift = ch_centerfreq - op.centerfreqs[kr]
-                phase_inc = -2 * np.pi * f_shift / ch_samplerate_frac
+                phase_inc = -2 * np.pi * f_shift / ch_samplerate
                 rotator = blocks.rotator_cc(phase_inc)
             else:
                 ch_centerfreq = op.centerfreqs[kr]
@@ -1051,9 +1048,9 @@ class Thor(object):
 
                 # modify output settings accordingly
                 ch_centerfreq = ch_centerfreq + np.fft.fftfreq(
-                    nsc, 1 / float(ch_samplerate_frac)
+                    nsc, 1 / float(ch_samplerate)
                 )
-                ch_samplerate_frac = ch_samplerate_frac / nsc
+                ch_samplerate = ch_samplerate / nsc
             else:
                 channelizer = None
 
@@ -1073,10 +1070,9 @@ class Thor(object):
                 convert = None
 
             # get start sample
-            ch_samplerate_ld = np.longdouble(
-                ch_samplerate_frac.numerator
-            ) / np.longdouble(ch_samplerate_frac.denominator)
-            start_sample = int(np.uint64(ltts * ch_samplerate_ld)) + start_sample_adjust
+            start_sample = (
+                drf.util.time_to_sample_ceil(lttd, ch_samplerate) + start_sample_adjust
+            )
 
             # create digital RF sink
             dst = gr_drf.digital_rf_channel_sink(
@@ -1084,8 +1080,8 @@ class Thor(object):
                 dtype=op.ch_out_specs[ko]["dtype"],
                 subdir_cadence_secs=op.subdir_cadence_s,
                 file_cadence_millisecs=op.file_cadence_ms,
-                sample_rate_numerator=ch_samplerate_frac.numerator,
-                sample_rate_denominator=ch_samplerate_frac.denominator,
+                sample_rate_numerator=ch_samplerate.numerator,
+                sample_rate_denominator=ch_samplerate.denominator,
                 start=start_sample,
                 ignore_tags=False,
                 is_complex=True,

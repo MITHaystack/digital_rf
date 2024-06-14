@@ -1182,8 +1182,7 @@ if __name__ == "__main__":
             print("loading metadata")
 
             drf_properties = drf.get_properties(chans[chidx])
-            sfreq_ld = drf_properties["samples_per_second"]
-            sfreq = float(sfreq_ld)
+            sfreq = drf_properties["sample_rate"]
             toffset = start_sample
 
             print(toffset)
@@ -1191,7 +1190,7 @@ if __name__ == "__main__":
             if atime == 0:
                 atime = ustart
             else:
-                atime = int(np.uint64(atime * sfreq_ld))
+                atime = drf.util.time_to_sample_ceil(atime, sfreq)
 
             sstart = atime + int(toffset)
             dlen = stop_sample - start_sample

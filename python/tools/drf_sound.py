@@ -15,6 +15,7 @@ Create sound output for a set of digital_rf data. The user can either output
 directly to sounddevice or through a wave file save out.
 
 """
+
 from __future__ import absolute_import, division, print_function
 
 import datetime
@@ -56,7 +57,7 @@ class SoundDRF(object):
         Iterate over the data set and output a sound through sounddevice.
 
         """
-        sr = self.dio.get_properties(self.channel)["samples_per_second"]
+        sr = self.dio.get_properties(self.channel)["sample_rate"]
 
         if self.control.verbose:
             print("sample rate: ", sr)
@@ -68,19 +69,15 @@ class SoundDRF(object):
 
         if self.control.start:
             dtst0 = dateutil.parser.parse(self.control.start)
-            st0 = (
-                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
-            ).total_seconds()
-            st0 = int(st0 * sr)
+            st0 = dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+            st0 = drf.util.time_to_sample_ceil(st0, sr)
         else:
             st0 = int(bound[0])
 
         if self.control.end:
             dtst0 = dateutil.parser.parse(self.control.end)
-            et0 = (
-                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
-            ).total_seconds()
-            et0 = int(et0 * sr)
+            et0 = dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+            et0 = drf.util.time_to_sample_ceil(et0, sr)
         else:
             et0 = int(bound[1])
 

@@ -7,6 +7,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Benchmark I/O of Digital RF write in different configurations."""
+
 from __future__ import absolute_import, division, print_function
 
 import os
@@ -22,14 +23,14 @@ WRITE_BLOCK_SIZE = 1000
 N_WRITES = int(1e9 // WRITE_BLOCK_SIZE)
 SAMPLE_RATE_NUMERATOR = int(1e9)
 SAMPLE_RATE_DENOMINATOR = 1
-sample_rate = np.longdouble(np.uint64(SAMPLE_RATE_NUMERATOR)) / np.longdouble(
-    np.uint64(SAMPLE_RATE_DENOMINATOR)
+sample_rate = digital_rf.util.get_samplerate_frac(
+    SAMPLE_RATE_NUMERATOR, SAMPLE_RATE_DENOMINATOR
 )
 subdir_cadence_secs = 3600
 file_cadence_millisecs = 10
 
 # start 2014-03-09 12:30:30 plus one sample
-start_global_index = int(np.uint64(1394368230 * sample_rate)) + 1
+start_global_index = digital_rf.util.time_to_sample_ceil(1394368230, sample_rate) + 1
 
 # data to write
 data_int16 = np.zeros((WRITE_BLOCK_SIZE, 2), dtype="i2")

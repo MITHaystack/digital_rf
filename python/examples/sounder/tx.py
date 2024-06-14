@@ -8,6 +8,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Transmit waveforms with synchronized USRPs."""
+
 from __future__ import absolute_import, division, print_function
 
 import math
@@ -25,7 +26,6 @@ from textwrap import TextWrapper, dedent, fill
 import digital_rf as drf
 import numpy as np
 from gnuradio import analog, blocks, gr, uhd
-
 from six.moves import configparser
 
 
@@ -405,15 +405,11 @@ class Tx(object):
         u.set_samp_rate(float(op.samplerate))
         # read back actual value
         samplerate = u.get_samp_rate()
-        # calculate longdouble precision sample rate
+        # calculate rational sample rate
         # (integer division of clock rate)
         cr = u.get_clock_rate()
         srdec = int(round(cr / samplerate))
-        samplerate_ld = np.longdouble(cr) / srdec
-        op.samplerate = samplerate_ld
-        sr_rat = Fraction(cr).limit_denominator() / srdec
-        op.samplerate_num = sr_rat.numerator
-        op.samplerate_den = sr_rat.denominator
+        op.samplerate = drf.util.get_samplerate_frac(cr, srdec)
 
         # set per-channel options
         # set command time so settings are synced
@@ -626,14 +622,14 @@ class Tx(object):
             now = datetime.now(tz=timezone.utc)
             # launch on integer second by default for convenience  (ceil + 1)
             lt = now.replace(microsecond=0) + timedelta(seconds=2)
-        ltts = (lt - drf.util.epoch).total_seconds()
+        lttd = lt - drf.util.epoch
         # adjust launch time forward so it falls on an exact sample since epoch
-        lt_samples = np.ceil(ltts * op.samplerate)
-        ltts = lt_samples / op.samplerate
-        lt = drf.util.sample_to_datetime(lt_samples, op.samplerate)
+        lt_rsamples = drf.util.time_to_sample_ceil(lttd, op.samplerate)
+        lt = drf.util.sample_to_datetime(lt_rsamples, op.samplerate)
         if op.verbose:
             ltstr = lt.strftime("%a %b %d %H:%M:%S.%f %Y")
-            print("Launch time: {0} ({1})".format(ltstr, repr(ltts)))
+            msg = "Launch time: {0} ({1})"
+            print(msg.format(ltstr, repr(lt.timestamp())))
         # command launch time
         ct_td = lt - drf.util.epoch
         ct_secs = ct_td.total_seconds() // 1.0

@@ -7,12 +7,14 @@
 #
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
-"""Create a spectral time intensity summary plot for a data set."""
-"""Multithreaded variant by dsheen to handle much larger datasets smoothly 2025/06/04"""
+"""Create a spectral time intensity summary plot for a data set.
 
+Multithreaded variant by dsheen to handle much larger datasets smoothly 2025/06/04
 
-import datetime
+"""
+
 import argparse
+import datetime
 import os
 import sys
 import time
@@ -87,16 +89,11 @@ class DataPlotter(object):
 
         # open digital RF path
         self.dio = drf.DigitalRFReader(self.opt.path)
-        self.sr = self.dio.get_properties(self.channels[0])["samples_per_second"]
+        self.sr = self.dio.get_properties(self.channels[0])["sample_rate"]
 
         self.bounds = self.dio.get_bounds(self.channels[0])
-        self.dt_start = datetime.datetime.fromtimestamp(
-            int(self.bounds[0] / self.sr),
-            tz=datetime.timezone.utc,
-        )
-        self.dt_stop = datetime.datetime.fromtimestamp(
-            int(self.bounds[1] / self.sr), tz=datetime.timezone.utc
-        )
+        self.dt_start = drf.util.sample_to_datetime(self.bounds[0], self.sr)
+        self.dt_stop = drf.util.sample_to_datetime(self.bounds[1], self.sr)
 
         print(
             f"bound times {self.dt_start.isoformat()} to {self.dt_stop.isoformat()} UTC"
@@ -280,19 +277,15 @@ class DataPlotter(object):
 
         if self.opt.start:
             dtst0 = dateutil.parser.parse(self.opt.start)
-            st0 = (
-                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
-            ).total_seconds()
-            st0 = int(st0 * self.sr)
+            st0 = dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+            st0 = drf.util.time_to_sample_ceil(st0, self.sr)
         else:
             st0 = int(b[0])
 
         if self.opt.end:
             dtst0 = dateutil.parser.parse(self.opt.end)
-            et0 = (
-                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
-            ).total_seconds()
-            et0 = int(et0 * self.sr)
+            et0 = dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+            et0 = drf.util.time_to_sample_ceil(et0, self.sr)
         else:
             et0 = int(b[1])
 
@@ -434,9 +427,9 @@ class DataPlotter(object):
         print("last {0}".format(start_sample))
 
         # create a time stamp
-        start_time = int(st0 / self.sr)
+        start_time, picoseconds = drf.util.sample_to_time_floor(st0, self.sr)
         srt_time = time.gmtime(start_time)
-        sub_second = int(round((start_time - int(start_time)) * 100))
+        sub_second = int(round(picoseconds / 1e10))
 
         timestamp = "%d-%02d-%02d %02d:%02d:%02d.%02d UT" % (
             srt_time[0],
@@ -647,9 +640,9 @@ def parse_command_line():
         dest="num_processes",
         default=1,
         type=int,
-        help="""Number of processes to use for computing the STI. 
+        help="""Number of processes to use for computing the STI.
                 If omitted defaults to 1 (single threaded).
-                setting processes to 0 will default to using a number of 
+                setting processes to 0 will default to using a number of
                 processes equal to the number of available cpu cores""",
     )
     parser.add_argument(
