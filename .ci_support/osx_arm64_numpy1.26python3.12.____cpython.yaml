@@ -1,5 +1,7 @@
 MACOSX_DEPLOYMENT_TARGET:
 - '11.0'
+MACOSX_SDK_VERSION:
+- '11.0'
 c_compiler:
 - clang
 c_compiler_version:
@@ -9,7 +11,7 @@ channel_sources:
 channel_targets:
 - ryanvolz main
 gnuradio_core:
-- 3.10.8
+- 3.10.10
 hdf5:
 - 1.14.3
 macos_machine:

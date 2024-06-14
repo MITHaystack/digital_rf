@@ -11,7 +11,7 @@ channel_targets:
 docker_image:
 - quay.io/condaforge/linux-anvil-cos7-x86_64
 gnuradio_core:
-- 3.10.8
+- 3.10.10
 hdf5:
 - 1.14.3
 numpy:

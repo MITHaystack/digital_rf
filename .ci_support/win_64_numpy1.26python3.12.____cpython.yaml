@@ -5,7 +5,7 @@ channel_sources:
 channel_targets:
 - ryanvolz main
 gnuradio_core:
-- 3.10.8
+- 3.10.10
 hdf5:
 - 1.14.3
 numpy:
