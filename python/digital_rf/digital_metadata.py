@@ -1164,6 +1164,14 @@ class DigitalMetadataReader(object):
                     val = val.decode()
                 except UnicodeDecodeError:
                     pass
+            elif isinstance(val, np.ndarray) and val.dtype == np.object_:
+                if h5py.h5t.check_string_dtype(val.dtype) is not None:
+                    # convert to str so we don't end up with bytes
+                    val = val.astype(np.str_)
+                # numpy object arrays are basically lists, so convert to list
+                # for better compatibility (in all likelihood this value
+                # started as a list when it was saved)
+                val = val.tolist()
             ret_dict[name] = val
         else:
             # create a dictionary for this group
