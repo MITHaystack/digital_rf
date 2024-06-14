@@ -15,6 +15,7 @@ Reading/writing functionality is available from two classes: DigitalRFReader
 and DigitalRFWriter.
 
 """
+
 from __future__ import absolute_import, division, print_function
 
 import collections
@@ -1421,7 +1422,7 @@ class DigitalRFReader(object):
             return y
         else:
             out_dtype = np.promote_types("f4", z.dtype)
-            return np.array(z, dtype=out_dtype, copy=False)
+            return np.asarray(z, dtype=out_dtype)
 
     def read_vector_raw(
         self, start_sample, vector_length, channel_name, sub_channel=None

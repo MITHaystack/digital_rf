@@ -7,6 +7,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Tests for the digital_rf.digital_rf_hdf5 module."""
+
 from __future__ import absolute_import, division, print_function
 
 import datetime
@@ -320,7 +321,7 @@ def data_block_slices(
 
 def generate_rf_data(shape, dtype, seed):
     np.random.seed(seed % 2**32)
-    nitems = np.product(shape)
+    nitems = np.prod(shape)
     byts = np.random.randint(0, 256, nitems * dtype.itemsize, "u1")
     return byts.view(dtype).reshape(shape)
 

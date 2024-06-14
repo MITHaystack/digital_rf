@@ -14,6 +14,7 @@ Reading/writing functionality is available from two classes:
 DigitalMetadataReader and DigitalMetadataWriter.
 
 """
+
 from __future__ import absolute_import, division, print_function
 
 import collections
@@ -252,7 +253,7 @@ class DigitalMetadataWriter(object):
 
         """
         try:
-            samples = np.array(samples, dtype=np.uint64, copy=False, ndmin=1)
+            samples = np.atleast_1d(np.asarray(samples, dtype=np.uint64))
         except (TypeError, ValueError):
             raise ValueError("Values in `samples` must be convertible to uint64")
 
@@ -458,8 +459,8 @@ class DigitalMetadataWriter(object):
             f.attrs["sample_rate_numerator"] = self._sample_rate_numerator
             f.attrs["sample_rate_denominator"] = self._sample_rate_denominator
             # use np.string_ to store as fixed-length ascii strings
-            f.attrs["file_name"] = np.string_(self._file_name)
-            f.attrs["digital_metadata_version"] = np.string_(
+            f.attrs["file_name"] = np.bytes_(self._file_name)
+            f.attrs["digital_metadata_version"] = np.bytes_(
                 self._digital_metadata_version
             )
 
@@ -1163,6 +1164,14 @@ class DigitalMetadataReader(object):
                     val = val.decode()
                 except UnicodeDecodeError:
                     pass
+            elif isinstance(val, np.ndarray) and val.dtype == np.object_:
+                if h5py.h5t.check_string_dtype(val.dtype) is not None:
+                    # convert to str so we don't end up with bytes
+                    val = val.astype(np.str_)
+                # numpy object arrays are basically lists, so convert to list
+                # for better compatibility (in all likelihood this value
+                # started as a list when it was saved)
+                val = val.tolist()
             ret_dict[name] = val
         else:
             # create a dictionary for this group

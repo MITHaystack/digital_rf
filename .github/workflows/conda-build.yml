@@ -83,6 +83,56 @@ jobs:
             os: ubuntu
             runs_on: ['ubuntu-latest']
             DOCKER_IMAGE: quay.io/condaforge/linux-anvil-aarch64
+          - CONFIG: osx_64_numpy1.22python3.10.____cpython
+            SHORT_CONFIG: osx_64_numpy1.22python3.10.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+            runs_on: ['macos-13']
+          - CONFIG: osx_64_numpy1.22python3.8.____cpython
+            SHORT_CONFIG: osx_64_numpy1.22python3.8.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+            runs_on: ['macos-13']
+          - CONFIG: osx_64_numpy1.22python3.9.____cpython
+            SHORT_CONFIG: osx_64_numpy1.22python3.9.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+            runs_on: ['macos-13']
+          - CONFIG: osx_64_numpy1.23python3.11.____cpython
+            SHORT_CONFIG: osx_64_numpy1.23python3.11.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+            runs_on: ['macos-13']
+          - CONFIG: osx_64_numpy1.26python3.12.____cpython
+            SHORT_CONFIG: osx_64_numpy1.26python3.12.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+            runs_on: ['macos-13']
+          - CONFIG: osx_arm64_numpy1.22python3.10.____cpython
+            SHORT_CONFIG: osx_arm64_numpy1.22python3.10.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+            runs_on: ['macos-13']
+          - CONFIG: osx_arm64_numpy1.22python3.8.____cpython
+            SHORT_CONFIG: osx_arm64_numpy1.22python3.8.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+            runs_on: ['macos-13']
+          - CONFIG: osx_arm64_numpy1.22python3.9.____cpython
+            SHORT_CONFIG: osx_arm64_numpy1.22python3.9.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+            runs_on: ['macos-13']
+          - CONFIG: osx_arm64_numpy1.23python3.11.____cpython
+            SHORT_CONFIG: osx_arm64_numpy1.23python3.11.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+            runs_on: ['macos-13']
+          - CONFIG: osx_arm64_numpy1.26python3.12.____cpython
+            SHORT_CONFIG: osx_arm64_numpy1.26python3.12.____cpython
+            UPLOAD_PACKAGES: True
+            os: macos
+            runs_on: ['macos-13']
           - CONFIG: win_64_numpy1.22python3.10.____cpython
             SHORT_CONFIG: win_64_numpy1.22python3.10.____cpython
             UPLOAD_PACKAGES: True
@@ -108,60 +158,10 @@ jobs:
             UPLOAD_PACKAGES: True
             os: windows
             runs_on: ['windows-latest']
-          - CONFIG: osx_64_numpy1.22python3.10.____cpython
-            SHORT_CONFIG: osx_64_numpy1.22python3.10.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-latest']
-          - CONFIG: osx_64_numpy1.22python3.8.____cpython
-            SHORT_CONFIG: osx_64_numpy1.22python3.8.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-latest']
-          - CONFIG: osx_64_numpy1.22python3.9.____cpython
-            SHORT_CONFIG: osx_64_numpy1.22python3.9.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-latest']
-          - CONFIG: osx_64_numpy1.23python3.11.____cpython
-            SHORT_CONFIG: osx_64_numpy1.23python3.11.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-latest']
-          - CONFIG: osx_64_numpy1.26python3.12.____cpython
-            SHORT_CONFIG: osx_64_numpy1.26python3.12.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-latest']
-          - CONFIG: osx_arm64_numpy1.22python3.10.____cpython
-            SHORT_CONFIG: osx_arm64_numpy1.22python3.10.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-latest']
-          - CONFIG: osx_arm64_numpy1.22python3.8.____cpython
-            SHORT_CONFIG: osx_arm64_numpy1.22python3.8.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-latest']
-          - CONFIG: osx_arm64_numpy1.22python3.9.____cpython
-            SHORT_CONFIG: osx_arm64_numpy1.22python3.9.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-latest']
-          - CONFIG: osx_arm64_numpy1.23python3.11.____cpython
-            SHORT_CONFIG: osx_arm64_numpy1.23python3.11.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-latest']
-          - CONFIG: osx_arm64_numpy1.26python3.12.____cpython
-            SHORT_CONFIG: osx_arm64_numpy1.26python3.12.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-latest']
     steps:
 
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       with:
         fetch-depth: 0
 
@@ -215,7 +215,7 @@ jobs:
         ./.scripts/run_osx_build.sh
 
     - name: Install Miniconda for windows
-      uses: conda-incubator/setup-miniconda@v2
+      uses: conda-incubator/setup-miniconda@a4260408e20b96e80095f42ff7f1a15b27dd94ca # v3.0.4
       with:
         miniforge-version: latest
         miniforge-variant: Mambaforge
@@ -271,7 +271,7 @@ jobs:
       continue-on-error: true
 
     - name: Store conda build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
       if: ${{ always() && steps.prepare-artifacts.outcome == 'success' }}
       with:
         name: ${{ steps.prepare-artifacts.outputs.BLD_ARTIFACT_NAME }}
@@ -280,7 +280,7 @@ jobs:
       continue-on-error: true
 
     - name: Store conda build environment artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
       if: ${{ failure() && steps.prepare-artifacts.outcome == 'success' }}
       with:
         name: ${{ steps.prepare-artifacts.outputs.ENV_ARTIFACT_NAME }}
