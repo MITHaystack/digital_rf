@@ -7,6 +7,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Module defining a Digital RF Source block."""
+
 from __future__ import absolute_import, division, print_function
 
 import os
@@ -19,19 +20,18 @@ from itertools import chain, tee
 import numpy as np
 import pmt
 import six
+from digital_rf import DigitalMetadataWriter, DigitalRFWriter, _py_rf_write_hdf5, util
 from gnuradio import gr
 from six.moves import zip
 
-from digital_rf import DigitalMetadataWriter, DigitalRFWriter, _py_rf_write_hdf5, util
 
-
-def parse_time_pmt(val, samples_per_second):
+def parse_time_pmt(val, sample_rate):
     """Get (sec, frac, idx) from an rx_time pmt value."""
-    tsec = np.uint64(pmt.to_uint64(pmt.tuple_ref(val, 0)))
+    tsec = int(np.uint64(pmt.to_uint64(pmt.tuple_ref(val, 0))))
     tfrac = pmt.to_double(pmt.tuple_ref(val, 1))
     # calculate sample index of time and floor to uint64
-    tidx = np.uint64(tsec * samples_per_second + tfrac * samples_per_second)
-    return int(tsec), tfrac, int(tidx)
+    tidx = util.time_to_sample_ceil((tsec, int(tfrac * 1e12)), sample_rate)
+    return tsec, tfrac, tidx
 
 
 def translate_rx_freq(tag):
@@ -319,12 +319,12 @@ class digital_rf_channel_sink(gr.sync_block):
 
         self._work_done = False
 
-        self._samples_per_second = np.longdouble(
-            np.uint64(sample_rate_numerator)
-        ) / np.longdouble(np.uint64(sample_rate_denominator))
+        self._sample_rate = util.get_samplerate_frac(
+            self._sample_rate_numerator, self._sample_rate_denominator
+        )
 
         if min_chunksize is None:
-            self._min_chunksize = max(int(self._samples_per_second // 1000), 1)
+            self._min_chunksize = max(int(self._sample_rate // 1000), 1)
         else:
             self._min_chunksize = min_chunksize
 
@@ -346,7 +346,7 @@ class digital_rf_channel_sink(gr.sync_block):
 
         # will be None if start is None or ''
         self._start_sample = util.parse_identifier_to_sample(
-            start, self._samples_per_second, None
+            start, self._sample_rate, None
         )
         if self._start_sample is None:
             if self._ignore_tags:
@@ -360,9 +360,8 @@ class digital_rf_channel_sink(gr.sync_block):
         self._next_rel_sample = 0
         if self._debug:
             tidx = self._start_sample
-            timedelta = util.samples_to_timedelta(tidx, self._samples_per_second)
-            tsec = int(timedelta.total_seconds() // 1)
-            tfrac = timedelta.microseconds / 1e6
+            tsec, picoseconds = util.sample_to_time_floor(tidx, self._sample_rate)
+            tfrac = picoseconds / 1e12
             tagstr = ("|{0}|start @ sample 0: {1}+{2} ({3})\n").format(
                 self._channel_name, tsec, tfrac, tidx
             )
@@ -462,7 +461,7 @@ class digital_rf_channel_sink(gr.sync_block):
         # separate data into blocks to be written
         for tag in time_tags:
             offset = tag.offset
-            tsec, tfrac, tidx = parse_time_pmt(tag.value, self._samples_per_second)
+            tsec, tfrac, tidx = parse_time_pmt(tag.value, self._sample_rate)
 
             # index into data block for this tag
             bidx = offset - nread

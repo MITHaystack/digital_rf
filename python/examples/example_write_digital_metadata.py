@@ -12,6 +12,7 @@ Now writes data into two levels of dictionaries/groups. API allow any finite
 number of levels.
 
 """
+
 from __future__ import absolute_import, division, print_function
 
 import os
@@ -24,8 +25,8 @@ import numpy as np
 metadata_dir = os.path.join(tempfile.gettempdir(), "example_metadata")
 subdirectory_cadence_seconds = 3600
 file_cadence_seconds = 60
-samples_per_second_numerator = 10
-samples_per_second_denominator = 9
+sample_rate_numerator = 10
+sample_rate_denominator = 9
 file_name = "rideout"
 stime = 1447082580
 
@@ -36,14 +37,14 @@ dmw = digital_rf.DigitalMetadataWriter(
     metadata_dir,
     subdirectory_cadence_seconds,
     file_cadence_seconds,
-    samples_per_second_numerator,
-    samples_per_second_denominator,
+    sample_rate_numerator,
+    sample_rate_denominator,
     file_name,
 )
 print("first create okay")
 
 data_dict = {}
-start_idx = int(np.uint64(stime * dmw.get_samples_per_second()))
+start_idx = digital_rf.util.time_to_sample_ceil(stime, dmw.get_sample_rate())
 # To save an array of data, make sure the first axis has the same length
 # as the samples index
 idx_arr = np.arange(70, dtype=np.int64) + start_idx
@@ -95,8 +96,8 @@ dmw = digital_rf.DigitalMetadataWriter(
     metadata_dir,
     subdirectory_cadence_seconds,
     file_cadence_seconds,
-    samples_per_second_numerator,
-    samples_per_second_denominator,
+    sample_rate_numerator,
+    sample_rate_denominator,
     file_name,
 )
 print("second create okay")
