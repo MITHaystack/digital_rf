@@ -205,7 +205,7 @@ class digital_rf_channel_source(gr.sync_block):
         itemsize = self._properties["H5Tget_size"]
         is_complex = self._properties["is_complex"]
         vlen = self._properties["num_subchannels"]
-        sr = self._properties["samples_per_second"]
+        sr = self._properties["sample_rate"]
 
         self._itemsize = itemsize
         self._sample_rate = sr
@@ -289,9 +289,9 @@ class digital_rf_channel_source(gr.sync_block):
         tag_dict = self._tag_queue.get(sample, {})
         if not tag_dict:
             # add time and rate tags
-            time = np.uint64(sample) / self._sample_rate
+            seconds, picoseconds = util.sample_to_time_floor(sample, self._sample_rate)
             tag_dict["rx_time"] = pmt.make_tuple(
-                pmt.from_uint64(int(np.uint64(time))), pmt.from_double(float(time % 1))
+                pmt.from_uint64(seconds), pmt.from_double(picoseconds / 1e12)
             )
             tag_dict["rx_rate"] = self._sample_rate_pmt
         for k, v in tags.items():

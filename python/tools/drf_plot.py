@@ -8,14 +8,14 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """
- drf_plot.py
+drf_plot.py
 
- $Id$
+$Id$
 
- Simple program to load 16 bit IQ data and make some basic plots. Command
- line options are supported and data frames may be filtered from the output. The
- program can offset into a data file to limit the memory usage when plotting
- a subset of a data file.
+Simple program to load 16 bit IQ data and make some basic plots. Command
+line options are supported and data frames may be filtered from the output. The
+program can offset into a data file to limit the memory usage when plotting
+a subset of a data file.
 
 """
 
@@ -1170,8 +1170,7 @@ if __name__ == "__main__":
             print("loading metadata")
 
             drf_properties = drf.get_properties(chans[chidx])
-            sfreq_ld = drf_properties["samples_per_second"]
-            sfreq = float(sfreq_ld)
+            sfreq = drf_properties["sample_rate"]
             toffset = start_sample
 
             print(toffset)
@@ -1179,7 +1178,7 @@ if __name__ == "__main__":
             if atime == 0:
                 atime = ustart
             else:
-                atime = int(np.uint64(atime * sfreq_ld))
+                atime = drf.util.time_to_sample_ceil(atime, sfreq)
 
             sstart = atime + int(toffset)
             dlen = stop_sample - start_sample
