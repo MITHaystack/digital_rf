@@ -253,7 +253,7 @@ class DigitalMetadataWriter(object):
 
         """
         try:
-            samples = np.array(samples, dtype=np.uint64, copy=False, ndmin=1)
+            samples = np.atleast_1d(np.asarray(samples, dtype=np.uint64))
         except (TypeError, ValueError):
             raise ValueError("Values in `samples` must be convertible to uint64")
 
