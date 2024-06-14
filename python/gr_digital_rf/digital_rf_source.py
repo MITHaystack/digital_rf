@@ -7,6 +7,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Module defining a Digital RF Source block."""
+
 from __future__ import absolute_import, division, print_function
 
 import os
@@ -17,9 +18,8 @@ import h5py
 import numpy as np
 import pmt
 import six
-from gnuradio import gr
-
 from digital_rf import DigitalRFReader, util
+from gnuradio import gr
 
 H5T_LOOKUP = {
     # (class, itemsize, is_complex): {name, dtype, missingvalue}
@@ -289,7 +289,7 @@ class digital_rf_channel_source(gr.sync_block):
         tag_dict = self._tag_queue.get(sample, {})
         if not tag_dict:
             # add time and rate tags
-            time = sample / self._sample_rate
+            time = np.uint64(sample) / self._sample_rate
             tag_dict["rx_time"] = pmt.make_tuple(
                 pmt.from_uint64(int(np.uint64(time))), pmt.from_double(float(time % 1))
             )
