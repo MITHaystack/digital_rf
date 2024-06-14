@@ -7,6 +7,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Utility functions for Digital RF and Digital Metadata."""
+
 from __future__ import absolute_import, division, print_function
 
 import ast
@@ -168,7 +169,7 @@ def sample_to_time_floor(nsamples, sample_rate):
     return (seconds, picoseconds)
 
 
-def time_to_sample(time, samples_per_second):
+def time_to_sample(time, samples_per_second, epoch=None):
     """Get a sample index from a time using a given sample rate.
 
     Parameters
@@ -180,6 +181,10 @@ def time_to_sample(time, samples_per_second):
 
     samples_per_second : np.longdouble
         Sample rate in Hz.
+
+    epoch : datetime, optional
+        Epoch time. If None, the Digital RF default (the Unix epoch,
+        January 1, 1970) is used.
 
 
     Returns
@@ -198,6 +203,8 @@ def time_to_sample(time, samples_per_second):
         if time.tzinfo is None:
             # assume UTC if timezone was not specified
             time = time.replace(tzinfo=datetime.timezone.utc)
+        if epoch is None:
+            epoch = _default_epoch
         td = time - epoch
         tsec = int(td.total_seconds())
         tfrac = 1e-6 * td.microseconds
