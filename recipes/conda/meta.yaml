@@ -19,6 +19,7 @@ build:
 requirements:
   build:
     - {{ compiler('c') }}
+    - {{ stdlib('c') }}
     - cmake >=3.15
     - make  # [not win]
     # cross-compilation dependencies
@@ -37,7 +38,6 @@ requirements:
   run:
     - h5py
     - hdf5
-    - {{ pin_compatible('numpy') }}
     - packaging
     - python
     - python-dateutil

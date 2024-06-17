@@ -5,8 +5,8 @@ cd build
 cmake ${CMAKE_ARGS} \
     -DCMAKE_INSTALL_PREFIX=$PREFIX \
     -DCMAKE_INSTALL_LIBDIR=lib \
-    -DPython_FIND_FRAMEWORK=NEVER \
-    -DPython_FIND_STRATEGY=LOCATION \
+    -DDRF_INSTALL_PREFIX_PYTHON=$PREFIX \
+    -DPython_EXECUTABLE=$PYTHON \
     ..
 cmake --build .
 if [[ "${CONDA_BUILD_CROSS_COMPILATION}" != "1" ]]; then
