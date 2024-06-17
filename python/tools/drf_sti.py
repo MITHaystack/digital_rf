@@ -9,9 +9,8 @@
 # ----------------------------------------------------------------------------
 """Create a spectral time intensity summary plot for a data set."""
 
-
-import datetime
 import argparse
+import datetime
 import os
 import sys
 import time
@@ -86,17 +85,15 @@ class DataPlotter(object):
 
         # open digital RF path
         self.dio = drf.DigitalRFReader(self.opt.path)
-        self.sr = self.dio.get_properties(self.channels[0])["samples_per_second"]
+        self.sr = self.dio.get_properties(self.channels[0])["sample_rate"]
 
         self.bounds = self.dio.get_bounds(self.channels[0])
-        self.dt_start = datetime.datetime.utcfromtimestamp(
-            int(self.bounds[0] / self.sr)
-        )
-        self.dt_stop = datetime.datetime.utcfromtimestamp(int(self.bounds[1] / self.sr))
+        self.dt_start = drf.util.sample_to_datetime(self.bounds[0], self.sr)
+        self.dt_stop = drf.util.sample_to_datetime(self.bounds[1], self.sr)
 
         print(
             "bound times {0} to {1} UTC".format(
-                self.dt_start.utcnow().isoformat(), self.dt_stop.utcnow().isoformat()
+                self.dt_start.isoformat(), self.dt_stop.isoformat()
             )
         )
 
@@ -147,19 +144,15 @@ class DataPlotter(object):
 
         if self.opt.start:
             dtst0 = dateutil.parser.parse(self.opt.start)
-            st0 = (
-                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
-            ).total_seconds()
-            st0 = int(st0 * self.sr)
+            st0 = dtst0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+            st0 = drf.util.time_to_sample_ceil(st0, self.sr)
         else:
             st0 = int(b[0])
 
         if self.opt.end:
             dtst0 = dateutil.parser.parse(self.opt.end)
-            et0 = (
-                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
-            ).total_seconds()
-            et0 = int(et0 * self.sr)
+            et0 = dtst0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+            et0 = drf.util.time_to_sample_ceil(et0, self.sr)
         else:
             et0 = int(b[1])
 
@@ -394,9 +387,9 @@ class DataPlotter(object):
         print("last {0}".format(start_sample))
 
         # create a time stamp
-        start_time = int(st0 / self.sr)
+        start_time, picoseconds = drf.util.sample_to_time_floor(st0, self.sr)
         srt_time = time.gmtime(start_time)
-        sub_second = int(round((start_time - int(start_time)) * 100))
+        sub_second = int(round(picoseconds / 1e10))
 
         timestamp = "%d-%02d-%02d %02d:%02d:%02d.%02d UT" % (
             srt_time[0],

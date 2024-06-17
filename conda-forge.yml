@@ -26,14 +26,14 @@
 # documentation on possible keys and values.
 
 build_platform:
+  linux_aarch64: linux_64
+  #linux_ppc64le: linux_64
   osx_arm64: osx_64
 clone_depth: 0
 github_actions:
   store_build_artifacts: true
 provider:
   linux_64: github_actions
-  linux_aarch64: github_actions
-  #linux_ppc64le: github_actions
   osx_64: github_actions
   win_64: github_actions
 recipe_dir: recipes/conda
