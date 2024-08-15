@@ -1,26 +1,31 @@
-{% set rev = "HEAD" %}
-{% set version = (environ.get('GIT_DESCRIBE_TAG', 'untagged')|string|replace('-','_')) + '.dev' + environ.get('GIT_DESCRIBE_NUMBER', '0') + '+' + environ.get('GIT_DESCRIBE_HASH', 'local') %}
+# Set package version from cleaned up git tags if possible,
+# otherwise fall back to date-based version.
+{% set tag_version = environ.get("GIT_DESCRIBE_TAG", "")|string|replace("-","_")|replace("v","")|replace("git","") %}
+{% set post_commit = environ.get("GIT_DESCRIBE_NUMBER", 0)|string %}
+{% set hash = environ.get("GIT_DESCRIBE_HASH", "local")|string %}
+{% set fallback_version = "0.0.0.{0}.dev+g{1}".format(datetime.datetime.now().strftime("%Y%m%d"), environ.get("GIT_FULL_HASH", "local")[:9]) %}
+{% set version = (tag_version if post_commit == "0" else "{0}.post{1}+{2}".format(tag_version, post_commit, hash)) if tag_version else fallback_version %}
 
 package:
   name: digital_rf
   version: {{ version }}
 
 source:
-  git_url: {{ environ.get("FEEDSTOCK_ROOT", "../../") }}
-  git_rev: {{ rev }}
+  # use local path or git repository depending on if the build is local or done on CI
+  path: "../.."  # [not os.environ.get("CI")]
+  git_url: {{ environ.get("FEEDSTOCK_ROOT", "../../") }}  # [os.environ.get("CI")]
 
 build:
   number: 0
-  skip: true  # [py==36]
   run_exports:
-    # can't use pin_subpackage here because GIT_DESCRIBE_* variables are undefined when evaluating it
-    - digital_rf >={{ GIT_DESCRIBE_TAG[:1] }},<{{ (GIT_DESCRIBE_TAG[:1]|int + 1)|string }}
+    - {{ pin_subpackage('digital_rf') }}
 
 requirements:
   build:
     - {{ compiler('c') }}
+    - {{ stdlib('c') }}
     - cmake >=3.15
-    - make  # [not win]
+    - ninja
     # cross-compilation dependencies
     - python                                 # [build_platform != target_platform]
     - cross-python_{{ target_platform }}     # [build_platform != target_platform]
@@ -36,8 +41,6 @@ requirements:
 
   run:
     - h5py
-    - hdf5
-    - {{ pin_compatible('numpy') }}
     - packaging
     - python
     - python-dateutil

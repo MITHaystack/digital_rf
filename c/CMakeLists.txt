@@ -93,8 +93,6 @@ target_include_directories(digital_rf PUBLIC
 )
 target_link_libraries(digital_rf PUBLIC ${HDF5_LIB_TARGETS} PRIVATE ${MATH_LIB})
 set_target_properties(digital_rf PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY lib
-    LIBRARY_OUTPUT_DIRECTORY lib
     VERSION ${libdigital_rf_VERSION}
     SOVERSION ${libdigital_rf_VERSION_MAJOR}
     INTERFACE_libdigital_rf_MAJOR_VERSION ${libdigital_rf_VERSION_MAJOR}
@@ -105,10 +103,10 @@ set_target_properties(digital_rf PROPERTIES
     POSITION_INDEPENDENT_CODE ON
 )
 
-install(TARGETS digital_rf EXPORT libdigital_rfTargets
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+install(TARGETS digital_rf
+    EXPORT libdigital_rfTargets
 )
+
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/include/digital_rf.h
     ${CMAKE_CURRENT_BINARY_DIR}/include/digital_rf_version.h

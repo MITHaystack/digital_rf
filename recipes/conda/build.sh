@@ -2,15 +2,19 @@
 
 mkdir build
 cd build
-cmake ${CMAKE_ARGS} \
-    -DCMAKE_INSTALL_PREFIX=$PREFIX \
-    -DCMAKE_INSTALL_LIBDIR=lib \
-    -DPython_FIND_FRAMEWORK=NEVER \
-    -DPython_FIND_STRATEGY=LOCATION \
-    ..
-cmake --build .
+
+cmake_config_args=(
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_INSTALL_PREFIX=$PREFIX
+    -DCMAKE_INSTALL_LIBDIR=lib
+    -DDRF_INSTALL_PREFIX_PYTHON=$PREFIX
+    -DPython_EXECUTABLE=$PYTHON
+)
+
+cmake ${CMAKE_ARGS} -G "Ninja" .. "${cmake_config_args[@]}"
+cmake --build . --config Release
 if [[ "${CONDA_BUILD_CROSS_COMPILATION}" != "1" ]]; then
-cmake --build . --target test
+cmake --build . --config Release --target test
 rm -r /tmp/hdf5
 fi
-cmake --build . --target install
+cmake --build . --config Release --target install
