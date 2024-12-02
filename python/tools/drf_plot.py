@@ -12,7 +12,7 @@
 
  $Id$
 
- Simple program to load 16 bit IQ data and make some basic plots. Command
+ Simple program to load (nominal) 16 bit IQ data and make some basic plots. Command
  line options are supported and data frames may be filtered from the output. The
  program can offset into a data file to limit the memory usage when plotting
  a subset of a data file.
@@ -175,7 +175,7 @@ def power_plot(data, sfreq, toffset, log_scale, zscale, title):
     return fig
 
 
-def iq_process(data, sfreq, toffset, modulus, integration, log_scale, title):
+def iq_process(data, sfreq, toffset, modulus, integration, log_scale, nbits, title):
     """Break voltages by modulus and display each block. Integration here acts
     as a pure average on the voltage level data prior to iq plotting.
     """
@@ -202,12 +202,15 @@ def iq_process(data, sfreq, toffset, modulus, integration, log_scale, title):
             block_toffset += block_size / sfreq
 
     else:
-        yield iq_plot(data, toffset, log_scale, title)
+        yield iq_plot(data, toffset, log_scale, nbits, title)
 
 
-def iq_plot(data, toffset, log_scale, title):
+def iq_plot(data, toffset, log_scale, nbits, title):
     """Plot an IQ circle from the data in linear or log scale."""
     print("iq")
+
+    # data is assumed to be maximum 1.0 coming in from the file
+    data *= 2**nbits
 
     if log_scale:
         rx_raster_r = (
@@ -217,7 +220,8 @@ def iq_plot(data, toffset, log_scale, title):
             np.sign(data.imag) * np.log10(np.abs(data.imag) + 1e-30) / np.log10(2.0)
         )
     else:
-        data *= 1.0 / 32768.0
+        # scale back to unity
+        data /= 2**nbits
         rx_raster_r = data.real
         rx_raster_i = data.imag
 
@@ -231,6 +235,7 @@ def iq_plot(data, toffset, log_scale, title):
     ax.grid(True)
     ax.set_xlabel("I")
     ax.set_ylabel("Q")
+    ax.axis("equal")
     ax.set_title(title)
 
     return fig
@@ -1043,6 +1048,9 @@ def usage():
         " -t <title>             A string 'Data from 2009-01-21 on 100.0 MHz FM' for a title. The single quotes are important."
     )
     print(" -l                     Enable log scale for plots.")
+    print(
+        " -B <nbits>             Number of bits in the ADC for logscale IQ plots; default is 16."
+    )
     print(" -d                     Enable detrending for spectral estimates.")
     print(
         " -m <code_length>:<baud_length>  MSL code length (bauds) and samples per baud for voltage level convolution."
@@ -1079,12 +1087,14 @@ if __name__ == "__main__":
     show_plots = True
     plot_file = ""
 
+    nbits = 16
+
     msl_code_length = 0
     msl_baud_length = 0
 
     # parse the command line arguments
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hi:p:c:o:r:b:z:m:t:a:ld:s:")
+        opts, args = getopt.getopt(sys.argv[1:], "hi:p:c:o:r:b:z:m:t:a:lB:d:s:")
     except:
         usage()
         sys.exit()
@@ -1108,7 +1118,7 @@ if __name__ == "__main__":
         elif opt in ("-o"):
             cfreq = float(val)
         elif opt in ("-a"):
-            tuple_time = time.strptime(val, "%Y-%m-%dT%H:%M:%S")
+            tuple_time = time.strptime(val, "%Y-%m-%dT%H:%M:%SZ")
             print(tuple_time)
             atime = calendar.timegm(tuple_time)
             print(atime)
@@ -1145,6 +1155,8 @@ if __name__ == "__main__":
             log_scale = True
         elif opt in ("-d"):
             detrend = True
+        elif opt in ("-B"):
+            nbits = int(val)
         elif opt in ("-m"):
             cl, bl = val.split(":")
             msl_code_length = int(cl)
@@ -1250,7 +1262,7 @@ if __name__ == "__main__":
 
             elif plot_type == "iq":
                 fig_gen = iq_process(
-                    d, sfreq, toffset, modulus, integration, log_scale, title
+                    d, sfreq, toffset, modulus, integration, log_scale, nbits, title
                 )
 
             elif plot_type == "phase":
