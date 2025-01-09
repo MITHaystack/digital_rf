@@ -107,7 +107,7 @@ class SoundDRF(object):
 
         print("first ", start_sample)
 
-        audiostuff = np.zeros((blocks, reads_per_block * dsamps), dtype=np.float)
+        audiostuff = np.zeros((blocks, reads_per_block * dsamps), dtype=np.float64)
         if self.control.verbose:
             print(
                 "processing info : ",
@@ -129,7 +129,9 @@ class SoundDRF(object):
                 )
 
                 if self.control.freqshift:
-                    tvec = np.arange(len(data), dtype=np.float) / sr + start_sample / sr
+                    tvec = np.arange(len(data), dtype=np.float64) / float(sr) + float(
+                        start_sample / sr
+                    )
                     f_osc = np.exp(1j * 2 * np.pi * self.control.freqshift * tvec)
                     data_fs = data * f_osc
                 else:
@@ -143,7 +145,7 @@ class SoundDRF(object):
                 start_sample += samples_per_stripe
         audiostuff_cent = audiostuff - audiostuff.flatten().mean()
         audiostuff_norm = audiostuff_cent / np.abs(audiostuff_cent.flatten()).max()
-        audiostuff_norm = audiostuff_norm.astype(float)
+        audiostuff_norm = audiostuff_norm.astype(np.float64)
         if self.control.outname:
             fname = os.path.splitext(self.control.outname)[0]
             ext = ".wav"
