@@ -38,8 +38,8 @@ data_int16 = np.zeros((WRITE_BLOCK_SIZE, 2), dtype="i2")
 for i in range(WRITE_BLOCK_SIZE):
     j = i * 2
     k = i * 2 + 1
-    data_int16[i][0] = (j % 32768) * (j + 8192) * (j % 13)
-    data_int16[i][1] = (k % 32768) * (k + 8192) * (k % 13)
+    data_int16[i][0] = np.array((j % 32768) * (j + 8192) * (j % 13)).astype("i2")
+    data_int16[i][1] = np.array((k % 32768) * (k + 8192) * (k % 13)).astype("i2")
 
 datadir = os.path.join(tempfile.gettempdir(), "benchmark_digital_rf")
 print("creating top level dir {0}".format(datadir))

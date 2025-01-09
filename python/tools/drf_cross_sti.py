@@ -70,7 +70,7 @@ class DataPlotter:
 
         elif self.control.xtype == "pairs":
             args = [iter(pl)] * 2
-            self.xlist = list(it.izip_longest(*args))
+            self.xlist = list(it.zip_longest(*args))
 
         elif self.control.xtype == "combo":
             self.xlist = list(it.combinations(pl, 2))
@@ -226,10 +226,10 @@ class DataPlotter:
 
             for p in np.arange(0, self.control.frames * 2, 2):
                 sti_csd_data_coherence = np.zeros(
-                    [self.control.num_fft, self.control.bins], np.float
+                    [self.control.num_fft, self.control.bins], np.float64
                 )
                 sti_csd_data_phase = np.zeros(
-                    [self.control.num_fft, self.control.bins], np.float
+                    [self.control.num_fft, self.control.bins], np.float64
                 )
 
                 sti_times = np.zeros([self.control.bins], np.complex128)
@@ -383,7 +383,7 @@ class DataPlotter:
                 print("last ", start_sample)
 
             # create a time stamp
-            start_time, picoseconds = drf.util.sample_to_time_floor(st0, self.sr)
+            start_time, picoseconds = drf.util.sample_to_time_floor(st0, sr)
             srt_time = time.gmtime(start_time)
             sub_second = int(round(picoseconds / 1e10))
 
