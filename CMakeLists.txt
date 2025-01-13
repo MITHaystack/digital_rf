@@ -1,16 +1,20 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.20)
 cmake_policy(SET CMP0048 NEW)
+cmake_policy(SET CMP0079 NEW)
+cmake_policy(SET CMP0094 NEW)
 
-project(digital_rf_project LANGUAGES C)
+if(SKBUILD)
+    set(digital_rf_VERSION ${SKBUILD_PROJECT_VERSION})
+else()
+    set(digital_rf_VERSION 2.6.9)
+endif(SKBUILD)
+project(digital_rf LANGUAGES C VERSION ${digital_rf_VERSION})
 
 include(GNUInstallDirs)
 enable_testing()
 
 # create targets that sub-projects will add dependencies to
-add_custom_target(source)
-add_custom_target(sdist)
 add_custom_target(build)
-add_custom_target(wheel)
 
 # include sub-projects
 add_subdirectory(c)
@@ -34,4 +38,4 @@ configure_file(
 add_custom_target(uninstall
     COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake
 )
-add_dependencies(uninstall libdigital_rf_uninstall digital_rf_uninstall)
+add_dependencies(uninstall libdigital_rf_uninstall)

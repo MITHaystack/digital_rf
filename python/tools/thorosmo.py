@@ -1,4 +1,4 @@
-#!python
+#!/usr/bin/env python
 # ----------------------------------------------------------------------------
 # Copyright (c) 2020 Massachusetts Institute of Technology (MIT)
 # All rights reserved.

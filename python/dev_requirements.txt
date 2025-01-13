@@ -1,5 +1,0 @@
-# required python packages for build from git source
-pkgconfig
-mako
-numpy
-setuptools

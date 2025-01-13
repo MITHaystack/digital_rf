@@ -7,15 +7,24 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 if __name__ == "__main__":
-    import os
+    import pathlib
     from argparse import ArgumentParser
 
     from mako.template import Template
 
     desc = "Generate Digital RF Source/Sink GRC block file from template."
     parser = ArgumentParser(description=desc)
-    parser.add_argument("template", help="Template source/sink file.")
-    parser.add_argument("output", nargs="?", help="Output file path.")
+    parser.add_argument(
+        "template",
+        type=pathlib.Path,
+        help="Template source/sink file.",
+    )
+    parser.add_argument(
+        "output",
+        nargs="?",
+        type=pathlib.Path,
+        help="Output file path.",
+    )
     parser.add_argument(
         "-n",
         "--max_channels",
@@ -27,8 +36,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.output is None:
-        args.output = os.path.basename(os.path.splitext(args.template)[0])
-
-    tmpl = Template(filename=args.template)
+        args.output = pathlib.Path(args.template.stem).resolve()
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    tmpl = Template(filename=str(args.template))
     with open(args.output, "w") as f:
         f.write(tmpl.render(max_num_channels=args.max_channels))

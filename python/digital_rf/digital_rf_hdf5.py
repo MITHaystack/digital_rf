@@ -35,10 +35,7 @@ import six
 
 # local imports
 from . import _py_rf_write_hdf5, digital_metadata, list_drf
-from ._version import get_versions
-
-__version__ = get_versions()["version"]
-del get_versions
+from ._version import __version__, __version_tuple__
 
 __all__ = (
     "get_unix_time",

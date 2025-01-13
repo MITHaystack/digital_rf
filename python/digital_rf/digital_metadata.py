@@ -39,15 +39,12 @@ from six.moves import urllib, zip
 
 # local imports
 from . import list_drf
-from ._version import get_versions
+from ._version import __version__, __version_tuple__
 
 try:
     import pandas
 except ImportError:
     pass
-
-__version__ = get_versions()["version"]
-del get_versions
 
 __all__ = ("DigitalMetadataReader", "DigitalMetadataWriter")
 

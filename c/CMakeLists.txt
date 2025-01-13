@@ -35,43 +35,62 @@ else(UNIX)
     set(MATH_LIB)
 endif(UNIX)
 
-find_package(HDF5 REQUIRED COMPONENTS C)
-# HDF5 can have Threads::Threads target, otherwise undefined without Threads
-find_package(Threads QUIET)
-# use imported targets from HDF5_LIBRARIES or take the supplied library path
-# and turn it into an imported target if it is an hdf5 library
 set(HDF5_LIB_TARGETS)
-foreach(LIB IN LISTS HDF5_LIBRARIES)
-    if(TARGET ${LIB})
-        list(APPEND HDF5_LIB_TARGETS ${LIB})
-    else(TARGET ${LIB})
-        # name of library file with directory and extension stripped
-        get_filename_component(LIBNAME ${LIB} NAME_WE)
-        # strip leading lib (if it exists) to get target name
-        string(REGEX REPLACE "^lib(.*)" "\\1" TGT ${LIBNAME})
-        # exclude non-hdf5 libraries (libs that HDF5 linked against)
-        if(${TGT} MATCHES ".*hdf5.*")
-            # unknown library type so we don't have to find dll on windows
-            add_library(digital_rf::${TGT} UNKNOWN IMPORTED)
-            set_target_properties(digital_rf::${TGT} PROPERTIES
-                IMPORTED_LOCATION ${LIB}
-            )
-            if(HDF5_INCLUDE_DIRS)
-                set_property(TARGET digital_rf::${TGT} APPEND PROPERTY
-                    INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS}
+option(DRF_FORCE_INTREE_HDF5 "Force in-tree HDF5 build using static library" OFF)
+if(SKBUILD OR DRF_FORCE_INTREE_HDF5)
+    include(FetchContent)
+    FetchContent_Declare(
+        HDF5
+        URL https://support.hdfgroup.org/releases/hdf5/v1_14/v1_14_5/downloads/hdf5-1.14.5.tar.gz
+        URL_HASH SHA256=ec2e13c52e60f9a01491bb3158cb3778c985697131fc6a342262d32a26e58e44
+    )
+    FetchContent_MakeAvailable(HDF5)
+    # don't build all of the HDF5 targets by default
+    set_property(DIRECTORY ${HDF5_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL ON)
+    # use the static HDF5 library as the dependency when doing an skbuild build
+    list(APPEND HDF5_LIB_TARGETS hdf5-static)
+    # since we're using it, target needs to be installed in the export group
+    install(TARGETS hdf5-static
+        EXPORT libdigital_rfTargets
+    )
+else()
+    find_package(HDF5 REQUIRED COMPONENTS C)
+    # HDF5 can have Threads::Threads target, otherwise undefined without Threads
+    find_package(Threads QUIET)
+    # use imported targets from HDF5_LIBRARIES or take the supplied library path
+    # and turn it into an imported target if it is an hdf5 library
+    foreach(LIB IN LISTS HDF5_LIBRARIES)
+        if(TARGET ${LIB})
+            list(APPEND HDF5_LIB_TARGETS ${LIB})
+        else(TARGET ${LIB})
+            # name of library file with directory and extension stripped
+            get_filename_component(LIBNAME ${LIB} NAME_WE)
+            # strip leading lib (if it exists) to get target name
+            string(REGEX REPLACE "^lib(.*)" "\\1" TGT ${LIBNAME})
+            # exclude non-hdf5 libraries (libs that HDF5 linked against)
+            if(${TGT} MATCHES ".*hdf5.*")
+                # unknown library type so we don't have to find dll on windows
+                add_library(digital_rf::${TGT} UNKNOWN IMPORTED)
+                set_target_properties(digital_rf::${TGT} PROPERTIES
+                    IMPORTED_LOCATION ${LIB}
                 )
-            endif(HDF5_INCLUDE_DIRS)
-            if(HDF5_DEFINITIONS)
-                string(REGEX REPLACE "-D" " " HDF5_DEFINES ${HDF5_DEFINITIONS})
-                separate_arguments(HDF5_DEFINES UNIX_COMMAND "${HDF5_DEFINES}")
-                set_property(TARGET digital_rf::${TGT} APPEND PROPERTY
-                    INTERFACE_COMPILE_DEFINITIONS ${HDF5_DEFINES}
-                )
-            endif(HDF5_DEFINITIONS)
-            list(APPEND HDF5_LIB_TARGETS digital_rf::${TGT})
-        endif(${TGT} MATCHES ".*hdf5.*")
-    endif(TARGET ${LIB})
-endforeach(LIB)
+                if(HDF5_INCLUDE_DIRS)
+                    set_property(TARGET digital_rf::${TGT} APPEND PROPERTY
+                        INTERFACE_INCLUDE_DIRECTORIES ${HDF5_INCLUDE_DIRS}
+                    )
+                endif(HDF5_INCLUDE_DIRS)
+                if(HDF5_DEFINITIONS)
+                    string(REGEX REPLACE "-D" " " HDF5_DEFINES ${HDF5_DEFINITIONS})
+                    separate_arguments(HDF5_DEFINES UNIX_COMMAND "${HDF5_DEFINES}")
+                    set_property(TARGET digital_rf::${TGT} APPEND PROPERTY
+                        INTERFACE_COMPILE_DEFINITIONS ${HDF5_DEFINES}
+                    )
+                endif(HDF5_DEFINITIONS)
+                list(APPEND HDF5_LIB_TARGETS digital_rf::${TGT})
+            endif(${TGT} MATCHES ".*hdf5.*")
+        endif(TARGET ${LIB})
+    endforeach(LIB)
+endif(SKBUILD OR DRF_FORCE_INTREE_HDF5)
 
 # build/install libdigital_rf
 configure_file(include/digital_rf.h include/digital_rf.h COPYONLY)
@@ -105,18 +124,21 @@ set_target_properties(digital_rf PROPERTIES
 
 install(TARGETS digital_rf
     EXPORT libdigital_rfTargets
+    COMPONENT C
 )
 
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/include/digital_rf.h
     ${CMAKE_CURRENT_BINARY_DIR}/include/digital_rf_version.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/digital_rf
+    COMPONENT C
 )
 
 # build/install pkgconfig configuration files
 configure_file(lib/pkgconfig/digital_rf.pc.in lib/pkgconfig/digital_rf.pc @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/lib/pkgconfig/digital_rf.pc
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+    COMPONENT C
 )
 
 # add targets to the build-tree export set
@@ -145,12 +167,14 @@ set(ConfigPackageLocation ${CMAKE_INSTALL_LIBDIR}/cmake/libdigital_rf)
 install(EXPORT libdigital_rfTargets
     NAMESPACE digital_rf::
     DESTINATION ${ConfigPackageLocation}
+    COMPONENT C
 )
 install(
     FILES
         cmake/libdigital_rfConfig.cmake
         "${CMAKE_CURRENT_BINARY_DIR}/libdigital_rfConfigVersion.cmake"
     DESTINATION ${ConfigPackageLocation}
+    COMPONENT C
 )
 
 # examples, tests
