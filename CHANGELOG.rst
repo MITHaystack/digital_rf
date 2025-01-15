@@ -4,6 +4,37 @@ digital_rf Change Log
 
 .. current developments
 
+v2.6.10
+====================
+
+**Added:**
+
+* Building of Python package wheels using `cibuildwheel` has been added as a GitHub Actions workflow, making use of the change in build system (see below).
+
+**Changed:**
+
+* The build system has been updated to use pyproject.toml + scikit-build-core for the Python package, replacing the legacy setup.py + setuptools system of yore. As a result, the CMake build procedure has changed a bit, notably in that building a Python wheel using CMake is no longer supported. Use `python -m build` or an equivalent frontend from the source root to build Python wheels instead. The Python package can still be built and installed as before using CMake, just not as a wheel.
+* When reading Digital Metadata, convert numpy object arrays to a list for better interoperability (particularly with GNU Radio's PMT type). Also ensure that arrays of strings have the str type.
+
+**Removed:**
+
+* Python 2 and Python < 3.8 will no longer be supported, and the README and build system has been updated accordingly.
+* The dependency on `pytz` has been removed in favor of equivalent functionality now in the Python standard library.
+
+**Fixed:**
+
+* Replace deprecated use of Python datetime's `utcnow()` and `utcfromtimestamp()`.
+* Fix CMake so that digital_rf.dll actually gets installed on Windows! This makes the C library usable independent of the Python bindings.
+* Fixed `TypeError: unsupported operand type(s) for /: 'int' and 'numpy.longdouble'` issue with gr_digital_rf.digital_rf_channel_source by converting the `int` to a `numpy.uint64` before division.
+* Fixed aliased numpy function names for numpy 2.0 compatibility.
+* Updated to numpy 2.0's new definition for the copy keyword for np.array() by switching to np.asarray() [as suggested](https://numpy.org/devdocs/numpy_2_0_migration_guide.html#adapting-to-changes-in-the-copy-keyword).
+
+**Authors:**
+
+* Ryan Volz
+
+
+
 v2.6.9
 ====================
 
