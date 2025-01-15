@@ -105,14 +105,14 @@ else()
         NORMALIZE PLATLIB_IS_IN_PREFIX
     )
     if(NOT PLATLIB_IS_IN_PREFIX)
-        message(SEND_ERROR "Python DRF_INSTALL_PLATLIB (${DRF_INSTALL_PLATLIB}) is not relative or prefixed by CMAKE_INSTALL_PREFIX (${CMAKE_INSTALL_PREFIX}). Please set these variables accordingly.")
+        message(WARNING "Python DRF_INSTALL_PLATLIB (${DRF_INSTALL_PLATLIB}) is not relative or prefixed by CMAKE_INSTALL_PREFIX (${CMAKE_INSTALL_PREFIX}). This is unusual and might not be intended. Check and/or set these variables accordingly.")
     endif()
     cmake_path(IS_PREFIX
         CMAKE_INSTALL_PREFIX ${INSTALL_SCRIPTS_DIR}
         NORMALIZE SCRIPTS_IS_IN_PREFIX
     )
     if(NOT SCRIPTS_IS_IN_PREFIX)
-        message(SEND_ERROR "Python DRF_INSTALL_SCRIPTS (${DRF_INSTALL_SCRIPTS}) is not relative or prefixed by CMAKE_INSTALL_PREFIX (${CMAKE_INSTALL_PREFIX}). Please set these variables accordingly.")
+        message(WARNING "Python DRF_INSTALL_SCRIPTS (${DRF_INSTALL_SCRIPTS}) is not relative or prefixed by CMAKE_INSTALL_PREFIX (${CMAKE_INSTALL_PREFIX}). This is unusual and might not be intended. Check and/or set these variables accordingly.")
     endif()
 
     # check for Python build package, which is used to create/install valid
