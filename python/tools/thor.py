@@ -1092,7 +1092,7 @@ class Thor(object):
                         resampling_filter_taps=op.resampling_filter_taps[ko],
                         scaling=op.ch_scalings[ko],
                     ),
-                    **op.metadata
+                    **op.metadata,
                 ),
                 is_continuous=True,
                 compression_level=0,

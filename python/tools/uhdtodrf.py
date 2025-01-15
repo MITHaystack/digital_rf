@@ -1043,7 +1043,7 @@ class Recorder(object):
                     resampling_filter_taps=op.resampling_filter_taps[ko],
                     scaling=op.ch_scalings[ko],
                 ),
-                **op.metadata
+                **op.metadata,
             )
             # Metadata writer and write at first record sample
             mdata_path = os.path.join(cpath, "metadata")
