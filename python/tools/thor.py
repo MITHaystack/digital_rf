@@ -26,7 +26,6 @@ from textwrap import dedent, fill, TextWrapper
 import digital_rf as drf
 import gr_digital_rf as gr_drf
 import numpy as np
-import pytz
 from gnuradio import blocks
 from gnuradio import filter as grfilter
 from gnuradio import gr, uhd

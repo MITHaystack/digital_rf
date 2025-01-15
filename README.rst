@@ -84,7 +84,6 @@ python
   * packaging (``python-packaging``)
   * python 2.7 or 3.5+ (``python``)
   * python-dateutil (``python-dateutil``)
-  * pytz (``python-tz``)
   * six (``python-six``)
 
 matlab

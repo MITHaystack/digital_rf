@@ -25,7 +25,6 @@ from textwrap import dedent, fill, TextWrapper
 
 import digital_rf as drf
 import numpy as np
-import pytz
 import scipy.signal as sig
 from six.moves import queue
 import uhd

@@ -24,7 +24,6 @@ from textwrap import TextWrapper, dedent, fill
 
 import digital_rf as drf
 import numpy as np
-import pytz
 from gnuradio import analog, blocks, gr, uhd
 
 from six.moves import configparser

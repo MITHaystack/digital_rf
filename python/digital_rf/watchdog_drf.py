@@ -15,7 +15,6 @@ import re
 import sys
 import time
 
-import pytz
 from watchdog.events import (
     DirCreatedEvent,
     FileCreatedEvent,
@@ -93,12 +92,12 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
         # convert starttime and endtime to timedeltas for comparison
         if starttime is not None:
             if starttime.tzinfo is None:
-                starttime = pytz.utc.localize(starttime)
+                starttime = starttime.replace(tzinfo=datetime.timezone.utc)
             starttime = starttime - util.epoch
         self.starttime = starttime
         if endtime is not None:
             if endtime.tzinfo is None:
-                endtime = pytz.utc.localize(endtime)
+                endtime = endtime.replace(tzinfo=datetime.timezone.utc)
             endtime = endtime - util.epoch
         self.endtime = endtime
 

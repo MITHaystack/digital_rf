@@ -49,7 +49,6 @@ dependencies = [
   "numpy",
   "packaging",
   "python-dateutil",
-  "pytz",
   "six",
   "watchdog",
 ]

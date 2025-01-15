@@ -28,7 +28,6 @@ import traceback
 import dateutil.parser
 import ephem
 import numpy as np
-import pytz
 from digital_rf import DigitalMetadataWriter
 
 from six.moves import configparser
@@ -783,12 +782,18 @@ def ephemeris_passes(opt, st0, et0):
                     dtstop0 = dateutil.parser.parse(offset_set_time)
                     start0 = int(
                         (
-                            dtstart0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+                            dtstart0
+                            - datetime.datetime(
+                                1970, 1, 1, tzinfo=datetime.timezone.utc
+                            )
                         ).total_seconds()
                     )
                     stop0 = int(
                         (
-                            dtstop0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+                            dtstop0
+                            - datetime.datetime(
+                                1970, 1, 1, tzinfo=datetime.timezone.utc
+                            )
                         ).total_seconds()
                     )
 
@@ -995,7 +1000,9 @@ if __name__ == "__main__":
     else:
         dtst0 = dateutil.parser.parse(op.starttime)
         st0 = int(
-            (dtst0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)).total_seconds()
+            (
+                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+            ).total_seconds()
         )
 
         print("Start time: %s (%d)" % (dtst0.strftime("%a %b %d %H:%M:%S %Y"), st0))
@@ -1006,7 +1013,9 @@ if __name__ == "__main__":
     else:
         dtet0 = dateutil.parser.parse(op.endtime)
         et0 = int(
-            (dtet0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)).total_seconds()
+            (
+                dtet0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+            ).total_seconds()
         )
 
         print("End time: %s (%d)" % (dtet0.strftime("%a %b %d %H:%M:%S %Y"), et0))

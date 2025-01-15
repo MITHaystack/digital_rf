@@ -30,7 +30,6 @@ import matplotlib.gridspec
 import matplotlib.mlab
 import matplotlib.pyplot
 import numpy as np
-import pytz
 import scipy
 import scipy.signal
 
@@ -159,7 +158,7 @@ class DataPlotter:
             if self.control.start:
                 dtst0 = dateutil.parser.parse(self.control.start)
                 st0 = (
-                    dtst0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+                    dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
                 ).total_seconds()
                 st0 = int(st0 * sr)
             else:
@@ -168,7 +167,7 @@ class DataPlotter:
             if self.control.end:
                 dtst0 = dateutil.parser.parse(self.control.end)
                 et0 = (
-                    dtst0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+                    dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
                 ).total_seconds()
                 et0 = int(et0 * sr)
             else:

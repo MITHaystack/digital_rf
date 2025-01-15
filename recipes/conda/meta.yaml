@@ -44,7 +44,6 @@ requirements:
     - packaging
     - python
     - python-dateutil
-    - pytz
     - six
     - watchdog
 

@@ -22,7 +22,6 @@ from itertools import chain, cycle, islice, repeat
 from subprocess import call
 from textwrap import dedent, fill, TextWrapper
 import numpy as np
-import pytz
 
 import digital_rf as drf
 import gr_digital_rf as gr_drf

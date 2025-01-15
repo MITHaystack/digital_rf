@@ -15,8 +15,6 @@ import os
 import re
 import shutil
 
-import pytz
-
 from . import util
 
 __all__ = (
@@ -188,7 +186,7 @@ def _yield_matching_files(
                 hour=int(m.group("hour")),
                 minute=int(m.group("minute")),
                 second=int(m.group("second")),
-                tzinfo=pytz.utc,
+                tzinfo=datetime.timezone.utc,
             )
             time = dt - util.epoch
             dec_subdirs.append((time, d))
@@ -312,11 +310,11 @@ def ilsdrf(
     # convert starttime and endtime to timedeltas for comparison
     if starttime is not None:
         if starttime.tzinfo is None:
-            starttime = pytz.utc.localize(starttime)
+            starttime = starttime.replace(tzinfo=datetime.timezone.utc)
         starttime = starttime - util.epoch
     if endtime is not None:
         if endtime.tzinfo is None:
-            endtime = pytz.utc.localize(endtime)
+            endtime = endtime.replace(tzinfo=datetime.timezone.utc)
         endtime = endtime - util.epoch
 
     if include_drf_properties is None:
