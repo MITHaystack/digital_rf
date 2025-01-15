@@ -60,12 +60,11 @@ c
   * hdf5 >= 1.8 (``libhdf5-dev``)
 
 python
+  * build (``python3-build`` or ``pip install build``)
   * hdf5 >= 1.8 (``libhdf5-dev``)
   * mako (``python-mako``)
   * numpy (``python-numpy``)
-  * pkgconfig (``python-pkgconfig``)
   * python 3.8+ (``python-dev``)
-  * setuptools (``python-setuptools``)
 
 matlab
   * cmake >= 3.0 (``cmake``)
