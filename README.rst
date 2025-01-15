@@ -65,6 +65,8 @@ python
   * mako (``python-mako``)
   * numpy (``python-numpy``)
   * python 3.8+ (``python-dev``)
+  * scikit-build-core (``python3-scikit-build-core`` or ``pip install scikit-build-core``)
+  * setuptools-scm (``python3-setuptools-scm`` or ``pip install setuptools-scm``)
 
 matlab
   * cmake >= 3.0 (``cmake``)
