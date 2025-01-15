@@ -50,6 +50,9 @@ jobs:
           fetch-depth: 0
 
       - uses: pypa/cibuildwheel@v2.20
+        env:
+          # limited at least by availability of h5py, which skips pypy and musl
+          CIBW_SKIP: pp* *musllinux* *i686 *win32
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
