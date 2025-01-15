@@ -1,4 +1,4 @@
-#!python
+#!/usr/bin/env python
 # ----------------------------------------------------------------------------
 # Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
 # All rights reserved.
@@ -25,7 +25,6 @@ import sys
 import dateutil
 import digital_rf as drf
 import numpy as np
-import pytz
 import scipy
 import scipy.io.wavfile
 import scipy.signal
@@ -70,7 +69,7 @@ class SoundDRF(object):
         if self.control.start:
             dtst0 = dateutil.parser.parse(self.control.start)
             st0 = (
-                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
             ).total_seconds()
             st0 = int(st0 * sr)
         else:
@@ -79,7 +78,7 @@ class SoundDRF(object):
         if self.control.end:
             dtst0 = dateutil.parser.parse(self.control.end)
             et0 = (
-                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
             ).total_seconds()
             et0 = int(et0 * sr)
         else:

@@ -54,18 +54,19 @@ Build
 -----
 
 all
-  * cmake >= 3.0 (``cmake``)
+  * cmake >= 3.20 (``cmake``)
 
 c
   * hdf5 >= 1.8 (``libhdf5-dev``)
 
 python
+  * build (``python3-build`` or ``pip install build``)
   * hdf5 >= 1.8 (``libhdf5-dev``)
   * mako (``python-mako``)
   * numpy (``python-numpy``)
-  * pkgconfig (``python-pkgconfig``)
-  * python 2.7 or 3.5+ (``python-dev``)
-  * setuptools (``python-setuptools``)
+  * python 3.8+ (``python-dev``)
+  * scikit-build-core (``python3-scikit-build-core`` or ``pip install scikit-build-core``)
+  * setuptools-scm (``python3-setuptools-scm`` or ``pip install setuptools-scm``)
 
 matlab
   * cmake >= 3.0 (``cmake``)
@@ -82,9 +83,8 @@ python
   * hdf5 >= 1.8 (``libhdf5``)
   * numpy (``python-numpy``)
   * packaging (``python-packaging``)
-  * python 2.7 or 3.5+ (``python``)
+  * python 3.8+ (``python``)
   * python-dateutil (``python-dateutil``)
-  * pytz (``python-tz``)
   * six (``python-six``)
 
 matlab
@@ -110,11 +110,26 @@ python
 Installation
 ============
 
-If you're just getting started with Digital RF, we recommend using the Python package. The easiest way to install it is through PyPI_ with `pip`::
+If you're just getting started with Digital RF, we recommend using the Conda_ binary package. It is available in the `conda-forge <https://conda-forge.github.io/>`_ distribution of community-maintained packages.
+
+In an existing Conda environment, run the following to install ``digital_rf`` and its dependencies::
+
+    conda config --add channels conda-forge
+    conda config --set channel_priority strict
+    conda install digital_rf
+
+You may also want to install the ``gnuradio-core`` package in order to make use of ``gr_digital_rf``::
+
+    conda install gnuradio-core
+
+Using PyPI package (wheel)
+--------------------------
+
+Alternatively, you can most likely install Digital RF through PyPI_ with `pip` using a pre-built wheel::
 
     pip install digital_rf
 
-This will install the ``digital_rf`` and ``gr_digital_rf`` Python packages and GNU Radio Companion (GRC) blocks. If you're interested in the C library or development, see below for ways to install the full project package.
+This will install the ``digital_rf`` and ``gr_digital_rf`` Python packages and GNU Radio Companion (GRC) blocks. (If you're interested in the C library or development, see other installation methods for ways to install the full project package.)
 
 If you plan on using Digital RF with GNU Radio, make sure to run the `pip` command in the same Python environment that your GNU Radio installation uses so that GNU Radio can find the packages. Depending on your GNU Radio installation, it may be necessary to add the Digital RF blocks to your GRC blocks path by creating or editing the GRC configuration file
 
@@ -129,21 +144,6 @@ to contain::
     local_blocks_path = {PIP_PREFIX}/share/gnuradio/grc/blocks
 
 (replacing ``{PIP_PREFIX}`` with the pip installation prefix, "/usr/local" for example).
-
-Using Conda package
--------------------
-
-Alternatively, you can install digital_rf using our Conda_ binary package. It is available in the `conda-forge <https://conda-forge.github.io/>`_ distribution of community-maintained packages.
-
-In an existing Conda environment, run the following to install ``digital_rf`` and its dependencies::
-
-    conda config --add channels conda-forge
-    conda config --set channel_priority strict
-    conda install digital_rf
-
-You may also want to install the ``gnuradio-core`` package in order to make use of ``gr_digital_rf``::
-
-    conda install gnuradio-core
 
 Using MacPorts
 --------------
@@ -175,14 +175,15 @@ Build and install::
     make
     sudo make install
 
-CMake will attempt to find your Python installation in the usual places, preferring Python 3. If this fails or you need to specify a Python 2 installation (e.g. for GNU Radio older than version 3.8), specify a particular Python interpreter by adding ``-DPython_EXECUTABLE={PATH}`` (replacing ``{PATH}`` with the interpreter path) to the cmake command.
+CMake will attempt to find your Python installation in the usual places. If this fails, you can specify a particular Python interpreter by adding ``-DPython_EXECUTABLE={PATH}`` (replacing ``{PATH}`` with the interpreter path) to the cmake command.
 
 Finally, you may need to update the library cache so the newly-installed ``libdigital_rf`` is found::
 
     sudo ldconfig
 
-Note that it is also possible to build the different language libraries separately by following the CMake build procedure from within the `c`, `matlab`, and `python` directories.
+Note that it is also possible to build the different language libraries separately by following the CMake build procedure from within the `c` and `matlab` directories. The `python` package can be built and installed on its own using any Python build frontend compatible with `pyproject.toml`, e.g.::
 
+    python -m build
 
 The MATLAB toolbox is not created by default. If you have MATLAB R2016a or higher and want to create an installable toolbox package, run the following from the build directory::
 

@@ -1,107 +1,36 @@
-cmake_minimum_required(VERSION 3.0)
-cmake_policy(SET CMP0048 NEW)
-if(${CMAKE_VERSION} GREATER_EQUAL "3.15")
-    cmake_policy(SET CMP0094 NEW)
-endif(${CMAKE_VERSION} GREATER_EQUAL "3.15")
-
-# can't do binary dir == source dir because of file copying
-if(CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
-    message(FATAL_ERROR "Must use a build/binary directory different from the\
- source directory.")
-endif(CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
-
-if(PYTHON_EXECUTABLE)
-    # handle setting python executable by old variable name
-    set(Python_EXECUTABLE ${PYTHON_EXECUTABLE})
-endif(PYTHON_EXECUTABLE)
-if(Python_EXECUTABLE)
-    message(STATUS "User set python executable: ${Python_EXECUTABLE}")
-else()
-    find_package(Python QUIET MODULE)
-    if(Python_FOUND)
-        message(STATUS "Found Python: ${Python_EXECUTABLE} (found version \"${Python_VERSION}\")")
-    else()
-        # fall back to older FindPythonInterp CMake module
-        find_package(PythonInterp REQUIRED)
-        set(Python_EXECUTABLE ${PYTHON_EXECUTABLE})
-    endif(Python_FOUND)
-endif(Python_EXECUTABLE)
-
-set(digital_rf_VERSION 2.6.9)
-project(digital_rf LANGUAGES C VERSION ${digital_rf_VERSION})
-
-include(GNUInstallDirs)
-
-# variables to allow for different install locations for python package
-set(DRF_INSTALL_PREFIX_PYTHON CACHE PATH
-    "Installation prefix for python package"
-)
-set(DRF_DATA_PREFIX_PYTHON CACHE PATH
-    "Data installation prefix for python package"
-)
-set(DRF_SCRIPT_PREFIX_PYTHON CACHE PATH
-    "Script installation prefix for python package"
+find_package(
+    Python
+    COMPONENTS Interpreter Development.Module NumPy
+    REQUIRED
 )
 
-# get compiler settings for digital_rf interface libraries (i.e. HDF5)
-# to pass to setup.py
-find_package(HDF5 REQUIRED COMPONENTS C)
-# need to set HDF5_LIBRARY_DIRS ourselves because FindHDF5 dropped it
-foreach(LIB IN LISTS HDF5_LIBRARIES)
-    if(TARGET ${LIB})
-        list(APPEND HDF5_LIBRARY_DIRS $<TARGET_LINKER_FILE_DIR:${LIB}>)
-    else(TARGET ${LIB})
-        # name of library file with directory and extension stripped
-        get_filename_component(LIBDIR ${LIB} DIRECTORY)
-        list(APPEND HDF5_LIBRARY_DIRS ${LIBDIR})
-    endif(TARGET ${LIB})
-endforeach(LIB)
-# make the lists still be semicolon-separated after generator expansion
-string(REGEX REPLACE ";" "\\\\;" HDF5_LIBRARY_DIRS "${HDF5_LIBRARY_DIRS}")
-# no matter what the find_package sets, we only care about the "hdf5" library
-set(HDF5_LIBRARIES hdf5)
-# make list out of space-separated HDF5_DEFINITIONS
-separate_arguments(HDF5_DEFINE UNIX_COMMAND "${HDF5_DEFINITIONS}")
-
-# copy files from root directory that we want in the python package
-set(ROOT_SRCS AUTHORS CHANGELOG.rst LICENSE)
-file(GLOB_RECURSE DATA_FILES
-    RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/.." "../data/*"
-)
-foreach(SRCFILE ${ROOT_SRCS} ${DATA_FILES})
-    configure_file(../${SRCFILE} ${SRCFILE} COPYONLY)
-endforeach(SRCFILE)
-
-# copy C source files from libdigital_rf into build directory
-set(C_SRCS
-    include/digital_rf.h
-    include/digital_rf_version.h
-    include/windows/inttypes.h
-    include/windows/stdint.h
-    include/windows/wincompat.h
-    lib/rf_write_hdf5.c
-)
-foreach(SRCFILE ${C_SRCS})
-    configure_file(../c/${SRCFILE} ${SRCFILE} COPYONLY)
-endforeach(SRCFILE)
-
-# get list of python source files by generating egg info
-set(EGG_INFO_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/temp_egg/${PROJECT_NAME}.egg-info)
-file(MAKE_DIRECTORY ${EGG_INFO_OUTPUT})
+# check for mako, needed to create gr_digital_rf source/sink blocks from templates
 execute_process(
-    COMMAND ${Python_EXECUTABLE} setup.py -q
-        egg_info -e ${CMAKE_CURRENT_BINARY_DIR}/temp_egg
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    ERROR_QUIET
+    COMMAND ${Python_EXECUTABLE} -c "import mako"
+    RESULT_VARIABLE MAKO_CHECK_RESULT
+    OUTPUT_QUIET
 )
-file(READ ${EGG_INFO_OUTPUT}/SOURCES.txt PYSOURCES)
-string(REGEX REPLACE ";" "\\\\;" PYSOURCES "${PYSOURCES}")
-string(REGEX REPLACE "\n" ";" PYSOURCES "${PYSOURCES}")
+if(MAKO_CHECK_RESULT EQUAL 0)
+    message(STATUS "Python checking for `mako` - found")
+    set(MAKO_FOUND TRUE)
+else()
+    message(STATUS "Python checking for `mako` - not found")
+    set(MAKO_FOUND FALSE)
+endif()
+if(NOT MAKO_FOUND)
+    message(SEND_ERROR "Could not find required build dependency: Python package `mako`")
+endif()
 
-# copy python source files to build directory so we can run setup.py from there
-foreach(SRCFILE ${PYSOURCES})
-    configure_file(${SRCFILE} ${SRCFILE} COPYONLY)
-endforeach(SRCFILE)
+add_custom_target(digital_rf_python ALL)
+if(NOT TARGET build)
+    add_custom_target(build)
+endif(NOT TARGET build)
+
+python_add_library(digital_rf_python_module MODULE lib/py_rf_write_hdf5.c WITH_SOABI)
+target_link_libraries(digital_rf_python_module PUBLIC digital_rf PRIVATE Python::NumPy)
+set_target_properties(digital_rf_python_module PROPERTIES OUTPUT_NAME _py_rf_write_hdf5)
+add_dependencies(digital_rf_python digital_rf_python_module)
+add_dependencies(build digital_rf_python_module)
 
 # build requires generating some of the gnuradio-companion blocks
 macro(gen_block _generator _tmpl _out)
@@ -135,89 +64,127 @@ gen_block(
     grc/gr_digital_rf_digital_rf_source.block.yml.tmpl
     grc/gr_digital_rf_digital_rf_source.block.yml
 )
-add_custom_target(gr_digital_rf_grc_generated_blocks ALL
+add_custom_target(gr_digital_rf_grc_generated_blocks
     DEPENDS ${GENERATED_BLOCKS}
 )
+add_dependencies(digital_rf_python gr_digital_rf_grc_generated_blocks)
 
-add_custom_target(digital_rf_source)
-add_dependencies(digital_rf_source gr_digital_rf_grc_generated_blocks)
-if(NOT TARGET source)
-    add_custom_target(source)
-endif(NOT TARGET source)
-add_dependencies(source digital_rf_source)
+if(SKBUILD)
+    # skbuild should be set up to have CMAKE_INSTALL_PREFIX point to the "DATA"
+    # directory in the built wheel, so we need the installation directories for
+    # the extension module and scripts which are separate from that root
+    set(INSTALL_PLATLIB_DIR ${SKBUILD_PLATLIB_DIR})
+    set(INSTALL_SCRIPTS_DIR ${SKBUILD_SCRIPTS_DIR})
+else()
+    # set the installation directories when skbuild is not used
+    if(WIN32)
+        set(_SCRIPTS_DIR ${CMAKE_INSTALL_PREFIX}/Scripts)
+    else()
+        set(_SCRIPTS_DIR ${CMAKE_INSTALL_BINDIR})
+    endif()
+    set(DRF_INSTALL_PLATLIB ${Python_SITEARCH} CACHE STRING
+        "Python platlib (site-packages) path to use for installation"
+    )
+    set(DRF_INSTALL_SCRIPTS ${_SCRIPTS_DIR} CACHE STRING
+        "Python scripts (bin) path to use for installation"
+    )
+    cmake_path(
+        ABSOLUTE_PATH DRF_INSTALL_PLATLIB
+        BASE_DIRECTORY ${CMAKE_INSTALL_PREFIX}
+        NORMALIZE
+        OUTPUT_VARIABLE INSTALL_PLATLIB_DIR
+    )
+    cmake_path(
+        ABSOLUTE_PATH DRF_INSTALL_SCRIPTS
+        BASE_DIRECTORY ${CMAKE_INSTALL_PREFIX}
+        NORMALIZE
+        OUTPUT_VARIABLE INSTALL_SCRIPTS_DIR
+    )
+    cmake_path(IS_PREFIX
+        CMAKE_INSTALL_PREFIX ${INSTALL_PLATLIB_DIR}
+        NORMALIZE PLATLIB_IS_IN_PREFIX
+    )
+    if(NOT PLATLIB_IS_IN_PREFIX)
+        message(WARNING "Python DRF_INSTALL_PLATLIB (${DRF_INSTALL_PLATLIB}) is not relative or prefixed by CMAKE_INSTALL_PREFIX (${CMAKE_INSTALL_PREFIX}). This is unusual and might not be intended. Check and/or set these variables accordingly.")
+    endif()
+    cmake_path(IS_PREFIX
+        CMAKE_INSTALL_PREFIX ${INSTALL_SCRIPTS_DIR}
+        NORMALIZE SCRIPTS_IS_IN_PREFIX
+    )
+    if(NOT SCRIPTS_IS_IN_PREFIX)
+        message(WARNING "Python DRF_INSTALL_SCRIPTS (${DRF_INSTALL_SCRIPTS}) is not relative or prefixed by CMAKE_INSTALL_PREFIX (${CMAKE_INSTALL_PREFIX}). This is unusual and might not be intended. Check and/or set these variables accordingly.")
+    endif()
 
-add_custom_target(digital_rf_sdist
-    COMMAND ${Python_EXECUTABLE} setup.py sdist -d ${CMAKE_BINARY_DIR}/dist
-    DEPENDS ${PYSOURCES}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-add_dependencies(digital_rf_sdist digital_rf_source)
-if(NOT TARGET sdist)
-    add_custom_target(sdist)
-endif(NOT TARGET sdist)
-add_dependencies(sdist digital_rf_sdist)
+    # check for Python build package, which is used to create/install valid
+    # metadata for the Python package
+    execute_process(
+        COMMAND ${Python_EXECUTABLE} -c "import build"
+        RESULT_VARIABLE PYTHON_BUILD_CHECK_RESULT
+        OUTPUT_QUIET
+    )
+    if(PYTHON_BUILD_CHECK_RESULT EQUAL 0)
+        message(STATUS "Python checking for `build` - found")
+        set(PYTHON_BUILD_FOUND TRUE)
+    else()
+        message(STATUS "Python checking for `build` - not found")
+        set(PYTHON_BUILD_FOUND FALSE)
+    endif()
+    if(NOT PYTHON_BUILD_FOUND)
+        message(SEND_ERROR "Could not find required build dependency: Python package `build`")
+    endif()
 
-# build and install python package with setup.py
-set(PYBUILD_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/build)
-add_custom_command(
-    OUTPUT ${PYBUILD_OUTPUT}
-    COMMAND ${CMAKE_COMMAND} -E env HDF5_INCLUDE_DIRS="${HDF5_INCLUDE_DIRS}"
-        HDF5_LIBRARY_DIRS="${HDF5_LIBRARY_DIRS}"
-        HDF5_LIBRARIES="${HDF5_LIBRARIES}"
-        HDF5_DEFINE="${HDF5_DEFINE}"
-        ${Python_EXECUTABLE} setup.py build
-    COMMAND ${Python_EXECUTABLE} setup.py egg_info
-    COMMAND ${CMAKE_COMMAND} -E touch ${PYBUILD_OUTPUT}
-    DEPENDS ${PYSOURCES}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-add_custom_target(digital_rf_python ALL
-    DEPENDS ${PYBUILD_OUTPUT}
-)
-add_dependencies(digital_rf_python digital_rf_source)
-if(NOT TARGET build)
-    add_custom_target(build)
-endif(NOT TARGET build)
-add_dependencies(build digital_rf_python)
-add_custom_target(digital_rf_wheel
-    COMMAND ${Python_EXECUTABLE} setup.py bdist_wheel -d ${CMAKE_BINARY_DIR}/dist
-    DEPENDS ${PYBUILD_OUTPUT}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-if(NOT TARGET wheel)
-    add_custom_target(wheel)
-endif(NOT TARGET wheel)
-add_dependencies(wheel digital_rf_wheel)
-# make sure paths on Windows use a double backslash in order to survive
-# setup.py (distutils) parsing when used later
-if(WIN32)
-    macro(NORMALIZE_PATH PATHVARNAME)
-        file(TO_NATIVE_PATH "${${PATHVARNAME}}" ${PATHVARNAME})
-        string(REPLACE "\\" "\\\\" ${PATHVARNAME} "${${PATHVARNAME}}")
-    endmacro()
-    NORMALIZE_PATH(DRF_INSTALL_PREFIX_PYTHON)
-    NORMALIZE_PATH(DRF_DATA_PREFIX_PYTHON)
-    NORMALIZE_PATH(DRF_SCRIPT_PREFIX_PYTHON)
-endif(WIN32)
-file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/drf_install_python.cmake
-    CONTENT "execute_process(COMMAND ${Python_EXECUTABLE} setup.py install\
-$<$<BOOL:${DRF_INSTALL_PREFIX_PYTHON}>: --prefix=${DRF_INSTALL_PREFIX_PYTHON}>\
-$<$<BOOL:${DRF_DATA_PREFIX_PYTHON}>: --install-data=${DRF_DATA_PREFIX_PYTHON}>\
-$<$<BOOL:${DRF_SCRIPT_PREFIX_PYTHON}>: --install-scripts=${DRF_SCRIPT_PREFIX_PYTHON}>\
- --root=\$ENV{DESTDIR}/\
- --single-version-externally-managed\
- --record=${CMAKE_CURRENT_BINARY_DIR}/install_${PROJECT_NAME}_manifest.txt\
- WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})\
-")
-install(SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/drf_install_python.cmake)
+    # create the Python package metadata directory using the `build` frontend
+    set(DRF_DIST_INFO_DIR_NAME digital_rf-${digital_rf_VERSION}.dist-info)
+    set(DIST_INFO_ARTIFACT_FILE ${CMAKE_CURRENT_BINARY_DIR}/dist-info-created)
+    configure_file(
+        ${PROJECT_SOURCE_DIR}/cmake/create_metadata_dir.py.in
+        ${CMAKE_CURRENT_BINARY_DIR}/create_metadata_dir.py
+    )
+    add_custom_command(
+        OUTPUT ${DIST_INFO_ARTIFACT_FILE}
+        COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/create_metadata_dir.py --build
+        DEPENDS ${PROJECT_SOURCE_DIR}/pyproject.toml
+            ${PROJECT_SOURCE_DIR}/cmake/create_metadata_dir.py.in
+    )
+    add_custom_target(digital_rf_python_package_metadata
+        DEPENDS ${DIST_INFO_ARTIFACT_FILE}
+    )
+    add_dependencies(digital_rf_python digital_rf_python_package_metadata)
 
-# uninstall target
-configure_file(
-    ../cmake/cmake_uninstall.cmake.in
-    cmake_uninstall.cmake
-    IMMEDIATE @ONLY
+    install(
+        CODE "execute_process(COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/create_metadata_dir.py --install)"
+        COMPONENT python
+    )
+
+    # skbuild installs the pure python packages itself, but without it we
+    # need to do that here
+    install(
+        DIRECTORY digital_rf gr_digital_rf
+        DESTINATION ${INSTALL_PLATLIB_DIR}
+        COMPONENT python
+    )
+endif(SKBUILD)
+
+
+install(TARGETS digital_rf_python_module DESTINATION ${INSTALL_PLATLIB_DIR}/digital_rf COMPONENT python)
+
+install(
+    FILES ${GENERATED_BLOCKS}
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/gnuradio/grc/blocks
+    COMPONENT python
 )
 
-add_custom_target(digital_rf_uninstall
-    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake
+install(
+    DIRECTORY grc/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/gnuradio/grc/blocks
+    COMPONENT python
+    FILES_MATCHING PATTERN "*.yml" PATTERN "*.xml"
+)
+
+install(
+    DIRECTORY tools/
+    DESTINATION ${INSTALL_SCRIPTS_DIR}
+    FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+    COMPONENT python
+    FILES_MATCHING PATTERN "*.py"
 )

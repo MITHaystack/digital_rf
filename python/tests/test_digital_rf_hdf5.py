@@ -336,13 +336,13 @@ def data(bounds, data_block_slices, dtype, num_subchannels):
 
     # start off with data array containing its appropriate fill value
     if np.issubdtype(dtype, np.inexact):
-        fill_value = np.nan * np.ones(1, dtype=dtype)[0]
+        fill_value = np.nan
     elif dtype.names is not None:
         fill_value = np.empty(1, dtype=dtype)[0]
         fill_value["r"] = np.iinfo(dtype["r"]).min
         fill_value["i"] = np.iinfo(dtype["i"]).min
     else:
-        fill_value = np.iinfo(dtype).min * np.ones(1, dtype=dtype)[0]
+        fill_value = np.iinfo(dtype).min
     data = np.full(shape, fill_value, dtype=dtype)
 
     rdata = generate_rf_data(shape, dtype, 0)

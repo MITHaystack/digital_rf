@@ -35,10 +35,7 @@ import six
 
 # local imports
 from . import _py_rf_write_hdf5, digital_metadata, list_drf
-from ._version import get_versions
-
-__version__ = get_versions()["version"]
-del get_versions
+from ._version import __version__, __version_tuple__
 
 __all__ = (
     "get_unix_time",
@@ -1668,7 +1665,9 @@ class DigitalRFReader(object):
             int(end_sub_ts + subdir_cadence_seconds),
             subdir_cadence_seconds,
         ):
-            sub_datetime = datetime.datetime.utcfromtimestamp(sub_ts)
+            sub_datetime = datetime.datetime.fromtimestamp(
+                sub_ts, tz=datetime.timezone.utc
+            )
             subdir = sub_datetime.strftime("%Y-%m-%dT%H-%M-%S")
             # create numpy array of all file TS in subdir
             file_msts_in_subdir = np.arange(

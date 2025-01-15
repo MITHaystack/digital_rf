@@ -5,7 +5,7 @@ MACOSX_SDK_VERSION:
 c_compiler:
 - clang
 c_compiler_version:
-- '16'
+- '18'
 c_stdlib:
 - macosx_deployment_target
 c_stdlib_version:
@@ -15,19 +15,19 @@ channel_sources:
 channel_targets:
 - ryanvolz main
 gnuradio_core:
-- 3.10.10
+- 3.10.11
 hdf5:
 - 1.14.3
 macos_machine:
 - arm64-apple-darwin20.0.0
 numpy:
-- '1.26'
+- '2.0'
 pin_run_as_build:
   python:
     min_pin: x.x
     max_pin: x.x
 python:
-- 3.12.* *_cpython
+- 3.9.* *_cpython
 target_platform:
 - osx-arm64
 zip_keys:

@@ -16,9 +16,9 @@ jobs:
       run: |
         pip install flake8
         # stop the build if there are Python syntax errors or undefined names
-        flake8 python --config python/setup.cfg --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 python --ignore C812,C815,D101,E203,N803,N806,W503 --max-line-length 88 --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings.
-        flake8 python --config python/setup.cfg --count --exit-zero --max-complexity=10 --statistics
+        flake8 python --ignore C812,C815,D101,E203,N803,N806,W503 --max-line-length 88 --count --exit-zero --max-complexity=10 --statistics
     - name: Check formatting with black
       run: |
         pip install black

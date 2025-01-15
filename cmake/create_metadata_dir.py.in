@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+
+import argparse
+import pathlib
+import shutil
+
+import build
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--build", action="store_true")
+parser.add_argument("--install", action="store_true")
+args = parser.parse_args()
+
+source_dir = pathlib.Path('${PROJECT_SOURCE_DIR}')
+output_dir = pathlib.Path('${CMAKE_CURRENT_BINARY_DIR}')
+install_dir = pathlib.Path('${INSTALL_PLATLIB_DIR}')
+build_artifact = output_dir / "dist-info-created"
+
+if args.build and not build_artifact.exists():
+    builder = build.ProjectBuilder(source_dir)
+    try:
+        distinfo_dir = builder.prepare('wheel', output_dir)
+    except build.BuildBackendException:
+        # create isolated env since dependencies are not already met
+        with build.env.DefaultIsolatedEnv(installer=build.env.Installer) as env:
+            builder = build.ProjectBuilder.from_isolated_env(env, source_dir)
+            env.install(builder.build_system_requires)
+            env.install(builder.get_requires_for_build('wheel'))
+            distinfo_dir = builder.prepare('wheel', output_dir)
+
+    with open(build_artifact, "w") as f:
+        f.write(str(distinfo_dir))
+
+if args.install:
+    with open(build_artifact, "r") as f:
+        distinfo_dir = pathlib.Path(f.read())
+    shutil.copytree(
+        distinfo_dir,
+        install_dir / distinfo_dir.name,
+        dirs_exist_ok=True,
+    )

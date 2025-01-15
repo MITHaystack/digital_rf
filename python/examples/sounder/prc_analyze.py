@@ -258,9 +258,9 @@ if __name__ == "__main__":
 
             plt.colorbar()
             plt.title(
-                datetime.datetime.utcfromtimestamp(idx / sr).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                )
+                datetime.datetime.fromtimestamp(
+                    idx / sr, tz=datetime.timezone.utc
+                ).strftime("%Y-%m-%d %H:%M:%S")
             )
             plt.savefig(
                 os.path.join(

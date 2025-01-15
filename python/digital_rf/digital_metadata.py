@@ -39,15 +39,12 @@ from six.moves import urllib, zip
 
 # local imports
 from . import list_drf
-from ._version import get_versions
+from ._version import __version__, __version_tuple__
 
 try:
     import pandas
 except ImportError:
     pass
-
-__version__ = get_versions()["version"]
-del get_versions
 
 __all__ = ("DigitalMetadataReader", "DigitalMetadataWriter")
 
@@ -348,7 +345,9 @@ class DigitalMetadataWriter(object):
             start_sub_ts = (
                 file_ts // self._subdir_cadence_secs
             ) * self._subdir_cadence_secs
-            sub_dt = datetime.datetime.utcfromtimestamp(start_sub_ts)
+            sub_dt = datetime.datetime.fromtimestamp(
+                start_sub_ts, tz=datetime.timezone.utc
+            )
             subdir = os.path.join(
                 self._metadata_dir, sub_dt.strftime("%Y-%m-%dT%H-%M-%S")
             )
@@ -1039,7 +1038,9 @@ class DigitalMetadataReader(object):
             end_sub_ts + self._subdir_cadence_secs,
             self._subdir_cadence_secs,
         ):
-            sub_datetime = datetime.datetime.utcfromtimestamp(sub_ts)
+            sub_datetime = datetime.datetime.fromtimestamp(
+                sub_ts, tz=datetime.timezone.utc
+            )
             subdir = sub_datetime.strftime("%Y-%m-%dT%H-%M-%S")
             # create numpy array of all file TS in subdir
             file_ts_in_subdir = np.arange(

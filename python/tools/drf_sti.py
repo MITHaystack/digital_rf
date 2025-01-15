@@ -1,4 +1,4 @@
-#!python
+#!/usr/bin/env python
 # ----------------------------------------------------------------------------
 # Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
 # All rights reserved.
@@ -23,7 +23,6 @@ import matplotlib.gridspec
 import matplotlib.mlab
 import matplotlib.pyplot
 import numpy as np
-import pytz
 import scipy
 import scipy.signal
 
@@ -89,15 +88,16 @@ class DataPlotter(object):
         self.sr = self.dio.get_properties(self.channels[0])["samples_per_second"]
 
         self.bounds = self.dio.get_bounds(self.channels[0])
-        self.dt_start = datetime.datetime.utcfromtimestamp(
-            int(self.bounds[0] / self.sr)
+        self.dt_start = datetime.datetime.fromtimestamp(
+            int(self.bounds[0] / self.sr),
+            tz=datetime.timezone.utc,
         )
-        self.dt_stop = datetime.datetime.utcfromtimestamp(int(self.bounds[1] / self.sr))
+        self.dt_stop = datetime.datetime.fromtimestamp(
+            int(self.bounds[1] / self.sr), tz=datetime.timezone.utc
+        )
 
         print(
-            "bound times {0} to {1} UTC".format(
-                self.dt_start.utcnow().isoformat(), self.dt_stop.utcnow().isoformat()
-            )
+            f"bound times {self.dt_start.isoformat()} to {self.dt_stop.isoformat()} UTC"
         )
 
         if self.opt.verbose:
@@ -148,7 +148,7 @@ class DataPlotter(object):
         if self.opt.start:
             dtst0 = dateutil.parser.parse(self.opt.start)
             st0 = (
-                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
             ).total_seconds()
             st0 = int(st0 * self.sr)
         else:
@@ -157,7 +157,7 @@ class DataPlotter(object):
         if self.opt.end:
             dtst0 = dateutil.parser.parse(self.opt.end)
             et0 = (
-                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+                dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
             ).total_seconds()
             et0 = int(et0 * self.sr)
         else:

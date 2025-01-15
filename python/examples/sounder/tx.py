@@ -24,7 +24,6 @@ from textwrap import TextWrapper, dedent, fill
 
 import digital_rf as drf
 import numpy as np
-import pytz
 from gnuradio import analog, blocks, gr, uhd
 
 from six.moves import configparser
@@ -551,8 +550,7 @@ class Tx(object):
         st = drf.util.parse_identifier_to_time(starttime)
         if st is not None:
             # find next suitable start time by cycle repeat period
-            now = datetime.utcnow()
-            now = now.replace(tzinfo=pytz.utc)
+            now = datetime.now(tz=datetime.timezone.utc)
             soon = now + timedelta(seconds=SETUP_TIME)
             diff = max(soon - st, timedelta(0)).total_seconds()
             periods_until_next = (diff - 1) // period + 1
@@ -572,7 +570,10 @@ class Tx(object):
 
             if (
                 et
-                < (pytz.utc.localize(datetime.utcnow()) + timedelta(seconds=SETUP_TIME))
+                < (
+                    datetime.now(tz=datetime.timezone.utc)
+                    + timedelta(seconds=SETUP_TIME)
+                )
             ) or (st is not None and et <= st):
                 raise ValueError("End time is before launch time!")
 
@@ -587,9 +588,10 @@ class Tx(object):
 
         # wait for the start time if it is not past
         while (st is not None) and (
-            (st - pytz.utc.localize(datetime.utcnow())) > timedelta(seconds=SETUP_TIME)
+            (st - datetime.now(tz=datetime.timezone.utc))
+            > timedelta(seconds=SETUP_TIME)
         ):
-            ttl = int((st - pytz.utc.localize(datetime.utcnow())).total_seconds())
+            ttl = int((st - datetime.now(tz=datetime.timezone.utc)).total_seconds())
             if (ttl % 10) == 0:
                 print("Standby {0} s remaining...".format(ttl))
                 sys.stdout.flush()
@@ -626,7 +628,7 @@ class Tx(object):
         if st is not None:
             lt = st
         else:
-            now = pytz.utc.localize(datetime.utcnow())
+            now = datetime.now(tz=datetime.timezone.utc)
             # launch on integer second by default for convenience  (ceil + 1)
             lt = now.replace(microsecond=0) + timedelta(seconds=2)
         ltts = (lt - drf.util.epoch).total_seconds()
@@ -662,7 +664,7 @@ class Tx(object):
         # start the flowgraph once we are near the launch time
         # (start too soon and device buffers might not yet be flushed)
         # (start too late and device might not be able to start in time)
-        while (lt - pytz.utc.localize(datetime.utcnow())) > timedelta(seconds=1.2):
+        while (lt - datetime.now(tz=datetime.timezone.utc)) > timedelta(seconds=1.2):
             time.sleep(0.1)
         fg.start()
 
@@ -674,7 +676,9 @@ class Tx(object):
                 fg.wait()
             else:
                 # sleep until end time nears
-                while pytz.utc.localize(datetime.utcnow()) < et - timedelta(seconds=2):
+                while datetime.now(tz=datetime.timezone.utc) < et - timedelta(
+                    seconds=2
+                ):
                     time.sleep(1)
                 else:
                     # issue stream stop command at end time

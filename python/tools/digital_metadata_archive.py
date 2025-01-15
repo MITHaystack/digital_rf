@@ -1,4 +1,4 @@
-#!python
+#!/usr/bin/env python
 # ----------------------------------------------------------------------------
 # Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
 # All rights reserved.
@@ -138,7 +138,9 @@ class archive(object):
             end_sub_ts + self._subdir_cadence_secs,
             self._subdir_cadence_secs,
         ):
-            sub_datetime = datetime.datetime.utcfromtimestamp(sub_ts)
+            sub_datetime = datetime.datetime.fromtimestamp(
+                sub_ts, tz=datetime.timezone.utc
+            )
             subdir = sub_datetime.strftime("%Y-%m-%dT%H-%M-%S")
             # create numpy array of all file TS in subdir
             file_ts_in_subdir = np.arange(

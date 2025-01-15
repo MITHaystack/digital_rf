@@ -24,27 +24,30 @@ requirements:
   build:
     - {{ compiler('c') }}
     - {{ stdlib('c') }}
-    - cmake >=3.15
+    - cmake >=3.20
     - ninja
     # cross-compilation dependencies
     - python                                 # [build_platform != target_platform]
     - cross-python_{{ target_platform }}     # [build_platform != target_platform]
+    - python-build                           # [build_platform != target_platform]
     - numpy                                  # [build_platform != target_platform]
+    - numpy >=2.0                            # [build_platform != target_platform]
 
   host:
     - hdf5
     - mako
     - numpy
-    - pkgconfig
+    - numpy >=2.0
     - python
-    - setuptools
+    - python-build
+    - scikit-build-core
+    - setuptools-scm
 
   run:
     - h5py
     - packaging
     - python
     - python-dateutil
-    - pytz
     - six
     - watchdog
 

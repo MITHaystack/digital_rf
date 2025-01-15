@@ -14,7 +14,6 @@ import datetime
 
 import dateutil.parser
 import numpy as np
-import pytz
 
 import six
 
@@ -29,7 +28,7 @@ __all__ = (
 )
 
 
-epoch = datetime.datetime(1970, 1, 1, tzinfo=pytz.utc)
+epoch = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
 
 
 def time_to_sample(time, samples_per_second):
@@ -58,7 +57,7 @@ def time_to_sample(time, samples_per_second):
     if isinstance(time, datetime.datetime):
         if time.tzinfo is None:
             # assume UTC if timezone was not specified
-            time = pytz.utc.localize(time)
+            time = time.replace(tzinfo=datetime.timezone.utc)
         td = time - epoch
         tsec = int(td.total_seconds())
         tfrac = 1e-6 * td.microseconds
@@ -138,7 +137,7 @@ def datetime_to_timestamp(dt):
     """
     if dt.tzinfo is None:
         # assume UTC if timezone was not specified
-        dt = pytz.utc.localize(dt)
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
     return (dt - epoch).total_seconds()
 
 
@@ -195,7 +194,7 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
                     '"+" identifier must be followed by an integer or float.'
                 )
             if iden.lower().startswith("now"):
-                dt = pytz.utc.localize(datetime.datetime.utcnow())
+                dt = datetime.datetime.now(tz=datetime.timezone.utc)
                 if iden.lower().endswith("ish"):
                     dt = dt.replace(microsecond=0) + datetime.timedelta(seconds=1)
                 iden = dt
@@ -273,7 +272,7 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
                     '"+" identifier must be followed by an integer or float.'
                 )
             if iden.lower().startswith("now"):
-                dt = pytz.utc.localize(datetime.datetime.utcnow())
+                dt = datetime.datetime.now(tz=datetime.timezone.utc)
                 if iden.lower().endswith("ish"):
                     dt = dt.replace(microsecond=0) + datetime.timedelta(seconds=1)
             else:
@@ -281,7 +280,7 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
                 dt = dateutil.parser.parse(iden)
                 if dt.tzinfo is None:
                     # assume UTC if timezone was not specified in the string
-                    dt = pytz.utc.localize(dt)
+                    dt = dt.replace(tzinfo=datetime.timezone.utc)
             return dt
 
     if isinstance(iden, float) or samples_per_second is None:

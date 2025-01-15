@@ -15,7 +15,6 @@ import re
 import sys
 import time
 
-import pytz
 from watchdog.events import (
     DirCreatedEvent,
     FileCreatedEvent,
@@ -93,12 +92,12 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
         # convert starttime and endtime to timedeltas for comparison
         if starttime is not None:
             if starttime.tzinfo is None:
-                starttime = pytz.utc.localize(starttime)
+                starttime = starttime.replace(tzinfo=datetime.timezone.utc)
             starttime = starttime - util.epoch
         self.starttime = starttime
         if endtime is not None:
             if endtime.tzinfo is None:
-                endtime = pytz.utc.localize(endtime)
+                endtime = endtime.replace(tzinfo=datetime.timezone.utc)
             endtime = endtime - util.epoch
         self.endtime = endtime
 
@@ -397,7 +396,7 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
 
     def start(self):
         """Start watching and enable handlers."""
-        now = datetime.datetime.utcnow().replace(microsecond=0)
+        now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
         msg = "{0} | Starting watchdog observer(s)."
         print(msg.format(now))
         sys.stdout.flush()
@@ -505,23 +504,23 @@ def _run_watch(args):
             super(DigitalRFPrint, self).__init__(**kwargs)
 
         def on_created(self, event):
-            now = datetime.datetime.utcnow().replace(microsecond=0)
+            now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
             path = os.path.relpath(event.src_path, self.root_dir)
-            print("{0} | Created {1}".format(now, path))
+            print(f"{now} | Created {path}")
 
         def on_deleted(self, event):
-            now = datetime.datetime.utcnow().replace(microsecond=0)
+            now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
             path = os.path.relpath(event.src_path, self.root_dir)
-            print("{0} | Deleted {1}".format(now, path))
+            print(f"{now} | Deleted {path}")
 
         def on_modified(self, event):
-            now = datetime.datetime.utcnow().replace(microsecond=0)
+            now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
             path = os.path.relpath(event.src_path, self.root_dir)
-            print("{0} | Modified {1}".format(now, path))
+            print(f"{now} | Modified {path}")
 
         def on_moved(self, event):
             msg = "{0} | Moved {1} to {2}"
-            now = datetime.datetime.utcnow().replace(microsecond=0)
+            now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
             src_path = os.path.relpath(event.src_path, self.root_dir)
             dest_path = os.path.relpath(event.dest_path, self.root_dir)
             print(msg.format(now, src_path, dest_path))
@@ -533,8 +532,8 @@ def _run_watch(args):
     observer.schedule(event_handler, args.dir, recursive=True)
     print("Type Ctrl-C to quit.")
     observer.start()
-    now = datetime.datetime.utcnow().replace(microsecond=0)
-    print("{0} | Monitoring {1}:".format(now, args.dir))
+    now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
+    print(f"{now} | Monitoring {args.dir}:")
     sys.stdout.flush()
     try:
         while True:
