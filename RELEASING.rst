@@ -8,7 +8,7 @@ Before making a release, check the following:
   * Make sure that all tests pass, locally and through the CI hooks on GitHub
   * Increment the library version for ``libdigital_rf`` in `c/include/digital_rf_version.h <c/include/digital_rf_version.h>`_ if there have been any feature additions or breaking changes since the last release
 
-To make a new release, run the ``rever`` command from the package base directory::
+To make a new release, switch to a new git branch and run the ``rever`` command from the package base directory::
 
     rever VERSION
 
@@ -18,8 +18,5 @@ This will do the following:
   * Update the bibtex entry for citing the new release
   * Merge and remove files in the 'news' directory to update the changelog
   * Run the Python test suite in a Docker container
-  * Create a git tag for the release
-  * Push the release tag to Github
-  * Create a Github release containing a source archive and a list of changes
-  * Upload the Python source distribution to PyPI
-  * Submit a pull request to update the conda-forge recipe
+
+From there, make a pull request to the upstream Digital RF repository and merge it if all checks pass. Create a release on the main branch with a tag equal to the version number. This will result in the wheel build CI running and adding artifacts to the release and PyPI.
