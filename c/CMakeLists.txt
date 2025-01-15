@@ -106,6 +106,9 @@ if(NOT TARGET build)
     add_custom_target(build)
 endif(NOT TARGET build)
 add_dependencies(build digital_rf)
+target_compile_definitions(digital_rf PUBLIC
+    "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:digital_rf_STATIC_DEFINE>"
+)
 target_include_directories(digital_rf PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/digital_rf>

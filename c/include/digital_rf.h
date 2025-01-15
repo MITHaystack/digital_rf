@@ -49,10 +49,14 @@
 #include "digital_rf_version.h"
 
 #ifdef _WIN32
-#  ifdef digital_rf_EXPORTS
-#    define EXPORT __declspec(dllexport)
+#  ifdef digital_rf_STATIC_DEFINE
+#    define EXPORT
 #  else
-#    define EXPORT __declspec(dllimport)
+#    ifdef digital_rf_EXPORTS
+#      define EXPORT __declspec(dllexport)
+#    else
+#      define EXPORT __declspec(dllimport)
+#    endif
 #  endif
 #else
 #  define EXPORT
