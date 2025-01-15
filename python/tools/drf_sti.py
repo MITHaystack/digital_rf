@@ -89,15 +89,16 @@ class DataPlotter(object):
         self.sr = self.dio.get_properties(self.channels[0])["samples_per_second"]
 
         self.bounds = self.dio.get_bounds(self.channels[0])
-        self.dt_start = datetime.datetime.utcfromtimestamp(
-            int(self.bounds[0] / self.sr)
+        self.dt_start = datetime.datetime.fromtimestamp(
+            int(self.bounds[0] / self.sr),
+            tz=datetime.timezone.utc,
         )
-        self.dt_stop = datetime.datetime.utcfromtimestamp(int(self.bounds[1] / self.sr))
+        self.dt_stop = datetime.datetime.fromtimestamp(
+            int(self.bounds[1] / self.sr), tz=datetime.timezone.utc
+        )
 
         print(
-            "bound times {0} to {1} UTC".format(
-                self.dt_start.utcnow().isoformat(), self.dt_stop.utcnow().isoformat()
-            )
+            f"bound times {self.dt_start.isoformat()} to {self.dt_stop.isoformat()} UTC"
         )
 
         if self.opt.verbose:

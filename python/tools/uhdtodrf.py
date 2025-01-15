@@ -816,8 +816,7 @@ class Recorder(object):
         st = drf.util.parse_identifier_to_time(starttime)
         if st is not None:
             # find next suitable start time by cycle repeat period
-            now = datetime.utcnow()
-            now = now.replace(tzinfo=pytz.utc)
+            now = datetime.now(tz=datetime.timezone.utc)
             soon = now + timedelta(seconds=SETUP_TIME)
             diff = max(soon - st, timedelta(0)).total_seconds()
             periods_until_next = (diff - 1) // period + 1
@@ -837,7 +836,10 @@ class Recorder(object):
 
             if (
                 et
-                < (pytz.utc.localize(datetime.utcnow()) + timedelta(seconds=SETUP_TIME))
+                < (
+                    datetime.now(tz=datetime.timezone.utc)
+                    + timedelta(seconds=SETUP_TIME)
+                )
             ) or (st is not None and et <= st):
                 raise ValueError("End time is before launch time!")
 
@@ -857,9 +859,10 @@ class Recorder(object):
 
             # wait for the start time if it is not past
         while (st is not None) and (
-            (st - pytz.utc.localize(datetime.utcnow())) > timedelta(seconds=SETUP_TIME)
+            (st - datetime.now(tz=datetime.timezone.utc))
+            > timedelta(seconds=SETUP_TIME)
         ):
-            ttl = int((st - pytz.utc.localize(datetime.utcnow())).total_seconds())
+            ttl = int((st - datetime.now(tz=datetime.timezone.utc)).total_seconds())
             if (ttl % 10) == 0:
                 print("Standby {0} s remaining...".format(ttl))
                 sys.stdout.flush()
@@ -892,7 +895,7 @@ class Recorder(object):
         if st is not None:
             lt = st
         else:
-            now = pytz.utc.localize(datetime.utcnow())
+            now = datetime.now(tz=datetime.timezone.utc)
             # launch on integer second by default for convenience (ceil + 2)
             lt = now.replace(microsecond=0) + timedelta(seconds=3)
         ltts = (lt - drf.util.epoch).total_seconds()
@@ -1096,9 +1099,9 @@ class Recorder(object):
             stream.issue_stream_cmd(stream_cmd)
             while not end_rec.is_set():
                 if et is not None:
-                    stop_bool = pytz.utc.localize(datetime.utcnow()) >= et - timedelta(
-                        seconds=1
-                    )
+                    stop_bool = datetime.now(
+                        tz=datetime.timezone.utc
+                    ) >= et - timedelta(seconds=1)
                     if stop_bool:
                         end_rec.set()
 

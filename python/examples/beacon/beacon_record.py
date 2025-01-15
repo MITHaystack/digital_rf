@@ -431,7 +431,7 @@ def get_next_object(opt, site, objects, ctime):
         obj_tle1 = obj_info["tle1"][1:-1]
         obj_tle2 = obj_info["tle2"][1:-1]
         obj_freqs = np.array(string.split(obj_info["frequencies"], ","), np.float32)
-        c_dtime = datetime.datetime.utcfromtimestamp(ctime)
+        c_dtime = datetime.datetime.fromtimestamp(ctime, tz=datetime.timezone.utc)
         c_ephem_time = ephem.Date(c_dtime)
 
         (sat_rise, sat_transit, sat_set) = satellite_rise_and_set(
@@ -517,7 +517,7 @@ def ephemeris_passes(opt, st0, et0):
         obj_tle1 = obj_info["tle1"][1:-1]
         obj_tle2 = obj_info["tle2"][1:-1]
         obj_freqs = np.array(string.split(obj_info["frequencies"], ","), np.float32)
-        c_dtime = datetime.datetime.utcfromtimestamp(ctime)
+        c_dtime = datetime.datetime.fromtimestamp(ctime, tz=datetime.timezone.utc)
         c_ephem_time = ephem.Date(c_dtime)
 
         try:

@@ -195,7 +195,7 @@ def parse_identifier_to_sample(iden, samples_per_second=None, ref_index=None):
                     '"+" identifier must be followed by an integer or float.'
                 )
             if iden.lower().startswith("now"):
-                dt = pytz.utc.localize(datetime.datetime.utcnow())
+                dt = datetime.datetime.now(tz=datetime.timezone.utc)
                 if iden.lower().endswith("ish"):
                     dt = dt.replace(microsecond=0) + datetime.timedelta(seconds=1)
                 iden = dt
@@ -273,7 +273,7 @@ def parse_identifier_to_time(iden, samples_per_second=None, ref_datetime=None):
                     '"+" identifier must be followed by an integer or float.'
                 )
             if iden.lower().startswith("now"):
-                dt = pytz.utc.localize(datetime.datetime.utcnow())
+                dt = datetime.datetime.now(tz=datetime.timezone.utc)
                 if iden.lower().endswith("ish"):
                     dt = dt.replace(microsecond=0) + datetime.timedelta(seconds=1)
             else:

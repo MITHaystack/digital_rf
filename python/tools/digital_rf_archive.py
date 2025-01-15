@@ -128,8 +128,9 @@ def archive_subdirectory_local_local(args):
     archive_files.sort()  # allows us to stop checking when a file moves out of time range
     for archive_file in archive_files:
         basename = os.path.basename(archive_file)
-        ts = datetime.datetime.utcfromtimestamp(
-            float(basename[basename.find("@") + 1 : -3])
+        ts = datetime.datetime.fromtimestamp(
+            float(basename[basename.find("@") + 1 : -3]),
+            tz=datetime.timezone.utc,
         )
         if ts >= startDT and ts <= endDT:
             # check if we need to compress it
@@ -283,8 +284,9 @@ def archive_subdirectory_local_remote(args):
     archive_files.sort()  # allows us to stop checking when a file moves out of time range
     for archive_file in archive_files:
         basename = os.path.basename(archive_file)
-        ts = datetime.datetime.utcfromtimestamp(
-            float(basename[basename.find("@") + 1 : -3])
+        ts = datetime.datetime.fromtimestamp(
+            float(basename[basename.find("@") + 1 : -3]),
+            tz=datetime.timezone.utc,
         )
         if ts >= startDT and ts <= endDT:
             # if we need to compress it, make a copy first
@@ -884,14 +886,18 @@ if __name__ == "__main__":
 
     # create datetimes
     try:
-        startDT = datetime.datetime.strptime(args.startDT, "%Y-%m-%dT%H:%M:%S")
+        startDT = datetime.datetime.strptime(args.startDT, "%Y-%m-%dT%H:%M:%S").replace(
+            tzinfo=datetime.timezone.utc
+        )
     except:
         print(
             "startDT <%s> not in expected YYYY-MM-DDTHH:MM:SS format" % (args.startDT)
         )
         sys.exit(-1)
     try:
-        endDT = datetime.datetime.strptime(args.endDT, "%Y-%m-%dT%H:%M:%S")
+        endDT = datetime.datetime.strptime(args.endDT, "%Y-%m-%dT%H:%M:%S").replace(
+            tzinfo=datetime.timezone.utc
+        )
     except:
         print("endDT <%s> not in expected YYYY-MM-DDTHH:MM:SS format" % (args.endDT))
         sys.exit(-1)

@@ -161,8 +161,8 @@ class DigitalRFRingbufferHandlerBase(watchdog_drf.DigitalRFEventHandler):
             self._remove_from_queue(rec)
 
         if self.verbose:
-            now = datetime.datetime.utcnow().replace(microsecond=0)
-            print("{0} | Expired {1}".format(now, rec.path))
+            now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
+            print(f"{now} | Expired {rec.path}")
 
         # delete file
         if not self.dryrun:
@@ -209,8 +209,10 @@ class DigitalRFRingbufferHandlerBase(watchdog_drf.DigitalRFEventHandler):
             self._add_to_queue(rec)
 
             if self.verbose:
-                now = datetime.datetime.utcnow().replace(microsecond=0)
-                print("{0} | Added {1}".format(now, rec.path))
+                now = datetime.datetime.now(tz=datetime.timezone.utc).replace(
+                    microsecond=0
+                )
+                print(f"{now} | Added {rec.path}")
             # expire oldest files until size constraint is met
             self._expire(rec.group)
 
@@ -243,8 +245,8 @@ class DigitalRFRingbufferHandlerBase(watchdog_drf.DigitalRFEventHandler):
             self._remove_from_queue(rec)
 
         if self.verbose:
-            now = datetime.datetime.utcnow().replace(microsecond=0)
-            print("{0} | Removed {1}".format(now, rec.path))
+            now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
+            print(f"{now} | Removed {rec.path}")
 
     def add_files(self, paths, sort=True):
         """Create file records from paths and add to ringbuffer."""
@@ -400,8 +402,10 @@ class SizeExpirer(object):
                 self.active_size += rec.size
 
                 if self.verbose:
-                    now = datetime.datetime.utcnow().replace(microsecond=0)
-                    print("{0} | Updated {1}".format(now, rec.path))
+                    now = datetime.datetime.now(tz=datetime.timezone.utc).replace(
+                        microsecond=0
+                    )
+                    print(f"{now} | Updated {rec.path}")
 
 
 class TimeExpirer(object):
@@ -704,15 +708,17 @@ class DigitalRFRingbuffer(object):
 
     def start(self):
         """Start ringbuffer process."""
-        self._start_time = datetime.datetime.utcnow().replace(microsecond=0)
+        self._start_time = datetime.datetime.now(tz=datetime.timezone.utc).replace(
+            microsecond=0
+        )
 
         # start observer to add new files
         self.observer.start()
 
         if self.dryrun:
             print("DRY RUN (files will not be deleted):")
-        now = datetime.datetime.utcnow().replace(microsecond=0)
-        print("{0} | Starting {1}:".format(now, self))
+        now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
+        print(f"{now} | Starting {self}:")
         sys.stdout.flush()
 
         # add files that already existed before the observer started
@@ -779,11 +785,13 @@ class DigitalRFRingbuffer(object):
         """Wait until a KeyboardInterrupt is received to stop ringbuffer."""
         try:
             while True:
-                now = datetime.datetime.utcnow().replace(microsecond=0)
+                now = datetime.datetime.now(tz=datetime.timezone.utc).replace(
+                    microsecond=0
+                )
                 interval = int((now - self._start_time).total_seconds())
                 if (interval % self.status_interval) == 0:
                     status = self.event_handler.status()
-                    print("{0} | ({1})".format(now, status))
+                    print(f"{now} | ({status})")
                     sys.stdout.flush()
 
                 if not self.observer.all_alive():

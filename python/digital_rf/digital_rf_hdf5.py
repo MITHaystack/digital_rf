@@ -1665,7 +1665,9 @@ class DigitalRFReader(object):
             int(end_sub_ts + subdir_cadence_seconds),
             subdir_cadence_seconds,
         ):
-            sub_datetime = datetime.datetime.utcfromtimestamp(sub_ts)
+            sub_datetime = datetime.datetime.fromtimestamp(
+                sub_ts, tz=datetime.timezone.utc
+            )
             subdir = sub_datetime.strftime("%Y-%m-%dT%H-%M-%S")
             # create numpy array of all file TS in subdir
             file_msts_in_subdir = np.arange(

@@ -101,8 +101,10 @@ class DigitalRFMirrorHandler(watchdog_drf.DigitalRFEventHandler):
                 os.makedirs(dest_dir)
             if not os.path.exists(dest_path) or not filecmp.cmp(src_path, dest_path):
                 if self.verbose:
-                    now = datetime.datetime.utcnow().replace(microsecond=0)
-                    print("{0} | Mirroring {1}".format(now, src_path))
+                    now = datetime.datetime.now(tz=datetime.timezone.utc).replace(
+                        microsecond=0
+                    )
+                    print(f"{now} | Mirroring {src_path}")
                 else:
                     sys.stdout.write(".")
                     sys.stdout.flush()
@@ -328,12 +330,8 @@ class DigitalRFMirror(object):
         # start observer to mirror new and modified files
         self.observer.start()
 
-        now = datetime.datetime.utcnow().replace(microsecond=0)
-        print(
-            "{0} | Mirroring ({1}) {2} to {3}:".format(
-                now, self.method, self.src, self.dest
-            )
-        )
+        now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
+        print(f"{now} | Mirroring ({self.method}) {self.src} to {self.dest}:")
         sys.stdout.flush()
 
         if os.path.isdir(self.src):
