@@ -48,7 +48,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pypa/cibuildwheel@v2.20
+      - uses: pypa/cibuildwheel@v2.22
         env:
           # limited at least by availability of h5py, which skips pypy and musl
           CIBW_SKIP: pp* *musllinux* *i686 *win32
@@ -77,7 +77,7 @@ jobs:
           merge-multiple: true
 
       - name: Generate artifact attestations
-        uses: actions/attest-build-provenance@v1.4.1
+        uses: actions/attest-build-provenance@v2.1.0
         with:
           subject-path: "dist/*"
 

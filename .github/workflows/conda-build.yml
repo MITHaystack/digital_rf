@@ -134,7 +134,7 @@ jobs:
     steps:
 
     - name: Checkout code
-      uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      uses: actions/checkout@cbb722410c2e876e24abbe8de2cc27693e501dcb # v4.1.4
       with:
         fetch-depth: 0
 
