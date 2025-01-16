@@ -14,18 +14,12 @@ $ACTIVITIES = [
     "authors",
     "bibtex",
     "changelog",
-#    "tag",
-    "pytest",
-    "copy_dist",
-#    "push_tag",
-#    "ghrelease",
-#    "pypi_upload",
 ]
 
 $VERSION_BUMP_PATTERNS = [
     (
-        "python/CMakeLists.txt",
-        r"set\(digital_rf_VERSION .*\)",
+        "CMakeLists.txt",
+        r"set\(digital_rf_VERSION [0-9\.]*\)",
         "set(digital_rf_VERSION $VERSION)",
     ),
     (
@@ -65,46 +59,3 @@ $BIBTEX_AUTHORS = [
 
 $CHANGELOG_FILENAME = "CHANGELOG.rst"
 $CHANGELOG_TEMPLATE = "TEMPLATE.rst"
-
-$DOCKER_APT_DEPS = [
-    "cmake",
-    "git",
-    "libhdf5-dev",
-    "python3-dateutil",
-    "python3-dev",
-    "python3-h5py",
-    "python3-mako",
-    "python3-numpy",
-    "python3-packaging",
-    "python3-pkgconfig",
-    "python3-pytest",
-    "python3-setuptools",
-    "python3-six",
-    "python3-tz",
-]
-$DOCKER_INSTALL_COMMAND = "git clean -fdx && mkdir build-rever && cd build-rever && cmake .. && make && make install && make sdist && cp -a dist $HOME/ && cd .. && rm -rf build-rever"
-
-$PYTEST_COMMAND = "pytest-3"
-
-@rever.activity.activity(deps={"pytest"})
-def copy_dist():
-    """Copy dist tarballs from install docker container to rever dist directory."""
-    dist_dir = os.path.join($REVER_DIR, "dist")
-    if os.path.exists(dist_dir):
-        xonsh.lib.os.rmtree(dist_dir, force=True)
-    $install_image = xonsh.tools.expand_path($DOCKER_INSTALL_IMAGE)
-    $install_container_id = $(docker ps -aq --filter ancestor=$install_image).strip()
-    docker cp $install_container_id:$DOCKER_HOME/dist $REVER_DIR/
-    del $install_image
-    del $install_container_id
-copy_dist.requires = {"commands": {"docker": "docker"}}
-
-@rever.activity.activity(deps={"version_bump", "copy_dist"})
-def pypi_upload():
-    """Uploads packages from the rever dist directory to the Python Package Index."""
-    $dist_dir = os.path.join($REVER_DIR, "dist")
-    p = ![twine upload --sign $dist_dir/*]
-    if p.rtn != 0:
-        raise RuntimeError("PyPI upload failed!")
-    del $dist_dir
-pypi_upload.requires = {"commands": {"twine": "twine"}}
