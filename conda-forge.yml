@@ -27,6 +27,7 @@
 
 build_platform:
   osx_arm64: osx_64
+  linux_aarch64: linux_64
 clone_depth: 0
 github_actions:
   store_build_artifacts: true

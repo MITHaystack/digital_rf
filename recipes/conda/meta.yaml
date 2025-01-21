@@ -17,8 +17,11 @@ source:
 
 build:
   number: 0
+  skip: true  # [os.environ.get("RENDER_LIMIT_PYTHON") and py != 312]
   run_exports:
     - {{ pin_subpackage('digital_rf') }}
+  entry_points:
+    - drf = digital_rf.drf_command:main
 
 requirements:
   build:
@@ -64,6 +67,10 @@ test:
     - python/tests/*.py
     - python/examples/*.py
   commands:
+    # verify that commands run
+    - drf --help
+
+    # run test suite and examples
     - pytest --maxfail=10
     - python python/examples/example_write_digital_metadata.py
     - python python/examples/example_read_digital_metadata.py

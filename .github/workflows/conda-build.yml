@@ -23,81 +23,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - CONFIG: linux_64_python3.10.____cpython
-            SHORT_CONFIG: linux_64_python3.10.____cpython
-            UPLOAD_PACKAGES: True
-            os: ubuntu
-            runs_on: ['ubuntu-latest']
-            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-x86_64:alma9
-          - CONFIG: linux_64_python3.11.____cpython
-            SHORT_CONFIG: linux_64_python3.11.____cpython
-            UPLOAD_PACKAGES: True
-            os: ubuntu
-            runs_on: ['ubuntu-latest']
-            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-x86_64:alma9
           - CONFIG: linux_64_python3.12.____cpython
             SHORT_CONFIG: linux_64_python3.12.____cpython
             UPLOAD_PACKAGES: True
             os: ubuntu
             runs_on: ['ubuntu-latest']
             DOCKER_IMAGE: quay.io/condaforge/linux-anvil-x86_64:alma9
-          - CONFIG: linux_64_python3.9.____cpython
-            SHORT_CONFIG: linux_64_python3.9.____cpython
-            UPLOAD_PACKAGES: True
-            os: ubuntu
-            runs_on: ['ubuntu-latest']
-            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-x86_64:alma9
-          - CONFIG: linux_aarch64_python3.10.____cpython
-            SHORT_CONFIG: linux_aarch64_python3.10.____cpython
-            UPLOAD_PACKAGES: True
-            os: ubuntu
-            runs_on: ['ubuntu-latest']
-            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-aarch64:alma9
-          - CONFIG: linux_aarch64_python3.11.____cpython
-            SHORT_CONFIG: linux_aarch64_python3.11.____cpython
-            UPLOAD_PACKAGES: True
-            os: ubuntu
-            runs_on: ['ubuntu-latest']
-            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-aarch64:alma9
           - CONFIG: linux_aarch64_python3.12.____cpython
             SHORT_CONFIG: linux_aarch64_python3.12.____cpython
             UPLOAD_PACKAGES: True
             os: ubuntu
             runs_on: ['ubuntu-latest']
-            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-aarch64:alma9
-          - CONFIG: linux_aarch64_python3.9.____cpython
-            SHORT_CONFIG: linux_aarch64_python3.9.____cpython
-            UPLOAD_PACKAGES: True
-            os: ubuntu
-            runs_on: ['ubuntu-latest']
-            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-aarch64:alma9
-          - CONFIG: osx_64_python3.10.____cpython
-            SHORT_CONFIG: osx_64_python3.10.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-13']
-          - CONFIG: osx_64_python3.11.____cpython
-            SHORT_CONFIG: osx_64_python3.11.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-13']
+            DOCKER_IMAGE: quay.io/condaforge/linux-anvil-x86_64:alma9
           - CONFIG: osx_64_python3.12.____cpython
             SHORT_CONFIG: osx_64_python3.12.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-13']
-          - CONFIG: osx_64_python3.9.____cpython
-            SHORT_CONFIG: osx_64_python3.9.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-13']
-          - CONFIG: osx_arm64_python3.10.____cpython
-            SHORT_CONFIG: osx_arm64_python3.10.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-13']
-          - CONFIG: osx_arm64_python3.11.____cpython
-            SHORT_CONFIG: osx_arm64_python3.11.____cpython
             UPLOAD_PACKAGES: True
             os: macos
             runs_on: ['macos-13']
@@ -106,28 +45,8 @@ jobs:
             UPLOAD_PACKAGES: True
             os: macos
             runs_on: ['macos-13']
-          - CONFIG: osx_arm64_python3.9.____cpython
-            SHORT_CONFIG: osx_arm64_python3.9.____cpython
-            UPLOAD_PACKAGES: True
-            os: macos
-            runs_on: ['macos-13']
-          - CONFIG: win_64_python3.10.____cpython
-            SHORT_CONFIG: win_64_python3.10.____cpython
-            UPLOAD_PACKAGES: True
-            os: windows
-            runs_on: ['windows-latest']
-          - CONFIG: win_64_python3.11.____cpython
-            SHORT_CONFIG: win_64_python3.11.____cpython
-            UPLOAD_PACKAGES: True
-            os: windows
-            runs_on: ['windows-latest']
           - CONFIG: win_64_python3.12.____cpython
             SHORT_CONFIG: win_64_python3.12.____cpython
-            UPLOAD_PACKAGES: True
-            os: windows
-            runs_on: ['windows-latest']
-          - CONFIG: win_64_python3.9.____cpython
-            SHORT_CONFIG: win_64_python3.9.____cpython
             UPLOAD_PACKAGES: True
             os: windows
             runs_on: ['windows-latest']
