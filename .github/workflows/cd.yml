@@ -83,6 +83,7 @@ jobs:
           CIBW_ARCHS: ${{ matrix.cibw_archs }}
           CIBW_BUILD: ${{ matrix.cibw_build }}
           CIBW_SKIP: pp* *musllinux*
+          CIBW_ENVIRONMENT: "SETUPTOOLS_SCM_PRETEND_VERSION=2.6.10"
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
