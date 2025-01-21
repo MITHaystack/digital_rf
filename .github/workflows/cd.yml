@@ -36,22 +36,53 @@ jobs:
           path: dist/*.tar.gz
 
   build_wheels:
-    name: Wheel on ${{ matrix.os }}
+    name: "Wheels: ${{ matrix.os }} ${{ matrix.cibw_archs }} ${{ matrix.cibw_build }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
+        # Wheel builds are fast except for aarch64, so split that into multiple jobs,
+        # one for each Python version
+        os: [ubuntu-latest]
+        cibw_archs: [aarch64]
+        cibw_build:
+          - "cp39-manylinux_aarch64"
+          - "cp310-manylinux_aarch64"
+          - "cp311-manylinux_aarch64"
+          - "cp312-manylinux_aarch64"
+          - "cp313-manylinux_aarch64"
+        include:
+          - os: ubuntu-latest
+            cibw_archs: x86_64
+            cibw_build: "*"
+          - os: windows-latest
+            cibw_archs: AMD64
+            cibw_build: "*"
+          - os: macos-14
+            cibw_archs: arm64
+            cibw_build: "*"
+          - os: macos-13
+            cibw_archs: x86_64
+            cibw_build: "*"
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # Linux emulation for aarch64 support
+      # https://cibuildwheel.pypa.io/en/stable/faq/#emulation
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+        if: runner.os == 'Linux' && matrix.cibw_archs == 'aarch64'
+
       - uses: pypa/cibuildwheel@v2.22
         env:
           # limited at least by availability of h5py, which skips pypy and musl
-          CIBW_SKIP: pp* *musllinux* *i686 *win32
+          CIBW_ARCHS: ${{ matrix.cibw_archs }}
+          CIBW_BUILD: ${{ matrix.cibw_build }}
+          CIBW_SKIP: pp* *musllinux*
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
