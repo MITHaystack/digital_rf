@@ -13,7 +13,7 @@ channel_sources:
 channel_targets:
 - ryanvolz main
 docker_image:
-- quay.io/condaforge/linux-anvil-aarch64:alma9
+- quay.io/condaforge/linux-anvil-x86_64:alma9
 gnuradio_core:
 - 3.10.11
 hdf5:
