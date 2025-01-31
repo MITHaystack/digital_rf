@@ -8,14 +8,14 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """
- drf_plot.py
+drf_plot.py
 
- $Id$
+$Id$
 
- Simple program to load (nominal) 16 bit IQ data and make some basic plots. Command
- line options are supported and data frames may be filtered from the output. The
- program can offset into a data file to limit the memory usage when plotting
- a subset of a data file.
+Simple program to load (nominal) 16 bit IQ data and make some basic plots. Command
+line options are supported and data frames may be filtered from the output. The
+program can offset into a data file to limit the memory usage when plotting
+a subset of a data file.
 
 """
 

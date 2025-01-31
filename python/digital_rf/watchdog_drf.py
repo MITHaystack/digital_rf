@@ -157,7 +157,7 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
                         match = m
 
         dest_match = False
-        if getattr(event, "dest_path", None) is not None:
+        if getattr(event, "dest_path", None):
             dest_path = fsdecode(event.dest_path)
             if not any(r.match(dest_path) for r in self.ignore_regexes):
                 for r in self.regexes:
