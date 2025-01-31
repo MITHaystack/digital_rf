@@ -40,7 +40,7 @@ Citation
 
 If you use Digital RF in a scientific publication, we would appreciate a citation such as the following (BibTeX_):
 
-    Volz, R., Rideout, W. C., Swoboda, J., Vierinen, J. P., & Lind, F. D. (2025). Digital RF (Version 2.6.10). MIT Haystack Observatory. Retrieved from https://github.com/MITHaystack/digital_rf
+    Volz, R., Rideout, W. C., Swoboda, J., Vierinen, J. P., & Lind, F. D. (2025). Digital RF (Version 2.6.11). MIT Haystack Observatory. Retrieved from https://github.com/MITHaystack/digital_rf
 
 .. _BibTeX: bibtex.bib
 
