@@ -17,7 +17,7 @@ import re
 import sys
 import time
 from ast import literal_eval
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fractions import Fraction
 from itertools import chain, cycle, islice, repeat
 from subprocess import call
@@ -792,7 +792,7 @@ class Thor(object):
         st = drf.util.parse_identifier_to_time(starttime)
         if st is not None:
             # find next suitable start time by cycle repeat period
-            now = datetime.now(tz=datetime.timezone.utc)
+            now = datetime.now(tz=timezone.utc)
             soon = now + timedelta(seconds=SETUP_TIME)
             diff = max(soon - st, timedelta(0)).total_seconds()
             periods_until_next = (diff - 1) // period + 1
@@ -811,11 +811,7 @@ class Thor(object):
                 print("End time: {0} ({1})".format(etstr, etts))
 
             if (
-                et
-                < (
-                    datetime.now(tz=datetime.timezone.utc)
-                    + timedelta(seconds=SETUP_TIME)
-                )
+                et < (datetime.now(tz=timezone.utc) + timedelta(seconds=SETUP_TIME))
             ) or (st is not None and et <= st):
                 raise ValueError("End time is before launch time!")
 
@@ -835,10 +831,9 @@ class Thor(object):
 
         # wait for the start time if it is not past
         while (st is not None) and (
-            (st - datetime.now(tz=datetime.timezone.utc))
-            > timedelta(seconds=SETUP_TIME)
+            (st - datetime.now(tz=timezone.utc)) > timedelta(seconds=SETUP_TIME)
         ):
-            ttl = int((st - datetime.now(tz=datetime.timezone.utc)).total_seconds())
+            ttl = int((st - datetime.now(tz=timezone.utc)).total_seconds())
             if (ttl % 10) == 0:
                 print("Standby {0} s remaining...".format(ttl))
                 sys.stdout.flush()
@@ -885,7 +880,7 @@ class Thor(object):
         if st is not None:
             lt = st
         else:
-            now = datetime.now(tz=datetime.timezone.utc)
+            now = datetime.now(tz=timezone.utc)
             # launch on integer second by default for convenience (ceil + 2)
             lt = now.replace(microsecond=0) + timedelta(seconds=3)
         ltts = (lt - drf.util.epoch).total_seconds()
@@ -1131,7 +1126,7 @@ class Thor(object):
 
         # check that we get samples after launch
         while not u.nitems_written(0):
-            if (datetime.now(tz=datetime.timezone.utc)) - lt > timedelta(seconds=5):
+            if (datetime.now(tz=timezone.utc)) - lt > timedelta(seconds=5):
                 fg.stop()
                 # need to wait for the flowgraph to clean up,
                 # otherwise it won't exit
@@ -1148,14 +1143,10 @@ class Thor(object):
                 fg.wait()
             else:
                 # sleep until end time
-                while datetime.now(tz=datetime.timezone.utc) < et - timedelta(
-                    seconds=2
-                ):
+                while datetime.now(tz=timezone.utc) < et - timedelta(seconds=2):
                     time.sleep(1)
                 # (actually a little after to allow for inexact computer time)
-                while datetime.now(tz=datetime.timezone.utc) < et + timedelta(
-                    seconds=0.2
-                ):
+                while datetime.now(tz=timezone.utc) < et + timedelta(seconds=0.2):
                     time.sleep(0.1)
         except KeyboardInterrupt:
             # catch keyboard interrupt and simply exit
