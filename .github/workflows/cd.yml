@@ -41,48 +41,40 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Wheel builds are fast except for aarch64, so split that into multiple jobs,
-        # one for each Python version
-        os: [ubuntu-latest]
-        cibw_archs: [aarch64]
-        cibw_build:
-          - "cp39-manylinux_aarch64"
-          - "cp310-manylinux_aarch64"
-          - "cp311-manylinux_aarch64"
-          - "cp312-manylinux_aarch64"
-          - "cp313-manylinux_aarch64"
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-14, macos-13]
         include:
           - os: ubuntu-latest
             cibw_archs: x86_64
             cibw_build: "*"
+            cibw_skip: "pp* *musllinux*"
+          - os: ubuntu-24.04-arm
+            cibw_archs: aarch64
+            cibw_build: "*"
+            cibw_skip: "cp38* pp* *musllinux*"
           - os: windows-latest
             cibw_archs: AMD64
             cibw_build: "*"
+            cibw_skip: "pp* *musllinux*"
           - os: macos-14
             cibw_archs: arm64
             cibw_build: "*"
+            cibw_skip: "pp* *musllinux*"
           - os: macos-13
             cibw_archs: x86_64
             cibw_build: "*"
+            cibw_skip: "pp* *musllinux*"
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Linux emulation for aarch64 support
-      # https://cibuildwheel.pypa.io/en/stable/faq/#emulation
-      - uses: docker/setup-qemu-action@v3
-        with:
-          platforms: all
-        if: runner.os == 'Linux' && matrix.cibw_archs == 'aarch64'
-
       - uses: pypa/cibuildwheel@v2.22
         env:
           # limited at least by availability of h5py, which skips pypy and musl
           CIBW_ARCHS: ${{ matrix.cibw_archs }}
           CIBW_BUILD: ${{ matrix.cibw_build }}
-          CIBW_SKIP: pp* *musllinux*
+          CIBW_SKIP: ${{ matrix.cibw_skip }}
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -108,7 +100,7 @@ jobs:
           merge-multiple: true
 
       - name: Generate artifact attestations
-        uses: actions/attest-build-provenance@v2.1.0
+        uses: actions/attest-build-provenance@v2.2.0
         with:
           subject-path: "dist/*"
 
