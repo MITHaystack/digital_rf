@@ -4,6 +4,21 @@ digital_rf Change Log
 
 .. current developments
 
+v2.6.11
+====================
+
+**Fixed:**
+
+* Fix 'datetime.datetime' has no attribute 'timezone', affecting the 2.6.10 release after removal of pytz.
+* Fix bug in all watchdog utilities (watch/mirror/ringbuffer) with versions 4.0.0 and up of the watchdog package. Prior to this fix, file system events were triggering a spurious FileDeletedEvent that broke ringbuffer functionality.
+
+**Authors:**
+
+* Ryan Volz
+* dependabot[bot]
+
+
+
 v2.6.10
 ====================
 

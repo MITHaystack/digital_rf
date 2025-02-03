@@ -6,7 +6,7 @@ cmake_policy(SET CMP0094 NEW)
 if(SKBUILD)
     set(digital_rf_VERSION ${SKBUILD_PROJECT_VERSION})
 else()
-    set(digital_rf_VERSION 2.6.10)
+    set(digital_rf_VERSION 2.6.11)
 endif(SKBUILD)
 project(digital_rf LANGUAGES C VERSION ${digital_rf_VERSION})
 
