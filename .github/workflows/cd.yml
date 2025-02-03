@@ -46,18 +46,23 @@ jobs:
           - os: ubuntu-latest
             cibw_archs: x86_64
             cibw_build: "*"
+            cibw_skip: "pp* *musllinux*"
           - os: ubuntu-24.04-arm
             cibw_archs: aarch64
             cibw_build: "*"
+            cibw_skip: "cp38* pp* *musllinux*"
           - os: windows-latest
             cibw_archs: AMD64
             cibw_build: "*"
+            cibw_skip: "pp* *musllinux*"
           - os: macos-14
             cibw_archs: arm64
             cibw_build: "*"
+            cibw_skip: "pp* *musllinux*"
           - os: macos-13
             cibw_archs: x86_64
             cibw_build: "*"
+            cibw_skip: "pp* *musllinux*"
 
     steps:
       - uses: actions/checkout@v4
@@ -69,7 +74,7 @@ jobs:
           # limited at least by availability of h5py, which skips pypy and musl
           CIBW_ARCHS: ${{ matrix.cibw_archs }}
           CIBW_BUILD: ${{ matrix.cibw_build }}
-          CIBW_SKIP: pp* *musllinux*
+          CIBW_SKIP: ${{ matrix.cibw_skip }}
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
