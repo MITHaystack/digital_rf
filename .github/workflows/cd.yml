@@ -41,19 +41,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Wheel builds are fast except for aarch64, so split that into multiple jobs,
-        # one for each Python version
-        os: [ubuntu-latest]
-        cibw_archs: [aarch64]
-        cibw_build:
-          - "cp39-manylinux_aarch64"
-          - "cp310-manylinux_aarch64"
-          - "cp311-manylinux_aarch64"
-          - "cp312-manylinux_aarch64"
-          - "cp313-manylinux_aarch64"
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-14, macos-13]
         include:
           - os: ubuntu-latest
             cibw_archs: x86_64
+            cibw_build: "*"
+          - os: ubuntu-24.04-arm
+            cibw_archs: aarch64
             cibw_build: "*"
           - os: windows-latest
             cibw_archs: AMD64
@@ -69,13 +63,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      # Linux emulation for aarch64 support
-      # https://cibuildwheel.pypa.io/en/stable/faq/#emulation
-      - uses: docker/setup-qemu-action@v3
-        with:
-          platforms: all
-        if: runner.os == 'Linux' && matrix.cibw_archs == 'aarch64'
 
       - uses: pypa/cibuildwheel@v2.22
         env:
