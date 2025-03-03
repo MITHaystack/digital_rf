@@ -69,7 +69,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pypa/cibuildwheel@v2.22
+      - uses: pypa/cibuildwheel@v2.23
         env:
           # limited at least by availability of h5py, which skips pypy and musl
           CIBW_ARCHS: ${{ matrix.cibw_archs }}
@@ -100,7 +100,7 @@ jobs:
           merge-multiple: true
 
       - name: Generate artifact attestations
-        uses: actions/attest-build-provenance@v2.2.0
+        uses: actions/attest-build-provenance@v2.2.2
         with:
           subject-path: "dist/*"
 
