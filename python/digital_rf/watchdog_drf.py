@@ -51,6 +51,7 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
 
     def __init__(
         self,
+        *,
         starttime=None,
         endtime=None,
         include_drf=True,
@@ -130,7 +131,7 @@ class DigitalRFEventHandler(RegexMatchingEventHandler):
             regexes=regexes, ignore_regexes=ignore_regexes, ignore_directories=True
         )
 
-    def dispatch(self, event, match_time=True):
+    def dispatch(self, event, *, match_time=True):
         """Dispatch events to the appropriate methods.
 
         Parameters
@@ -233,7 +234,7 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
 
     """
 
-    def __init__(self, path, force_polling=False, **kwargs):
+    def __init__(self, path, *, force_polling=False, **kwargs):
         """Create observer for the directory at `path`."""
         if force_polling:
             observer_class = PollingObserver
@@ -381,7 +382,7 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
             # set root to (closest) parent of deleted directory
             self._set_root(os.path.dirname(event.src_path))
 
-    def schedule(self, event_handler, path=None, recursive=False):
+    def schedule(self, event_handler, path=None, *, recursive=False):
         """Schedule watching a path with an event handler."""
         if path is None:
             path = self.path
@@ -499,7 +500,7 @@ def _run_watch(args):
 
     # subclass DigitalRFEventHandler to just print events
     class DigitalRFPrint(DigitalRFEventHandler):
-        def __init__(self, dir, force_polling=None, **kwargs):
+        def __init__(self, dir, *, force_polling=None, **kwargs):
             self.root_dir = dir
             super(DigitalRFPrint, self).__init__(**kwargs)
 

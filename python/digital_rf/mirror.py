@@ -37,6 +37,7 @@ class DigitalRFMirrorHandler(watchdog_drf.DigitalRFEventHandler):
         self,
         src,
         dest,
+        *,
         verbose=False,
         mirror_fun=shutil.copy2,
         starttime=None,
