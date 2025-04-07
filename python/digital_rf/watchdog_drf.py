@@ -276,7 +276,7 @@ class DirWatcher(BaseObserver, RegexMatchingEventHandler):
                 # root doesn't exist, move up one directory and try again
                 try:
                     # clean up from failed scheduling
-                    self.root_observer.unschedule(ObservedWatch(root, False))
+                    self.root_observer.unschedule(ObservedWatch(root, recursive=False))
                 except KeyError:
                     pass
                 newroot = os.path.dirname(root)
