@@ -69,7 +69,6 @@ python
   * setuptools-scm (``python3-setuptools-scm`` or ``pip install setuptools-scm``)
 
 matlab
-  * cmake >= 3.0 (``cmake``)
   * MATLAB >= R2016a
 
 Runtime

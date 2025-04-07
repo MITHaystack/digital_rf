@@ -4,6 +4,7 @@
 
 **Changed:**
 
+* Update required minimum CMake version to 3.5 (for C and Matlab subprojects) for compatibility with CMake 4.0. The overall project still requires at least CMake 3.20 for compatibility with scikit-build and for building the Python subproject.
 * Enforce keyword-only arguments for Python code adjacent to Digital RF's use of the watchdog library to have consistency with watchdog and try to prevent future issues.
 
 **Deprecated:**
