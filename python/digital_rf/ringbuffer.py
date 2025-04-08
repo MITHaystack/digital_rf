@@ -37,6 +37,7 @@ class DigitalRFRingbufferHandlerBase(watchdog_drf.DigitalRFEventHandler):
 
     def __init__(
         self,
+        *,
         verbose=False,
         dryrun=False,
         starttime=None,
@@ -248,7 +249,7 @@ class DigitalRFRingbufferHandlerBase(watchdog_drf.DigitalRFEventHandler):
             now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
             print(f"{now} | Removed {rec.path}")
 
-    def add_files(self, paths, sort=True):
+    def add_files(self, paths, *, sort=True):
         """Create file records from paths and add to ringbuffer."""
         # get records and add from oldest to newest by key (time)
         records = (self._get_file_record(p) for p in paths)
@@ -259,7 +260,7 @@ class DigitalRFRingbufferHandlerBase(watchdog_drf.DigitalRFEventHandler):
         for rec in records:
             self._add_record(rec)
 
-    def modify_files(self, paths, sort=True):
+    def modify_files(self, paths, *, sort=True):
         """Create file records from paths and update in ringbuffer."""
         # get records and add from oldest to newest by key (time)
         records = (self._get_file_record(p) for p in paths)
@@ -453,7 +454,7 @@ class TimeExpirer(object):
         super(TimeExpirer, self)._expire(group)
 
 
-def DigitalRFRingbufferHandler(size=None, count=None, duration=None, **kwargs):
+def DigitalRFRingbufferHandler(*, size=None, count=None, duration=None, **kwargs):
     """Create ringbuffer handler given constraints.
 
     Parameters
@@ -542,6 +543,7 @@ class DigitalRFRingbuffer(object):
     def __init__(
         self,
         path,
+        *,
         size=-200e6,
         count=None,
         duration=None,
