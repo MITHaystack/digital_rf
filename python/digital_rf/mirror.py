@@ -259,7 +259,6 @@ class DigitalRFMirror(object):
                             #  but we've already hard linked it)
                             pass
                         except OSError:
-                            print((src_dir, dst_dir))
                             self.unlinkable_path_pairs.add((src_dir, dst_dir))
                             # fall back to copying
                             shutil.copy2(src, dst)
