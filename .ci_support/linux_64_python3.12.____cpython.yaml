@@ -1,3 +1,5 @@
+ace:
+- 8.0.2
 c_compiler:
 - gcc
 c_compiler_version:
@@ -15,7 +17,7 @@ channel_targets:
 docker_image:
 - quay.io/condaforge/linux-anvil-x86_64:alma9
 gnuradio_core:
-- 3.10.11
+- 3.10.12
 hdf5:
 - 1.14.3
 numpy:

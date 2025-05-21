@@ -1,3 +1,5 @@
+ace:
+- 8.0.2
 c_compiler:
 - vs2019
 c_stdlib:
@@ -7,7 +9,7 @@ channel_sources:
 channel_targets:
 - ryanvolz main
 gnuradio_core:
-- 3.10.11
+- 3.10.12
 hdf5:
 - 1.14.3
 numpy:

@@ -11,8 +11,9 @@
 .. |Conda| image:: https://anaconda.org/conda-forge/digital_rf/badges/version.svg
 .. _Conda: https://anaconda.org/conda-forge/digital_rf
 
-.. |CI| image:: https://github.com/MITHaystack/digital_rf/workflows/conda-matrix/badge.svg
-.. _CI: https://github.com/MITHaystack/digital_rf/actions?query=workflow%3Aconda-matrix+branch%3Amaster
+.. |CI| image:: https://github.com/MITHaystack/digital_rf/actions/workflows/conda-build.yml/badge.svg?branch=master
+.. _CI: https://github.com/MITHaystack/digital_rf/actions/workflows/conda-build.yml
+
 
 |DigitalRF|
 ===========
@@ -40,7 +41,7 @@ Citation
 
 If you use Digital RF in a scientific publication, we would appreciate a citation such as the following (BibTeX_):
 
-    Volz, R., Rideout, W. C., Swoboda, J., Vierinen, J. P., & Lind, F. D. (2025). Digital RF (Version 2.6.11). MIT Haystack Observatory. Retrieved from https://github.com/MITHaystack/digital_rf
+    Volz, R., Rideout, W. C., Swoboda, J., Vierinen, J. P., & Lind, F. D. (2025). Digital RF (Version 2.6.12). MIT Haystack Observatory. Retrieved from https://github.com/MITHaystack/digital_rf
 
 .. _BibTeX: bibtex.bib
 
