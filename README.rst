@@ -11,8 +11,9 @@
 .. |Conda| image:: https://anaconda.org/conda-forge/digital_rf/badges/version.svg
 .. _Conda: https://anaconda.org/conda-forge/digital_rf
 
-.. |CI| image:: https://github.com/MITHaystack/digital_rf/workflows/conda-matrix/badge.svg
-.. _CI: https://github.com/MITHaystack/digital_rf/actions?query=workflow%3Aconda-matrix+branch%3Amaster
+.. |CI| image:: https://github.com/MITHaystack/digital_rf/actions/workflows/conda-build.yml/badge.svg?branch=master
+.. _CI: https://github.com/MITHaystack/digital_rf/actions/workflows/conda-build.yml
+
 
 |DigitalRF|
 ===========
