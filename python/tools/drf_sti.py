@@ -164,16 +164,12 @@ class DataPlotter(object):
                         dv = np.empty(samples_per_stripe, np.complex64)
                         dv[:] = np.nan
 
-                    dv = dv * np.exp(
-                        1j * np.deg2rad(float(self.opt.phases[idx]))
-                    )
+                    dv = dv * np.exp(1j * np.deg2rad(float(self.opt.phases[idx])))
 
                 data = data + dv
 
             else:
-                print(
-                    "Unknown beamforming method {0}".format(self.opt.beamform)
-                )
+                print("Unknown beamforming method {0}".format(self.opt.beamform))
                 return
         else:
             if self.opt.verbose:
@@ -205,7 +201,7 @@ class DataPlotter(object):
             sample_freq = self.sr
 
         if self.opt.mean:
-            detrend_fn = 'constant'
+            detrend_fn = "constant"
         else:
             detrend_fn = False
         try:
@@ -214,33 +210,35 @@ class DataPlotter(object):
                 fs=float(sample_freq),
                 nperseg=self.opt.fft_bins,
                 detrend=detrend_fn,
-                scaling='spectrum',
-                return_onesided=False
-                )
+                scaling="spectrum",
+                return_onesided=False,
+            )
         except Exception:
             traceback.print_exc(file=sys.stdout)
 
-        sti_psd_data = np.real(10.0 * np.log10(np.abs(scipy.fft.fftshift(psd_data)) + 1e-20)) #1e-20 is added to prevent divide by zero issues with logarithm 
+        sti_psd_data = np.real(
+            10.0 * np.log10(np.abs(scipy.fft.fftshift(psd_data)) + 1e-20)
+        )  # 1e-20 is added to prevent divide by zero issues with logarithm
 
         sti_time = start_sample / self.sr
 
         return sti_psd_data, freq_axis, sti_time
 
     def process_sti(self, start_samples):
-        #multithreaded sti processing
+        # multithreaded sti processing
 
         samples_per_stripe = self.samples_per_stripe
 
         sti_psd_data = np.zeros([self.opt.fft_bins, len(start_samples)], np.float64)
         sti_times = np.zeros([len(start_samples)], np.complex128)
-        
-        if self.opt.num_processes==0:
+
+        if self.opt.num_processes == 0:
             num_cores = multiprocessing.cpu_count()
         else:
-            num_cores = np.minimum(multiprocessing.cpu_count(),self.opt.num_processes)
+            num_cores = np.minimum(multiprocessing.cpu_count(), self.opt.num_processes)
 
-        print(f'Using {num_cores} threads for STI calculation')
-        
+        print(f"Using {num_cores} threads for STI calculation")
+
         pool = multiprocessing.Pool()
         pool = multiprocessing.Pool(processes=num_cores)
 
@@ -348,12 +346,14 @@ class DataPlotter(object):
 
         for p in np.arange(self.opt.frames):
 
-            start_samples = np.arange(start_sample,start_sample+stripe_stride*(self.opt.length-1)+1, stripe_stride, dtype=np.int_)
-
-
+            start_samples = np.arange(
+                start_sample,
+                start_sample + stripe_stride * (self.opt.length - 1) + 1,
+                stripe_stride,
+                dtype=np.int_,
+            )
 
             sti_psd_data, freq_axis, sti_times = self.process_sti(start_samples)
-
 
             # Now Plot the Data
             ax = self.subplots[p]
