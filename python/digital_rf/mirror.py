@@ -161,6 +161,7 @@ class DigitalRFMirror(object):
         include_drf=True,
         include_dmd=True,
         force_polling=False,
+        exit_on_complete=False,
     ):
         """Create Digital RF mirror object. Use start/run method to begin.
 
@@ -203,7 +204,7 @@ class DigitalRFMirror(object):
 
         endtime : datetime.datetime
             Data covering this time or earlier will be included. This has no
-            effect on property files.
+            effect on property files. 
 
         include_drf : bool
             If True, include Digital RF files. If False, ignore Digital RF
@@ -216,6 +217,10 @@ class DigitalRFMirror(object):
         force_polling : bool
             If True, force the watchdog to use polling instead of the default
             observer.
+
+        exit_on_complete : bool
+            Exit when endtime has passed and no additional files prior to endtime 
+            are found in the source directory. (default : False)
 
         """
         self.src = os.path.abspath(src)
@@ -231,6 +236,7 @@ class DigitalRFMirror(object):
         self.include_drf = include_drf
         self.include_dmd = include_dmd
         self.force_polling = force_polling
+        self.exit_on_complete = exit_on_complete
 
         if not self.include_drf and not self.include_dmd:
             errstr = "One of `include_drf` or `include_dmd` must be True."
@@ -339,6 +345,9 @@ class DigitalRFMirror(object):
             # critical and duplicate events are not harmful (we will either
             # copy again or fail to move because the source doesn't exist)
             # mirror properties at minimum
+
+            print('start\r\n')
+
             paths = list_drf.ilsdrf(
                 self.src,
                 include_drf=False,
@@ -370,7 +379,12 @@ class DigitalRFMirror(object):
                     handler.dispatch(event, match_time=False)
 
     def join(self):
-        """Wait until a KeyboardInterrupt is received to stop mirroring."""
+        """Wait until we have finished copying all files there will be or
+        a KeyboardInterrupt is received to stop mirroring."""
+
+        rechecks = 1 # number of times to recheck for new files before exiting
+        buffer_time = 1 # number of seconds to hold off before starting exit loop
+
         try:
             while True:
                 if not self.observer.all_alive():
@@ -383,6 +397,13 @@ class DigitalRFMirror(object):
                     self._init_observer()
                     self.observer.start()
                 time.sleep(1)
+                #check for exit condition
+                if self.exit_on_complete and (self.endtime is not None):
+                    now = datetime.datetime.now(tz=datetime.timezone.utc).replace(microsecond=0)
+                    if self.endtime.timestamp() - now.timestamp() + buffer_time < 0:
+                        rechecks = rechecks - 1 #decrement rechecks
+                    if rechecks < 0:
+                        break
         except KeyboardInterrupt:
             # catch keyboard interrupt and simply exit
             pass
@@ -443,6 +464,15 @@ def _build_mirror_parser(Parser, *args):
     )
 
     parser = watchdog_drf._add_watchdog_group(parser)
+
+    exitgroup = parser.add_argument_group(title="exit condition")
+    exitgroup.add_argument(
+        "--exit",
+        dest="exit_on_complete",
+        action="store_true",
+        help="""Exit after endtime if no new drf files are found.
+                requires enddtime be specified (default: False)""",
+    )
 
     parser.set_defaults(func=_run_mirror)
 
