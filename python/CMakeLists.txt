@@ -70,13 +70,18 @@ add_custom_target(gr_digital_rf_grc_generated_blocks
 add_dependencies(digital_rf_python gr_digital_rf_grc_generated_blocks)
 
 if(SKBUILD)
-    # skbuild should be set up to have CMAKE_INSTALL_PREFIX point to the "DATA"
-    # directory in the built wheel, so we need the installation directories for
-    # the extension module and scripts which are separate from that root
+    # skbuild should be set up to have CMAKE_INSTALL_PREFIX point just to the
+    # top level directory in the build wheel (which installs to site-packages),
+    # and to control where things are installed more precisely we set variables
+    # to be used in install commands that put things where we want in the wheel.
+    # ${SKBUILD_DATA_DIR} will install to the "data" directory in the wheel
+    # which then goes to the installation prefix when the wheel is installed.
+    set(INSTALL_DATADIR ${SKBUILD_DATA_DIR}/${CMAKE_INSTALL_DATADIR})
     set(INSTALL_PLATLIB_DIR ${SKBUILD_PLATLIB_DIR})
     set(INSTALL_SCRIPTS_DIR ${SKBUILD_SCRIPTS_DIR})
 else()
     # set the installation directories when skbuild is not used
+    set(INSTALL_DATADIR ${CMAKE_INSTALL_DATADIR})
     if(WIN32)
         set(_SCRIPTS_DIR ${CMAKE_INSTALL_PREFIX}/Scripts)
     else()
@@ -170,13 +175,13 @@ install(TARGETS digital_rf_python_module DESTINATION ${INSTALL_PLATLIB_DIR}/digi
 
 install(
     FILES ${GENERATED_BLOCKS}
-    DESTINATION ${CMAKE_INSTALL_DATADIR}/gnuradio/grc/blocks
+    DESTINATION ${INSTALL_DATADIR}/gnuradio/grc/blocks
     COMPONENT python
 )
 
 install(
     DIRECTORY grc/
-    DESTINATION ${CMAKE_INSTALL_DATADIR}/gnuradio/grc/blocks
+    DESTINATION ${INSTALL_DATADIR}/gnuradio/grc/blocks
     COMPONENT python
     FILES_MATCHING PATTERN "*.yml" PATTERN "*.xml"
 )

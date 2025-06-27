@@ -99,7 +99,6 @@ build.targets = ["digital_rf_python"]
 install.components = ["python"]
 wheel.packages = ["python/digital_rf", "python/gr_digital_rf"]
 experimental = true
-wheel.install-dir = "/data"
 
 [tool.scikit-build.cmake.define]
 BUILD_SHARED_LIBS = false
