@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # ----------------------------------------------------------------------------
-# Copyright (c) 2017 Massachusetts Institute of Technology (MIT)
+# Copyright (c) 2017,2025 Massachusetts Institute of Technology (MIT)
 # All rights reserved.
 #
 # Distributed under the terms of the BSD 3-clause license.
@@ -29,6 +29,13 @@ import numpy as np
 from gnuradio import blocks
 from gnuradio import filter as grfilter
 from gnuradio import gr, uhd
+
+try:
+    from gnuradio import zeromq
+except ImportError:
+    # ok to fail, unless user wants message passing in which case there will
+    # be an error later
+    pass
 
 
 def equiripple_lpf(cutoff=0.9, transition_width=0.2, attenuation=80, pass_ripple=None):
@@ -175,6 +182,10 @@ class Thor(object):
             subdir_cadence_s=3600,
             metadata={},
             uuid=None,
+            # zmq messaging interface (apply to all)
+            message_interface=False,
+            zmq_sub_port=5563,
+            zmq_pub_port=5562,
         )
         options.update(kwargs)
         op = self._parse_options(datadir=datadir, **options)
@@ -450,6 +461,9 @@ class Thor(object):
                 Data dir: {datadir}
                 Metadata: {metadata}
                 UUID: {uuid}
+                Enable Message Passing: {message_interface}
+                Message RX Port: {zmq_sub_port},
+                Message TX Port: {zmq_pub_port},
             """
                 )
                 .strip()
@@ -709,6 +723,26 @@ class Thor(object):
                 print("-" * 78)
 
         return u
+
+    def _zmq_sub_source_setup(self):
+        """Create, set up, and return zmq source object."""
+        op = self.op
+        zss = zeromq.sub_msg_source(
+            f"tcp://localhost:{op.zmq_sub_port}",
+            100,
+            False,
+        )
+        return zss
+
+    def _zmq_pub_sink_setup(self):
+        """Create, set up, and return zmq sink object."""
+        op = self.op
+        zps = zeromq.pub_msg_sink(
+            f"tcp://localhost:{op.zmq_pub_port}",
+            100,
+            True,
+        )
+        return zps
 
     def _finalize_options(self):
         op = self.op
@@ -1117,6 +1151,24 @@ class Thor(object):
 
             # store the graph so that the blocks are not garbage collected
             graph.append(connections)
+
+        # instantiate zmq blocks and connect them if we need to
+        if op.message_interface:
+            try:
+                zss = self._zmq_sub_source_setup()
+                zps = self._zmq_pub_sink_setup()
+            except NameError:
+                # here because zeromq didn't import and raised a NameError
+                # when we tried to access it
+                msg = (
+                    "Message interface enabled but gnuradio.zeromq failed to"
+                    " import. Make sure the GNU Radio zeromq module is installed"
+                    " and available or disable message interface."
+                )
+                raise ImportError(msg)
+
+            fg.msg_connect((u, "async_msgs"), (zps, "in"))
+            fg.msg_connect((zss, "out"), (u, "command"))
 
         # start the flowgraph, samples should start at launch time
         fg.start()
@@ -1672,6 +1724,33 @@ def _add_time_group(parser):
     return parser
 
 
+def _add_message_group(parser):
+    messagegroup = parser.add_argument_group(title="message_passing")
+    messagegroup.add_argument(
+        "-M",
+        "--enable_messaging",
+        dest="message_interface",
+        action="store_true",
+        help="""Enable fast ZeroMQ message passing to access radio settings
+                while running. (default: False)""",
+    )
+    messagegroup.add_argument(
+        "--sub",
+        dest="zmq_sub_port",
+        type=evalint,
+        help="""Port number to listen for ZeroMQ control messages for the USRP.
+                (default: 5563)""",
+    )
+    messagegroup.add_argument(
+        "--pub",
+        dest="zmq_pub_port",
+        type=evalint,
+        help="""Port number for publishing ZeroMQ response messages for the
+                USRP. (default: 5562)""",
+    )
+    return parser
+
+
 def _build_thor_parser(Parser, *args):
     scriptname = os.path.basename(sys.argv[0])
 
@@ -1679,7 +1758,7 @@ def _build_thor_parser(Parser, *args):
     width = formatter._width
 
     title = "THOR (The Haystack Observatory Recorder)"
-    copyright = "Copyright (c) 2017 Massachusetts Institute of Technology"
+    copyright = "Copyright (c) 2017,2025 Massachusetts Institute of Technology"
     shortdesc = "Record data from synchronized USRPs in DigitalRF format."
     desc = "\n".join(
         (
@@ -1769,6 +1848,7 @@ def _build_thor_parser(Parser, *args):
     parser = _add_ochannel_group(parser)
     parser = _add_drf_group(parser)
     parser = _add_time_group(parser)
+    parser = _add_message_group(parser)
 
     parser.set_defaults(func=_run_thor)
 
