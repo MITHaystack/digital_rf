@@ -1,7 +1,7 @@
 ace:
 - 8.0.2
 c_compiler:
-- vs2019
+- vs2022
 c_stdlib:
 - vs
 channel_sources:
@@ -13,7 +13,7 @@ gnuradio_core:
 hdf5:
 - 1.14.3
 numpy:
-- '2.0'
+- '2'
 pin_run_as_build:
   python:
     min_pin: x.x
@@ -22,6 +22,3 @@ python:
 - 3.12.* *_cpython
 target_platform:
 - win-64
-zip_keys:
-- - python
-  - numpy
