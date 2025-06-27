@@ -104,9 +104,7 @@ class DigitalMetadataWriter(object):
     """Write data in Digital Metadata HDF5 format."""
 
     _min_version = packaging.version.parse("2.5")
-    _max_version = packaging.version.parse(
-        packaging.version.parse(__version__).base_version
-    )
+    _max_major_version = packaging.version.parse(__version__).major
     # increment to package version when format changes are made
     _writer_version = packaging.version.parse("2.5")
 
@@ -433,7 +431,10 @@ class DigitalMetadataWriter(object):
     def _check_compatible_version(self):
         version = packaging.version.parse(self._digital_metadata_version)
 
-        if (version >= self._min_version) and (version <= self._max_version):
+        if (
+            (version >= self._min_version)
+            and (version.major <= self._max_major_version)
+        ) or version.is_devrelease:
             pass
         else:
             errstr = (
@@ -445,7 +446,7 @@ class DigitalMetadataWriter(object):
                 % (
                     version.base_version,
                     self._min_version.base_version,
-                    self._max_version.base_version,
+                    self._max_major_version,
                 )
             )
 

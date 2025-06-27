@@ -1858,9 +1858,7 @@ class _top_level_dir_properties(object):
     """A Digital RF channel in a specific top-level directory."""
 
     _min_version = packaging.version.parse("2.0")
-    _max_version = packaging.version.parse(
-        packaging.version.parse(__version__).base_version
-    )
+    _max_major_version = packaging.version.parse(__version__).major
 
     def __init__(self, top_level_dir, channel_name, access_mode, rdcc_nbytes=4000000):
         """Create a new _top_level_dir_properties object.
@@ -1902,19 +1900,22 @@ class _top_level_dir_properties(object):
             # assume at least 2.0)
             version = "2.0"
         version = packaging.version.parse(version)
-        if version < self._min_version:
+        if version.is_devrelease:
+            # ignore version checking for development version
+            pass
+        elif version < self._min_version:
             errstr = (
                 "The Digital RF files being read are version {0}, which is"
                 " less than the required version ({1})."
             ).format(version.base_version, self._min_version.base_version)
             raise IOError(errstr)
-        elif version > self._max_version:
+        elif version.major > self._max_major_version:
             warnstr = (
-                "The Digital RF files being read are version {0}, which is"
+                "The Digital RF files being read are major version {0}, which is"
                 " higher than the maximum supported version ({1}) for this"
                 " digital_rf package. If you encounter errors, you will have"
                 " upgrade to at least version {0} of digital_rf."
-            ).format(version.base_version, self._max_version.base_version)
+            ).format(version.major, self._max_major_version)
             warnings.warn(warnstr, RuntimeWarning)
 
     def _read_properties(self):
