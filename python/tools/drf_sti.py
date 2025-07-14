@@ -360,8 +360,8 @@ class DataPlotter(object):
         for p in np.arange(self.opt.frames):
 
             start_samples = np.arange(
-                start_sample,
-                start_sample + stripe_stride * (self.opt.length - 1) + 1,
+                start_sample + (p * self.opt.length * stripe_stride),
+                start_sample + (p * self.opt.length * stripe_stride) + stripe_stride * (self.opt.length - 1) + 1,
                 stripe_stride,
                 dtype=np.int_,
             )
