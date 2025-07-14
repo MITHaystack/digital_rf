@@ -9,6 +9,7 @@
 # ----------------------------------------------------------------------------
 """Create a spectral time intensity summary plot for a data set."""
 """Multithreaded variant by dsheen to handle much larger datasets smoothly 2025/06/04"""
+"""Flag Added to use all samples in file and compute integration automatically 2025/07/14"""
 
 
 import datetime
@@ -299,6 +300,18 @@ class DataPlotter(object):
         if self.opt.verbose:
             print("start sample st0: {0}".format(st0))
             print("end sample et0: {0}".format(et0))
+
+        # set length/integration variables if automatic
+
+        if self.opt.auto_length:
+            self.opt.length = int((b[1]-b[0])/(self.opt.integration*self.opt.fft_bins))
+            if self.opt.verbose:
+                print(f'generating {self.opt.length} fft stripes')
+
+        if self.opt.auto_integrate:
+            self.opt.integration = int((b[1]-b[0])/(self.opt.length*self.opt.fft_bins))
+            if self.opt.verbose:
+                print(f'setting integration to {self.opt.integration} samples')
 
         blocks = self.opt.length * self.opt.frames
 
@@ -598,6 +611,16 @@ def parse_command_line():
         help="The number of time bins for the STI.",
     )
     parser.add_argument(
+        "-al",
+        "--auto_length",
+        dest="auto_length",
+        action="store_true",
+        default=False,
+        help="""Automatically determine length to use samples in time range 
+                as efficiently as possible. (Default: False. Requires that 
+                -b and -i are specified)""",
+    )
+    parser.add_argument(
         "-b",
         "--fft_bins",
         dest="fft_bins",
@@ -612,6 +635,16 @@ def parse_command_line():
         default=1,
         type=int,
         help="The number of rasters to integrate for each plot.",
+    )
+    parser.add_argument(
+        "-ai",
+        "--auto_integrate",
+        dest="auto_integrate",
+        action="store_true",
+        default=False,
+        help="""Automatically determine integration to use samples in time range
+                as efficiently as possible (Default: False. Requires that 
+                -l and -b are specified)""",
     )
     parser.add_argument(
         "-d",
