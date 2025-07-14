@@ -304,12 +304,12 @@ class DataPlotter(object):
         # set length/integration variables if automatic
 
         if self.opt.auto_length:
-            self.opt.length = int((b[1]-b[0])/(self.opt.integration*self.opt.fft_bins))
+            self.opt.length = int((b[1]-b[0])/(self.opt.integration*self.opt.fft_bins*self.opt.frames))
             if self.opt.verbose:
                 print(f'generating {self.opt.length} fft stripes')
 
         if self.opt.auto_integrate:
-            self.opt.integration = int((b[1]-b[0])/(self.opt.length*self.opt.fft_bins))
+            self.opt.integration = int((b[1]-b[0])/(self.opt.length*self.opt.fft_bins*self.opt.frames))
             if self.opt.verbose:
                 print(f'setting integration to {self.opt.integration} samples')
 
