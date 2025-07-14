@@ -223,7 +223,7 @@ class DataPlotter(object):
 
         sti_time = start_sample / self.sr
 
-        return sti_psd_data, freq_axis, sti_time
+        return sti_psd_data, scipy.fft.fftshift(freq_axis), sti_time
 
     def process_sti(self, start_samples):
         # multithreaded sti processing
