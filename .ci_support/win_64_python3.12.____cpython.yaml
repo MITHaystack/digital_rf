@@ -1,5 +1,5 @@
 ace:
-- 8.0.2
+- 8.0.4
 c_compiler:
 - vs2022
 c_stdlib:

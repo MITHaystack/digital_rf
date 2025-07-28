@@ -1,9 +1,9 @@
 ace:
-- 8.0.2
+- 8.0.4
 c_compiler:
 - gcc
 c_compiler_version:
-- '13'
+- '14'
 c_stdlib:
 - sysroot
 c_stdlib_version:
