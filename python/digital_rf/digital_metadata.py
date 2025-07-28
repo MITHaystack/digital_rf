@@ -354,7 +354,9 @@ class DigitalMetadataWriter(object):
                 os.makedirs(subdir)
             this_file = os.path.join(subdir, file_basename)
 
-            with h5py.File(this_file, "a") as f:
+            # use HDF5 "core" driver to hold file completely in memory until closed
+            # at which point it is flushed to disk (combine little writes)
+            with h5py.File(this_file, "a", driver="core", backing_store=True) as f:
                 for sample in sample_group:
                     try:
                         grp = f.create_group(str(sample))
