@@ -304,14 +304,19 @@ class DataPlotter(object):
         # set length/integration variables if automatic
 
         if self.opt.auto_length:
-            self.opt.length = int((b[1] - b[0]) / (self.opt.integration * self.opt.fft_bins * self.opt.frames))
+            self.opt.length = int(
+                (b[1] - b[0])
+                / (self.opt.integration * self.opt.fft_bins * self.opt.frames)
+            )
             if self.opt.verbose:
-                print(f'generating {self.opt.length} fft stripes')
+                print(f"generating {self.opt.length} fft stripes")
 
         if self.opt.auto_integrate:
-            self.opt.integration = int((b[1] - b[0]) / (self.opt.length * self.opt.fft_bins * self.opt.frames))
+            self.opt.integration = int(
+                (b[1] - b[0]) / (self.opt.length * self.opt.fft_bins * self.opt.frames)
+            )
             if self.opt.verbose:
-                print(f'setting integration to {self.opt.integration} samples')
+                print(f"setting integration to {self.opt.integration} samples")
 
         blocks = self.opt.length * self.opt.frames
 
@@ -361,7 +366,10 @@ class DataPlotter(object):
 
             start_samples = np.arange(
                 start_sample + (p * self.opt.length * stripe_stride),
-                start_sample + (p * self.opt.length * stripe_stride) + stripe_stride * (self.opt.length - 1) + 1,
+                start_sample
+                + (p * self.opt.length * stripe_stride)
+                + stripe_stride * (self.opt.length - 1)
+                + 1,
                 stripe_stride,
                 dtype=np.int_,
             )
