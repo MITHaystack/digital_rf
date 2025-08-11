@@ -46,30 +46,30 @@ jobs:
           - os: ubuntu-latest
             cibw_archs: x86_64
             cibw_build: "*"
-            cibw_skip: "pp* *musllinux*"
+            cibw_skip: "pp* *musllinux* cp314*"
           - os: ubuntu-24.04-arm
             cibw_archs: aarch64
             cibw_build: "*"
-            cibw_skip: "cp38* pp* *musllinux*"
+            cibw_skip: "cp38* pp* *musllinux* cp314*"
           - os: windows-latest
             cibw_archs: AMD64
             cibw_build: "*"
-            cibw_skip: "pp* *musllinux*"
+            cibw_skip: "pp* *musllinux* cp314*"
           - os: macos-14
             cibw_archs: arm64
             cibw_build: "*"
-            cibw_skip: "pp* *musllinux*"
+            cibw_skip: "pp* *musllinux* cp314*"
           - os: macos-13
             cibw_archs: x86_64
             cibw_build: "*"
-            cibw_skip: "pp* *musllinux*"
+            cibw_skip: "pp* *musllinux* cp314*"
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: pypa/cibuildwheel@v3.0
+      - uses: pypa/cibuildwheel@v3.1
         env:
           # limited at least by availability of h5py, which skips pypy and musl
           CIBW_ARCHS: ${{ matrix.cibw_archs }}
