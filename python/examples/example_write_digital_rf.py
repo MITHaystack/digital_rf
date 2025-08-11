@@ -11,6 +11,7 @@
 Writes continuous complex short data.
 
 """
+
 from __future__ import absolute_import, division, print_function
 
 import os
@@ -26,7 +27,9 @@ chdir = os.path.join(datadir, "junk0")
 # writing parameters
 sample_rate_numerator = int(100)  # 100 Hz sample rate - typically MUCH faster
 sample_rate_denominator = 1
-sample_rate = np.longdouble(sample_rate_numerator) / sample_rate_denominator
+sample_rate = digital_rf.util.get_samplerate_frac(
+    sample_rate_numerator, sample_rate_denominator
+)
 dtype_str = "i2"  # short int
 sub_cadence_secs = (
     4  # Number of seconds of data in a subdirectory - typically MUCH larger
@@ -50,7 +53,7 @@ for i in range(len(arr_data)):
     arr_data[i]["i"] = 3 * i
 
 # start 2014-03-09 12:30:30 plus one sample
-start_global_index = int(np.uint64(1394368230 * sample_rate)) + 1
+start_global_index = digital_rf.util.time_to_sample_ceil(1394368230, sample_rate) + 1
 
 # set up top level directory
 shutil.rmtree(chdir, ignore_errors=True)
