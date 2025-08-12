@@ -4,6 +4,33 @@ digital_rf Change Log
 
 .. current developments
 
+v2.6.13
+====================
+
+**Added:**
+
+* Added "-al" and "-ai" flags to drf_sti.py to auto estimate maximum length/integration for use when working with smaller files where it's practical to use all the data.
+* Added ``-exit`` argument to ``drf mirror`` to exit automatically when and end time has passed and no additional files have appeared. Also includes equivalent `exit_on_complete` argument to the `DigitalRFMirror` class.
+* Added ZeroMQ message passing to ``thor.py``, connected to the USRP source, to allow controlling and receiving messages from the radio externally while the script is running.
+* Added a "-P" flag to drf_sti.py to specify the number of processes to use for the calculation, allowing speedups over the default single process.
+
+**Changed:**
+
+* Use the HDF5 "core" file driver when writing Digital Metadata files, which keeps the file in memory until closed at which point it is flushed to disk. This results in a sample index group being written all at once instead of broken into multiple writes when the group and each dataset is created.
+* When checking for compatible versions, allow any version that is at most the current major version. Also, ignore version checks for development versions of the package (i.e. non-tagged git commits) so API bumps do not error in testing before the package version is bumped.
+
+**Fixed:**
+
+* Fixed a bug in drf_sti.py where multiple data frames weren't being segmented in time correctly.
+* Enable editable installs of the Python package (e.g. with ``pip install -e .`` from the top-level source directory).
+
+**Authors:**
+
+* Ryan Volz
+* Daniel Sheen
+
+
+
 v2.6.12
 ====================
 
