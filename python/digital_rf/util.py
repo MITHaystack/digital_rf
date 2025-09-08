@@ -8,7 +8,7 @@
 # ----------------------------------------------------------------------------
 """Utility functions for Digital RF and Digital Metadata."""
 
-from __future__ import absolute_import, division, print_function
+from __future__ import annotations
 
 import ast
 import datetime
@@ -17,7 +17,6 @@ import warnings
 
 import dateutil.parser
 import numpy as np
-
 import six
 
 __all__ = (
@@ -27,8 +26,8 @@ __all__ = (
     "get_samplerate_frac",
     "parse_identifier_to_sample",
     "parse_identifier_to_time",
-    "sample_to_time_floor",
     "sample_to_datetime",
+    "sample_to_time_floor",
     "samples_to_timedelta",
     "time_to_sample",
     "time_to_sample_ceil",
@@ -88,10 +87,10 @@ def time_to_sample_ceil(timedelta, sample_rate):
     Parameters
     ----------
     timedelta : (second, picosecond) tuple | np.timedelta64 | datetime.timedelta | float
-        Time span to convert to a number of samples. To represent large time spans
-        with high accuracy, pass a 2-tuple of ints containing the number of whole
-        seconds and additional picoseconds. Float values are interpreted as a
-        number of seconds.
+        Time span to convert to a number of samples, either scalar or array_like.
+        To represent large time spans with high accuracy, pass a 2-tuple containing
+        the number of whole seconds and additional picoseconds. Floating point
+        values are interpreted as a number of seconds.
 
     sample_rate : fractions.Fraction | first argument to ``get_samplerate_frac``
         Sample rate in Hz.
@@ -99,30 +98,72 @@ def time_to_sample_ceil(timedelta, sample_rate):
 
     Returns
     -------
-    nsamples : int
+    nsamples : array_like
         Number of samples in the `timedelta` time span at a rate of
         `sample_rate`, using ceiling rounding (up to the next whole sample).
 
     """
     if isinstance(timedelta, tuple):
         t_sec, t_psec = timedelta
-    elif isinstance(timedelta, np.timedelta64):
-        onesec = np.timedelta64(1, "s")
-        t_sec = timedelta // onesec
-        t_psec = (timedelta % onesec) // np.timedelta64(1, "ps")
+    elif hasattr(timedelta, "dtype"):
+        if np.issubdtype(timedelta.dtype, "timedelta64"):
+            onesec = np.timedelta64(1, "s")
+            t_sec = timedelta // onesec
+            t_psec = (timedelta % onesec) // np.timedelta64(1, "ps")
+        else:
+            # floating point seconds
+            t_sec = np.int64(timedelta)
+            t_psec = np.int64(np.round((timedelta % 1) * 1e12))
     elif isinstance(timedelta, datetime.timedelta):
         t_sec = int(timedelta.total_seconds())
         t_psec = 1000000 * timedelta.microseconds
     else:
+        # float seconds
         t_sec = int(timedelta)
         t_psec = int(np.round((timedelta % 1) * 1e12))
     # ensure that sample_rate is a fractions.Fraction
     if not isinstance(sample_rate, fractions.Fraction):
         sample_rate = get_samplerate_frac(sample_rate)
-    # calculate rational values for the second and picosecond parts
-    s_frac = t_sec * sample_rate + t_psec * sample_rate / 10**12
-    # get an integer value through ceiling rounding
-    return int(s_frac) + ((s_frac % 1) != 0)
+
+    srn = sample_rate.numerator
+    srd = sample_rate.denominator
+    # calculate with divide/modulus split to avoid overflow
+    # (divide by denominator and track remainder *before* multiplying by numerator)
+    # sample_idx = t * n / d = (sec + (psec / 1e12)) * n / d
+
+    # start with picosecond part
+    tmp_div = (t_psec // srd) * srn
+    tmp_mod = (t_psec % srd) * srn
+    tmp_div += tmp_mod // srd
+    tmp_mod = tmp_mod % srd
+    # quotient and remainder are in terms of (samples * 1e12)
+    quotient = tmp_div
+    remainder = tmp_mod  # remainder w.r.t. sample_rate_denominator
+
+    # multiply and divide second part
+    tmp_div = (t_sec // srd) * srn
+    tmp_mod = (t_sec % srd) * srn
+    tmp_div += tmp_mod // srd
+    tmp_mod = tmp_mod % srd
+    # consolidate: tmp_div + tmp_mod / d + quotient / 1e12 + remainder / 1e12 / d
+    # add second remainder to picosecond part in terms of (samples * 1e12)
+    remainder += tmp_mod * 1_000_000_000_000
+    quotient += remainder // srd
+    remainder = remainder % srd
+    # now have: tmp_div + quotient / 1e12 + remainder / 1e12 / d
+    # consolidate into single quotient and remainder
+    tmp_div += quotient // 1_000_000_000_000
+    quotient = quotient % 1_000_000_000_000
+    remainder *= quotient * srd
+    quotient = tmp_div
+    # now have: quotient + remainder / 1e12 / d
+    # update remainder to be in terms of samples using ceiling rounding
+    remainder = remainder // 1_000_000_000_000 + ((remainder % 1_000_000_000_000) != 0)
+    # now hav in terms of samples: quotient + remainder / d
+    # finally ceiling round remainder into quotient
+    quotient += remainder != 0
+
+    return quotient
 
 
 def sample_to_time_floor(nsamples, sample_rate):
@@ -137,7 +178,7 @@ def sample_to_time_floor(nsamples, sample_rate):
 
     Parameters
     ----------
-    nsamples : int
+    nsamples : array_like
         Whole number of samples to convert into a span of time.
 
     sample_rate : fractions.Fraction | first argument to ``get_samplerate_frac``
@@ -146,25 +187,36 @@ def sample_to_time_floor(nsamples, sample_rate):
 
     Returns
     -------
-    seconds : int
+    seconds : array_like
         Number of whole seconds in the time span covered by `nsamples` at a rate
         of `sample_rate`.
 
-    picoseconds : int
+    picoseconds : array_like
         Number of additional picoseconds in the time span covered by `nsamples`,
         using floor rounding (down to the previous whole number of picoseconds).
 
     """
-    nsamples = int(nsamples)
     # ensure that sample_rate is a fractions.Fraction
     if not isinstance(sample_rate, fractions.Fraction):
         sample_rate = get_samplerate_frac(sample_rate)
 
-    # get the timedelta as a Fraction
-    t_frac = nsamples / sample_rate
-
-    seconds = int(t_frac)
-    picoseconds = int((t_frac % 1) * 10**12)
+    srn = sample_rate.numerator
+    srd = sample_rate.denominator
+    # calculate with divide/modulus split to avoid overflow
+    # second = s * d // n == ((s // n) * d) + ((si % n) * d) // n
+    tmp_div = nsamples // srn
+    tmp_mod = nsamples % srn
+    seconds = tmp_div * srd
+    tmp = tmp_mod * srd
+    tmp_div = tmp // srn
+    tmp_mod = tmp % srn
+    seconds += tmp_div
+    # picoseconds calculated from remainder of division to calculate seconds
+    # picosecond = rem * 1e12 // n = rem * (1e12 // n) + (rem * (1e12 % n)) // n
+    tmp = tmp_mod
+    tmp_div = 1_000_000_000_000 // srn
+    tmp_mod = 1_000_000_000_000 % srn
+    picoseconds = (tmp * tmp_div) + ((tmp * tmp_mod) // srn)
 
     return (seconds, picoseconds)
 
@@ -210,8 +262,7 @@ def time_to_sample(time, samples_per_second, epoch=None):
         tfrac = 1e-6 * td.microseconds
         tidx = int(np.uint64(tsec * samples_per_second + tfrac * samples_per_second))
         return tidx
-    else:
-        return int(np.uint64(time * samples_per_second))
+    return int(np.uint64(time * samples_per_second))
 
 
 def sample_to_datetime(sample, sample_rate, epoch=None):
@@ -387,7 +438,7 @@ def parse_identifier_to_sample(iden, sample_rate=None, ref_index=None, epoch=Non
     is_relative = False
     if iden is None or iden == "":
         return None
-    elif isinstance(iden, six.string_types):
+    if isinstance(iden, six.string_types):
         if iden.startswith("+"):
             is_relative = True
             iden = iden.lstrip("+")
@@ -429,8 +480,7 @@ def parse_identifier_to_sample(iden, sample_rate=None, ref_index=None, epoch=Non
         if ref_index is None:
             raise ValueError('ref_index required when relative "+" identifier is used.')
         return idx + ref_index
-    else:
-        return idx
+    return idx
 
 
 def parse_identifier_to_time(iden, sample_rate=None, ref_datetime=None, epoch=None):
@@ -478,7 +528,7 @@ def parse_identifier_to_time(iden, sample_rate=None, ref_datetime=None, epoch=No
     is_relative = False
     if iden is None or iden == "":
         return None
-    elif isinstance(iden, six.string_types):
+    if isinstance(iden, six.string_types):
         if iden.startswith("+"):
             is_relative = True
             iden = iden.lstrip("+")
@@ -519,11 +569,10 @@ def parse_identifier_to_time(iden, sample_rate=None, ref_datetime=None, epoch=No
             raise ValueError(
                 'ref_datetime required when relative "+" identifier is used.'
             )
-        elif (
+        if (
             not isinstance(ref_datetime, datetime.datetime)
             or ref_datetime.tzinfo is None
         ):
             raise ValueError("ref_datetime must be a timezone-aware datetime.")
         return td + ref_datetime
-    else:
-        return td + epoch
+    return td + epoch
