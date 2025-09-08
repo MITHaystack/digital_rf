@@ -365,6 +365,26 @@ class DigitalRFMirror(object):
                     include_dmd_properties=False,
                 )
                 paths = chain(paths, more_paths)
+            elif self.include_dmd:
+                # mirror dmd files that still apply currently (most recent)
+                # do this by setting starttime to max possible (or endtime) which
+                # through forward-fill logic of DMD matching will get the last files
+                if self.endtime is not None:
+                    lasttime = self.endtime
+                else:
+                    lasttime = datetime.datetime.max.replace(
+                        tzinfo=datetime.timezone.utc
+                    )
+                more_paths = list_drf.ilsdrf(
+                    self.src,
+                    starttime=lasttime,
+                    endtime=self.endtime,
+                    include_drf=False,
+                    include_dmd=self.include_dmd,
+                    include_drf_properties=False,
+                    include_dmd_properties=False,
+                )
+                paths = chain(paths, more_paths)
 
             # add events for existing files, skipping observer and event queue
             # and dispatching directly so we can dispatch from this thread
