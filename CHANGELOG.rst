@@ -4,6 +4,19 @@ digital_rf Change Log
 
 .. current developments
 
+v2.6.14
+====================
+
+**Fixed:**
+
+* Fix ignore_existing=True when mirroring Digital Metadata files. Previously, ignore_existing=True would ignore all existing Digital Metadata files, which would skip mirroring the most recent file(s) containing metadata that still applies through forward-fill logic. This modifies the ignore_existing=True behavior to *not* ignore the latest existing Digital Metadata files.
+
+**Authors:**
+
+* Ryan Volz
+
+
+
 v2.6.13
 ====================
 
