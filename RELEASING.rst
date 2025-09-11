@@ -17,6 +17,5 @@ This will do the following:
   * Generate a list of authors since the last release
   * Update the bibtex entry for citing the new release
   * Merge and remove files in the 'news' directory to update the changelog
-  * Run the Python test suite in a Docker container
 
 From there, make a pull request to the upstream Digital RF repository and merge it if all checks pass. Create a release on the main branch with a tag equal to the version number. This will result in a tarball being added to the release and the wheel build CI running and uploading artifacts to PyPI.
