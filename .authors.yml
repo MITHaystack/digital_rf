@@ -41,5 +41,7 @@
   is_org: true
 - name: Daniel Sheen
   email: dsheen@mit.edu
+  alternate_emails:
+  - 49729918+dsheen2019@users.noreply.github.com
   num_commits: 8
   first_commit: 2025-07-14 15:01:42
