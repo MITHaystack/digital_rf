@@ -38,7 +38,7 @@ import six
 from six.moves import urllib, zip
 
 # local imports
-from . import list_drf
+from . import list_drf, util
 from ._version import __version__, __version_tuple__
 
 try:
@@ -194,6 +194,10 @@ class DigitalMetadataWriter(object):
             raise ValueError(errstr % str(sample_rate_denominator))
         self._sample_rate_denominator = int(sample_rate_denominator)
 
+        self._sample_rate = util.get_samplerate_frac(
+            sample_rate_numerator, sample_rate_denominator
+        )
+
         # have to go to uint64 before longdouble to ensure correct conversion
         # from int
         self._samples_per_second = np.longdouble(
@@ -208,6 +212,10 @@ class DigitalMetadataWriter(object):
             self._digital_metadata_version = self._writer_version.base_version
             self._fields = None  # No data written yet
             self._write_properties()
+
+    def get_sample_rate(self):
+        """Return the sample rate in Hz as a fractions.Fraction."""
+        return self._sample_rate
 
     def get_samples_per_second(self):
         """Return the sample rate in Hz as a np.longdouble."""
@@ -333,7 +341,7 @@ class DigitalMetadataWriter(object):
             Digital Metadata file and takes its name from the sample index.
 
         """
-        samples_per_file = self._file_cadence_secs * self._samples_per_second
+        samples_per_file = self._file_cadence_secs * self._sample_rate
         for file_idx, sample_group in itertools.groupby(
             samples, lambda s: np.uint64(s / samples_per_file)
         ):
@@ -472,7 +480,7 @@ class DigitalMetadataWriter(object):
         attr_list = (
             "_subdir_cadence_secs",
             "_file_cadence_secs",
-            "_samples_per_second",
+            "_sample_rate",
             "_file_name",
         )
         for attr in attr_list:
@@ -587,6 +595,9 @@ class DigitalMetadataReader(object):
                 self._samples_per_second = np.longdouble(
                     np.uint64(self._sample_rate_numerator)
                 ) / np.longdouble(np.uint64(self._sample_rate_denominator))
+            self._sample_rate = util.get_samplerate_frac(
+                self._sample_rate_numerator, self._sample_rate_denominator
+            )
             fname = f.attrs["file_name"]
             if isinstance(fname, bytes):
                 # for convenience and forward-compatibility with h5py>=2.9
@@ -713,6 +724,10 @@ class DigitalMetadataReader(object):
         """Return list of the field names in this metadata."""
         # _fields is an internal data structure, so make a copy for the user
         return copy.deepcopy(self._fields)
+
+    def get_sample_rate(self):
+        """Return the sample rate in Hz as a fractions.Fraction."""
+        return self._sample_rate
 
     def get_sample_rate_numerator(self):
         """Return the numerator of the sample rate in Hz."""
@@ -1020,9 +1035,8 @@ class DigitalMetadataReader(object):
             scheme.
 
         """
-        # need to go through numpy uint64 to prevent conversion to float
-        start_ts = int(np.uint64(np.uint64(sample0) / self._samples_per_second))
-        end_ts = int(np.uint64(np.uint64(sample1) / self._samples_per_second))
+        start_ts, picoseconds = util.sample_to_time_floor(sample0, self._sample_rate)
+        end_ts, picoseconds = util.sample_to_time_floor(sample1, self._sample_rate)
 
         # convert ts to be divisible by self._file_cadence_secs
         start_ts = (start_ts // self._file_cadence_secs) * self._file_cadence_secs
@@ -1207,7 +1221,7 @@ class DigitalMetadataReader(object):
         attr_list = (
             "_subdir_cadence_secs",
             "_file_cadence_secs",
-            "_samples_per_second",
+            "_sample_rate",
             "_file_name",
         )
         for attr in attr_list:

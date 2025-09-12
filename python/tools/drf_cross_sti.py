@@ -16,7 +16,6 @@ Create a cross spectral time intensity summary plot for the given data sets.
 
 """
 
-
 import datetime
 import itertools as it
 import optparse
@@ -71,7 +70,7 @@ class DataPlotter:
 
         elif self.control.xtype == "pairs":
             args = [iter(pl)] * 2
-            self.xlist = list(it.izip_longest(*args))
+            self.xlist = list(it.zip_longest(*args))
 
         elif self.control.xtype == "combo":
             self.xlist = list(it.combinations(pl, 2))
@@ -130,12 +129,8 @@ class DataPlotter:
                 print(("pair is : ", xidx, yidx))
 
             # sample rate
-            xsr = self.dio[xidx].get_properties(self.channel[xidx])[
-                "samples_per_second"
-            ]
-            ysr = self.dio[yidx].get_properties(self.channel[yidx])[
-                "samples_per_second"
-            ]
+            xsr = self.dio[xidx].get_properties(self.channel[xidx])["sample_rate"]
+            ysr = self.dio[yidx].get_properties(self.channel[yidx])["sample_rate"]
 
             if self.control.verbose:
                 print(("sample rate, x: ", xsr, " y: ", ysr))
@@ -157,19 +152,19 @@ class DataPlotter:
 
             if self.control.start:
                 dtst0 = dateutil.parser.parse(self.control.start)
-                st0 = (
-                    dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
-                ).total_seconds()
-                st0 = int(st0 * sr)
+                st0 = dtst0 - datetime.datetime(
+                    1970, 1, 1, tzinfo=datetime.timezone.utc
+                )
+                st0 = drf.util.time_to_sample_ceil(st0, sr)
             else:
                 st0 = int(b[0])
 
             if self.control.end:
                 dtst0 = dateutil.parser.parse(self.control.end)
-                et0 = (
-                    dtst0 - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
-                ).total_seconds()
-                et0 = int(et0 * sr)
+                et0 = dtst0 - datetime.datetime(
+                    1970, 1, 1, tzinfo=datetime.timezone.utc
+                )
+                et0 = drf.util.time_to_sample_ceil(et0, sr)
             else:
                 et0 = int(b[1])
 
@@ -231,10 +226,10 @@ class DataPlotter:
 
             for p in np.arange(0, self.control.frames * 2, 2):
                 sti_csd_data_coherence = np.zeros(
-                    [self.control.num_fft, self.control.bins], np.float
+                    [self.control.num_fft, self.control.bins], np.float64
                 )
                 sti_csd_data_phase = np.zeros(
-                    [self.control.num_fft, self.control.bins], np.float
+                    [self.control.num_fft, self.control.bins], np.float64
                 )
 
                 sti_times = np.zeros([self.control.bins], np.complex128)
@@ -388,9 +383,9 @@ class DataPlotter:
                 print("last ", start_sample)
 
             # create a time stamp
-            start_time = st0 / sr
+            start_time, picoseconds = drf.util.sample_to_time_floor(st0, sr)
             srt_time = time.gmtime(start_time)
-            sub_second = int(round((start_time - int(start_time)) * 100))
+            sub_second = int(round(picoseconds / 1e10))
 
             timestamp = "%d-%02d-%02d %02d:%02d:%02d.%02d UT" % (
                 srt_time[0],
