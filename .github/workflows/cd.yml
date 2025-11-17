@@ -69,7 +69,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pypa/cibuildwheel@v3.2
+      - uses: pypa/cibuildwheel@v3.3
         env:
           # limited at least by availability of h5py, which skips pypy and musl
           CIBW_ARCHS: ${{ matrix.cibw_archs }}
