@@ -11,13 +11,13 @@
 Assumes the example Digital Metadata write script has already been run.
 
 """
+
 from __future__ import absolute_import, division, print_function
 
 import os
 import tempfile
 
 import digital_rf
-import numpy as np
 
 metadata_dir = os.path.join(tempfile.gettempdir(), "example_metadata")
 stime = 1447082580
@@ -29,7 +29,7 @@ except IOError:
     raise
 
 print("init okay")
-start_idx = int(np.uint64(stime * dmr.get_samples_per_second()))
+start_idx = digital_rf.util.time_to_sample_ceil(stime, dmr.get_sample_rate())
 first_sample, last_sample = dmr.get_bounds()
 print("bounds are %i to %i" % (first_sample, last_sample))
 
@@ -54,6 +54,10 @@ for key in data_dict.keys():
 print("just get latest metadata")
 latest_meta = dmr.read_latest()
 print(latest_meta)
+
+print("test of get_sample_rate")
+sr = dmr.get_sample_rate()
+print(sr)
 
 print("test of get_samples_per_second")
 sps = dmr.get_samples_per_second()
