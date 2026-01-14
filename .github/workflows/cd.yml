@@ -23,14 +23,14 @@ jobs:
     name: Make SDist
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.1
         with:
           fetch-depth: 0
 
       - name: Build SDist
         run: pipx run build --sdist
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6.0.0
         with:
           name: cibw-sdist
           path: dist/*.tar.gz
@@ -41,31 +41,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-14, macos-13]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest, macos-15-intel]
         include:
           - os: ubuntu-latest
             cibw_archs: x86_64
             cibw_build: "*"
-            cibw_skip: "pp* *musllinux* cp314*"
+            cibw_skip: "pp* *musllinux* cp314t*"
           - os: ubuntu-24.04-arm
             cibw_archs: aarch64
             cibw_build: "*"
-            cibw_skip: "cp38* pp* *musllinux* cp314*"
+            cibw_skip: "cp38* pp* *musllinux* cp314t*"
           - os: windows-latest
             cibw_archs: AMD64
             cibw_build: "*"
-            cibw_skip: "pp* *musllinux* cp314*"
-          - os: macos-14
+            cibw_skip: "pp* *musllinux* cp314t*"
+          - os: macos-latest
             cibw_archs: arm64
             cibw_build: "*"
-            cibw_skip: "pp* *musllinux* cp314*"
-          - os: macos-13
+            cibw_skip: "pp* *musllinux* cp314t*"
+          - os: macos-15-intel
             cibw_archs: x86_64
             cibw_build: "*"
-            cibw_skip: "pp* *musllinux* cp314*"
+            cibw_skip: "pp* *musllinux* cp314t*"
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6.0.1
         with:
           fetch-depth: 0
 
@@ -77,7 +77,7 @@ jobs:
           CIBW_SKIP: ${{ matrix.cibw_skip }}
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: wheelhouse/*.whl
@@ -93,14 +93,14 @@ jobs:
     if: github.event_name == 'release' && github.event.action == 'published'
 
     steps:
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v7
         with:
           pattern: cibw-*
           path: dist
           merge-multiple: true
 
       - name: Generate artifact attestations
-        uses: actions/attest-build-provenance@v3.0.0
+        uses: actions/attest-build-provenance@v3.1.0
         with:
           subject-path: "dist/*"
 

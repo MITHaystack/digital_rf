@@ -3,7 +3,7 @@ MACOSX_DEPLOYMENT_TARGET:
 MACOSX_SDK_VERSION:
 - '10.13'
 ace:
-- 8.0.4
+- 8.0.5
 c_compiler:
 - clang
 c_compiler_version:
@@ -29,6 +29,6 @@ pin_run_as_build:
     min_pin: x.x
     max_pin: x.x
 python:
-- 3.12.* *_cpython
+- 3.13.* *_cp313
 target_platform:
 - osx-64

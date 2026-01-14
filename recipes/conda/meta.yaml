@@ -17,7 +17,7 @@ source:
 
 build:
   number: 0
-  skip: true  # [os.environ.get("RENDER_LIMIT_PYTHON") and py != 312]
+  skip: true  # [os.environ.get("RENDER_LIMIT_PYTHON") and py != 313]
   run_exports:
     - {{ pin_subpackage('digital_rf') }}
   entry_points:

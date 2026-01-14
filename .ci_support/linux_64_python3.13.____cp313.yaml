@@ -1,13 +1,19 @@
 ace:
-- 8.0.4
+- 8.0.5
 c_compiler:
-- vs2022
+- gcc
+c_compiler_version:
+- '14'
 c_stdlib:
-- vs
+- sysroot
+c_stdlib_version:
+- '2.17'
 channel_sources:
 - conda-forge
 channel_targets:
 - ryanvolz main
+docker_image:
+- quay.io/condaforge/linux-anvil-x86_64:alma9
 gnuradio_core:
 - 3.10.12
 hdf5:
@@ -19,6 +25,6 @@ pin_run_as_build:
     min_pin: x.x
     max_pin: x.x
 python:
-- 3.12.* *_cpython
+- 3.13.* *_cp313
 target_platform:
-- win-64
+- linux-64

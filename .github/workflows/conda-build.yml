@@ -23,37 +23,37 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - CONFIG: linux_64_python3.12.____cpython
-            SHORT_CONFIG: linux_64_python3.12.____cpython
+          - CONFIG: linux_64_python3.13.____cp313
+            SHORT_CONFIG: linux_64_python3.13.____cp313
             UPLOAD_PACKAGES: True
             os: ubuntu
             runs_on: ['ubuntu-latest']
             DOCKER_IMAGE: quay.io/condaforge/linux-anvil-x86_64:alma9
-          - CONFIG: linux_aarch64_python3.12.____cpython
-            SHORT_CONFIG: linux_aarch64_python3.12.____cpython
+          - CONFIG: linux_aarch64_python3.13.____cp313
+            SHORT_CONFIG: linux_aarch64_python3.13.____cp313
             UPLOAD_PACKAGES: True
             os: ubuntu
             runs_on: ['ubuntu-latest']
             DOCKER_IMAGE: quay.io/condaforge/linux-anvil-x86_64:alma9
-          - CONFIG: osx_64_python3.12.____cpython
-            SHORT_CONFIG: osx_64_python3.12.____cpython
+          - CONFIG: osx_64_python3.13.____cp313
+            SHORT_CONFIG: osx_64_python3.13.____cp313
             UPLOAD_PACKAGES: True
             os: macos
-            runs_on: ['macos-13']
-          - CONFIG: osx_arm64_python3.12.____cpython
-            SHORT_CONFIG: osx_arm64_python3.12.____cpython
+            runs_on: ['macos-15-intel']
+          - CONFIG: osx_arm64_python3.13.____cp313
+            SHORT_CONFIG: osx_arm64_python3.13.____cp313
             UPLOAD_PACKAGES: True
             os: macos
-            runs_on: ['macos-13']
-          - CONFIG: win_64_python3.12.____cpython
-            SHORT_CONFIG: win_64_python3.12.____cpython
+            runs_on: ['macos-15-intel']
+          - CONFIG: win_64_python3.13.____cp313
+            SHORT_CONFIG: win_64_python3.13.____cp313
             UPLOAD_PACKAGES: True
             os: windows
             runs_on: ['windows-latest']
     steps:
 
     - name: Checkout code
-      uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v4.1.4
+      uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       with:
         fetch-depth: 0
 
@@ -194,7 +194,7 @@ jobs:
         fi
 
     - name: Store conda build artifacts
-      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       if: ${{ always() && steps.prepare-artifacts.outcome == 'success' }}
       with:
         name: ${{ steps.prepare-artifacts.outputs.BLD_ARTIFACT_NAME }}
@@ -203,7 +203,7 @@ jobs:
       continue-on-error: true
 
     - name: Store conda build environment artifacts
-      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       # only relevant if build failed, see above
       if: ${{ always() && steps.determine-status.outputs.status == 'failure' && steps.prepare-artifacts.outcome == 'success' }}
       with:
