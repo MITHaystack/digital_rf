@@ -46,23 +46,23 @@ jobs:
           - os: ubuntu-latest
             cibw_archs: x86_64
             cibw_build: "*"
-            cibw_skip: "pp* *musllinux*"
+            cibw_skip: "pp* *musllinux* cp314t*"
           - os: ubuntu-24.04-arm
             cibw_archs: aarch64
             cibw_build: "*"
-            cibw_skip: "cp38* pp* *musllinux*"
+            cibw_skip: "cp38* pp* *musllinux* cp314t*"
           - os: windows-latest
             cibw_archs: AMD64
             cibw_build: "*"
-            cibw_skip: "pp* *musllinux*"
+            cibw_skip: "pp* *musllinux* cp314t*"
           - os: macos-latest
             cibw_archs: arm64
             cibw_build: "*"
-            cibw_skip: "pp* *musllinux*"
+            cibw_skip: "pp* *musllinux* cp314t*"
           - os: macos-15-intel
             cibw_archs: x86_64
             cibw_build: "*"
-            cibw_skip: "pp* *musllinux*"
+            cibw_skip: "pp* *musllinux* cp314t*"
 
     steps:
       - uses: actions/checkout@v6.0.1
