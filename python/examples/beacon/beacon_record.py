@@ -13,6 +13,7 @@ Satellite and recording parameters are specified in .ini configuration files.
 Example configurations are included along with this script.
 
 """
+
 from __future__ import absolute_import, division, print_function
 
 import datetime
@@ -29,7 +30,6 @@ import dateutil.parser
 import ephem
 import numpy as np
 from digital_rf import DigitalMetadataWriter
-
 from six.moves import configparser
 
 
@@ -580,7 +580,7 @@ def ephemeris_passes(opt, st0, et0):
 
                 if opt.el_mask:
                     el_val = np.rad2deg(el)
-                    el_mask = np.float(opt.el_mask)
+                    el_mask = np.float64(opt.el_mask)
 
                     if opt.debug:
                         print("# el_val ", el_val, " el_mask ", el_mask)

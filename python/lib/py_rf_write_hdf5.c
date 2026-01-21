@@ -544,6 +544,111 @@ static PyObject * _py_rf_write_hdf5_get_unix_time(PyObject * self, PyObject * ar
 }
 
 
+static PyObject * _py_rf_write_hdf5_get_timestamp_floor(PyObject * self, PyObject * args)
+/* _py_rf_write_hdf5_get_timestamp_floor converts a sample index into the nearest
+ *  earlier timestamp (flooring) divided into second and picosecond parts, using
+ *  the sample rate expressed as a rational fraction.
+ *
+ *  Flooring is used so that sample falls in the window of time represented by
+ *  the returned timestamp, which includes that time up until the next possible
+ *  timestamp: second + [picosecond, picosecond + 1).
+ *
+ * Inputs: python list with
+ * 	1. unix_sample_index - python int representing number of samples at given sample rate since UT midnight 1970-01-01
+ * 	2. sample_rate_numerator - python int sample rate numerator in Hz
+ * 	3. sample_rate_denominator - python int sample rate denominator in Hz
+ *
+ *  Returns tuple with (second,picosecond) if success, NULL pointer if not
+ */
+{
+	// input arguments
+	uint64_t unix_sample_index = 0;
+	uint64_t sample_rate_numerator = 0;
+	uint64_t sample_rate_denominator = 0;
+
+	// local variables
+	PyObject *retObj;
+	uint64_t second;
+	uint64_t picosecond;
+	int result;
+
+	// parse input arguments
+	if (!PyArg_ParseTuple(args, "KKK",
+			  &unix_sample_index,
+			  &sample_rate_numerator,
+			  &sample_rate_denominator))
+	{
+		return NULL;
+	}
+
+	// call underlying method
+	result = digital_rf_get_timestamp_floor(
+		unix_sample_index, sample_rate_numerator, sample_rate_denominator,
+		&second, &picosecond);
+	if (result != 0)
+		return(NULL);
+
+	// create needed object
+	retObj = Py_BuildValue("KK", second, picosecond);
+
+    //return tuple;
+    return(retObj);
+
+}
+
+
+static PyObject * _py_rf_write_hdf5_get_sample_ceil(PyObject * self, PyObject * args)
+/* _py_rf_write_hdf5_get_sample_ceil converts a timestamp (divided into second
+ *  and picosecond parts) into the next nearest sample (ceil), using the sample
+ *  rate expressed as a rational fraction.
+ *
+ *  Ceiling is used to complement the flooring in get_timestamp_floor, so that
+ *  get_sample_ceil(get_timestamp_floor(sample_index)) == sample_index.
+ *
+ * Inputs: python list with
+ * 	1. second - python int giving the whole seconds part of the timestamp
+ *  2. picosecond - python int giving the picoseconds part of the timestamp
+ * 	2. sample_rate_numerator - python int sample rate numerator in Hz
+ * 	3. sample_rate_denominator - python int sample rate denominator in Hz
+ *
+ *  Returns an integer sample index if success, NULL pointer if not
+ */
+{
+	// input arguments
+	uint64_t second = 0;
+	uint64_t picosecond = 0;
+	uint64_t sample_rate_numerator = 0;
+	uint64_t sample_rate_denominator = 0;
+
+	// local variables
+	PyObject *retObj;
+	uint64_t sample_index;
+	int result;
+
+	// parse input arguments
+	if (!PyArg_ParseTuple(args, "KKKK",
+			  &second,
+			  &picosecond,
+			  &sample_rate_numerator,
+			  &sample_rate_denominator))
+	{
+		return NULL;
+	}
+
+	// call underlying method
+	result = digital_rf_get_sample_ceil(
+		second, picosecond, sample_rate_numerator, sample_rate_denominator,
+		&sample_index);
+	if (result != 0)
+		return(NULL);
+
+	// create needed object
+	retObj = Py_BuildValue("K", sample_index);
+    return(retObj);
+
+}
+
+
 
 /********** Initialization code for module ******************************/
 
@@ -556,6 +661,8 @@ static PyMethodDef _py_rf_write_hdf5Methods[] =
 	  {"get_last_dir_written",         _py_rf_write_hdf5_get_last_dir_written,  METH_VARARGS},
 	  {"get_last_utc_timestamp",       _py_rf_write_hdf5_get_last_utc_timestamp,METH_VARARGS},
 	  {"get_unix_time",           	   _py_rf_write_hdf5_get_unix_time,     	METH_VARARGS},
+	  {"get_timestamp_floor",          _py_rf_write_hdf5_get_timestamp_floor,     	METH_VARARGS},
+	  {"get_sample_ceil",         	   _py_rf_write_hdf5_get_sample_ceil,     	METH_VARARGS},
 	  {"get_version",                  _py_rf_write_hdf5_get_version,           METH_NOARGS},
       {NULL,      NULL}        /* Sentinel */
 };

@@ -16,6 +16,7 @@ Coded continuous wave meteor radar, Atmos. Meas. Tech., 9, 829-839,
 doi:10.5194/amt-9-829-2016, 2016.
 
 """
+
 from __future__ import absolute_import, division, print_function
 
 import datetime
@@ -224,7 +225,7 @@ if __name__ == "__main__":
             os.remove(f)
 
     d = drf.DigitalRFReader(op.datadir)
-    sr = d.get_properties(op.ch)["samples_per_second"]
+    sr = d.get_properties(op.ch)["sample_rate"]
     b = d.get_bounds(op.ch)
     idx = np.array(b[0])
     if os.path.isfile(datpath):

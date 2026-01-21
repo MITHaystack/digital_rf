@@ -20,7 +20,6 @@ from __future__ import absolute_import, division, print_function
 
 import collections
 import datetime
-import fractions
 import glob
 import os
 import re
@@ -34,7 +33,7 @@ import packaging.version
 import six
 
 # local imports
-from . import _py_rf_write_hdf5, digital_metadata, list_drf
+from . import _py_rf_write_hdf5, digital_metadata, list_drf, util
 from ._version import __version__, __version_tuple__
 
 __all__ = (
@@ -969,11 +968,11 @@ class DigitalRFReader(object):
         # first get the names of all possible files with data
         subdir_cadence_secs = file_properties["subdir_cadence_secs"]
         file_cadence_millisecs = file_properties["file_cadence_millisecs"]
-        samples_per_second = file_properties["samples_per_second"]
+        sample_rate = file_properties["sample_rate"]
         filepaths = self._get_file_list(
             start_sample,
             end_sample,
-            samples_per_second,
+            sample_rate,
             subdir_cadence_secs,
             file_cadence_millisecs,
         )
@@ -1080,7 +1079,7 @@ class DigitalRFReader(object):
             num_subchannels : int
             sample_rate_numerator : int
             sample_rate_denominator : int
-            samples_per_second : np.longdouble
+            samples_per_second : np.longdouble (don't rely on this!)
             subdir_cadence_secs : int
 
         The additional properties particular to each file are:
@@ -1102,12 +1101,12 @@ class DigitalRFReader(object):
 
         subdir_cadence_secs = global_properties["subdir_cadence_secs"]
         file_cadence_millisecs = global_properties["file_cadence_millisecs"]
-        samples_per_second = global_properties["samples_per_second"]
+        sample_rate = global_properties["sample_rate"]
 
         file_list = self._get_file_list(
             sample,
             sample,
-            samples_per_second,
+            sample_rate,
             subdir_cadence_secs,
             file_cadence_millisecs,
         )
@@ -1229,15 +1228,17 @@ class DigitalRFReader(object):
         For convenience, some pertinent metadata inherent to the Digital RF
         channel is added to the Digital Metadata, including:
 
+            sample_rate : fractions.Fraction
             sample_rate_numerator : int
             sample_rate_denominator : int
-            samples_per_second : np.longdouble
+            samples_per_second : np.longdouble (don't rely on this!)
 
         """
         properties = self.get_properties(channel_name)
         added_metadata = {
             key: properties[key]
             for key in (
+                "sample_rate",
                 "sample_rate_numerator",
                 "sample_rate_denominator",
                 "samples_per_second",
@@ -1301,11 +1302,11 @@ class DigitalRFReader(object):
         file_properties = self.get_properties(channel_name)
         subdir_cadence_secs = file_properties["subdir_cadence_secs"]
         file_cadence_millisecs = file_properties["file_cadence_millisecs"]
-        samples_per_second = file_properties["samples_per_second"]
+        sample_rate = file_properties["sample_rate"]
         filepaths = self._get_file_list(
             start_sample,
             end_sample,
-            samples_per_second,
+            sample_rate,
             subdir_cadence_secs,
             file_cadence_millisecs,
         )
@@ -1345,11 +1346,11 @@ class DigitalRFReader(object):
         file_properties = self.get_properties(channel_name)
         subdir_cadence_seconds = file_properties["subdir_cadence_secs"]
         file_cadence_millisecs = file_properties["file_cadence_millisecs"]
-        samples_per_second = file_properties["samples_per_second"]
+        sample_rate = file_properties["sample_rate"]
         file_list = self._get_file_list(
             last_sample - 1,
             last_sample,
-            samples_per_second,
+            sample_rate,
             subdir_cadence_seconds,
             file_cadence_millisecs,
         )
@@ -1602,7 +1603,7 @@ class DigitalRFReader(object):
     def _get_file_list(
         sample0,
         sample1,
-        samples_per_second,
+        sample_rate,
         subdir_cadence_seconds,
         file_cadence_millisecs,
     ):
@@ -1622,8 +1623,8 @@ class DigitalRFReader(object):
             Sample index for end of read (inclusive), given in the number of
             samples since the epoch (time_since_epoch*sample_rate).
 
-        samples_per_second : np.longdouble
-            Sample rate.
+        sample_rate : fractions.Fraction | first argument to ``util.get_samplerate_frac``
+            Sample rate in Hz.
 
         subdir_cadence_secs : int
             Number of seconds of data found in one subdir. For example, 3600
@@ -1644,13 +1645,10 @@ class DigitalRFReader(object):
         if (sample1 - sample0) > 1e12:
             warnstr = "Requested read size, %i samples, is very large"
             warnings.warn(warnstr % (sample1 - sample0), RuntimeWarning)
-        sample0 = int(sample0)
-        sample1 = int(sample1)
-        # need to go through numpy uint64 to prevent conversion to float
-        start_ts = int(np.uint64(np.uint64(sample0) / samples_per_second))
-        end_ts = int(np.uint64(np.uint64(sample1) / samples_per_second)) + 1
-        start_msts = int(np.uint64(np.uint64(sample0) / samples_per_second * 1000))
-        end_msts = int(np.uint64(np.uint64(sample1) / samples_per_second * 1000))
+        start_ts, picoseconds = util.sample_to_time_floor(sample0, sample_rate)
+        start_msts = start_ts * 1000 + picoseconds // 1000000000
+        end_ts, picoseconds = util.sample_to_time_floor(sample1, sample_rate)
+        end_msts = end_ts * 1000 + picoseconds // 1000000000
 
         # get subdirectory start and end ts
         start_sub_ts = int(
@@ -1811,8 +1809,9 @@ class _channel_properties(object):
         """Create a new _channel_properties object.
 
         This populates `self.properties`, which is a dictionary of
-        attributes found in the HDF5 files (eg, samples_per_second). It also
-        sets the attribute `max_samples_per_file`.
+        attributes found in the HDF5 files (e.g. sample_rate_numerator /
+        sample_rate_denominator). It also sets the attribute
+        `max_samples_per_file`.
 
 
         Parameters
@@ -1830,10 +1829,11 @@ class _channel_properties(object):
         self.top_level_dir_meta_list = top_level_dir_meta_list
         self.properties = self._read_properties()
         file_cadence_millisecs = self.properties["file_cadence_millisecs"]
-        samples_per_second = self.properties["samples_per_second"]
-        self.max_samples_per_file = int(
-            np.uint64(np.ceil(file_cadence_millisecs * samples_per_second / 1000))
-        )
+        sample_rate_numerator = self.properties["sample_rate_numerator"]
+        sample_rate_denominator = self.properties["sample_rate_denominator"]
+        num = file_cadence_millisecs * sample_rate_numerator
+        den = 1000 * sample_rate_denominator
+        self.max_samples_per_file = num // den + (num % den != 0)
 
     def _read_properties(self):
         """Get a dict of the properties stored in the drf_properties.h5 file.
@@ -1981,13 +1981,15 @@ class _top_level_dir_properties(object):
             # if no sample_rate_numerator/sample_rate_denominator, then we must
             # have an older version with samples_per_second as uint64
             sps = ret_dict["samples_per_second"]
-            spsfrac = fractions.Fraction(sps).limit_denominator()
+            spsfrac = util.get_samplerate_frac(sps)
             ret_dict["samples_per_second"] = np.longdouble(sps)
             ret_dict["sample_rate_numerator"] = spsfrac.numerator
             ret_dict["sample_rate_denominator"] = spsfrac.denominator
+            ret_dict["sample_rate"] = spsfrac
         else:
             sps = np.longdouble(np.uint64(srn)) / np.longdouble(np.uint64(srd))
             ret_dict["samples_per_second"] = sps
+            ret_dict["sample_rate"] = util.get_samplerate_frac(srn, srd)
 
         # success
         return ret_dict
