@@ -7,6 +7,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Module defining raster (periodic window) tools for GNU Radio."""
+
 from __future__ import absolute_import, division, print_function
 
 import numpy as np

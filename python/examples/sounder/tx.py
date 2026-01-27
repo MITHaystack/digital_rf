@@ -8,6 +8,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Transmit waveforms with synchronized USRPs."""
+
 from __future__ import absolute_import, division, print_function
 
 import math
@@ -303,9 +304,7 @@ class Tx(object):
             op.mboard_strs.append(s)
 
         if op.verbose:
-            opstr = (
-                dedent(
-                    """\
+            opstr = dedent("""\
                 Main boards: {mboard_strs}
                 Subdevices: {subdevs}
                 Frequency: {centerfreqs}
@@ -323,11 +322,7 @@ class Tx(object):
                 Stream arguments: {stream_args}
                 Tune arguments: {tune_args}
                 Sample rate: {samplerate}
-            """
-                )
-                .strip()
-                .format(**op.__dict__)
-            )
+            """).strip().format(**op.__dict__)
             print(opstr)
 
         # check that subdevice specifications are unique per-mainboard
@@ -752,12 +747,10 @@ if __name__ == "__main__":
         break_on_hyphens=False,
         subsequent_indent=" " * (len(scriptname) + 1),
     )
-    egs = [
-        """\
+    egs = ["""\
         {0} -m 192.168.10.2 -d "A:0" -f 440e6 -F 12.5e6 -G 0.25 -g 0 -r 1e6
         code.bin
-        """
-    ]
+        """]
     egs = [" \\\n".join(egtw.wrap(dedent(s.format(scriptname)))) for s in egs]
     epi = "\n" + "\n\n".join(epi_pars + egs) + "\n"
 

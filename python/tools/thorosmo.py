@@ -8,6 +8,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Record data from SDRs using osmo pakcage to Digital RF format."""
+
 from __future__ import absolute_import, division, print_function
 
 import argparse
@@ -392,9 +393,7 @@ class Thorosmo(object):
             op.mboard_strs.append(s)
 
         if op.verbose:
-            opstr = (
-                dedent(
-                    """\
+            opstr = dedent("""\
                 Radio Type: {radtype}
                 Main boards: {mboard_strs}
                 Subdevices: {subdevs}
@@ -424,11 +423,7 @@ class Thorosmo(object):
                 Data dir: {datadir}
                 Metadata: {metadata}
                 UUID: {uuid}
-            """
-                )
-                .strip()
-                .format(**op.__dict__)
-            )
+            """).strip().format(**op.__dict__)
             print(opstr)
 
         return op

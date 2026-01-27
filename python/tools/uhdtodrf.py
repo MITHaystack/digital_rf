@@ -404,9 +404,7 @@ class Recorder(object):
             op.mboard_strs.append(s)
 
         if op.verbose:
-            opstr = (
-                dedent(
-                    """\
+            opstr = dedent("""\
                 Main boards: {mboard_strs}
                 Subdevices: {subdevs}
                 Clock rates: {clock_rates}
@@ -435,11 +433,7 @@ class Recorder(object):
                 Data dir: {datadir}
                 Metadata: {metadata}
                 UUID: {uuid}
-            """
-                )
-                .strip()
-                .format(**op.__dict__)
-            )
+            """).strip().format(**op.__dict__)
             print(opstr)
 
         return op

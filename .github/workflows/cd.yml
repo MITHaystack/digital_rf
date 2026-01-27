@@ -23,7 +23,7 @@ jobs:
     name: Make SDist
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.1
+      - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
 
@@ -65,7 +65,7 @@ jobs:
             cibw_skip: "pp* *musllinux* cp314t*"
 
     steps:
-      - uses: actions/checkout@v6.0.1
+      - uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
 
@@ -100,7 +100,7 @@ jobs:
           merge-multiple: true
 
       - name: Generate artifact attestations
-        uses: actions/attest-build-provenance@v3.1.0
+        uses: actions/attest-build-provenance@v3.2.0
         with:
           subject-path: "dist/*"
 

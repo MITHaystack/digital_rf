@@ -8,6 +8,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Record data from synchronized USRPs in Digital RF format."""
+
 from __future__ import absolute_import, division, print_function
 
 import argparse
@@ -430,9 +431,7 @@ class Thor(object):
         )
 
         if op.verbose:
-            opstr = (
-                dedent(
-                    """\
+            opstr = dedent("""\
                 Main boards: {mboard_str}
                 Subdevices: {subdevs}
                 Clock rates: {clock_rates}
@@ -464,11 +463,7 @@ class Thor(object):
                 Enable Message Passing: {message_interface}
                 Message RX Port: {zmq_sub_port},
                 Message TX Port: {zmq_pub_port},
-            """
-                )
-                .strip()
-                .format(**op.__dict__)
-            )
+            """).strip().format(**op.__dict__)
             print(opstr)
 
         return op

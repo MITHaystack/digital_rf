@@ -16,7 +16,6 @@ Create a cross spectral time intensity summary plot for the given data sets.
 
 """
 
-
 import datetime
 import itertools as it
 import optparse
@@ -554,7 +553,7 @@ def parse_command_line():
         help="Print status messages to stdout.",
     )
 
-    (options, args) = parser.parse_args()
+    options, args = parser.parse_args()
 
     return (options, args)
 
@@ -570,7 +569,7 @@ def parse_command_line():
 """
 
 # Parse the Command Line for configuration
-(options, args) = parse_command_line()
+options, args = parse_command_line()
 
 if options.path is None:
     print("Please provide an input source with the -p option!")

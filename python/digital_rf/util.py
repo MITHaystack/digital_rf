@@ -7,6 +7,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Utility functions for Digital RF and Digital Metadata."""
+
 from __future__ import absolute_import, division, print_function
 
 import ast

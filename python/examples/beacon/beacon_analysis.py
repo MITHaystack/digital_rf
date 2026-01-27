@@ -15,6 +15,7 @@ jitter code from Juha Vierinen.
 
 
 """
+
 from __future__ import absolute_import, division, print_function
 
 import argparse
@@ -36,7 +37,6 @@ import scipy.constants as s_const
 import scipy.fftpack as scfft
 import scipy.signal as sig
 from mpl_toolkits.basemap import Basemap
-
 
 TLE_def = (
     "CASSIOPE",
