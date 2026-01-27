@@ -11,6 +11,7 @@
 Assumes the example Digital Metadata write script has already been run.
 
 """
+
 from __future__ import absolute_import, division, print_function
 
 import os

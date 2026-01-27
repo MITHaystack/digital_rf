@@ -13,6 +13,7 @@ Satellite and recording parameters are specified in .ini configuration files.
 Example configurations are included along with this script.
 
 """
+
 from __future__ import absolute_import, division, print_function
 
 import datetime
@@ -224,14 +225,14 @@ def max_satellite_bandwidth(
         None
     """
     maxBandwidth = 0
-    (satRise, satTransit, satSet) = satellite_rise_and_set(
+    satRise, satTransit, satSet = satellite_rise_and_set(
         opt, obsLat, obsLong, obsElev, objName, tle1, tle2, startDate
     )
     if satRise == satTransit == satSet:
         return 0
 
     while satRise < endDate:
-        (objBandwidth, shiftedFrequencies) = satellite_bandwidth(
+        objBandwidth, shiftedFrequencies = satellite_bandwidth(
             opt,
             obsLat,
             obsLong,
@@ -246,7 +247,7 @@ def max_satellite_bandwidth(
         )
         if objBandwidth > maxBandwidth:
             maxBandwidth = objBandwidth
-        (satRise, satTransit, satSet) = satellite_rise_and_set(
+        satRise, satTransit, satSet = satellite_rise_and_set(
             opt,
             obsLat,
             obsLong,
@@ -324,7 +325,7 @@ def satellite_bandwidth(
             ) = satellite_values_at_time(
                 opt, obsLat, obsLong, obsElev, objName, tle1, tle2, currTime
             )
-            (dopplerFreq) = doppler_shift(beaconFreq, range_velocity)
+            dopplerFreq = doppler_shift(beaconFreq, range_velocity)
             dopplerFrequencies.append(dopplerFreq)
             dopplerBandwidth.append(dopplerFreq - beaconFreq)
             currTime = currTime + ephem.second * interval
@@ -433,7 +434,7 @@ def get_next_object(opt, site, objects, ctime):
         c_dtime = datetime.datetime.fromtimestamp(ctime, tz=datetime.timezone.utc)
         c_ephem_time = ephem.Date(c_dtime)
 
-        (sat_rise, sat_transit, sat_set) = satellite_rise_and_set(
+        sat_rise, sat_transit, sat_set = satellite_rise_and_set(
             opt, obs_lat, obs_long, obs_elev, obj_name, obj_tle1, obj_tle2, c_ephem_time
         )
 
@@ -520,7 +521,7 @@ def ephemeris_passes(opt, st0, et0):
         c_ephem_time = ephem.Date(c_dtime)
 
         try:
-            (sat_rise, sat_transit, sat_set) = satellite_rise_and_set(
+            sat_rise, sat_transit, sat_set = satellite_rise_and_set(
                 opt,
                 obs_lat,
                 obs_long,
@@ -555,7 +556,7 @@ def ephemeris_passes(opt, st0, et0):
                     obj_tle2,
                     sat_transit,
                 )
-                (obj_bandwidth, obj_doppler) = satellite_bandwidth(
+                obj_bandwidth, obj_doppler = satellite_bandwidth(
                     opt,
                     obs_lat,
                     obs_long,
@@ -986,7 +987,7 @@ def parse_command_line():
         help="Radio site configuration file.",
     )
 
-    (options, args) = parser.parse_args()
+    options, args = parser.parse_args()
 
     return (options, args)
 

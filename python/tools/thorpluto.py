@@ -8,6 +8,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Record data from the ADALM Pluto using GNURadio to Digital RF format."""
+
 from __future__ import absolute_import, division, print_function
 
 import argparse
@@ -364,9 +365,7 @@ class Thorpluto(object):
             op.mboard_strs.append(s)
 
         if op.verbose:
-            opstr = (
-                dedent(
-                    """\
+            opstr = dedent("""\
                 Main boards: {mboard_strs}
                 Clock rates: {clock_rates}
                 Clock sources: {clock_sources}
@@ -389,11 +388,7 @@ class Thorpluto(object):
                 Data dir: {datadir}
                 Metadata: {metadata}
                 UUID: {uuid}
-            """
-                )
-                .strip()
-                .format(**op.__dict__)
-            )
+            """).strip().format(**op.__dict__)
             print(opstr)
 
         return op

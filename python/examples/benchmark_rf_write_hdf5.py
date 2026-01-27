@@ -7,6 +7,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Benchmark I/O of Digital RF write in different configurations."""
+
 from __future__ import absolute_import, division, print_function
 
 import os

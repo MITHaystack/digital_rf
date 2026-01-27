@@ -8,6 +8,7 @@
 # The full license is in the LICENSE file, distributed with this software.
 # ----------------------------------------------------------------------------
 """Create a spectral time intensity summary plot for a data set."""
+
 """Multithreaded variant by dsheen to handle much larger datasets smoothly 2025/06/04"""
 """Flag Added to use all samples in file and compute integration automatically 2025/07/14"""
 

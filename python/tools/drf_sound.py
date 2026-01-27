@@ -15,6 +15,7 @@ Create sound output for a set of digital_rf data. The user can either output
 directly to sounddevice or through a wave file save out.
 
 """
+
 from __future__ import absolute_import, division, print_function
 
 import datetime
@@ -260,7 +261,7 @@ def parse_command_line(str_input=None):
         help="Number of blocks the file will be broken into.",
     )
 
-    (options, args) = parser.parse_args()
+    options, args = parser.parse_args()
 
     return (options, args)
 
@@ -277,7 +278,7 @@ if __name__ == "__main__":
 
 
 # Parse the Command Line for configuration
-(options, args) = parse_command_line()
+options, args = parse_command_line()
 
 if options.path == None:
     print("Please provide an input source with the -p option!")
