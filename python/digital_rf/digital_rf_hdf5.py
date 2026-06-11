@@ -1492,7 +1492,12 @@ class DigitalRFReader(object):
 
         key, z = data_dict.popitem()
         # always return 1-D if possible
-        z = z.squeeze()
+        if all([d == 1 for d in z.shape]):
+            # if z contains only one sample, then z.squeeze() returns a scalar
+            # which makes len(z) error, hence:
+            z = z.flatten()
+        else:
+            z = z.squeeze()
 
         if len(z) != vector_length:
             errstr = "Requested %i samples, but got %i"
